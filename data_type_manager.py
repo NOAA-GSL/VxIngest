@@ -46,7 +46,7 @@ import queue
 
 from couchbase.cluster import Cluster, ClusterOptions
 from couchbase_core.cluster import PasswordAuthenticator
-
+from couchbase.bucket import Bucket
 import data_type_builder as DTB
 
 
@@ -86,15 +86,34 @@ class DataTypeManager(Process):
             logging.info('data_type_manager - Connecting to couchbase')
             # get a reference to our cluster
             # derive the path to the public certificate for the host
-            # NOTE this assumes that the public cert for the database host (which is probably a cluster)
-            # has previously been put in /certs/hostname/hostname.pem
-            cluster = Cluster('couchbases://' + self.connection_credentials['db_host'], ClusterOptions(
-                PasswordAuthenticator(self.connection_credentials['db_user'],
-                                      self.connection_credentials['db_password'],
-                                      cert_path="/certs/adb-cb4.gsd.esrl.noaa.gov/adb-cb4.gsd.esrl.noaa.gov.pem")))
-            self.database_name = self.connection_credentials['db_name']
-            collection = cluster.bucket("mdata").default_collection()
+            # see ...
+            # https://docs.couchbase.com/server/current/manage/manage-security/configure-server-certificates.html#root-and-node-certificates
+            # and
+            # https://docs.couchbase.com/server/current/manage/manage-security/configure-client-certificates.html#client-certificate-authorized-by-a-root-certificate
 
+            # this works but is not secure...
+            connstr = 'couchbases://adb-cb4.gsd.esrl.noaa.gov/{}?certpath=/Users/randy.pierce/PycharmProjects/VXingest/cluster.crt'
+            credentials = dict(username=self.connection_credentials['db_user'],
+                               password=self.connection_credentials['db_password'])
+
+            cb = Bucket(connstr.format('mdata'), **credentials)
+            collection = cb.default_collection()
+
+            # this works to local server - but not to adb-cb4
+            # connstr = 'couchbases://127.0.0.1/{}?certpath=/Users/randy.pierce/servercertfiles/ca.pem'
+            # credentials = dict(username='met_admin', password='met_adm_pwd')
+            # cb = Bucket(connstr.format('mdata'), **credentials)
+            # collection = cb.default_collection()
+
+            # this does not work
+            # cluster = Cluster('couchbases://127.0.0.1', ClusterOptions(
+            #     PasswordAuthenticator('met_admin',
+            #                           'met_adm_pwd',
+            #                           cert_path="/Users/randy.pierce/servercertfiles/ca.pem")))
+            # collection = cluster.bucket("mdata").default_collection()
+
+            logging.info("connection success")
+            self.database_name = self.connection_credentials['db_name']
             # infinite loop terminates when the queue is empty
             empty_count = 0
             while True:
@@ -115,6 +134,7 @@ class DataTypeManager(Process):
                         break
         except:
             logging.error("*** %s Error in data_type_manager run ***", sys.exc_info()[0])
+            logging.error("*** %s Error in data_type_manager run ***", sys.exc_info()[1])
             logging.info('data_type_manager - disconnecting couchbase')
 
     # process a file line by line

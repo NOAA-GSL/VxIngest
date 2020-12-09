@@ -23,6 +23,14 @@ DATAFILE_ID = "dataFile_id"
 DATASOURCE_ID = "datasource_id"
 GEOLOCATION_ID = "geoLocation_id"
 DATA = "data"
+# spec file identifiers
+DB_HOST = "db_host"
+DB_PORT = "db_port"
+DB_NAME = "db_name"
+DB_USER = "db_user"
+DB_PASSWORD = "db_password"
+DB_MANAGEMENT_SYSTEM = "db_management_system"
+DB_DRIVER = "db_driver"
 
 # used for date conversions
 TS_OUT_FORMAT = "%Y-%m-%dT%H:%M:%SZ"

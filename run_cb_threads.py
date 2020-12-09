@@ -21,13 +21,19 @@ import argparse
 import logging
 import sys
 import time
+import yaml
+
 from datetime import datetime
 from datetime import timedelta
 from multiprocessing import JoinableQueue
-
 from data_type_manager import DataTypeManager
 from read_load_xml import XmlLoadFile
 
+# with open("example.yaml", 'r') as stream:
+#     try:
+#         print(yaml.safe_load(stream))
+#     except yaml.YAMLError as exc:
+#         print(exc)
 
 def main():
     """
@@ -53,6 +59,10 @@ def main():
         logging.debug("XML filename is %s", args.xmlfile)
 
         # instantiate a load_spec XML file
+        # xml_loadfile = XmlLoadFile(args.xmlfile)
+        #
+        # # read in the XML file and get the information out of its tags
+        # xml_loadfile.read_xml()
         xml_loadfile = XmlLoadFile(args.xmlfile)
 
         # read in the XML file and get the information out of its tags

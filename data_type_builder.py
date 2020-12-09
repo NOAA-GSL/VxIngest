@@ -91,7 +91,7 @@ class DataTypeBuilder(ABC):
                     data_record[key] = str(record[key])
                 except:  # there might not be a filed (sometimes vsdb records are truncated)
                     data_record[key] = None
-            # these fields are not in the CN constants so they aren't in the data_field_names
+            # these fields are not in the cn constants so they aren't in the data_field_names
             _init_begin = self.get_timestamp_and_epoch(record[CN.FCST_VALID_BEG],record[CN.FCST_LEAD])
             data_record[CN.FCST_INIT_BEG] = _init_begin[CN.FCST_INIT_BEG]
             data_record[CN.FCST_INIT_EPOCH] = _init_begin[CN.FCST_INIT_EPOCH]
@@ -171,7 +171,7 @@ class VSDB_V01_SL1L2_builder(DataTypeBuilder):
     # self._handle_line_VSDB_V01_L1L2 because they are same for several data types.
     def __init__(self):
         super(VSDB_V01_SL1L2_builder, self).__init__()
-        # derive my headers and data fields - don't know why total is not part of CN.LINE_DATA_FIELDS[CN.SL1L2]
+        # derive my headers and data fields - don't know why total is not part of cn.LINE_DATA_FIELDS[cn.SL1L2]
         self.header_field_names = CN.VSDB_HEADER
         self.data_field_names = [CN.TOTAL_LC] + [x for x in CN.LINE_DATA_FIELDS[CN.SL1L2] if x not in CN.TOT_LINE_DATA_FIELDS]
 
@@ -200,7 +200,7 @@ class VSDB_V01_SAL1L2_builder(DataTypeBuilder):
     # self._handle_line_VSDB_V01_L1L2 because they are same for several data types.
     def __init__(self):
         super(VSDB_V01_SAL1L2_builder, self).__init__()
-        # derive my headers and data fields - don't know why total is not part of CN.LINE_DATA_FIELDS[CN.SL1L2]
+        # derive my headers and data fields - don't know why total is not part of cn.LINE_DATA_FIELDS[cn.SL1L2]
         self.header_field_names = CN.VSDB_HEADER
         self.data_field_names = [CN.TOTAL_LC] + [x for x in CN.LINE_DATA_FIELDS[CN.SAL1L2] if x not in CN.TOT_LINE_DATA_FIELDS]
 
@@ -229,7 +229,7 @@ class VSDB_V01_VL1L2_builder(DataTypeBuilder):
     # self._handle_line_VSDB_V01_L1L2 because they are same for several data types.
     def __init__(self):
         super(VSDB_V01_VL1L2_builder, self).__init__()
-        # derive my headers and data fields - don't know why total is not part of CN.LINE_DATA_FIELDS[CN.SL1L2]
+        # derive my headers and data fields - don't know why total is not part of cn.LINE_DATA_FIELDS[cn.SL1L2]
         self.header_field_names = CN.VSDB_HEADER
         self.data_field_names = [CN.TOTAL_LC] + [x for x in CN.LINE_DATA_FIELDS[CN.VL1L2] if x not in CN.TOT_LINE_DATA_FIELDS]
 
@@ -258,7 +258,7 @@ class VSDB_V01_VAL1L2_builder(DataTypeBuilder):
     # self._handle_line_VSDB_V01_L1L2 because they are same for several data types.
     def __init__(self):
         super(VSDB_V01_VAL1L2_builder, self).__init__()
-        # derive my headers and data fields - don't know why total is not part of CN.LINE_DATA_FIELDS[CN.SL1L2]
+        # derive my headers and data fields - don't know why total is not part of cn.LINE_DATA_FIELDS[cn.SL1L2]
         self.header_field_names = CN.VSDB_HEADER
         self.data_field_names = [CN.TOTAL_LC] + [x for x in CN.LINE_DATA_FIELDS[CN.VAL1L2] if x not in CN.TOT_LINE_DATA_FIELDS]
 

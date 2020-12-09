@@ -91,26 +91,30 @@ class DataTypeManager(Process):
             # and
             # https://docs.couchbase.com/server/current/manage/manage-security/configure-client-certificates.html#client-certificate-authorized-by-a-root-certificate
 
-            # this works but is not secure...
-            connstr = 'couchbases://adb-cb4.gsd.esrl.noaa.gov/{}?certpath=/Users/randy.pierce/PycharmProjects/VXingest/cluster.crt'
-            credentials = dict(username=self.connection_credentials['db_user'],
-                               password=self.connection_credentials['db_password'])
+            if 'cert_path' in self.connection_credentials:
+                logging.info("attempting cb connection with cert")
+                # this does not work yet - to get here use the -c option with a cert_path
+                cluster = Cluster('couchbase://' + self.connection_credentials['db_host'], ClusterOptions(
+                    PasswordAuthenticator(self.connection_credentials['db_user'],
+                                          self.connection_credentials['db_password'], cert_path=self.connection_credentials['cert_path'])))
+                self.database_name = self.connection_credentials['db_name']
+                collection = cluster.bucket("mdata").default_collection()
+                # this works with a cert to local server - but not to adb-cb4
+                # connstr = 'couchbases://127.0.0.1/{}?certpath=/Users/randy.pierce/servercertfiles/ca.pem'
+                # credentials = dict(username='met_admin', password='met_adm_pwd')
+                # cb = Bucket(connstr.format('mdata'), **credentials)
+                # collection = cb.default_collection()
 
-            cb = Bucket(connstr.format('mdata'), **credentials)
-            collection = cb.default_collection()
+            else:
+                # this works but is not secure - don't provide the -c option to get here
+                # get a reference to our cluster
+                logging.info("attempting cb connection with NO cert")
+                cluster = Cluster('couchbase://' + self.connection_credentials['db_host'], ClusterOptions(
+                    PasswordAuthenticator(self.connection_credentials['db_user'],
+                                          self.connection_credentials['db_password'])))
+                self.database_name = self.connection_credentials['db_name']
+                collection = cluster.bucket("mdata").default_collection()
 
-            # this works to local server - but not to adb-cb4
-            # connstr = 'couchbases://127.0.0.1/{}?certpath=/Users/randy.pierce/servercertfiles/ca.pem'
-            # credentials = dict(username='met_admin', password='met_adm_pwd')
-            # cb = Bucket(connstr.format('mdata'), **credentials)
-            # collection = cb.default_collection()
-
-            # this does not work
-            # cluster = Cluster('couchbases://127.0.0.1', ClusterOptions(
-            #     PasswordAuthenticator('met_admin',
-            #                           'met_adm_pwd',
-            #                           cert_path="/Users/randy.pierce/servercertfiles/ca.pem")))
-            # collection = cluster.bucket("mdata").default_collection()
 
             logging.info("connection success")
             self.database_name = self.connection_credentials['db_name']

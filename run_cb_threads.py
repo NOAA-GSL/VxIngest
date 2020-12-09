@@ -49,6 +49,7 @@ def main():
     parser.add_argument("xmlfile", help="Please provide required xml load_spec filename")
     parser.add_argument("-index", action="store_true", help="Only process index, do not load data")
     parser.add_argument("-t", "--threads", type=int, default=1, help="Number of threads to use")
+    parser.add_argument("-c", "--cert_path", type=str, default='', help="path to server public cert")
     # get the command line arguments
     args = parser.parse_args()
 
@@ -99,6 +100,9 @@ def main():
     for f in xml_loadfile.load_files:
         q.put(f)
     thread_limit = args.threads
+    if args.cert_path:
+        cert_path = args.cert_path
+        xml_loadfile.connection['cert_path'] = cert_path
     # instantiate data_type_manager pool - each data_type_manager is a thread that uses builders to process a file
     # Make the Pool of data_type_managers
     _dtm_list = []

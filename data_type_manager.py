@@ -96,7 +96,8 @@ class DataTypeManager(Process):
                 # this does not work yet - to get here use the -c option with a cert_path
                 cluster = Cluster('couchbase://' + self.connection_credentials['db_host'], ClusterOptions(
                     PasswordAuthenticator(self.connection_credentials['db_user'],
-                                          self.connection_credentials['db_password'], cert_path=self.connection_credentials['cert_path'])))
+                                          self.connection_credentials['db_password'],
+                                          cert_path=self.connection_credentials['cert_path'])))
                 self.database_name = self.connection_credentials['db_name']
                 collection = cluster.bucket("mdata").default_collection()
                 # this works with a cert to local server - but not to adb-cb4
@@ -114,7 +115,6 @@ class DataTypeManager(Process):
                                           self.connection_credentials['db_password'])))
                 self.database_name = self.connection_credentials['db_name']
                 collection = cluster.bucket("mdata").default_collection()
-
 
             logging.info("connection success")
             self.database_name = self.connection_credentials['db_name']

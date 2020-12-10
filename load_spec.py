@@ -293,6 +293,10 @@ class LoadSpecFile:
                 sys.exit("*** Error(s) found while reading YAML file!")
 
         logging.debug("db_name is: %s", self.connection['db_name'])
+
+        # Generate all possible path/filenames from folder template
+        self.load_files = self.filenames_from_template(folder_template, template_fills)
+
         # this removes duplicate file names. do we want that?
         if self.load_files is not None:
             self.load_files = list(dict.fromkeys(self.load_files))

@@ -21,19 +21,12 @@ import argparse
 import logging
 import sys
 import time
-import yaml
 
 from datetime import datetime
 from datetime import timedelta
 from multiprocessing import JoinableQueue
 from data_type_manager import DataTypeManager
-from read_load_xml import XmlLoadFile
-
-# with open("example.yaml", 'r') as stream:
-#     try:
-#         print(yaml.safe_load(stream))
-#     except yaml.YAMLError as exc:
-#         print(exc)
+from load_spec import LoadSpecFile
 
 def main():
     """
@@ -46,7 +39,7 @@ def main():
     # time execution
     load_time_start = time.perf_counter()
     parser = argparse.ArgumentParser()
-    parser.add_argument("xmlfile", help="Please provide required xml load_spec filename")
+    parser.add_argument("specfile", help="Please provide required load_spec filename - something.xml or something.yaml")
     parser.add_argument("-index", action="store_true", help="Only process index, do not load data")
     parser.add_argument("-t", "--threads", type=int, default=1, help="Number of threads to use")
     parser.add_argument("-c", "--cert_path", type=str, default='', help="path to server public cert")
@@ -54,20 +47,20 @@ def main():
     args = parser.parse_args()
 
     #
-    #  Read the XML file
+    #  Read the load_spec file
     #
     try:
-        logging.debug("XML filename is %s", args.xmlfile)
+        logging.debug("load_spec filename is %s", args.specfile)
 
-        # instantiate a load_spec XML file
-        # xml_loadfile = XmlLoadFile(args.xmlfile)
+        # instantiate a load_spec file
+        # load_specfile = LoadSpecFile(args.specfile)
         #
         # # read in the XML file and get the information out of its tags
-        # xml_loadfile.read_xml()
-        xml_loadfile = XmlLoadFile(args.xmlfile)
+        # load_specfile.read_xml()
+        load_specfile = LoadSpecFile(args.specfile)
 
         # read in the XML file and get the information out of its tags
-        xml_loadfile.read_xml()
+        load_specfile.read()
 
     except (RuntimeError, TypeError, NameError, KeyError):
         logging.error("*** %s occurred in Main reading XML ***", sys.exc_info()[0])
@@ -81,15 +74,15 @@ def main():
     #
     try:
         # If user set flags to not read files, remove those files from load_files list
-        xml_loadfile.load_files = purge_files(xml_loadfile.load_files, xml_loadfile.flags)
+        load_specfile.load_files = purge_files(load_specfile.load_files, load_specfile.flags)
 
-        if not xml_loadfile.load_files:
+        if not load_specfile.load_files:
             logging.warning("!!! No files to load")
             sys.exit("*** No files to load")
 
-        if not xml_loadfile.connection['db_management_system'].upper() == 'CB':
+        if not load_specfile.connection['db_management_system'].upper() == 'CB':
             logging.warning("wrong db_management_system. Can only support 'CB'")
-            sys.exit("*** wrong db_management_system " + xml_loadfile.connection['db_management_system'])
+            sys.exit("*** wrong db_management_system " + load_specfile.connection['db_management_system'])
 
     except (RuntimeError, TypeError, NameError, KeyError):
         logging.error("*** %s occurred in Main purging files not selected ***", sys.exc_info()[0])
@@ -97,18 +90,18 @@ def main():
     # load the queue with filenames
     # Constructor for an infinite size  FIFO queue
     q = JoinableQueue()
-    for f in xml_loadfile.load_files:
+    for f in load_specfile.load_files:
         q.put(f)
     thread_limit = args.threads
     if args.cert_path:
         cert_path = args.cert_path
-        xml_loadfile.connection['cert_path'] = cert_path
+        load_specfile.connection['cert_path'] = cert_path
     # instantiate data_type_manager pool - each data_type_manager is a thread that uses builders to process a file
     # Make the Pool of data_type_managers
     _dtm_list = []
     for _threadCount in range(thread_limit):
         try:
-            dtm_thread = DataTypeManager("DataTypeManager-" + str(_threadCount), xml_loadfile.connection, q)
+            dtm_thread = DataTypeManager("DataTypeManager-" + str(_threadCount), load_specfile.connection, q)
             _dtm_list.append(dtm_thread)
             dtm_thread.start()
         except:

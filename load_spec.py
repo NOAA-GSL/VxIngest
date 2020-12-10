@@ -40,16 +40,18 @@ class LoadSpecFile:
         if specfile.endswith('.yaml'):
             self.load_spec_file_type = 'yaml'
 
-        self.connection = {'db_host': None, 'db_port': CN.SQL_PORT, 'db_name': None, 'db_user': None,
-                           'db_password': None, 'db_management_system': "mysql"}
-
         self.db_driver = None
         self.insert_size = 1
         self.load_note = None
         self.group = CN.DEFAULT_DATABASE_GROUP
         self.description = "None"
         self.xml_str = None
-
+        self.email = ""
+        self.email = ""
+        self.initialize_db = ""
+        self.organization = ""
+        self.connection = {'db_host': None, 'db_port': CN.SQL_PORT, 'db_name': None, 'db_user': None,
+                           'db_password': None, 'db_management_system': "mysql"}
         self.flags = {'line_type_load': False, 'load_stat': True, 'load_mode': True, 'load_mtd': True,
                       'load_mpr': False, 'load_orank': False, 'force_dup_file': False, 'verbose': False,
                       'stat_header_db_check': True, 'mode_header_db_check': True, 'mtd_header_db_check': True,
@@ -92,7 +94,13 @@ class LoadSpecFile:
             try:
                 # extract values from load_spec XML tags, store in attributes of class XmlLoadFile
                 for child in root:
-                    if child.tag.lower() == "connection":
+                    if child.tag.lower() == "email":
+                        self.email = child.text
+                    elif child.tag.lower() == "initialize_db":
+                        self.initialize_db = child.text
+                    elif child.tag.lower() == "organization":
+                        self.organization = child.text
+                    elif child.tag.lower() == "connection":
                         for subchild in list(child):
                             if subchild.tag.lower() == "host":
                                 host_and_port = subchild.text.split(":")
@@ -291,7 +299,7 @@ class LoadSpecFile:
         # remove directory names
         self.load_files = [lf for lf in self.load_files if '.' in lf.split('/')[-1]]
         logging.debug("Initial number of files: %s", str(len(self.load_files)))
-        logging.debug("[--- End read yaml ---]")
+        logging.debug("[--- End read ---]")
 
     @staticmethod
     def filenames_from_date(date_list):

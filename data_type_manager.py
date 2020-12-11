@@ -83,7 +83,8 @@ class DataTypeManager(Process):
         to process the file.
         """
         try:
-            logging.info('data_type_manager - Connecting to couchbase')
+            logging.basicConfig(level=logging.INFO)
+            logging.info(self.threadName + ': data_type_manager - Connecting to couchbase')
             # get a reference to our cluster
             # derive the path to the public certificate for the host
             # see ...
@@ -92,7 +93,7 @@ class DataTypeManager(Process):
             # https://docs.couchbase.com/server/current/manage/manage-security/configure-client-certificates.html#client-certificate-authorized-by-a-root-certificate
 
             if 'cert_path' in self.connection_credentials:
-                logging.info("attempting cb connection with cert")
+                logging.info(self.threadName + ': attempting cb connection with cert')
                 # this does not work yet - to get here use the -c option with a cert_path
                 cluster = Cluster('couchbase://' + self.connection_credentials['db_host'], ClusterOptions(
                     PasswordAuthenticator(self.connection_credentials['db_user'],
@@ -109,14 +110,14 @@ class DataTypeManager(Process):
             else:
                 # this works but is not secure - don't provide the -c option to get here
                 # get a reference to our cluster
-                logging.info("attempting cb connection with NO cert")
+                logging.info(self.threadName + ': attempting cb connection with NO cert')
                 cluster = Cluster('couchbase://' + self.connection_credentials['db_host'], ClusterOptions(
                     PasswordAuthenticator(self.connection_credentials['db_user'],
                                           self.connection_credentials['db_password'])))
                 self.database_name = self.connection_credentials['db_name']
                 collection = cluster.bucket("mdata").default_collection()
 
-            logging.info("connection success")
+            logging.info(self.threadName + ': connection success')
             self.database_name = self.connection_credentials['db_name']
             # infinite loop terminates when the queue is empty
             empty_count = 0
@@ -129,17 +130,17 @@ class DataTypeManager(Process):
                 except queue.Empty:
                     if empty_count < 3:
                         empty_count += 1
-                        logging.info('data_type_manager - got Queue.Empty - retrying: ' + str(empty_count) +
+                        logging.info(self.threadName + ': data_type_manager - got Queue.Empty - retrying: ' + str(empty_count) +
                                      " of 3 times")
                         time.sleep(1)
                         continue
                     else:
-                        logging.info('data_type_manager - Queue empty - disconnecting couchbase')
+                        logging.info(self.threadName + ': data_type_manager - Queue empty - disconnecting couchbase')
                         break
         except:
-            logging.error("*** %s Error in data_type_manager run ***", sys.exc_info()[0])
-            logging.error("*** %s Error in data_type_manager run ***", sys.exc_info()[1])
-            logging.info('data_type_manager - disconnecting couchbase')
+            logging.error(self.threadName + ": *** %s Error in data_type_manager run ***", sys.exc_info()[0])
+            logging.error(self.threadName + ": *** %s Error in data_type_manager run ***", sys.exc_info()[1])
+            logging.info(self.threadName + ': data_type_manager - disconnecting couchbase')
 
     # process a file line by line
     def process_file(self, file_name, collection):
@@ -165,22 +166,28 @@ class DataTypeManager(Process):
                 builder.handle_line(data_type, line, self.document_map, self.database_name)
             except:
                 e = sys.exc_info()[0]
-                logging.error("Exception instantiating builder: " + data_type_builder_name + " error: " + e)
+                logging.error(self.threadName + ": Exception instantiating builder: " + data_type_builder_name + " error: " + e)
         # all the lines are now processed for this file so write all the documents in the document_map
         try:
             logging.info(
-                'data_type_manager writing documents for file :  ' + file_name + " threadName: " + self.threadName)
+                self.threadName + ': data_type_manager writing documents for file :  ' + file_name + " threadName: " + self.threadName)
             for key in self.document_map.keys():
                 try:
                     # this call is volatile i.e. it might change syntax in the future.
                     # if it does, please just fix it.
                     collection.upsert_multi(self.document_map[key])
+                    logging.info(
+                        self.threadName + ': data_type_manager successfully wrote documents for file :  ' + file_name + " threadName: " + self.threadName)
                 except:
                     e = sys.exc_info()[0]
-                    logging.error("*** %s Error multi-upsert to Couchbase: in data_type_manager ***", str(e))
+                    e1 = sys.exc_info()[1]
+                    logging.error(self.threadName + ": *** %s Error multi-upsert to Couchbase: in data_type_manager ***", str(e))
+                    logging.error(self.threadName + ": *** %s Error multi-upsert to Couchbase: in data_type_manager ***", str(e1))
         except:
             e = sys.exc_info()[0]
-            logging.error("*** %s Error writing to Couchbase: in data_type_manager writing document ***", str(e))
+            e1 = sys.exc_info()[1]
+            logging.error(self.threadName + ": *** %s Error writing to Couchbase: in data_type_manager writing document ***", str(e))
+            logging.error(self.threadName + ": *** %s Error writing to Couchbase: in data_type_manager writing document ***", str(e1))
         finally:
             # reset the document map
             self.document_map = {}

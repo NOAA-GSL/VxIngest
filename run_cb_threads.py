@@ -33,7 +33,7 @@ def main():
     This is the entry point for run_cb_threads.py
     """
     begin_time = str(datetime.now())
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
     logging.info("--- *** --- Start METdbLoad --- *** ---")
     logging.info("Begin time: %s", begin_time)
     # time execution

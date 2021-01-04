@@ -20,7 +20,7 @@ load_spec:
  load_mpr: false
  load_orank: false
  force_dup_file: true
- folder_tmpl: "/Users/randy.pierce/WebstormProjects/CouchbasePerformanceTest/test/load/vsdb_data/{stattype}/{cycle}/{model}"
+ folder_tmpl: "./data_files/vsdb_data/{stattype}/{cycle}/{model}"
  load_val:
   stattype:
    - anom

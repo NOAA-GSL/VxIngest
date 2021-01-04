@@ -44,6 +44,9 @@ TS_VSDB_FORMAT = "%Y%m%d%H"
 # default port for MySQL
 SQL_PORT = 3306
 
+# default port for CB
+CB_PORT = 8091
+
 # Lower Case true and false
 LC_TRUE = "true"
 LC_FALSE = "false"

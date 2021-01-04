@@ -21,7 +21,8 @@ import yaml
 from pathlib import Path
 import logging
 from lxml import etree
-import constants as CN
+import constants as cn
+import pandas as pd
 
 
 class LoadSpecFile:
@@ -31,34 +32,54 @@ class LoadSpecFile:
            N/A
     """
 
-    def __init__(self, specfile):
+    def __init__(self, args):
         # set the defaults
-        self.spec_file_name = specfile
+        # args requires {'spec_file':something, ['spec_type':'gsd'] }
+        self.spec_file_name = args['spec_file']
         self.load_spec_file_type = 'unknown'
-        if specfile.endswith('.xml'):
+        self.spec_type = "met"
+        self.root = None
+        self.host_and_port = None
+        self.tree = None
+        self.folder_template = None
+        self.template_fills = {}
+        self.date_list = {}
+
+        if self.spec_file_name.endswith('.xml'):
             self.load_spec_file_type = 'xml'
-        if specfile.endswith('.yaml'):
+        if self.spec_file_name.endswith('.yaml'):
             self.load_spec_file_type = 'yaml'
+        if 'spec_type' in args.keys() and args['spec_type'].lower() == 'gsd':
+            # define and initialize a gsd style load_spec
+            self.spec_type = "gsd"
+            self.connection_list = ['cb_connection', 'mysql_connection']
+            self.load_spec = {'cb_connection': {'host': None, 'port': cn.CB_PORT, 'user': None,
+                                                'password': None, 'management_system': "cb"},
+                              'mysql_connection': {'host': None, 'port': cn.SQL_PORT, 'database': None,
+                                                   'user': None,
+                                                   'password': None, 'management_system': "mysql"},
+                              'email': None,
+                              'ingest_document_ids': []
+                              }
+        else:
+            # It isn't gsd_spec so define and initialize a met style load_spec
+            self.connection_list = ['connection']
+            self.load_spec = {'connection': {'host': None, 'port': cn.SQL_PORT, 'database': None, 'user': None,
+                                             'password': None, 'management_system': "mysql"},
+                              'flags': {'line_type_load': False, 'load_stat': True, 'load_mode': True, 'load_mtd': True,
+                                        'load_mpr': False, 'load_orank': False, 'force_dup_file': False,
+                                        'verbose': False,
+                                        'stat_header_db_check': True, 'mode_header_db_check': True,
+                                        'mtd_header_db_check': True,
+                                        'drop_indexes': False, 'apply_indexes': False, 'load_xml': True},
+                              'db_driver': None, 'insert_size': 1,
+                              'load_note': None, 'group': cn.DEFAULT_DATABASE_GROUP,
+                              'description': None, 'xml_str': None, 'email': None, 'initialize_db': None,
+                              'organization': None, 'load_files': [], 'line_types': [],
+                              'folder_tmpl': None
+                              }
 
-        self.db_driver = None
-        self.insert_size = 1
-        self.load_note = None
-        self.group = CN.DEFAULT_DATABASE_GROUP
-        self.description = "None"
-        self.xml_str = None
-        self.email = ""
-        self.email = ""
-        self.initialize_db = ""
-        self.organization = ""
-        self.connection = {'db_host': None, 'db_port': CN.SQL_PORT, 'db_name': None, 'db_user': None,
-                           'db_password': None, 'db_management_system': "mysql"}
-        self.flags = {'line_type_load': False, 'load_stat': True, 'load_mode': True, 'load_mtd': True,
-                      'load_mpr': False, 'load_orank': False, 'force_dup_file': False, 'verbose': False,
-                      'stat_header_db_check': True, 'mode_header_db_check': True, 'mtd_header_db_check': True,
-                      'drop_indexes': False, 'apply_indexes': False, 'load_xml': True}
-
-        self.load_files = []
-        self.line_types = []
+        self.yaml_data = {}
 
     def read(self):
         """! Read in load_spec file, store values as class attributes
@@ -74,236 +95,228 @@ class LoadSpecFile:
             if not Path(self.spec_file_name).is_file():
                 sys.exit("*** load_spec file " + self.spec_file_name + " can not be found!")
 
-            # parse the XML file
+            # parse the XML file  (this is largely copied directly from met_db_load)
             if self.load_spec_file_type == 'xml':
                 parser = etree.XMLParser(remove_comments=True)
-                tree = etree.parse(self.spec_file_name, parser=parser)
-                root = tree.getroot()
+                self.tree = etree.parse(self.spec_file_name, parser=parser)
+                self.root = self.tree.getroot()
             if self.load_spec_file_type == 'yaml':
                 with open(self.spec_file_name) as f:
-                    yaml_data = yaml.load(f, Loader=yaml.SafeLoader)
+                    self.yaml_data = yaml.load(f, Loader=yaml.SafeLoader)
+                    self.yaml_data = {k.lower(): v for k, v in self.yaml_data.items()}
         except (RuntimeError, TypeError, NameError, KeyError):
             logging.error("*** %s in read ***", sys.exc_info()[0])
             sys.exit("*** Parsing error(s) in load_spec file!")
 
-        folder_template = None
-        template_fills = {}
-        date_list = {}
-
         if self.load_spec_file_type == 'xml':
+            # process met xml file - only met has xml for now
             try:
                 # extract values from load_spec XML tags, store in attributes of class XmlLoadFile
-                for child in root:
+                for child in self.root:
                     if child.tag.lower() == "email":
-                        self.email = child.text
+                        self.load_spec['email'] = child.text
                     elif child.tag.lower() == "initialize_db":
-                        self.initialize_db = child.text
+                        self.load_spec['initialize_db'] = child.text
                     elif child.tag.lower() == "organization":
-                        self.organization = child.text
+                        self.load_spec['organization'] = child.text
                     elif child.tag.lower() == "connection":
-                        for subchild in list(child):
-                            if subchild.tag.lower() == "host":
-                                host_and_port = subchild.text.split(":")
-                            elif subchild.tag.lower() == "user":
-                                self.connection['db_user'] = subchild.text
-                            elif subchild.tag.lower() == "password":
-                                self.connection['db_password'] = subchild.text
-                            elif subchild.tag.lower() == "database":
-                                self.connection['db_name'] = subchild.text
-                            elif subchild.tag.lower() == "management_system":
-                                self.connection['db_management_system'] = subchild.text
+                        for sub_child in list(child):
+                            if sub_child.tag.lower() == "host":
+                                self.host_and_port = sub_child.text.split(":")
+                            elif sub_child.tag.lower() == "user":
+                                self.load_spec['connection']['user'] = sub_child.text
+                            elif sub_child.tag.lower() == "password":
+                                self.load_spec['connection']['password'] = sub_child.text
+                            elif sub_child.tag.lower() == "database":
+                                self.load_spec['connection']['database'] = sub_child.text
+                            elif sub_child.tag.lower() == "management_system":
+                                self.load_spec['connection']['management_system'] = sub_child.text
                         # separate out the port if there is one
-                        self.connection['db_host'] = host_and_port[0]
-                        if len(host_and_port) > 1:
-                            self.connection['db_port'] = int(host_and_port[1])
-                        if (not self.connection['db_host']) or (not self.connection['db_name']):
-                            logging.warning("!!! XML must include host and database tags")
-                        if (not self.connection['db_user']) or (not self.connection['db_password']):
-                            logging.warning("!!! XML must include user and passsword tags")
-                        if not self.connection['db_name'].startswith("mv_"):
+                        self.load_spec['connection']['host'] = self.host_and_port[0]
+                        if len(self.host_and_port) > 1:
+                            self.load_spec['connection']['port'] = int(self.host_and_port[1])
+                        if (not self.load_spec['connection']['host']) or \
+                                (not self.load_spec['connection']['database']):
+                            logging.warning("!!! load_spec must include host and database tags")
+                        if (not self.load_spec['connection']['user']) or \
+                                (not self.load_spec['connection']['password']):
+                            logging.warning("!!! load_spec must include user and password tags")
+                        if not self.load_spec['connection']['database'].startswith("mv_"):
                             logging.warning("!!! Database not visible unless name starts with mv_")
                     elif child.tag.lower() == "load_files":
-                        for subchild in list(child):
-                            self.load_files.append(subchild.text)
+                        for sub_child in list(child):
+                            self.load_spec['load_files'].append(sub_child.text)
                     elif child.tag.lower() == "folder_tmpl":
-                        folder_template = child.text
+                        self.folder_template = child.text
                     # get the values to fill in to the folder template
                     elif child.tag.lower() == "load_val":
-                        for subchild in list(child):
-                            template_key = subchild.get("name")
+                        for sub_child in list(child):
+                            template_key = sub_child.get("name")
                             template_values = []
-                            for template_value in list(subchild):
+                            for template_value in list(sub_child):
                                 if template_value.tag.lower() == "val":
                                     template_values.append(template_value.text)
                                 elif template_value.tag.lower() == "date_list":
                                     template_values.append(template_value.get("name"))
-                            template_fills[template_key] = template_values
+                            self.template_fills[template_key] = template_values
                     elif child.tag.lower() == "date_list":
-                        date_list["name"] = child.get("name")
-                        for subchild in list(child):
-                            if subchild.tag.lower() == "start":
-                                date_list["start"] = subchild.text
-                            elif subchild.tag.lower() == "end":
-                                date_list["end"] = subchild.text
-                            elif subchild.tag.lower() == "inc":
-                                date_list["inc"] = subchild.text
-                            elif subchild.tag.lower() == "format":
-                                date_list["format"] = subchild.text
+                        self.date_list["name"] = child.get("name")
+                        for sub_child in list(child):
+                            if sub_child.tag.lower() == "start":
+                                self.date_list["start"] = sub_child.text
+                            elif sub_child.tag.lower() == "end":
+                                self.date_list["end"] = sub_child.text
+                            elif sub_child.tag.lower() == "inc":
+                                self.date_list["inc"] = sub_child.text
+                            elif sub_child.tag.lower() == "format":
+                                self.date_list["format"] = sub_child.text
                     elif child.tag.lower() == "verbose":
-                        if child.text.lower() == CN.LC_TRUE:
-                            self.flags['verbose'] = True
+                        if child.text.lower() == cn.LC_TRUE:
+                            self.load_spec['flags']['verbose'] = True
                     elif child.tag.lower() == "drop_indexes":
-                        if child.text.lower() == CN.LC_TRUE:
-                            self.flags['drop_indexes'] = True
+                        if child.text.lower() == cn.LC_TRUE:
+                            self.load_spec['flags']['drop_indexes'] = True
                     elif child.tag.lower() == "apply_indexes":
-                        if child.text.lower() == CN.LC_TRUE:
-                            self.flags['apply_indexes'] = True
+                        if child.text.lower() == cn.LC_TRUE:
+                            self.load_spec['flags']['apply_indexes'] = True
                     elif child.tag.lower() == "stat_header_db_check":
-                        if child.text.lower() == CN.LC_FALSE:
-                            self.flags['stat_header_db_check'] = False
+                        if child.text.lower() == cn.LC_FALSE:
+                            self.load_spec['flags']['stat_header_db_check'] = False
                     elif child.tag.lower() == "mode_header_db_check":
-                        if child.text.lower() == CN.LC_FALSE:
-                            self.flags['mode_header_db_check'] = False
+                        if child.text.lower() == cn.LC_FALSE:
+                            self.load_spec['flags']['mode_header_db_check'] = False
                     elif child.tag.lower() == "mtd_header_db_check":
-                        if child.text.lower() == CN.LC_FALSE:
-                            self.flags['mtd_header_db_check'] = False
+                        if child.text.lower() == cn.LC_FALSE:
+                            self.load_spec['flags']['mtd_header_db_check'] = False
                     elif child.tag.lower() == "load_stat":
-                        if child.text.lower() == CN.LC_FALSE:
-                            self.flags['load_stat'] = False
+                        if child.text.lower() == cn.LC_FALSE:
+                            self.load_spec['flags']['load_stat'] = False
                     elif child.tag.lower() == "load_mode":
-                        if child.text.lower() == CN.LC_FALSE:
-                            self.flags['load_mode'] = False
+                        if child.text.lower() == cn.LC_FALSE:
+                            self.load_spec['flags']['load_mode'] = False
                     elif child.tag.lower() == "load_mtd":
-                        if child.text.lower() == CN.LC_FALSE:
-                            self.flags['load_mtd'] = False
+                        if child.text.lower() == cn.LC_FALSE:
+                            self.load_spec['flags']['load_mtd'] = False
                     elif child.tag.lower() == "load_mpr":
-                        if child.text.lower() == CN.LC_TRUE:
-                            self.flags['load_mpr'] = True
+                        if child.text.lower() == cn.LC_TRUE:
+                            self.load_spec['flags']['load_mpr'] = True
                     elif child.tag.lower() == "load_orank":
-                        if child.text.lower() == CN.LC_TRUE:
-                            self.flags['load_orank'] = True
+                        if child.text.lower() == cn.LC_TRUE:
+                            self.load_spec['flags']['load_orank'] = True
                     elif child.tag.lower() == "force_dup_file":
-                        if child.text.lower() == CN.LC_TRUE:
-                            self.flags['force_dup_file'] = True
+                        if child.text.lower() == cn.LC_TRUE:
+                            self.load_spec['flags']['force_dup_file'] = True
                     elif child.tag.lower() == "insert_size":
                         if child.text.isdigit():
-                            self.insert_size = int(child.text)
+                            self.load_spec['insert_size'] = int(child.text)
                     # group and description for putting databases into groups/categories
                     elif child.tag.lower() == "group":
-                        self.group = child.text
+                        self.load_spec['group'] = child.text
                     elif child.tag.lower() == "description":
-                        self.description = child.text
+                        self.load_spec['description'] = child.text
                     # load_note and load_xml are used to put a note in the database
                     elif child.tag.lower() == "load_note":
-                        self.load_note = child.text
+                        self.load_spec['load_note'] = child.text
                     elif child.tag.lower() == "load_xml":
-                        if child.text.lower() == CN.LC_FALSE:
-                            self.flags['load_xml'] = False
+                        if child.text.lower() == cn.LC_FALSE:
+                            self.load_spec['flags']['load_xml'] = False
                     # MET line types to load. If omitted, all line types are loaded
                     elif child.tag.lower() == "line_type":
-                        self.flags['line_type_load'] = True
-                        for subchild in list(child):
-                            self.line_types.append(subchild.text.upper())
+                        self.load_spec['flags']['line_type_load'] = True
+                        for sub_child in list(child):
+                            self.load_spec['line_types'].append(sub_child.text.upper())
                     else:
                         logging.warning("!!! Unknown tag: %s", child.tag)
 
                 # if requested, get a string of the XML to put in the database
-                if self.flags['load_xml']:
-                    self.xml_str = etree.tostring(tree).decode().replace('\n', '').replace(' ', '')
+                if self.load_spec['flags']['load_xml']:
+                    self.load_spec['xml_str'] = etree.tostring(self.tree).decode().replace('\n', '').replace(' ', '')
+
+                self.load_spec['load_files'] = \
+                    self.filenames_from_template(self.folder_template, self.template_fills)
 
             except (RuntimeError, TypeError, NameError, KeyError):
                 logging.error("*** %s in read xml ***", sys.exc_info()[0])
                 sys.exit("*** Error(s) found while reading XML file!")
-        else:
+        else:  # this is a yaml spec file - COULD BE GSD OR MET
             try:
-                yaml.dump(yaml_data)
-                # lower case all the keys of the yaml_data
-                yaml_data((k.lower(), v) for k, v in {'My Key': 'My Value'}.iteritems())
-                self.connection['db_user'] = yaml_data['load_spec']['connection']['user']
-                self.connection['db_password'] = yaml_data['load_spec']['connection']['password']
-                self.connection['db_name'] = yaml_data['load_spec']['connection']['database']
-                self.connection['db_management_system'] = yaml_data['load_spec']['connection']['management_system']
-                host_and_port = yaml_data['load_spec']['connection']['host'].split(":")
-                self.connection['db_host'] = host_and_port[0]
-                if host_and_port[1]:
-                    self.connection['db_port'] = int(host_and_port[1])
-                if (not self.connection['db_host']) or (not self.connection['db_name']):
-                    logging.warning("!!! XML must include host and database tags")
-                if (not self.connection['db_user']) or (not self.connection['db_password']):
-                    logging.warning("!!! XML must include user and passsword tags")
-                if not self.connection['db_name'].startswith("mv_"):
-                    logging.warning("!!! Database not visible unless name starts with mv_")
-                if 'load_files' in yaml_data['load_spec'].keys():
-                    self.load_files = yaml_data['load_spec']['load_files']
-                folder_template = yaml_data['load_spec']['folder_tmpl']
+                # process  yaml file
+                # yaml.dump(self.yaml_data)
+                # deal with connections - both met or gsd
+                for c_key in self.connection_list:
+                    c_keys = self.load_spec[c_key].keys()
+                    for k in c_keys:
+                        try:
+                            # assign the connection keys from the yaml_data
+                            self.load_spec[c_key][k] = self.yaml_data['load_spec'][c_key][k]
+                            if k == 'host':
+                                #  deal with the possibility of a host:port string
+                                self.host_and_port = self.yaml_data['load_spec'][c_key]['host'].split(":")
+                                self.load_spec[c_key]['host'] = self.host_and_port[0]
+                                # assign port if it is included
+                                if len(self.host_and_port) > 1:
+                                    self.load_spec[c_key]['port'] = int(self.host_and_port[1])
+                        except KeyError:
+                            logging.warning(
+                                "yaml file: " + self.spec_file_name +
+                                " is missing key: load_spec[c_key]['" + k + "'] - using default")
 
-                # get the values to fill in to the folder template
-                if 'load_val' in yaml_data['load_spec'].keys():
-                    for subchild in list(child):
-                        template_key = subchild.get("name")
-                        template_values = []
-                        for template_value in list(subchild):
-                            if template_value.tag.lower() == "val":
-                                template_values.append(template_value.text)
-                            elif template_value.tag.lower() == "date_list":
-                                template_values.append(template_value.get("name"))
-                        template_fills[template_key] = template_values
+                    # assign the top level keys - both met and gsd
+                    for k in self.load_spec.keys():
+                        if k in [c_key, 'flags']:
+                            continue
+                        try:
+                            self.load_spec[k] = self.yaml_data['load_spec'][k]
+                            if k == 'folder_tmpl':
+                                self.folder_template = self.yaml_data['load_spec'][k]
+                        except KeyError:
+                            logging.warning("yaml file: " +
+                                            self.spec_file_name + " is missing key: load_spec['" + k + "'] " +
+                                            "- using default")
 
-                elif child.tag.lower() == "date_list":
-                    date_list["name"] = child.get("name")
-                    for subchild in list(child):
-                        if subchild.tag.lower() == "start":
-                            date_list["start"] = subchild.text
-                        elif subchild.tag.lower() == "end":
-                            date_list["end"] = subchild.text
-                        elif subchild.tag.lower() == "inc":
-                            date_list["inc"] = subchild.text
-                        elif subchild.tag.lower() == "format":
-                            date_list["format"] = subchild.text
+                    # met specific validation and file loading
+                    if not self.spec_type == 'gsd':
+                        #  met spec, we have to verify we have to validate the connection parameters
+                        if (not self.load_spec[c_key]['host']) or (not self.load_spec[c_key]['database']):
+                            logging.error("!!! XML must include host and database tags")
+                            sys.exit("*** Error(s) found while reading XML file! !!! " +
+                                     "XML must include host and database tags")
+                        if (not self.load_spec[c_key]['user']) or (not self.load_spec[c_key]['password']):
+                            logging.error("!!! XML must include user and password tags")
+                            sys.exit("*** Error(s) found while reading XML file! !!! " +
+                                     "XML must include user and password tags")
+                        if not self.load_spec[c_key]['database'].startswith("mv_"):
+                            logging.error("!!! Database not visible unless name starts with mv_")
+                            sys.exit(
+                                "*** Error(s) found while reading XML file! !!! " +
+                                "Database not visible unless name starts with mv_")
 
-                self.flags['verbose'] = yaml_data['load_spec']['verbose']
-                self.flags['drop_indexes'] = yaml_data['load_spec']['drop_indexes']
-                self.flags['apply_indexes'] = yaml_data['load_spec']['apply_indexes']
-                self.flags['stat_header_db_check'] = yaml_data['load_spec']['stat_header_db_check']
-                self.flags['mode_header_db_check'] = yaml_data['load_spec']['mode_header_db_check']
-                self.flags['mtd_header_db_check'] = yaml_data['load_spec']['mtd_header_db_check']
-                self.flags['load_stat'] = yaml_data['load_spec']['load_stat']
-                self.flags['load_mode'] = yaml_data['load_spec']['load_mode']
-                self.flags['load_mtd'] = yaml_data['load_spec']['load_mtd']
-                self.flags['load_mpr'] = yaml_data['load_spec']['load_mpr']
-                self.flags['load_orank'] = yaml_data['load_spec']['load_orank']
-                self.flags['force_dup_file'] = yaml_data['load_spec']['force_dup_file']
-                self.insert_size = yaml_data['load_spec']['insert_size']
+                        # get the flags values to fill in to the load_spec_file - only for met specs
+                        for k in self.load_spec['flags'].keys():
+                            try:
+                                self.load_spec['flags'][k] = self.yaml_data['load_spec'][k]
+                            except KeyError:
+                                logging.warning(
+                                    "yaml file: " + self.spec_file_name +
+                                    " is missing key: load_spec['flags']['" + k + "'] - using default")
 
-                # group and description for putting databases into groups/categories
-                self.group = yaml_data['load_spec']['group']
-                self.description = yaml_data['load_spec']['description']
-                # load_note and load_xml are used to put a note in the database
-                self.load_note = yaml_data['load_spec']['load_note']
-                self.flags['load_xml'] = yaml_data['load_spec']['load_xml']
-                self.flags['line_type_load'] = yaml_data['load_spec']['line_type_load']
-                self.line_types = yaml_data['load_spec']['line_types']
-                date_list = yaml_data['load_spec']['date_list']
-                template_fills = yaml_data['load_spec']['load_val']
-                # if requested, get a string of the XML to put in the database
-                if self.flags['load_xml']:
-                    self.xml_str = str(yaml_data)
+                        # met only - date_list = self.yaml_data['load_spec']['date_list']
+                        self.template_fills = self.yaml_data['load_spec']['load_val']
+                        # met only - if requested, get a string of the XML to put in the database
+                        if 'flags' in self.load_spec.keys() and 'load_xml' in self.load_spec['flags'].keys() \
+                                and self.load_spec['flags']['load_xml'] is True:
+                            self.load_spec['xml_str'] = str(self.yaml_data)
+
+                        self.load_spec['load_files'] = \
+                            self.filenames_from_template(self.folder_template, self.template_fills)
             except:
                 logging.error("*** %s in read yaml ***", sys.exc_info()[0])
+                logging.error("*** %s in read yaml ***", sys.exc_info()[1])
                 sys.exit("*** Error(s) found while reading YAML file!")
 
-        logging.debug("db_name is: %s", self.connection['db_name'])
+            logging.debug("[--- End read ---]")
 
-        # Generate all possible path/filenames from folder template
-        self.load_files = self.filenames_from_template(folder_template, template_fills)
-
-        # this removes duplicate file names. do we want that?
-        if self.load_files is not None:
-            self.load_files = list(dict.fromkeys(self.load_files))
-        # remove directory names
-        self.load_files = [lf for lf in self.load_files if '.' in lf.split('/')[-1]]
-        logging.debug("Initial number of files: %s", str(len(self.load_files)))
-        logging.debug("[--- End read ---]")
+        return self.load_spec
 
     @staticmethod
     def filenames_from_date(date_list):
@@ -313,25 +326,24 @@ class LoadSpecFile:
         """
         logging.debug("date format is: %s", date_list["format"])
 
+        all_dates = []
         try:
             date_format = date_list["format"]
             # check to make sure that the date format string only has known characters
-            if set(date_format) <= CN.DATE_CHARS:
+            if set(date_format) <= cn.DATE_CHARS:
                 # Change the java formatting string to a Python formatting string
-                for java_date, python_date in CN.DATE_SUBS.items():
+                for java_date, python_date in cn.DATE_SUBS.items():
                     date_format = date_format.replace(java_date, python_date)
                 # format the start and end dates
                 date_start = pd.to_datetime(date_list["start"], format=date_format)
                 date_end = pd.to_datetime(date_list["end"], format=date_format)
                 date_inc = int(date_list["inc"])
-                all_dates = []
                 while date_start < date_end:
                     all_dates.append(date_start.strftime(date_format))
                     date_start = date_start + pd.Timedelta(seconds=date_inc)
                 all_dates.append(date_end.strftime(date_format))
             else:
                 logging.error("*** date_list tag has unknown characters ***")
-
         except ValueError as value_error:
             logging.error("*** %s in filenames_from_date ***", sys.exc_info()[0])
             logging.error(value_error)
@@ -349,9 +361,7 @@ class LoadSpecFile:
                list of filenames
         """
         logging.debug("folder template is: %s", folder_template)
-
         try:
-
             fills_open = folder_template.count("{")
             if fills_open != folder_template.count("}"):
                 raise ValueError("mismatched curly braces")
@@ -377,7 +387,11 @@ class LoadSpecFile:
                 if os.path.exists(file_dir):
                     for file_name in os.listdir(file_dir):
                         file_list.append(file_dir + "/" + file_name)
-
+            # this removes duplicate file names. do we want that?
+            file_list = list(dict.fromkeys(file_list))
+            # remove directory names
+            file_list = [lf for lf in file_list if '.' in lf.split('/')[-1]]
+            logging.debug("Initial number of files: %s", str(len(file_list)))
         except ValueError as value_error:
             logging.error("*** %s in filenames_from_template ***", sys.exc_info()[0])
             logging.error(value_error)

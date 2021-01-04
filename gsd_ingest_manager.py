@@ -24,30 +24,31 @@ time of the program significantly.
 More than that does not. I would have left out threading all-together but
 someday we may decide to port this to a truly thread capable language.
 
-Usage: The DataTypeManagerGSD extends Process - python multiprocess thread -
+Usage: The GsdIngestManager extends Process - python multiprocess thread -
 and runs as a Process and pulls from a queue of metadata document ids. It
 maintains its own connections one to
 the mysql database and one to couchbase which it keeps open until it finishes.
 
-It finishes and closes its database connection when the my_queue is empty.
+It finishes and closes its database connection when the document_id_queue is
+empty.
 
-It gets document ids serially from a my_queue that is shared by a thread
-pool of data_type_manager's and processes them one at a time. It gets the
-concrete builder_type class name from the metadata document and uses a
+It gets document ids serially from a document_id_queue that is shared by a
+thread pool of data_type_manager's and processes them one at a time. It gets
+the concrete builder type from the metadata document and uses a
 concrete builder to process the line.
 
 The builders are instantiated once and kept in a map of objects for the
 duration of the programs life.
-When DataManger finishes a document specification  it converts the data in
-the document_map into a document
-and "upserts" it to the couchbase database.
+When GsdIngestManager finishes a document specification  it converts the
+data in the document_map into a document and "upserts" it to the couchbase
+database.
 
         Attributes:
-            my_queue - a my_queue of filenames that are MET files.
+            document_id_queue - a document_id_queue of filenames that are
+            MET files.
             threadName - a threadName for logging and debugging purposes.
             connection_credentials - a set of connection_credentials that
-            the DataTypeManager
-            will use to connect to the database. This
+            the DataTypeManager will use to connect to the database. This
             connection will be maintained until the thread terminates.
 Copyright 2019 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of
 Colorado, NOAA/OAR/ESRL/GSD
@@ -64,13 +65,13 @@ from couchbase_core.cluster import PasswordAuthenticator
 import data_type_builder as dtb
 
 
-class DataTypeManagerGSD(Process):
+class GsdIngestManager(Process):
     """
-    DataTypeManagerGSD is a Thread that manages an object pool of
-    Ingest_Type_builders to build data from GSD databases
-    into documents that can be inserted into couchbase.
+    GsdIngestManager is a Thread that manages an object pool of
+    GsdBuilders to ingest data from GSD databases into documents that can be
+    inserted into couchbase.
     This class will process data by collecting ingest_document_ids - one at a
-    time - from my_queue. For each ingest_document_id it will
+    time - from document_id_queue. For each ingest_document_id it will
     use the template contained in the ingest_document that is identified by
     the ingest_document_id and process each line.
     From each ingest_document it retrieves the builder_type.
@@ -83,14 +84,14 @@ class DataTypeManagerGSD(Process):
     data_map entry.
     """
     
-    def __init__(self, name, connection_credentials, my_queue):
+    def __init__(self, name, connection_credentials, document_id_queue):
         # The Constructor for the RunCB class.
         Process.__init__(self)
         self.threadName = name
         self.connection_credentials = connection_credentials
         # made this an instance variable because I don't know how to pass it
         # into the run method
-        self.queue = my_queue
+        self.queue = document_id_queue
         
         self.builder_map = {}
         self.document_map = {}
@@ -102,7 +103,8 @@ class DataTypeManagerGSD(Process):
         """
         This is the entry point for the DataTypeManager thread. It runs an
         infinite loop that only
-        terminates when the  my_queue is empty. For each enqueued document
+        terminates when the  document_id_queue is empty. For each enqueued
+        document
         it calls process_document with the document id to process the file.
         """
         try:
@@ -136,11 +138,11 @@ class DataTypeManagerGSD(Process):
                 collection = cluster.bucket(
                     "mdata").default_collection()  # this works with a cert
                 # to local server - but not to adb-cb4  # connstr =   #  #
-                # 'couchbases://127.0.0.1/{  #  #  #
+                # 'couchbases://127.0.0.1/{  #  #  #  #   #   #  #   #
                 # }?certpath=/Users/randy.pierce/servercertfiles/ca.pem'  #
                 # credentials = dict(username='met_admin',
                 # password='met_adm_pwd')  # cb = Bucket(connstr.format(  #
-                # 'mdata'), **credentials)  # collection =   #  #  #
+                # 'mdata'), **credentials)  # collection =   #  #  #  #   #
                 # cb.default_collection()
             
             else:
@@ -160,7 +162,7 @@ class DataTypeManagerGSD(Process):
             
             logging.info(self.threadName + ': connection success')
             self.database_name = self.connection_credentials['db_name']
-            # infinite loop terminates when the my_queue is empty
+            # infinite loop terminates when the document_id_queue is empty
             empty_count = 0
             while True:
                 try:
@@ -172,26 +174,26 @@ class DataTypeManagerGSD(Process):
                     if empty_count < 3:
                         empty_count += 1
                         logging.info(
-                            self.threadName + ': data_type_manager - got '
-                                              'Queue.Empty - retrying: ' +
-                            str(empty_count) + " of 3 times")
+                            self.threadName + ': GsdIngestManager - got '
+                                              'Queue.Empty - retrying: ' + str(
+                                empty_count) + " of 3 times")
                         time.sleep(1)
                         continue
                     else:
                         logging.info(
-                            self.threadName + ': data_type_manager - Queue '
+                            self.threadName + ': GsdIngestManager - Queue '
                                               'empty - disconnecting '
                                               'couchbase')
                         break
         except:
             logging.error(
-                self.threadName + ": *** %s Error in data_type_manager run "
+                self.threadName + ": *** %s Error in GsdIngestManager run "
                                   "***", sys.exc_info()[0])
             logging.error(
-                self.threadName + ": *** %s Error in data_type_manager run "
+                self.threadName + ": *** %s Error in GsdIngestManager run "
                                   "***", sys.exc_info()[1])
             logging.info(
-                self.threadName + ': data_type_manager - disconnecting '
+                self.threadName + ': GsdIngestManager - disconnecting '
                                   'couchbase')
     
     # process a file line by line
@@ -209,20 +211,20 @@ class DataTypeManagerGSD(Process):
                 builder = builder_class()
                 self.builder_map[ingest_type_builder_name] = builder
             # process the line
-            builder.handle_line(ingest_document)
+            builder.handle_document(ingest_document)
         except:
             e = sys.exc_info()[0]
             logging.error(
-                self.threadName + ": Exception instantiating builder: "
-                + ingest_type_builder_name + " error: " + str(
+                self.threadName + ": Exception instantiating builder: " +
+                ingest_type_builder_name + " error: " + str(
                     e))
         # all the lines are now processed for this file so write all the
         # documents in the document_map
         try:
             logging.info(
                 self.threadName + ': data_type_manager writing documents for '
-                                  'file :  ' + file_name + " threadName: " +
-                self.threadName)
+                                  'ingest_document :  ' + self.document_id +
+                "threadName: " + self.threadName)
             for key in self.document_map.keys():
                 try:
                     # this call is volatile i.e. it might change syntax in
@@ -230,9 +232,10 @@ class DataTypeManagerGSD(Process):
                     # if it does, please just fix it.
                     collection.upsert_multi(self.document_map[key])
                     logging.info(
-                        self.threadName + ': data_type_manager successfully '
-                                          'wrote documents for file :  ' +
-                        file_name + " threadName: " + self.threadName)
+                        self.threadName + ': data_type_manager wrote '
+                                          'documents for '
+                                          'ingest_document :  ' +
+                        self.document_id + "threadName: " + self.threadName)
                 except:
                     e = sys.exc_info()[0]
                     e1 = sys.exc_info()[1]

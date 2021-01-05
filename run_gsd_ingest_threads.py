@@ -50,7 +50,14 @@ from load_spec import LoadSpecFile
 
 
 class VXIngestGSD(object):
-    def __init__(self, args):
+    def __init__(self):
+        self.load_time_start = time.perf_counter()
+        self.spec_file = ""
+        self.gsd_spec = ""
+        self.thread_count = ""
+        self.cert_path = None
+    
+    def parse_args(self, args):
         begin_time = str(datetime.now())
         logging.basicConfig(level=logging.INFO)
         logging.info("--- *** --- Start METdbLoad --- *** ---")
@@ -65,18 +72,19 @@ class VXIngestGSD(object):
         parser.add_argument("-c", "--cert_path", type=str, default='',
                             help="path to server public cert")
         # get the command line arguments
-        args = parser.parse_args()
-        self.load_time_start = time.perf_counter()
+        args = parser.parse_args(args)
+        return args
+    
+    def runit(self, args):
+        """
+        This is the entry point for run_cb_threads.py
+        """
         self.spec_file = args['spec_file']
         self.gsd_spec = True
         self.thread_count = args['threads']
         self.cert_path = None if 'cert_path' not in args.keys() else args[
             'cert_path']
-    
-    def main(self):
-        """
-        This is the entry point for run_cb_threads.py
-        """
+
         #
         #  Read the load_spec file
         #
@@ -103,17 +111,17 @@ class VXIngestGSD(object):
         # load the my_queue with
         # Constructor for an infinite size  FIFO my_queue
         q = JoinableQueue()
-        for f in load_spec.ingest_document_ids:
+        for f in load_spec['ingest_document_ids']:
             q.put(f)
         # instantiate data_type_manager pool - each data_type_manager is a
         # thread that uses builders to process a file
         # Make the Pool of data_type_managers
         _dtm_list = []
-        for _threadCount in range(self.thread_count):
+        for _threadCount in range(int(self.thread_count)):
             try:
                 dtm_thread = GsdIngestManager(
                     "GsdIngestManager-" + str(self.thread_count),
-                    load_spec.connection, q)
+                    load_spec['cb_connection'], q)
                 _dtm_list.append(dtm_thread)
                 dtm_thread.start()
             except:
@@ -133,7 +141,11 @@ class VXIngestGSD(object):
     
     def clean_up(self, load_time_start):
         pass
+    
+    def main(self):
+        args = self.parse_args(sys.argv)
+        self.runit(args)
 
 
 if __name__ == '__main__':
-    VXIngestGSD(sys.argv[1:]).main()
+    VXIngestGSD().main()

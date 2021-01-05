@@ -62,7 +62,7 @@ import queue
 
 from couchbase.cluster import Cluster, ClusterOptions
 from couchbase_core.cluster import PasswordAuthenticator
-import data_type_builder as dtb
+import gsd_builder as gsd
 
 
 class GsdIngestManager(Process):
@@ -129,16 +129,15 @@ class GsdIngestManager(Process):
                 # this does not work yet - to get here use the -c option
                 # with a cert_path
                 cluster = Cluster(
-                    'couchbase://' + self.connection_credentials['db_host'],
+                    'couchbase://' + self.connection_credentials['host'],
                     ClusterOptions(PasswordAuthenticator(
-                        self.connection_credentials['db_user'],
-                        self.connection_credentials['db_password'],
+                        self.connection_credentials['user'],
+                        self.connection_credentials['password'],
                         cert_path=self.connection_credentials['cert_path'])))
-                self.database_name = self.connection_credentials['db_name']
                 collection = cluster.bucket(
                     "mdata").default_collection()  # this works with a cert
                 # to local server - but not to adb-cb4  # connstr =   #  #
-                # 'couchbases://127.0.0.1/{  #  #  #  #   #   #  #   #
+                # 'couchbases://127.0.0.1/{  #  #  #  #   #   #  #   #  #
                 # }?certpath=/Users/randy.pierce/servercertfiles/ca.pem'  #
                 # credentials = dict(username='met_admin',
                 # password='met_adm_pwd')  # cb = Bucket(connstr.format(  #
@@ -153,15 +152,13 @@ class GsdIngestManager(Process):
                     self.threadName + ': attempting cb connection with NO '
                                       'cert')
                 cluster = Cluster(
-                    'couchbase://' + self.connection_credentials['db_host'],
+                    'couchbase://' + self.connection_credentials['host'],
                     ClusterOptions(PasswordAuthenticator(
-                        self.connection_credentials['db_user'],
-                        self.connection_credentials['db_password'])))
-                self.database_name = self.connection_credentials['db_name']
+                        self.connection_credentials['user'],
+                        self.connection_credentials['password'])))
                 collection = cluster.bucket("mdata").default_collection()
             
             logging.info(self.threadName + ': connection success')
-            self.database_name = self.connection_credentials['db_name']
             # infinite loop terminates when the document_id_queue is empty
             empty_count = 0
             while True:
@@ -175,8 +172,8 @@ class GsdIngestManager(Process):
                         empty_count += 1
                         logging.info(
                             self.threadName + ': GsdIngestManager - got '
-                                              'Queue.Empty - retrying: ' + str(
-                                empty_count) + " of 3 times")
+                                              'Queue.Empty - retrying: ' +
+                            str(empty_count) + " of 3 times")
                         time.sleep(1)
                         continue
                     else:
@@ -199,15 +196,17 @@ class GsdIngestManager(Process):
     # process a file line by line
     def process_document(self, document_id, collection):
         self.document_map = {}
+        _document_id = document_id
         # get the document from couchbase
-        ingest_document = collection.get(self.document_id)
+        ingest_document_result = collection.get(_document_id)
+        ingest_document = ingest_document_result.content
         ingest_type_builder_name = ingest_document['builder_type']
         # get or instantiate the builder
         try:
             if ingest_type_builder_name in self.builder_map.keys():
                 builder = self.builder_map[ingest_type_builder_name]
             else:
-                builder_class = getattr(dtb, ingest_type_builder_name)
+                builder_class = getattr(gsd, ingest_type_builder_name)
                 builder = builder_class()
                 self.builder_map[ingest_type_builder_name] = builder
             # process the line
@@ -223,7 +222,7 @@ class GsdIngestManager(Process):
         try:
             logging.info(
                 self.threadName + ': data_type_manager writing documents for '
-                                  'ingest_document :  ' + self.document_id +
+                                  'ingest_document :  ' + _document_id +
                 "threadName: " + self.threadName)
             for key in self.document_map.keys():
                 try:
@@ -231,11 +230,11 @@ class GsdIngestManager(Process):
                     # the future.
                     # if it does, please just fix it.
                     collection.upsert_multi(self.document_map[key])
-                    logging.info(
-                        self.threadName + ': data_type_manager wrote '
-                                          'documents for '
-                                          'ingest_document :  ' +
-                        self.document_id + "threadName: " + self.threadName)
+                    logging.info(self.threadName + ': data_type_manager wrote '
+                                                   'documents for '
+                                                   'ingest_document :  ' +
+                                 _document_id + "threadName: " +
+                                 self.threadName)
                 except:
                     e = sys.exc_info()[0]
                     e1 = sys.exc_info()[1]

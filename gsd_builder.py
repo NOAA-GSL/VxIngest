@@ -126,7 +126,7 @@ class GsdObsBuilder(GsdBuilder):
     def handle_document(self, ingest_document):
         try:
             logging.info("GsdObsBuilder: building with this ingest document: ")
-            print (json.dumps(ingest_document))
+            print(json.dumps(ingest_document))
         except:
             e = sys.exc_info()[0]
             logging.error(

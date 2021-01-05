@@ -1,0 +1,27 @@
+{
+  "id": "MD::V01::METAR::HRRR_OPS::ceiling::obs",
+  "type": "MD",
+  "MDType": "DataDocumentDescription",
+  "builder_type": "GsdObsBuilder",
+  "template": {
+    "id": "DD::V01::obs::METAR::ceiling2.obs.madis_id::ceiling2.obs.time",
+    "type": "DD",
+    "docType": "obs",
+    "subset": "METAR",
+    "dataFileId": "DF_id",
+    "dataSourceId": "DS_id",
+    "version": "V01",
+    "correctedTime": "ct",
+    "geoLocationId": "ceiling2.obs.madis_id",
+    "fcstValidBeg": "ceiling2.obs.time",
+    "fcstValidEpoch": "ceiling2.obs.time",
+    "data": {
+      "Temperature": "",
+      "DewPoint": "",
+      "WD": "",
+      "WS": "",
+      "Visibility": "",
+      "Ceiling": "ceiling2.obs.ceiling"
+    }
+  }
+}

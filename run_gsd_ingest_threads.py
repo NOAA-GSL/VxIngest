@@ -45,12 +45,12 @@ import time
 from datetime import datetime
 from datetime import timedelta
 from multiprocessing import JoinableQueue
-from data_type_manager_gsd import DataTypeManagerGSD
+from gsd_ingest_manager import GsdIngestManager
 from load_spec import LoadSpecFile
 
 
 class VXIngestGSD(object):
-    def __init__(self):
+    def __init__(self, args):
         begin_time = str(datetime.now())
         logging.basicConfig(level=logging.INFO)
         logging.info("--- *** --- Start METdbLoad --- *** ---")
@@ -111,8 +111,8 @@ class VXIngestGSD(object):
         _dtm_list = []
         for _threadCount in range(self.thread_count):
             try:
-                dtm_thread = DataTypeManagerGSD(
-                    "DataTypeManager-" + str(self.thread_count),
+                dtm_thread = GsdIngestManager(
+                    "GsdIngestManager-" + str(self.thread_count),
                     load_spec.connection, q)
                 _dtm_list.append(dtm_thread)
                 dtm_thread.start()

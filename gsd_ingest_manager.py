@@ -1,5 +1,5 @@
 """
-Program Name: Class DataTypeManager.py
+Program Name: Class GsdIngestManager.py
 Contact(s): Randy Pierce
 Abstract:
 

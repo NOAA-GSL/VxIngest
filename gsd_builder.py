@@ -129,10 +129,11 @@ class GsdObsBuilder(GsdBuilder):
             # print(json.dumps(ingest_document))
             first_fcst_valid_epoch = ingest_document['firstFcstValidEpoch']
             last_fcst_valid_epoch = ingest_document['lastFcstValidEpoch']
-            document_template = ingest_document['template']
+            _document_template = ingest_document['template']
             logging.info("GsdObsBuilder: building with "
                          "first_valid_epoch: " + str(first_fcst_valid_epoch) +
                          "last_valid_epoch: " + str(last_fcst_valid_epoch))
+            logging.info(_document_template)
         except:
             e = sys.exc_info()[0]
             logging.error(

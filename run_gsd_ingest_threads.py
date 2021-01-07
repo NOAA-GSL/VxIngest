@@ -61,7 +61,7 @@ class VXIngestGSD(object):
         begin_time = str(datetime.now())
         logging.basicConfig(level=logging.INFO)
         logging.info("--- *** --- Start METdbLoad --- *** ---")
-        logging.info("Begin time: %s", begin_time)
+        logging.info("Begin time: %s" + begin_time)
         # time execution
         parser = argparse.ArgumentParser()
         parser.add_argument("spec_file",
@@ -84,12 +84,12 @@ class VXIngestGSD(object):
         self.thread_count = args['threads']
         self.cert_path = None if 'cert_path' not in args.keys() else args[
             'cert_path']
-
+        
         #
         #  Read the load_spec file
         #
         try:
-            logging.debug("load_spec filename is %s", self.spec_file)
+            logging.debug("load_spec filename is %s" + self.spec_file)
             
             # instantiate a load_spec file
             # read in the load_spec file and get the information out of its
@@ -104,7 +104,7 @@ class VXIngestGSD(object):
                 "*** %s occurred in Main reading load_spec " +
                 self.spec_file + " ***",
                 sys.exc_info()[0])
-            sys.exit("*** Error reading XML")
+            sys.exit("*** Error reading load_spec: ", self.spec_file)
         
         # process the spec file??
         # get all the ingest_document_ids and put them into a my_queue
@@ -121,26 +121,21 @@ class VXIngestGSD(object):
             try:
                 dtm_thread = GsdIngestManager(
                     "GsdIngestManager-" + str(self.thread_count),
-                    load_spec['cb_connection'], q)
+                    load_spec['cb_connection'], load_spec['mysql_connection'],
+                    q)
                 _dtm_list.append(dtm_thread)
                 dtm_thread.start()
             except:
-                e = sys.exc_info()
-                logging.error("*** %s occurred in purge_files ***", e[0])
+                logging.error("*** Error in  VXIngestGSD ***" +
+                              str(sys.exc_info()[0]))
         # be sure to join all the threads to wait on them
         [proc.join() for proc in _dtm_list]
-        self.clean_up(self.load_time_start)
-        
-        def clean_up(start):
-            logging.info("finished starting threads")
-            load_time_end = time.perf_counter()
-            load_time = timedelta(seconds=load_time_end - start)
-            logging.info("    >>> Total load time: %s", str(load_time))
-            logging.info("End time: %s", str(datetime.now()))
-            logging.info("--- *** --- End METdbLoad --- *** ---")
-    
-    def clean_up(self, load_time_start):
-        pass
+        logging.info("finished starting threads")
+        load_time_end = time.perf_counter()
+        load_time = timedelta(seconds=load_time_end - self.load_time_start)
+        logging.info("    >>> Total load time: %s" + str(load_time))
+        logging.info("End time: %s" + str(datetime.now()))
+        logging.info("--- *** --- End METdbLoad --- *** ---")
     
     def main(self):
         args = self.parse_args(sys.argv)

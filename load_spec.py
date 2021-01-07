@@ -55,10 +55,10 @@ class LoadSpecFile:
             self.spec_type = "gsd"
             self.connection_list = ['cb_connection', 'mysql_connection']
             self.load_spec = {
-                'cb_connection': {'host': None, 'port': cn.CB_PORT,
+                'cb_connection': {'host': None,
                                   'user': None, 'password': None,
                                   'management_system': "cb"},
-                'mysql_connection': {'host': None, 'port': cn.SQL_PORT,
+                'mysql_connection': {'host': None,
                                      'database': None, 'user': None,
                                      'password': None,
                                      'management_system': "mysql"},
@@ -66,7 +66,7 @@ class LoadSpecFile:
         else:
             # It isn't gsd_spec so define and initialize a met style load_spec
             self.connection_list = ['connection']
-            self.load_spec = {'connection': {'host': None, 'port': cn.SQL_PORT,
+            self.load_spec = {'connection': {'host': None,
                                              'database': None, 'user': None,
                                              'password': None,
                                              'management_system': "mysql"},
@@ -114,10 +114,11 @@ class LoadSpecFile:
                 self.tree = etree.parse(self.spec_file_name, parser=parser)
                 self.root = self.tree.getroot()
             if self.load_spec_file_type == 'yaml':
-                with open(self.spec_file_name) as f:
-                    self.yaml_data = yaml.load(f, Loader=yaml.SafeLoader)
-                    self.yaml_data = {k.lower(): v for k, v in
-                                      self.yaml_data.items()}
+                f = open(self.spec_file_name)
+                self.yaml_data = yaml.load(f, yaml.SafeLoader)
+                self.yaml_data = {k.lower(): v for k, v in
+                                  self.yaml_data.items()}
+                f.close()
         except (RuntimeError, TypeError, NameError, KeyError):
             logging.error("*** %s in read ***", sys.exc_info()[0])
             sys.exit("*** Parsing error(s) in load_spec file!")
@@ -152,22 +153,22 @@ class LoadSpecFile:
                                     'management_system'] = sub_child.text
                         # separate out the port if there is one
                         self.load_spec['connection']['host'] = \
-                        self.host_and_port[0]
+                            self.host_and_port[0]
                         if len(self.host_and_port) > 1:
                             self.load_spec['connection']['port'] = int(
                                 self.host_and_port[1])
                         if (not self.load_spec['connection']['host']) or (
-                        not self.load_spec['connection']['database']):
+                                not self.load_spec['connection']['database']):
                             logging.warning(
                                 "!!! load_spec must include host and "
                                 "database tags")
                         if (not self.load_spec['connection']['user']) or (
-                        not self.load_spec['connection']['password']):
+                                not self.load_spec['connection']['password']):
                             logging.warning(
                                 "!!! load_spec must include user and "
                                 "password tags")
-                        if not self.load_spec['connection'][
-                            'database'].startswith("mv_"):
+                        if not self.load_spec['connection']['database'].\
+                                startswith("mv_"):
                             logging.warning(
                                 "!!! Database not visible unless name starts "
                                 "with mv_")
@@ -285,24 +286,27 @@ class LoadSpecFile:
                     for k in c_keys:
                         try:
                             # assign the connection keys from the yaml_data
-                            self.load_spec[c_key][k] = \
-                            self.yaml_data['load_spec'][c_key][k]
+                            if k in self.load_spec[c_key].keys():
+                                self.load_spec[c_key][k] = \
+                                    self.yaml_data['load_spec'][c_key][k]
                             if k == 'host':
                                 #  deal with the possibility of a host:port
                                 #  string
                                 self.host_and_port = \
-                                self.yaml_data['load_spec'][c_key][
-                                    'host'].split(":")
+                                    self.yaml_data['load_spec'][c_key][
+                                        'host'].split(":")
                                 self.load_spec[c_key]['host'] = \
-                                self.host_and_port[0]
+                                    self.host_and_port[0]
                                 # assign port if it is included
                                 if len(self.host_and_port) > 1:
                                     self.load_spec[c_key]['port'] = int(
                                         self.host_and_port[1])
                         except KeyError:
                             logging.warning(
-                                "yaml file: " + self.spec_file_name + " is "
-                                                                      "missing key: load_spec[c_key]['" + k + "'] - using default")
+                                "yaml file: " +
+                                self.spec_file_name +
+                                " is missing key: load_spec[" + c_key + "]['" +
+                                k + "'] - using default")
                     
                     # assign the top level keys - both met and gsd
                     for k in self.load_spec.keys():
@@ -312,18 +316,19 @@ class LoadSpecFile:
                             self.load_spec[k] = self.yaml_data['load_spec'][k]
                             if k == 'folder_tmpl':
                                 self.folder_template = \
-                                self.yaml_data['load_spec'][k]
+                                    self.yaml_data['load_spec'][k]
                         except KeyError:
                             logging.warning(
-                                "yaml file: " + self.spec_file_name + " is "
-                                                                      "missing key: load_spec['" + k + "'] " + "- using default")
+                                "yaml file: " + self.spec_file_name +
+                                " is missing key: load_spec['" +
+                                k + "'] " + "- using default")
                     
                     # met specific validation and file loading
                     if not self.spec_type == 'gsd':
                         #  met spec, we have to verify we have to validate
                         #  the connection parameters
                         if (not self.load_spec[c_key]['host']) or (
-                        not self.load_spec[c_key]['database']):
+                                not self.load_spec[c_key]['database']):
                             logging.error(
                                 "!!! XML must include host and database tags")
                             sys.exit(
@@ -331,7 +336,7 @@ class LoadSpecFile:
                                 "!!! " + "XML must include host and database "
                                          "tags")
                         if (not self.load_spec[c_key]['user']) or (
-                        not self.load_spec[c_key]['password']):
+                                not self.load_spec[c_key]['password']):
                             logging.error(
                                 "!!! XML must include user and password tags")
                             sys.exit(
@@ -353,10 +358,13 @@ class LoadSpecFile:
                         for k in self.load_spec['flags'].keys():
                             try:
                                 self.load_spec['flags'][k] = \
-                                self.yaml_data['load_spec'][k]
+                                    self.yaml_data['load_spec'][k]
                             except KeyError:
                                 logging.warning(
-                                    "yaml file: " + self.spec_file_name + " is missing key: load_spec['flags']['" + k + "'] - using default")
+                                    "yaml file: " +
+                                    self.spec_file_name +
+                                    " is missing key: load_spec['flags']['" +
+                                    k + "'] - using default")
                         
                         # met only - date_list = self.yaml_data[
                         # 'load_spec']['date_list']
@@ -443,7 +451,8 @@ class LoadSpecFile:
                         del template_fills[key]
             if fills_open > len(template_fills):
                 raise ValueError("not enough template fill values")
-            # generate a list of directories with all combinations of values filled in
+            # generate a list of directories with all combinations of values
+            # filled in
             load_dirs = [folder_template]
             for key in template_fills:
                 alist = []
@@ -451,7 +460,8 @@ class LoadSpecFile:
                     for tvalue in load_dirs:
                         alist.append(tvalue.replace("{" + key + "}", fvalue))
                 load_dirs = alist
-            # find all files in directories, append path to them, and put on load_files list
+            # find all files in directories, append path to them, and put on
+            # load_files list
             file_list = []
             for file_dir in load_dirs:
                 if os.path.exists(file_dir):

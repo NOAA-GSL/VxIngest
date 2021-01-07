@@ -55,6 +55,12 @@ from abc import ABC
 import json
 
 
+def get_id(record):
+    # Private method to derive a document id from the current line.
+    my_id = "DD::"
+    return my_id
+
+
 class GsdBuilder(ABC):
     # Abstract Class for data_type builders
     def __init__(self):
@@ -63,12 +69,7 @@ class GsdBuilder(ABC):
         self.data_field_names = None
     
     # common helper methods
-    
-    def get_id(self, record):
-        # Private method to derive a document id from the current line.
-        my_id = "DD::"
-        return my_id
-    
+
     def get_data_record(self, record):
         try:
             data_record = {}
@@ -77,26 +78,23 @@ class GsdBuilder(ABC):
             e = sys.exc_info()[0]
             logging.error("Exception instantiating builder - "
                           "get_data_record_VSDB_V01_L1L2: " +
-                          self.__class__.__name__ + " get_data_record_VSDB_V01_L1L2 error: " + str(
-                e))
+                          self.__class__.__name__ +
+                          " get_data_record_VSDB_V01_L1L2 error: " +
+                          str(e))
             return {}
     
     def start_new_document(self):
         # Private method to start a new document
         try:
-            my_id = self.get_id(record)
+            my_id = get_id({})
         
         except:
             e = sys.exc_info()[0]
             logging.error("Exception instantiating builder - "
                           "start_new_document_VSDB_V01_L1L2: " +
-                          self.__class__.__name__ + " start_new_document_VSDB_V01_L1L2 "
-                                                                                           "error: " + str(
-                e))
+                          self.__class__.__name__ +
+                          " start_new_document_VSDB_V01_L1L2 error: " + str(e))
     
-    def handle_document(self, document_map, database_name):
-        pass
-
 
 # Concrete data_type builders:
 # Each data_type builder has to be able to do two things.
@@ -124,12 +122,19 @@ class GsdObsBuilder(GsdBuilder):
         super(GsdBuilder, self).__init__()
     
     def handle_document(self, ingest_document):
+    
         try:
-            logging.info("GsdObsBuilder: building with this ingest document: ")
-            print(json.dumps(ingest_document))
+            logging.info("GsdObsBuilder: building this ingest document: " +
+                         str(ingest_document['id']))
+            # print(json.dumps(ingest_document))
+            first_fcst_valid_epoch = ingest_document['firstFcstValidEpoch']
+            last_fcst_valid_epoch = ingest_document['lastFcstValidEpoch']
+            document_template = ingest_document['template']
+            logging.info("GsdObsBuilder: building with "
+                         "first_valid_epoch: " + str(first_fcst_valid_epoch) +
+                         "last_valid_epoch: " + str(last_fcst_valid_epoch))
         except:
             e = sys.exc_info()[0]
             logging.error(
                 "Exception instantiating builder: " +
-                self.__class__.__name__ + " error: " + str(
-                    e))
+                self.__class__.__name__ + " error: " + str(e))

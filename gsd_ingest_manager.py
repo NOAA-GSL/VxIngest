@@ -63,7 +63,7 @@ from multiprocessing import Process
 import queue
 import pymysql
 from couchbase.cluster import Cluster, ClusterOptions
-from couchbase.exceptions import DocumentNotFoundException
+from couchbase.exceptions import DocumentNotFoundException, TimeoutException
 from couchbase_core.cluster import PasswordAuthenticator
 import gsd_builder as gsd
 import constants as cn
@@ -133,7 +133,7 @@ class GsdIngestManager(Process):
                                                       self.collection)
                     self.queue.task_done()
                     empty_count = 0
-                except DocumentNotFoundException:
+                except (DocumentNotFoundException, TimeoutException):
                     continue
                 except queue.Empty:
                     if empty_count < 3:
@@ -252,6 +252,11 @@ class GsdIngestManager(Process):
                                   "builder: " + "document_id: " +
                 _document_id)
             raise DocumentNotFoundException('document_id: ' + _document_id)
+        except TimeoutException:
+            logging.warning(
+                self.threadName + ": TimeoutException instantiating "
+                                  "builder: " + "document_id: " + _document_id)
+            raise TimeoutException('document_id: ' + _document_id)
         ingest_document = ingest_document_result.content
         ingest_type_builder_name = ingest_document['builder_type']
         # get or instantiate the builder

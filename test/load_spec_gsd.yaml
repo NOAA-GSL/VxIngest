@@ -2,9 +2,9 @@ load_spec:
   email: "randy.pierce@noaa.gov"
   cb_connection:
     management_system: cb
-    host: "127.0.0.1"
-    user: gsd
-    password: gsd_pwd
+    host: "localhost"
+    user: met_admin
+    password: met_adm_pwd
   mysql_connection:
     management_system: mysql
     host: "wolphin.fsl.noaa.gov"

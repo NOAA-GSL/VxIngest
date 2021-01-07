@@ -289,25 +289,12 @@ class LoadSpecFile:
                             if k in self.load_spec[c_key].keys():
                                 self.load_spec[c_key][k] = \
                                     self.yaml_data['load_spec'][c_key][k]
-                            if k == 'host':
-                                #  deal with the possibility of a host:port
-                                #  string
-                                self.host_and_port = \
-                                    self.yaml_data['load_spec'][c_key][
-                                        'host'].split(":")
-                                self.load_spec[c_key]['host'] = \
-                                    self.host_and_port[0]
-                                # assign port if it is included
-                                if len(self.host_and_port) > 1:
-                                    self.load_spec[c_key]['port'] = int(
-                                        self.host_and_port[1])
                         except KeyError:
                             logging.warning(
                                 "yaml file: " +
                                 self.spec_file_name +
                                 " is missing key: load_spec[" + c_key + "]['" +
                                 k + "'] - using default")
-                    
                     # assign the top level keys - both met and gsd
                     for k in self.load_spec.keys():
                         if k in [c_key, 'flags']:
@@ -382,7 +369,6 @@ class LoadSpecFile:
                             self.folder_template, self.template_fills)
             except:
                 logging.error("*** %s in read yaml ***", sys.exc_info()[0])
-                logging.error("*** %s in read yaml ***", sys.exc_info()[1])
                 sys.exit("*** Error(s) found while reading YAML file!")
             
             logging.debug("[--- End read ---]")

@@ -133,7 +133,7 @@ class GsdObsBuilder(GsdBuilder):
             logging.info("GsdObsBuilder: building with "
                          "first_valid_epoch: " + str(first_fcst_valid_epoch) +
                          "last_valid_epoch: " + str(last_fcst_valid_epoch))
-            logging.info(_document_template)
+            logging.info(json.dumps(_document_template, indent=2))
         except:
             e = sys.exc_info()[0]
             logging.error(

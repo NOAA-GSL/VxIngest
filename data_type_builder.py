@@ -63,7 +63,6 @@ import constants as CN
 class DataTypeBuilder(ABC):
     # Abstract Class for data_type builders
     def __init__(self):
-        # The Constructor for the RunCB class.
         self.header_field_names = None
         self.data_field_names = None
     

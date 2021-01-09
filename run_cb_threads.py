@@ -56,7 +56,7 @@ def main():
         logging.debug("load_spec filename is %s", args.spec_file)
 
         # instantiate a load_spec file
-        # load_spec_file = LoadSpecFile(args.spec_file)
+        # load_spec_file = LoadYamlSpecFile(args.spec_file)
         #
         # # read in the load_spec file and get the information out of its tags
         # load_spec_file.read_xml()

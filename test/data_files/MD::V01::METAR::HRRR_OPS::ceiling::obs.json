@@ -1,8 +1,9 @@
 {
-  "id": "MD::V01::METAR::HRRR_OPS::ceiling::obs",
+  "id": "MD::V01::METAR::obs",
   "type": "MD",
   "MDType": "DataDocumentDescription",
   "builder_type": "GsdObsBuilder",
+  "statement": "",
   "template": {
     "id": "DD::V01::obs::METAR::ceiling2.obs.madis_id::ceiling2.obs.time",
     "type": "DD",

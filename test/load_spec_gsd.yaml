@@ -2,12 +2,13 @@ load_spec:
   email: "randy.pierce@noaa.gov"
   cb_connection:
     management_system: cb
+    xhost: "adb-cb1.gsd.esrl.noaa.gov"
     host: "localhost"
-    user: met_admin
-    password: met_adm_pwd
+    user: gsd
+    password: gsd_pwd
   mysql_connection:
     management_system: mysql
     host: "wolphin.fsl.noaa.gov"
     user: readonly
     password: ReadOnly@2016!
-  ingest_document_ids: ['MD::V01::METAR::HRRR_OPS::obs']
+  ingest_document_ids: ['MD::V01::METAR::obs']

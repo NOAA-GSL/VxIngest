@@ -51,50 +51,29 @@ Colorado, NOAA/OAR/ESRL/GSD
 
 import logging
 import sys
+import copy
 from abc import ABC
-import json
-
-
-def get_id(record):
-    # Private method to derive a document id from the current line.
-    my_id = "DD::"
-    return my_id
+import datetime as dt
+import calendar, time
+import constants as cn
 
 
 class GsdBuilder(ABC):
     # Abstract Class for data_type builders
     def __init__(self):
-        # The Constructor for the RunCB class.
-        self.header_field_names = None
-        self.data_field_names = None
+        return
     
-    # common helper methods
+    def get_id(self, a_time, an_id):
+        # Private method to derive a document id from the current line.
+        my_id = an_id
+        my_id = my_id.replace('time', a_time)
+        return my_id
+    
+    def convert_to_iso(self, a_time):
+        _valid_time_str = dt.datetime.utcfromtimestamp(
+            a_time).strftime(cn.TS_OUT_FORMAT)
+        return _valid_time_str
 
-    def get_data_record(self, record):
-        try:
-            data_record = {}
-            return data_record
-        except:
-            e = sys.exc_info()[0]
-            logging.error("Exception instantiating builder - "
-                          "get_data_record_VSDB_V01_L1L2: " +
-                          self.__class__.__name__ +
-                          " get_data_record_VSDB_V01_L1L2 error: " +
-                          str(e))
-            return {}
-    
-    def start_new_document(self):
-        # Private method to start a new document
-        try:
-            my_id = get_id({})
-        
-        except:
-            e = sys.exc_info()[0]
-            logging.error("Exception instantiating builder - "
-                          "start_new_document_VSDB_V01_L1L2: " +
-                          self.__class__.__name__ +
-                          " start_new_document_VSDB_V01_L1L2 error: " + str(e))
-    
 
 # Concrete data_type builders:
 # Each data_type builder has to be able to do two things.
@@ -113,29 +92,49 @@ class GsdBuilder(ABC):
 # in the vsdb files on purpose. These classes are instantiated dynamically
 # and naming them after
 # the data fields makes that process easier and cleaner. Sorry pylint...
-class GsdObsBuilder(GsdBuilder):
+class GsdMetarObsBuilder(GsdBuilder):
     # This data_type builder can leverage the parent
     # self.start_new_document_VSDB_V01_L1L2, and
     # self._handle_line_VSDB_V01_L1L2 because they are same for several data
     # types.
-    def __init__(self):
+    def __init__(self, template):
         super(GsdBuilder, self).__init__()
+        self.template = template
     
-    def handle_document(self, ingest_document):
-    
+    def handle_document(self, row, document_map):
         try:
-            logging.info("GsdObsBuilder: building this ingest document: " +
-                         str(ingest_document['id']))
-            # print(json.dumps(ingest_document))
-            first_fcst_valid_epoch = ingest_document['firstFcstValidEpoch']
-            last_fcst_valid_epoch = ingest_document['lastFcstValidEpoch']
-            _document_template = ingest_document['template']
-            logging.info("GsdObsBuilder: building with "
-                         "first_valid_epoch: " + str(first_fcst_valid_epoch) +
-                         "last_valid_epoch: " + str(last_fcst_valid_epoch))
-            logging.info(json.dumps(_document_template, indent=2))
+            _document = copy.deepcopy(self.template)
+            for k in _document.keys():
+                if k == "id":
+                    _document['id'] = GsdBuilder.get_id(self, str(row['time']),
+                                                        self.template['id'])
+                    continue
+                if k == "data":
+                    for kd in _document['data'].keys():
+                        if _document['data'][kd].startswith("*"):
+                            row_key = _document['data'][kd][1:]
+                            _document['data'][kd] = row[row_key]
+                        else:
+                            if _document['data'][kd].startswith("ISO*"):
+                                row_key = _document['data'][kd].replace('ISO*',
+                                    '')
+                                _document['data'][kd] = \
+                                    GsdBuilder.convert_to_iso(self,
+                                                              row[row_key])
+                else:
+                    if _document[k].startswith("*"):
+                        row_key = _document[k][1:]
+                        _document[k] = row[row_key]
+                    else:
+                        if _document[k].startswith("ISO*"):
+                            row_key = _document[k].replace('ISO*', '')
+                            _document[k] = \
+                                GsdBuilder.convert_to_iso(self, row[row_key])
+            # put document into document map
+            document_map[_document['id']] = _document
         except:
             e = sys.exc_info()[0]
             logging.error(
                 "Exception instantiating builder: " +
-                self.__class__.__name__ + " error: " + str(e))
+                self.__class__.__name__ + " error: " + str(
+                    e))

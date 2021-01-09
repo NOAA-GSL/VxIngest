@@ -55,7 +55,7 @@ database.
 Copyright 2019 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of
 Colorado, NOAA/OAR/ESRL/GSD
 """
-
+import json
 import logging
 import sys
 import time
@@ -74,22 +74,40 @@ class GsdIngestManager(Process):
     GsdIngestManager is a Thread that manages an object pool of
     GsdBuilders to ingest data from GSD databases into documents that can be
     inserted into couchbase.
+    
+    This class receives connection credentials for couchbase and for mysql.
+    It uses the credentials to open connections to both database systems. These
+    connections are maintained by this thread.
+    
     This class will process data by collecting ingest_document_ids - one at a
-    time - from document_id_queue. For each ingest_document_id it will
-    use the template contained in the ingest_document that is identified by
-    the ingest_document_id and process each line.
-    From each ingest_document it retrieves the builder_type.
-    It uses the builder_type to either retrieve the reference of a
-    corresponding ingest_type_builder from the object
-    pool or instantiate an appropriate builder_type_builder and put it in the
-    pool and retrieve its reference.
-    It uses the builder_type_builder to process an ingest_document and either
-    start a new document_map entry, or add data_records to an existing
-    data_map entry.
+    time - from the document_id_queue. For each ingest_document_id it
+    retrieves the identified load metadata document from the couchbase
+    collection. From that document it retrieves an sql statement,
+    a concrete GsdBuilder class name, a document template, and some other
+    fields. It uses the statement in the load metadata document to
+    retrieve a result set from the mysql databases and then instantiates
+    an appropriate builder using the GsdBuilder class name, and the template
+    as construction parameters, and passes the result set entries one at a
+    time into the builders handle_entry method, along with a reference to
+    the document map. The builders use the template to create documents for
+    each entry and put them into the document map.
+    When all of the result set entries are processed the IngestManager upserts
+    the documents to couchbase, retrieves a new ingest_document from
+    the queue and starts over.
+    Each GsdBuilder is kept in a n object pool so that they do not need to
+    be re instantiated.
+    When the queue has been emptied the IngestManager closes its connections
+    and dies.
     """
     
     def __init__(self, name, cb_credentials, mysql_credentials,
                  document_id_queue):
+        """
+        :param name: (str) the thread name for this IngestManager
+        :param cb_credentials: (Object) Couchbase credentials
+        :param mysql_credentials: (Object) mysql credentials
+        :param document_id_queue: (Object) reference to a queue
+        """
         # The Constructor for the RunCB class.
         Process.__init__(self)
         self.threadName = name
@@ -111,11 +129,11 @@ class GsdIngestManager(Process):
     # started.
     def run(self):
         """
-        This is the entry point for the DataTypeManager thread. It runs an
-        infinite loop that only
-        terminates when the  document_id_queue is empty. For each enqueued
-        document
-        it calls process_document with the document id to process the file.
+        This is the entry point for the GsdIngestManager thread. It runs an
+        infinite loop that only terminates when the  document_id_queue is 
+        empty. For each enqueued document id it calls 
+        process_meta_ingest_document with the document id and the couchbase 
+        collection to process the ingest_document.
         """
         try:
             logging.basicConfig(level=logging.INFO)
@@ -129,8 +147,7 @@ class GsdIngestManager(Process):
             while True:
                 try:
                     document_id = self.queue.get_nowait()
-                    self.process_meta_ingest_document(document_id,
-                                                      self.collection)
+                    self.process_meta_ingest_document(document_id)
                     self.queue.task_done()
                     empty_count = 0
                 except (DocumentNotFoundException, TimeoutException):
@@ -235,17 +252,17 @@ class GsdIngestManager(Process):
             logging.error("*** %s in connect_mysql ***" + str(pop_err))
             sys.exit("*** Error when connecting to mysql database: ")
         try:
-            self.cursor = self.connection.cursor()
+            self.cursor = self.connection.cursor(pymysql.cursors.DictCursor)
         except (RuntimeError, TypeError, NameError, KeyError, AttributeError):
             logging.error("*** %s in run_sql ***" + str(sys.exc_info()[0]))
             sys.exit("*** Error when creating cursor: ")
     
-    def process_meta_ingest_document(self, document_id, collection):
+    def process_meta_ingest_document(self, document_id):
         self.document_map = {}
         _document_id = document_id
         # get the document from couchbase
         try:
-            ingest_document_result = collection.get(_document_id)
+            ingest_document_result = self.collection.get(_document_id)
         except DocumentNotFoundException:
             logging.warning(
                 self.threadName + ": DocumentNotFoundException instantiating "
@@ -257,23 +274,41 @@ class GsdIngestManager(Process):
                 self.threadName + ": TimeoutException instantiating "
                                   "builder: " + "document_id: " + _document_id)
             raise TimeoutException('document_id: ' + _document_id)
-        ingest_document = ingest_document_result.content
-        ingest_type_builder_name = ingest_document['builder_type']
+        _ingest_document = ingest_document_result.content
+        _template = _ingest_document['template']
+        _ingest_type_builder_name = _ingest_document['builder_type']
         # get or instantiate the builder
         try:
-            if ingest_type_builder_name in self.builder_map.keys():
-                builder = self.builder_map[ingest_type_builder_name]
+            if _ingest_type_builder_name in self.builder_map.keys():
+                builder = self.builder_map[_ingest_type_builder_name]
             else:
-                builder_class = getattr(gsd, ingest_type_builder_name)
-                builder = builder_class()
-                self.builder_map[ingest_type_builder_name] = builder
+                builder_class = getattr(gsd, _ingest_type_builder_name)
+                builder = builder_class(_template)
+                self.builder_map[_ingest_type_builder_name] = builder
+
             # process the document
-            builder.handle_document(ingest_document)
+            _statement = _ingest_document['statement']
+            logging.info(
+                "GsdMetarObsBuilder: building this ingest document: " + str(
+                    _ingest_document['id']))
+            # print(json.dumps(ingest_document))
+            _document_template = _ingest_document['template']
+            logging.info("GsdMetarObsBuilder: building with "
+                         "template: " + json.dumps(_document_template,
+                                                   indent=2))
+            
+            self.cursor.execute(_statement)
+            # iterate the result set
+            while True:
+                row = self.cursor.fetchone()
+                if not row:
+                    break
+                builder.handle_document(row, self.document_map)
         except:
             e = sys.exc_info()[0]
             logging.error(
                 self.threadName + ": Exception instantiating builder: " +
-                str(ingest_type_builder_name) + " error: " +
+                str(_ingest_type_builder_name) + " error: " +
                 str(e))
         # all the lines are now processed for this file so write all the
         # documents in the document_map
@@ -282,28 +317,29 @@ class GsdIngestManager(Process):
                 self.threadName + ': data_type_manager writing documents for '
                                   'ingest_document :  ' + str(_document_id) +
                 "threadName: " + self.threadName)
-            for key in self.document_map.keys():
-                try:
-                    # this call is volatile i.e. it might change syntax in
-                    # the future.
-                    # if it does, please just fix it.
-                    collection.upsert_multi(self.document_map[key])
-                    logging.info(self.threadName + ': data_type_manager wrote '
-                                                   'documents for '
-                                                   'ingest_document :  ' +
-                                 str(_document_id) + "threadName: " +
-                                 self.threadName)
-                except:
-                    e = sys.exc_info()[0]
-                    e1 = sys.exc_info()[1]
-                    logging.error(
-                        self.threadName + ": *** %s Error multi-upsert to "
-                                          "Couchbase: in data_type_manager "
-                                          "*** " + str(e))
-                    logging.error(
-                        self.threadName + ": *** %s Error multi-upsert to "
-                                          "Couchbase: in data_type_manager "
-                                          "*** " + str(e1))
+            
+            try:
+                # this call is volatile i.e. it might change syntax in
+                # the future.
+                # if it does, please just fix it.
+                self.collection.upsert_multi(self.document_map)
+                logging.info(self.threadName + ': data_type_manager wrote '
+                                               'documents for '
+                                               'ingest_document :  ' +
+                             str(_document_id) + "threadName: " +
+                             self.threadName)
+            except:
+                e = sys.exc_info()[0]
+                e1 = sys.exc_info()[1]
+                logging.error(
+                    self.threadName + ": *** %s Error multi-upsert to "
+                                      "Couchbase: in data_type_manager "
+                                      "*** " + str(e))
+                logging.error(
+                    self.threadName + ": *** %s Error multi-upsert to "
+                                      "Couchbase: in data_type_manager "
+                                      "*** " + str(e1))
+            self.document_map = {}
         except:
             e = sys.exc_info()[0]
             e1 = sys.exc_info()[1]

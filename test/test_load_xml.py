@@ -1,7 +1,7 @@
 import os
 from unittest import TestCase
 
-from load_spec_xml import LoadXmlSpecFile
+from vsdb_files_to_cb.load_spec_xml import LoadXmlSpecFile
 
 
 class TestLoadXmlSpecFile(TestCase):

@@ -25,7 +25,7 @@ import time
 from datetime import datetime
 from datetime import timedelta
 from multiprocessing import JoinableQueue
-from data_type_manager import DataTypeManager
+from vsdb_files_to_cb.data_type_manager import DataTypeManager
 from load_spec import LoadSpecFile
 
 

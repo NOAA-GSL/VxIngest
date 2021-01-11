@@ -18,11 +18,10 @@ Colorado, NOAA/OAR/ESRL/GSD
 
 import sys
 import os
-import yaml
 from pathlib import Path
 import logging
 from lxml import etree
-import constants as cn
+from vsdb_files_to_cb import constants as cn
 import pandas as pd
 
 

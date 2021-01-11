@@ -44,8 +44,8 @@ import time
 from datetime import datetime
 from datetime import timedelta
 from multiprocessing import JoinableQueue
-from gsd_ingest_manager import GsdIngestManager
-from load_spec_yaml import LoadYamlSpecFile
+from gsd_sql_to_cb.gsd_ingest_manager import GsdIngestManager
+from gsd_sql_to_cb.load_spec_yaml import LoadYamlSpecFile
 
 
 class VXIngestGSD(object):

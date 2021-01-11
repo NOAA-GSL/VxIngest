@@ -55,9 +55,9 @@ import sys
 from abc import ABC
 
 import datetime as dt
-import calendar, time
+import calendar
 
-import constants as CN
+from vsdb_files_to_cb import constants as CN
 
 
 class DataTypeBuilder(ABC):

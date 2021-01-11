@@ -14,7 +14,7 @@ GsdBuilders. A pool of instantiated GsdBuilders is
         Each concrete builder must over ride the function ...
         def handle_line(self, data_type, line, document_map, database_name):
         ....
-        which will be called from the Data_Type_MAnager like this ...
+        which will be called from the Data_Type_Manager like this ...
         builder.handle_line(data_type, line, document_map, database_name)
         ....
         where builder is the concrete builder instance, line is the line to
@@ -54,13 +54,15 @@ import sys
 import copy
 from abc import ABC
 import datetime as dt
-import calendar, time
-import constants as cn
+
+TS_OUT_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
 
 class GsdBuilder(ABC):
     # Abstract Class for data_type builders
     def __init__(self):
+        # used for date conversions
+    
         return
     
     def get_id(self, a_time, an_id):
@@ -71,32 +73,12 @@ class GsdBuilder(ABC):
     
     def convert_to_iso(self, a_time):
         _valid_time_str = dt.datetime.utcfromtimestamp(
-            a_time).strftime(cn.TS_OUT_FORMAT)
+            a_time).strftime(TS_OUT_FORMAT)
         return _valid_time_str
 
 
 # Concrete data_type builders:
-# Each data_type builder has to be able to do two things.
-# one: construct the self._document_field_names list that is an ordered list
-# of field names,
-# first header then data fields,
-# that correlates positionally to each line of a specific builder type i.e.
-# VSDB_V001_SL1L2.
-# using standardized names from the cn constants
-# two: implement _handle_line(self, data_type, record):
-# where data_type is the datatype of a given line i.e. VSDB_V001_SL1L2 and
-# record is a
-# map derived from the parsed line and the self._document_field_names
-# NOTE that these concrete builder classes are not CamelCase on purpose. The
-# concrete class names match the data
-# in the vsdb files on purpose. These classes are instantiated dynamically
-# and naming them after
-# the data fields makes that process easier and cleaner. Sorry pylint...
 class GsdMetarObsBuilder(GsdBuilder):
-    # This data_type builder can leverage the parent
-    # self.start_new_document_VSDB_V01_L1L2, and
-    # self._handle_line_VSDB_V01_L1L2 because they are same for several data
-    # types.
     def __init__(self, template):
         super(GsdBuilder, self).__init__()
         self.template = template
@@ -117,7 +99,7 @@ class GsdMetarObsBuilder(GsdBuilder):
                         else:
                             if _document['data'][kd].startswith("ISO*"):
                                 row_key = _document['data'][kd].replace('ISO*',
-                                    '')
+                                                                        '')
                                 _document['data'][kd] = \
                                     GsdBuilder.convert_to_iso(self,
                                                               row[row_key])

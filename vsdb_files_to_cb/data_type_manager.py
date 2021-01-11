@@ -70,8 +70,7 @@ import queue
 
 from couchbase.cluster import Cluster, ClusterOptions
 from couchbase_core.cluster import PasswordAuthenticator
-from couchbase.bucket import Bucket
-import data_type_builder as DTB
+from vsdb_files_to_cb import data_type_builder as DTB
 
 
 class DataTypeManager(Process):

@@ -65,8 +65,9 @@ import pymysql
 from couchbase.cluster import Cluster, ClusterOptions
 from couchbase.exceptions import DocumentNotFoundException, TimeoutException
 from couchbase_core.cluster import PasswordAuthenticator
-import gsd_builder as gsd
-import constants as cn
+from gsd_sql_to_cb import gsd_builder as gsd
+
+SQL_PORT = 3306
 
 
 class GsdIngestManager(Process):
@@ -241,7 +242,7 @@ class GsdIngestManager(Process):
             if 'port' in self.mysql_credentials.keys():
                 port = int(self.mysql_credentials['port'])
             else:
-                port = cn.SQL_PORT
+                port = SQL_PORT
             user = self.mysql_credentials['user']
             passwd = self.mysql_credentials['password']
             local_infile = True

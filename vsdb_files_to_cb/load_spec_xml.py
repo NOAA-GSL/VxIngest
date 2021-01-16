@@ -34,7 +34,7 @@ class LoadXmlSpecFile:
     
     def __init__(self, args):
         # set the defaults
-        # args requires {'spec_file':something, ['spec_type':'gsd'] }
+        # args requires {'spec_file':something, ['spec_type':'gsd_builder'] }
         self.spec_file_name = args['spec_file']
         self.root = None
         self.host_and_port = None

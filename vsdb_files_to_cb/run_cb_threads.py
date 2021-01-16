@@ -45,7 +45,7 @@ def main():
     parser.add_argument("-index", action="store_true", help="Only process index, do not load data")
     parser.add_argument("-t", "--threads", type=int, default=1, help="Number of threads to use")
     parser.add_argument("-c", "--cert_path", type=str, default='', help="path to server public cert")
-    parser.add_argument("-g", "--gsd_spec", type=str, default='', help="expect a gsd load_spec_file")
+    parser.add_argument("-g", "--gsd_spec", type=str, default='', help="expect a gsd_builder load_spec_file")
     # get the command line arguments
     args = parser.parse_args()
 

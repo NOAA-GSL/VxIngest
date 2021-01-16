@@ -52,71 +52,158 @@ Colorado, NOAA/OAR/ESRL/GSD
 import logging
 import sys
 import copy
-from abc import ABC
+from abc import ABC, abstractmethod
 import datetime as dt
 
 TS_OUT_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
 
+def get_id(an_id, row):
+    # Private method to derive a document id from the current row,
+    # substituting *values from the corresponding row field as necessary.
+    _parts = an_id.split('::')
+    for _part in _parts:
+        if _part.startswith("*"):
+            an_id = an_id.replace(_part, row[_part[1:]])
+    return an_id
+
+
+def convert_to_iso(an_epoch):
+    _valid_time_str = dt.datetime.utcfromtimestamp(an_epoch).strftime(
+        TS_OUT_FORMAT)
+    return _valid_time_str
+
+
 class GsdBuilder(ABC):
     # Abstract Class for data_type builders
     def __init__(self):
-        # used for date conversions
-    
-        return
-    
-    def get_id(self, a_time, an_id):
-        # Private method to derive a document id from the current line.
-        my_id = an_id
-        my_id = my_id.replace('time', a_time)
-        return my_id
-    
-    def convert_to_iso(self, a_time):
-        _valid_time_str = dt.datetime.utcfromtimestamp(
-            a_time).strftime(TS_OUT_FORMAT)
-        return _valid_time_str
-
-
-# Concrete data_type builders:
-class GsdMetarObsBuilder(GsdBuilder):
-    def __init__(self, template):
-        super(GsdBuilder, self).__init__()
-        self.template = template
-    
-    def handle_document(self, row, document_map):
+        self.doc = {}
+        self.row = {}
+        self.template = self.get_template()
+        
+    def handle_document(self, rows, document_map):
+        """
+        This is the entry point for any GsdBuilder, it must be called
+        from a GsdIngestManager.
+        :param rows: This is a row array that contains rows from the result set
+        that all have the same time. There may be many stations in this row
+        array
+        :param document_map: This is the top level dictionary to which this
+        builder's documents will be added, the GsdIngestManager will do the
+        upseert
+        :return: The modified document_map
+        """
+        # noinspection PyBroadException
         try:
-            _document = copy.deepcopy(self.template)
-            for k in _document.keys():
-                if k == "id":
-                    _document['id'] = GsdBuilder.get_id(self, str(row['time']),
-                                                        self.template['id'])
-                    continue
-                if k == "data":
-                    for kd in _document['data'].keys():
-                        if _document['data'][kd].startswith("*"):
-                            row_key = _document['data'][kd][1:]
-                            _document['data'][kd] = row[row_key]
-                        else:
-                            if _document['data'][kd].startswith("ISO*"):
-                                row_key = _document['data'][kd].replace('ISO*',
-                                                                        '')
-                                _document['data'][kd] = \
-                                    GsdBuilder.convert_to_iso(self,
-                                                              row[row_key])
-                else:
-                    if _document[k].startswith("*"):
-                        row_key = _document[k][1:]
-                        _document[k] = row[row_key]
-                    else:
-                        if _document[k].startswith("ISO*"):
-                            row_key = _document[k].replace('ISO*', '')
-                            _document[k] = \
-                                GsdBuilder.convert_to_iso(self, row[row_key])
+            for r in rows:
+                self.row = r
+                self.doc = copy.deepcopy(self.template)
+                for k in self.doc.keys():
+                    if k == "id":
+                        continue
+                    if k == "data":
+                        self.handle_data()
+                        continue
+                    self.handle_key(k)
             # put document into document map
-            document_map[_document['id']] = _document
+            document_map[self.doc['id']] = self.doc
+            return document_map
         except:
             e = sys.exc_info()[0]
             logging.error(
                 "Exception instantiating builder: " +
                 self.__class__.__name__ + " error: " + str(
                     e))
+            return document_map
+    
+    def handle_key(self, key):
+        """
+        This routine handles keys by substituting row fields into the values
+        in the template that begin with *
+        :param key: A key to be processed, This can be a key to a primitive
+        or to another dictionary
+        """
+        # noinspection PyBroadException
+        try:
+            if key == 'id':
+                self.doc[key] = get_id(self.template['id'], self.row)
+            
+            if isinstance(self.doc[key], dict):
+                # process an embedded dictionary
+                for sub_key in self.doc[key].keys():
+                    self.handle_key(sub_key)  # recursion here
+            if self.doc[key].startswith("*"):
+                row_key = self.doc[key][1:]
+                self.doc[key] = self.row[row_key]
+            else:
+                if self.doc[key].startswith("ISO*"):
+                    row_key = self.doc[key].replace('ISO*', '')
+                    self.doc[key] = convert_to_iso(self.row[row_key])
+        except:
+            e = sys.exc_info()[0]
+            logging.error(
+                "Exception instantiating builder: " +
+                self.__class__.__name__ + " error: " + str(
+                    e))
+    
+    @abstractmethod
+    def get_template(self):
+        """
+        template is overridden in subclass so we don't have to pass it all
+        the time
+        :return: template
+        """
+        raise NotImplementedError("Must override get_template")
+
+    @abstractmethod
+    def handle_data(self):
+        """
+        This is the method that processes the data key. It must be
+        overridden by the concrete builder
+        """
+        raise NotImplementedError("Must override handle_data")
+
+
+# Concrete GsdBuilders:
+"""
+GsdMetarObsBuilder
+This class is the builder for METAR obs. METAR obs are
+kept in the GSL tables madis3, ceiling2, and visibility.
+This class will transform those tables, based on a template from a metdata
+object, into Couchbase documents.
+"""
+
+
+class GsdMetarObsBuilder(GsdBuilder):
+    
+    def __init__(self, template):
+        super(GsdBuilder, self).__init__()
+        self.template = template
+        
+    def get_template(self):
+        return self.template
+
+    def handle_data(self):
+        """
+        This is the only responsibility of the builder.
+        It receives a database row and processes it into
+        a data element based on the template modifying the self.doc that is
+        maintained in the parent class GsdBuilder.
+        """
+        # noinspection PyBroadException
+        try:
+            _data_elem = {}
+            for k in self.doc['data'].keys():
+                if self.doc['data'][k].startswith("*"):
+                    row_key = self.doc['data'][k][1:]
+                    _data_elem[k] = self.row[row_key]
+                else:
+                    if self.doc['data'][k].startswith("ISO*"):
+                        row_key = self.doc['data'][k].replace('ISO*', '')
+                        _data_elem[k] = convert_to_iso(self.row[row_key])
+            self.doc['data'][self.row['madis_id']] = _data_elem
+        except:
+            e = sys.exc_info()[0]
+            logging.error(
+                "Exception instantiating builder: " +
+                self.__class__.__name__ + " error: " + str(e))

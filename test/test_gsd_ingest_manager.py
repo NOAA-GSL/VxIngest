@@ -7,6 +7,7 @@ from gsd_sql_to_cb.run_gsd_ingest_threads import VXIngestGSD
 class TestGsdIngestManager(TestCase):
     
     def test_main(self):
+        # noinspection PyBroadException
         try:
             cwd = os.getcwd()
             self.spec_file = cwd + '/load_spec_gsd.yaml'

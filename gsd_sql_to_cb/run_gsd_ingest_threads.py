@@ -23,9 +23,9 @@ load_spec:
   ingest_document_ids: ['MD::V01::METAR::obs']
   cb_connection:
     management_system: cb
-    xhost: "adb-cb1.gsd.esrl.noaa.gov"
+    xhost: "adb-cb1.gsd_builder.esrl.noaa.gov"
     host: "localhost"
-    user: gsd
+    user: gsd_builder
     password: gsd_pwd
   mysql_connection:
     management_system: mysql

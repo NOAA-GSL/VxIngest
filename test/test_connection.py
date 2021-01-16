@@ -13,8 +13,8 @@ class TestConnection(TestCase):
             # cb = Bucket(conn_str.format('mdata'), **credentials)
             # print("success")
             
-            conn_str = 'couchbases://adb-cb4.gsd.esrl.noaa.gov/{' \
-                      '}?certpath=/certs/adb-cb4.gsd.esrl.noaa.gov/cert.pem '
+            conn_str = 'couchbases://adb-cb4.gsd_builder.esrl.noaa.gov/{' \
+                      '}?certpath=/certs/adb-cb4.gsd_builder.esrl.noaa.gov/cert.pem '
             credentials = dict(username='met_admin', password='met_adm_pwd')
             cb = Bucket(conn_str.format('mdata'), **credentials)
             print("success")

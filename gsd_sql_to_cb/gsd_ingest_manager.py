@@ -65,7 +65,7 @@ import pymysql
 from couchbase.cluster import Cluster, ClusterOptions
 from couchbase.exceptions import DocumentNotFoundException, TimeoutException
 from couchbase_core.cluster import PasswordAuthenticator
-from gsd_sql_to_cb import gsd_builder as gsd
+from gsd_sql_to_cb import gsd_builder as gsd_builder
 
 SQL_PORT = 3306
 
@@ -136,6 +136,7 @@ class GsdIngestManager(Process):
         process_meta_ingest_document with the document id and the couchbase 
         collection to process the ingest_document.
         """
+        # noinspection PyBroadException
         try:
             logging.basicConfig(level=logging.INFO)
             # establish connections to mysql and cb, collection, connection,
@@ -279,14 +280,14 @@ class GsdIngestManager(Process):
         _template = _ingest_document['template']
         _ingest_type_builder_name = _ingest_document['builder_type']
         # get or instantiate the builder
+        # noinspection PyBroadException
         try:
             if _ingest_type_builder_name in self.builder_map.keys():
                 builder = self.builder_map[_ingest_type_builder_name]
             else:
-                builder_class = getattr(gsd, _ingest_type_builder_name)
+                builder_class = getattr(gsd_builder, _ingest_type_builder_name)
                 builder = builder_class(_template)
                 self.builder_map[_ingest_type_builder_name] = builder
-
             # process the document
             _statement = _ingest_document['statement']
             logging.info(
@@ -300,11 +301,20 @@ class GsdIngestManager(Process):
             
             self.cursor.execute(_statement)
             # iterate the result set
+            _same_time_rows = []
+            _time = 0
             while True:
-                row = self.cursor.fetchone()
                 if not row:
                     break
-                builder.handle_document(row, self.document_map)
+                row = self.cursor.fetchone()
+                if _time == 0:
+                    _time = row['time']
+                if row['time'] != _time:
+                    builder.handle_document(_same_time_rows, self.document_map)
+                    _same_time_rows=[row]
+                _time = 0
+                _same_time_rows.append(row)
+                
         except:
             e = sys.exc_info()[0]
             logging.error(
@@ -313,12 +323,14 @@ class GsdIngestManager(Process):
                 str(e))
         # all the lines are now processed for this file so write all the
         # documents in the document_map
+        # noinspection PyBroadException
         try:
             logging.info(
                 self.threadName + ': data_type_manager writing documents for '
                                   'ingest_document :  ' + str(_document_id) +
                 "threadName: " + self.threadName)
-            
+
+            # noinspection PyBroadException
             try:
                 # this call is volatile i.e. it might change syntax in
                 # the future.

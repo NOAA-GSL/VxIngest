@@ -6,7 +6,7 @@ from gsd_sql_to_cb.load_spec_yaml import LoadYamlSpecFile
 
 
 class TestLoadYamlSpecFile(unittest.TestCase):
-    # tests loading gsd yaml file
+    # tests loading gsd_builder yaml file
     def test_load_GSD_yaml(self):
         cwd = os.getcwd()
         spec_file = cwd + '/load_spec_gsd.yaml'
@@ -17,7 +17,7 @@ class TestLoadYamlSpecFile(unittest.TestCase):
         self.assertEqual(load_spec['ingest_document_ids'][0],
                          'MD::V01::METAR::obs')
         self.assertEqual(load_spec['cb_connection']['host'], "localhost")
-        self.assertEqual(load_spec['cb_connection']['user'], "gsd")
+        self.assertEqual(load_spec['cb_connection']['user'], "gsd_builder")
         self.assertEqual(load_spec['cb_connection']['password'], "gsd_pwd")
         
         self.assertEqual(load_spec['mysql_connection']['host'],
@@ -26,7 +26,7 @@ class TestLoadYamlSpecFile(unittest.TestCase):
         self.assertEqual(load_spec['mysql_connection']['password'],
                          "ReadOnly@2016!")
     
-    # tests to demonstrate parsing a gsd yaml load_spec file. Doesn't return
+    # tests to demonstrate parsing a gsd_builder yaml load_spec file. Doesn't return
     # any derived filenames
     def test_yaml_gsd_parse(self):
         cwd = os.getcwd()
@@ -39,7 +39,7 @@ class TestLoadYamlSpecFile(unittest.TestCase):
         self.assertEqual(yaml_data['load_spec']['cb_connection']['host'],
                          "localhost")
         self.assertEqual(yaml_data['load_spec']['cb_connection']['user'],
-                         "gsd")
+                         "gsd_builder")
         self.assertEqual(yaml_data['load_spec']['cb_connection']['password'],
                          "gsd_pwd")
         

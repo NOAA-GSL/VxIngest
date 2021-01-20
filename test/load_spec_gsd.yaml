@@ -2,7 +2,6 @@ load_spec:
   email: "randy.pierce@noaa.gov"
   cb_connection:
     management_system: cb
-    xhost: "adb-cb1.gsd.esrl.noaa.gov"
     host: "localhost"
     user: gsd
     password: gsd_pwd

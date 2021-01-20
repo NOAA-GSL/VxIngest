@@ -59,12 +59,15 @@ import json
 import logging
 import sys
 import time
+import re
 from multiprocessing import Process
 import queue
 import pymysql
 from couchbase.cluster import Cluster, ClusterOptions
 from couchbase.exceptions import DocumentNotFoundException, TimeoutException
 from couchbase_core.cluster import PasswordAuthenticator
+from pymysql.constants import CLIENT
+
 from gsd_sql_to_cb import gsd_builder as gsd_builder
 
 SQL_PORT = 3306
@@ -249,7 +252,14 @@ class GsdIngestManager(Process):
             local_infile = True
             self.connection = pymysql.connect(host=host, port=port, user=user,
                                               passwd=passwd,
-                                              local_infile=local_infile)
+                                              local_infile=local_infile,
+                                              autocommit=True,
+                                              charset='utf8mb4',
+                                              cursorclass=
+                                              pymysql.cursors.SSDictCursor,
+                                              client_flag=
+                                              CLIENT.MULTI_STATEMENTS
+                                              )
         except pymysql.OperationalError as pop_err:
             logging.error("*** %s in connect_mysql ***" + str(pop_err))
             sys.exit("*** Error when connecting to mysql database: ")
@@ -298,15 +308,21 @@ class GsdIngestManager(Process):
             logging.info("GsdMetarObsBuilder: building with "
                          "template: " + json.dumps(_document_template,
                                                    indent=2))
-            
+            _statements = _statement.split(';')
+            for s in _statements:
+                if s.strip().upper().startswith('SET'):
+                    _value = re.split("=", s)[1].strip()
+                    _m = re.findall(r'[@]\w+', s)[0]
+                    _statement = _statement.replace(s + ';', '')
+                    _statement = _statement.replace(_m, _value)
             self.cursor.execute(_statement)
             # iterate the result set
             _same_time_rows = []
             _time = 0
             while True:
+                row = self.cursor.fetchone()
                 if not row:
                     break
-                row = self.cursor.fetchone()
                 if _time == 0:
                     _time = row['time']
                 if row['time'] != _time:

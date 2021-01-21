@@ -10,7 +10,7 @@ class TestGsdIngestManager(TestCase):
         # noinspection PyBroadException
         try:
             cwd = os.getcwd()
-            self.spec_file = cwd + '/load_spec_gsd.yaml'
+            self.spec_file = cwd + '/load_spec_gsd-local.yaml'
             self.gsd_spec = True
             self.thread_count = 1
             self.cert_path = None

@@ -327,8 +327,9 @@ class GsdIngestManager(Process):
                     _time = row['time']
                 if row['time'] != _time:
                     builder.handle_document(_same_time_rows, self.document_map)
-                    _same_time_rows=[row]
-                _time = 0
+                    _same_time_rows.append(row)
+                    _time = 0
+                    _same_time_rows = []
                 _same_time_rows.append(row)
                 
         except:

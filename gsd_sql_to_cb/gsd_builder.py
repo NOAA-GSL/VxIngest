@@ -98,6 +98,7 @@ class GsdBuilder(ABC):
             for r in rows:
                 self.row = r
                 self.doc = copy.deepcopy(self.template)
+                self.doc['data'] = {}
                 for k in self.doc.keys():
                     if k == "id":
                         continue
@@ -130,14 +131,14 @@ class GsdBuilder(ABC):
             
             if isinstance(self.doc[key], dict):
                 # process an embedded dictionary
-                for sub_key in self.doc[key].keys():
+                for sub_key in self.template[key].keys():
                     self.handle_key(sub_key)  # recursion here
-            if self.doc[key].startswith("*"):
-                row_key = self.doc[key][1:]
+            if self.template[key].startswith("*"):
+                row_key = self.template[key][1:]
                 self.doc[key] = self.row[row_key]
             else:
-                if self.doc[key].startswith("ISO*"):
-                    row_key = self.doc[key].replace('ISO*', '')
+                if self.template[key].startswith("ISO*"):
+                    row_key = self.template[key].replace('ISO*', '')
                     self.doc[key] = convert_to_iso(self.row[row_key])
         except:
             e = sys.exc_info()[0]
@@ -193,13 +194,13 @@ class GsdMetarObsBuilder(GsdBuilder):
         # noinspection PyBroadException
         try:
             _data_elem = {}
-            for k in self.doc['data'].keys():
-                if self.doc['data'][k].startswith("*"):
-                    row_key = self.doc['data'][k][1:]
-                    _data_elem[k] = self.row[row_key]
+            for k in self.template['data'].keys():
+                if self.template['data'][k].startswith("*"):
+                    row_key = self.template['data'][k][1:]
+                    _data_elem[row_key] = self.row[row_key]
                 else:
-                    if self.doc['data'][k].startswith("ISO*"):
-                        row_key = self.doc['data'][k].replace('ISO*', '')
+                    if self.template['data'][k].startswith("ISO*"):
+                        row_key = self.template['data'][k].replace('ISO*', '')
                         _data_elem[k] = convert_to_iso(self.row[row_key])
             self.doc['data'][self.row['madis_id']] = _data_elem
         except:

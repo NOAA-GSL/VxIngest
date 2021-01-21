@@ -8,7 +8,7 @@ History Log:  Initial version
 IMPORTANT NOTE ABOUT PYTHON THREADS!!!
 Please read https://docs.couchbase.com/python-sdk/2.0/threads.html
 Due to the Global Interpreter Lock (GIL), only one python thread can execute
-Python code at a time.
+Python code at a a_time.
 See  https://docs.python.org/2/library/threading.html.
 However Python also has multiprocessing which can be used if the memory
 footprint of the application is small enough.
@@ -23,7 +23,7 @@ the best performance if you share and reuse instances of Cluster, Bucket,
 Scope, and Collection, all of which are thread-safe."
 
 Observations have shown that two or four threads help reduce the execution
-time of the program significantly. More than that does not.
+a_time of the program significantly. More than that does not.
 I would have left out threading all-together but someday we may decide to
 port this to a truly thread capable language.
 
@@ -33,7 +33,7 @@ It maintains its own connection to the database which it keeps open until it
 finishes.
 It finishes and closes its database connection when the queue is empty.
 It gets filenames serially from a queue that is shared by a thread pool of
-data_type_manager's and processes them one at a time.
+data_type_manager's and processes them one at a a_time.
 As it reads the file it derives the data_type from the line  and uses a
 concrete builder to process the line.
 The builders are instantiated once and kept in a map of objects for the
@@ -42,7 +42,7 @@ When it finishes a file it converts the data in the document_map into a
 document and "upserts" it to the database. MET files
 can have many data_types in a single file, and each line contains and id
 that the concrete builder constructs. An id might be made up
-for example of an init time, a data_type, a forecast variable, a level etc.
+for example of an init a_time, a data_type, a forecast variable, a level etc.
 So the document map structure ends up looking like...
 document_map[data_type][id] which indexes a dictionary that has header field
 entries, and a data dictionary. This results in a
@@ -78,7 +78,7 @@ class DataTypeManager(Process):
     DataTypeManager is a Thread that manages an object pool of
     Data_Type_builders to build lines from MET files
     into documents that can be inserted into couchbase.
-    This class will process files by collecting filenames - one at a time -
+    This class will process files by collecting filenames - one at a a_time -
     from a filename
     queue. For each filename it will read the file line by line and process
     each line.

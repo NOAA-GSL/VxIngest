@@ -7,7 +7,7 @@ DEFAULT_DATABASE_GROUP = "NO GROUP"
 
 # Maximum number of columns
 MAX_COL = 120
-# Maximum number of files to load at a time
+# Maximum number of files to load at a a_time
 # Goal is to not max out memory
 MAX_FILES = 100
 

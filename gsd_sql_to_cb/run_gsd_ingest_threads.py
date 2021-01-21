@@ -59,8 +59,8 @@ class VXIngestGSD(object):
         begin_time = str(datetime.now())
         logging.basicConfig(level=logging.INFO)
         logging.info("--- *** --- Start METdbLoad --- *** ---")
-        logging.info("Begin time: %s" + begin_time)
-        # time execution
+        logging.info("Begin a_time: %s" + begin_time)
+        # a_time execution
         parser = argparse.ArgumentParser()
         parser.add_argument("spec_file",
                             help="Please provide required load_spec filename "
@@ -130,8 +130,8 @@ class VXIngestGSD(object):
         logging.info("finished starting threads")
         load_time_end = time.perf_counter()
         load_time = timedelta(seconds=load_time_end - self.load_time_start)
-        logging.info("    >>> Total load time: %s" + str(load_time))
-        logging.info("End time: %s" + str(datetime.now()))
+        logging.info("    >>> Total load a_time: %s" + str(load_time))
+        logging.info("End a_time: %s" + str(datetime.now()))
         logging.info("--- *** --- End METdbLoad --- *** ---")
     
     def main(self):

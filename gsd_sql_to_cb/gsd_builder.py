@@ -58,14 +58,18 @@ import datetime as dt
 TS_OUT_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
 
-def get_id(an_id, row):
+def get_id(an_id, row, interpolated_time):
     # Private method to derive a document id from the current row,
     # substituting *values from the corresponding row field as necessary.
     _parts = an_id.split('::')
     new_parts = []
     for _part in _parts:
         if _part.startswith("*"):
-            new_parts.append(str(row[_part[1:]]))
+            if _part == "*time":
+                value = str(interpolated_time)
+            else:
+                value = str(row[_part[1:]])
+            new_parts.append(value)
         else:
             new_parts.append(str(_part))
     return "::".join(new_parts)
@@ -84,13 +88,13 @@ class GsdBuilder(ABC):
         self.row = {}
         self.template = self.get_template()
         
-    def handle_document(self, rows, document_map):
+    def handle_document(self, interpolated_time, rows, document_map):
         """
         This is the entry point for any GsdBuilder, it must be called
         from a GsdIngestManager.
         :param rows: This is a row array that contains rows from the result set
-        that all have the same time. There may be many stations in this row
-        array, AND importantly the document id derived from this time may
+        that all have the same a_time. There may be many stations in this row
+        array, AND importantly the document id derived from this a_time may
         already exist in the document. If the id does not exist it will be
         created, if it does exist, the data will be appended.
         :param document_map: This is the top level dictionary to which this
@@ -100,15 +104,15 @@ class GsdBuilder(ABC):
         """
         # noinspection PyBroadException
         try:
+            self.doc = copy.deepcopy(self.template)
             for r in rows:
                 self.row = r
-                self.doc = copy.deepcopy(self.template)
                 self.doc['data'] = {}
                 for k in self.doc.keys():
                     if k == "data":
                         self.handle_data()
                         continue
-                    self.handle_key(k)
+                    self.handle_key(k, interpolated_time)
             # put document into document map
             if self.doc['id'] in document_map.keys():
                 # put data into existing data map
@@ -122,10 +126,9 @@ class GsdBuilder(ABC):
             e = sys.exc_info()[0]
             logging.error(
                 "Exception instantiating builder: " +
-                self.__class__.__name__ + " error: " + str(
-                    e))
+                self.__class__.__name__ + " error: " + str(e))
     
-    def handle_key(self, key):
+    def handle_key(self, key, interpolated_time):
         """
         This routine handles keys by substituting row fields into the values
         in the template that begin with *
@@ -135,7 +138,8 @@ class GsdBuilder(ABC):
         # noinspection PyBroadException
         try:
             if key == 'id':
-                self.doc[key] = get_id(self.template['id'], self.row)
+                self.doc[key] = get_id(self.template['id'], self.row,
+                                       interpolated_time)
             
             if isinstance(self.doc[key], dict):
                 # process an embedded dictionary
@@ -159,7 +163,7 @@ class GsdBuilder(ABC):
     def get_template(self):
         """
         template is overridden in subclass so we don't have to pass it all
-        the time
+        the a_time
         :return: template
         """
         raise NotImplementedError("Must override get_template")

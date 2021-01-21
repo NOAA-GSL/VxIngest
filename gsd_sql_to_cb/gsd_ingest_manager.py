@@ -8,7 +8,7 @@ History Log:  Initial version
 IMPORTANT NOTE ABOUT PYTHON THREADS!!!
 Please read https://docs.couchbase.com/python-sdk/2.0/threads.html
 Due to the Global Interpreter Lock (GIL), only one python thread can execute
-Python code at a time.
+Python code at a a_time.
 See  https://docs.python.org/2/library/threading.html.
 However Python also has multiprocessing which can be used if the memory
 footprint of the application is small enough.
@@ -22,7 +22,7 @@ for concurrent use by multiple threads. For asynchronous modes, you will get
 the best performance if you share and reuse instances of Cluster, Bucket,
 Scope, and Collection, all of which are thread-safe."
 Observations have shown that two or four threads help reduce the execution
-time of the program significantly.
+a_time of the program significantly.
 More than that does not. I would have left out threading all-together but
 someday we may decide to port this to a truly thread capable language.
 
@@ -35,7 +35,7 @@ It finishes and closes its database connection when the document_id_queue is
 empty.
 
 It gets document ids serially from a document_id_queue that is shared by a
-thread pool of data_type_manager's and processes them one at a time. It gets
+thread pool of data_type_manager's and processes them one at a a_time. It gets
 the concrete builder type from the metadata document and uses a
 concrete builder to process the line.
 
@@ -73,6 +73,16 @@ from gsd_sql_to_cb import gsd_builder as gsd_builder
 SQL_PORT = 3306
 
 
+def interpolate_time(cadence, delta, a_time):
+    _remainder_time = a_time % cadence
+    _cadence_time = a_time / cadence * cadence
+    if _remainder_time < delta:
+        _t = a_time - _remainder_time
+    else:
+        _t = a_time - _remainder_time + 1
+    return _t
+
+
 class GsdIngestManager(Process):
     """
     GsdIngestManager is a Thread that manages an object pool of
@@ -84,7 +94,7 @@ class GsdIngestManager(Process):
     connections are maintained by this thread.
     
     This class will process data by collecting ingest_document_ids - one at a
-    time - from the document_id_queue. For each ingest_document_id it
+    a_time - from the document_id_queue. For each ingest_document_id it
     retrieves the identified load metadata document from the couchbase
     collection. From that document it retrieves an sql statement,
     a concrete GsdBuilder class name, a document template, and some other
@@ -92,7 +102,7 @@ class GsdIngestManager(Process):
     retrieve a result set from the mysql databases and then instantiates
     an appropriate builder using the GsdBuilder class name, and the template
     as construction parameters, and passes the result set entries one at a
-    time into the builders handle_entry method, along with a reference to
+    a_time into the builders handle_entry method, along with a reference to
     the document map. The builders use the template to create documents for
     each entry and put them into the document map.
     When all of the result set entries are processed the IngestManager upserts
@@ -319,24 +329,22 @@ class GsdIngestManager(Process):
             # iterate the result set
             _same_time_rows = []
             _time = 0
-            _delta = _document_template['delta']
-            _cadence = _document_template['cadence']
+            _delta = int(_document_template['delta'])
+            _cadence = int(_document_template['cadence'])
             while True:
                 row = self.cursor.fetchone()
                 if not row:
                     break
+                _interpolated_time = interpolate_time(_cadence, _delta,
+                                                      int(row['time']))
                 if _time == 0:
-                    _time = row['time']
-                    _remainder_time = _time % _cadence
-                    _cadence_time = _time / _cadence * _cadence
-                    if _remainder_time < _delta:
-                        # interpolate prior
-                        _time = _time - _remainder_time
-                    else:
-                        _time = _time - _remainder_time + _cadence_time
+                    _time = _interpolated_time
+                if _interpolated_time != _time:
                     self.document_map = builder.handle_document(
+                        _interpolated_time,
                         _same_time_rows, self.document_map)
                     _time = 0
+                    _time = _interpolated_time
                     _same_time_rows = []
                 else:
                     _same_time_rows.append(row)

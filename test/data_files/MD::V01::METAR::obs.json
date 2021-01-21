@@ -5,7 +5,7 @@
   "builder_type": "GsdMetarObsBuilder",
   "statement": "set @FirstTime = 1602720000; set @LastTime = 1602892800; select m.time, m.sta_id as madis_id, m.temp, m.dp, m.slp, m.wd, m.ws, c.ceil, v.vis100 as vis from madis3.obs m, ceiling2.obs c, visibility.obs v where 1 = 1 AND m.time >= @FirstTime and m.time <= @LastTime AND c.time >= @FirstTime AND c.time <= @LastTime AND v.time >= @FirstTime AND v.time <= @LastTime and m.time = c.time and m.time = v.time and m.sta_id = c.madis_id and m.sta_id = v.madis_id;",
   "template": {
-    "id": "DD::V01::obs::METAR::madis_id::time",
+    "id": "DD::V01::obs::METAR::*time",
     "type": "DD",
     "docType": "obs",
     "subset": "METAR",
@@ -15,6 +15,8 @@
     "geoLocationId": "*madis_id",
     "fcstValidBeg": "ISO*time",
     "fcstValidEpoch": "*time",
+    "cadence": "3600",
+    "delta": "1800",
     "data": {
       "Temperature": "*temp",
       "DewPoint": "*dp",

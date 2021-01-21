@@ -62,10 +62,13 @@ def get_id(an_id, row):
     # Private method to derive a document id from the current row,
     # substituting *values from the corresponding row field as necessary.
     _parts = an_id.split('::')
+    new_parts = []
     for _part in _parts:
         if _part.startswith("*"):
-            an_id = an_id.replace(_part, row[_part[1:]])
-    return an_id
+            new_parts.append(str(row[_part[1:]]))
+        else:
+            new_parts.append(str(_part))
+    return "::".join(new_parts)
 
 
 def convert_to_iso(an_epoch):
@@ -87,7 +90,9 @@ class GsdBuilder(ABC):
         from a GsdIngestManager.
         :param rows: This is a row array that contains rows from the result set
         that all have the same time. There may be many stations in this row
-        array
+        array, AND importantly the document id derived from this time may
+        already exist in the document. If the id does not exist it will be
+        created, if it does exist, the data will be appended.
         :param document_map: This is the top level dictionary to which this
         builder's documents will be added, the GsdIngestManager will do the
         upseert
@@ -100,14 +105,18 @@ class GsdBuilder(ABC):
                 self.doc = copy.deepcopy(self.template)
                 self.doc['data'] = {}
                 for k in self.doc.keys():
-                    if k == "id":
-                        continue
                     if k == "data":
                         self.handle_data()
                         continue
                     self.handle_key(k)
             # put document into document map
-            document_map[self.doc['id']] = self.doc
+            if self.doc['id'] in document_map.keys():
+                # put data into existing data map
+                for madis_id in self.doc['data'].keys():
+                    document_map[self.doc['id']]['data'][madis_id] = \
+                        self.doc['data'][madis_id]
+            else:
+                document_map[self.doc['id']] = self.doc
             return document_map
         except:
             e = sys.exc_info()[0]
@@ -115,7 +124,6 @@ class GsdBuilder(ABC):
                 "Exception instantiating builder: " +
                 self.__class__.__name__ + " error: " + str(
                     e))
-            return document_map
     
     def handle_key(self, key):
         """

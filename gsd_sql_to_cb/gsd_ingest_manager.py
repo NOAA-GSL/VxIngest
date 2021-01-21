@@ -319,19 +319,28 @@ class GsdIngestManager(Process):
             # iterate the result set
             _same_time_rows = []
             _time = 0
+            _delta = _document_template['delta']
+            _cadence = _document_template['cadence']
             while True:
                 row = self.cursor.fetchone()
                 if not row:
                     break
                 if _time == 0:
                     _time = row['time']
-                if row['time'] != _time:
-                    builder.handle_document(_same_time_rows, self.document_map)
-                    _same_time_rows.append(row)
+                    _remainder_time = _time % _cadence
+                    _cadence_time = _time / _cadence * _cadence
+                    if _remainder_time < _delta:
+                        # interpolate prior
+                        _time = _time - _remainder_time
+                    else:
+                        _time = _time - _remainder_time + _cadence_time
+                    self.document_map = builder.handle_document(
+                        _same_time_rows, self.document_map)
                     _time = 0
                     _same_time_rows = []
-                _same_time_rows.append(row)
-                
+                else:
+                    _same_time_rows.append(row)
+
         except:
             e = sys.exc_info()[0]
             logging.error(

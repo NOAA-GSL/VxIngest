@@ -325,7 +325,15 @@ class GsdIngestManager(Process):
                     _m = re.findall(r'[@]\w+', s)[0]
                     _statement = _statement.replace(s + ';', '')
                     _statement = _statement.replace(_m, _value)
+            _query_start_time = int(time.time())
+            logging.info("executing query: start time: " +
+                         str(_query_start_time))
             self.cursor.execute(_statement)
+            _query_stop_time = int(time.time())
+            logging.info("executing query: stop time: " +
+                         str(_query_stop_time))
+            logging.info("executing query: elapsed seconds: " +
+                         str(_query_stop_time - _query_start_time))
             # iterate the result set
             _same_time_rows = []
             _time = 0
@@ -369,7 +377,16 @@ class GsdIngestManager(Process):
                 # this call is volatile i.e. it might change syntax in
                 # the future.
                 # if it does, please just fix it.
+                _upsert_start_time = int(time.time())
+                logging.info(
+                    "executing upsert: stop time: " + str(_upsert_start_time))
                 self.collection.upsert_multi(self.document_map)
+                _upsert_stop_time = int(time.time())
+                logging.info(
+                    "executing upsert: stop time: " + str(_upsert_stop_time))
+                logging.info(
+                    "executing upsert: elapsed time: " +
+                    str(_upsert_stop_time - _upsert_start_time))
                 logging.info(self.threadName + ': data_type_manager wrote '
                                                'documents for '
                                                'ingest_document :  ' +

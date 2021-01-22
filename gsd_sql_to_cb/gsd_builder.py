@@ -77,6 +77,8 @@ def get_id(an_id, row, interpolated_time):
 
 
 def convert_to_iso(an_epoch):
+    if not isinstance(an_epoch, int):
+        an_epoch = int(an_epoch)
     _valid_time_str = dt.datetime.utcfromtimestamp(an_epoch).strftime(
         TS_OUT_FORMAT)
     return _valid_time_str
@@ -147,27 +149,30 @@ class GsdBuilder(ABC):
             if key == 'id':
                 self.doc[key] = get_id(self.template['id'], self.row,
                                        interpolated_time)
-            
             if isinstance(self.doc[key], dict):
                 # process an embedded dictionary
                 for sub_key in self.template[key].keys():
                     self.handle_key(sub_key)  # recursion here
             if self.template[key].startswith("*"):
-                if self.template[key] == "*time":
-                    value = str(interpolated_time)
+                row_key = self.template[key][1:]
+                if self.template[key] == "fcstValidEpoch":
+                    value = interpolated_time
                 else:
-                    value = str(self.row[self.template[key][1:]])
+                    value = self.row[row_key]
                 self.doc[key] = value
             else:
                 if self.template[key].startswith("ISO*"):
                     row_key = self.template[key].replace('ISO*', '')
-                    self.doc[key] = convert_to_iso(self.row[row_key])
+                    if self.template[key] == "fcstValidBeg":
+                        value = convert_to_iso(interpolated_time)
+                    else:
+                        value = convert_to_iso(self.row[row_key])
+                    self.doc[key] = value
         except:
             e = sys.exc_info()[0]
             logging.error(
                 "Exception instantiating builder: " +
-                self.__class__.__name__ + " error: " + str(
-                    e))
+                self.__class__.__name__ + " error: " + str(e))
     
     @abstractmethod
     def get_template(self):

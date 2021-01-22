@@ -18,6 +18,7 @@
     "cadence": "3600",
     "delta": "1800",
     "data": {
+      "time": "*time",
       "Temperature": "*temp",
       "DewPoint": "*dp",
       "WD": "*wd",

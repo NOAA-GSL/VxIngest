@@ -72,7 +72,8 @@ def get_id(an_id, row, interpolated_time):
             new_parts.append(value)
         else:
             new_parts.append(str(_part))
-    return "::".join(new_parts)
+    _new_id = "::".join(new_parts)
+    return _new_id
 
 
 def convert_to_iso(an_epoch):
@@ -92,6 +93,8 @@ class GsdBuilder(ABC):
         """
         This is the entry point for any GsdBuilder, it must be called
         from a GsdIngestManager.
+        :param interpolated_time: The closest time to the cadence within the
+        delta.
         :param rows: This is a row array that contains rows from the result set
         that all have the same a_time. There may be many stations in this row
         array, AND importantly the document id derived from this a_time may
@@ -105,6 +108,8 @@ class GsdBuilder(ABC):
         # noinspection PyBroadException
         try:
             self.doc = copy.deepcopy(self.template)
+            if len(rows) == 0:
+                return document_map
             for r in rows:
                 self.row = r
                 self.doc['data'] = {}

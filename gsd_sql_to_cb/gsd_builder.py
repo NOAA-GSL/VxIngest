@@ -137,6 +137,8 @@ class GsdBuilder(ABC):
         """
         This routine handles keys by substituting row fields into the values
         in the template that begin with *
+        :param interpolated_time: The closest time to the cadence within the
+        delta.
         :param key: A key to be processed, This can be a key to a primitive
         or to another dictionary
         """
@@ -151,8 +153,11 @@ class GsdBuilder(ABC):
                 for sub_key in self.template[key].keys():
                     self.handle_key(sub_key)  # recursion here
             if self.template[key].startswith("*"):
-                row_key = self.template[key][1:]
-                self.doc[key] = self.row[row_key]
+                if self.template[key] == "*time":
+                    value = str(interpolated_time)
+                else:
+                    value = str(self.row[self.template[key][1:]])
+                self.doc[key] = value
             else:
                 if self.template[key].startswith("ISO*"):
                     row_key = self.template[key].replace('ISO*', '')

@@ -60,10 +60,11 @@ import logging
 import sys
 import time
 import re
+from datetime import timedelta
 from multiprocessing import Process
 import queue
 import pymysql
-from couchbase.cluster import Cluster, ClusterOptions
+from couchbase.cluster import Cluster, ClusterOptions, ClusterTimeoutOptions
 from couchbase.exceptions import DocumentNotFoundException, TimeoutException
 from couchbase_core.cluster import PasswordAuthenticator
 from pymysql.constants import CLIENT
@@ -202,8 +203,8 @@ class GsdIngestManager(Process):
             self.cluster.disconnect()
     
     def connect_cb(self):
-        logging.info(self.threadName + ': data_type_manager - Connecting to '
-                                       'couchbase')
+        logging.info(self.threadName +
+                     ': data_type_manager - Connecting to couchbase')
         # get a reference to our cluster
         # derive the path to the public certificate for the host
         # see ...
@@ -215,40 +216,57 @@ class GsdIngestManager(Process):
         # -security/configure-client-certificates.html#client
         # -certificate-authorized-by-a-root-certificate
         if 'cert_path' in self.cb_credentials:
-            logging.info(
-                self.threadName + ': attempting cb connection with cert')
-            # this does not work yet - to get here use the -c option
-            # with a cert_path
-            self.cluster = Cluster(
-                'couchbase://' + self.cb_credentials['host'], ClusterOptions(
-                    PasswordAuthenticator(self.cb_credentials['user'],
-                                          self.cb_credentials['password'],
-                                          cert_path=self.cb_credentials[
-                                              'cert_path'])))
-            self.collection = self.cluster.bucket(
-                "mdata").default_collection()  # this works with a cert  #
-            # to local server - but not to adb-cb4  # connstr =   #  #  #  #
-            # 'couchbases://127.0.0.1/{  #  #  #  #   #   #  #   #  #  #  #
-            # }?certpath=/Users/randy.pierce/servercertfiles/ca.pem'  #  #
-            # credentials = dict(username='met_admin',
-            # password='met_adm_pwd')  # cb = Bucket(connstr.format(  #  #
-            # 'mdata'), **credentials)  # collection =   #  #  #  #   #  #
-            # cb.default_collection()
-        
+            # noinspection PyBroadException
+            try:
+                logging.info(
+                    self.threadName + ': attempting cb connection with cert')
+                # this does not work yet - to get here use the -c option
+                # with a cert_path
+                self.cluster = Cluster(
+                    'couchbase://' + self.cb_credentials['host'], ClusterOptions(
+                        PasswordAuthenticator(self.cb_credentials['user'],
+                                              self.cb_credentials['password'],
+                                              cert_path=self.cb_credentials[
+                                                  'cert_path'])))
+                self.collection = self.cluster.bucket(
+                    "mdata").default_collection()  # this works with a cert  #
+                # to local server - but not to adb-cb4  # connstr =
+                # 'couchbases://127.0.0.1/{  #  #  #  #   #   #  #
+                # }?certpath=/Users/randy.pierce/servercertfiles/ca.pem'  #  #
+                # credentials = dict(username='met_admin',
+                # password='met_adm_pwd')  # cb = Bucket(connstr.format(  #  #
+                # 'mdata'), **credentials)  # collection =   #  #  #  #   #  #
+                # cb.default_collection()
+                logging.info(self.threadName + ': Couchbase connection success')
+            except:
+                logging.error("*** %s in connect_cb ***" + str(sys.exc_info()[0]))
+                sys.exit("*** Error when connecting to cb database: ")
         else:
             # this works but is not secure - don't provide the -c option
             # to get here
             # get a reference to our cluster
-            logging.info(
-                self.threadName + ': attempting cb connection with NO '
-                                  'cert')
-            self.cluster = Cluster(
-                'couchbase://' + self.cb_credentials['host'], ClusterOptions(
+            # noinspection PyBroadException
+            try:
+                logging.info(
+                    self.threadName + ': attempting cb connection with NO '
+                                      'cert')
+                timeout_options = ClusterTimeoutOptions(
+                    kv_timeout=timedelta(seconds=15),
+                    query_timeout=timedelta(seconds=25))
+                options = ClusterOptions(
                     PasswordAuthenticator(self.cb_credentials['user'],
-                                          self.cb_credentials['password'])))
-            self.collection = self.cluster.bucket("mdata").default_collection()
-        logging.info(self.threadName + ': connection success')
+                                          self.cb_credentials['password']),
+                    timeout_options=timeout_options)
     
+                self.cluster = Cluster(
+                    'couchbase://' + self.cb_credentials['host'], options)
+                self.collection = \
+                    self.cluster.bucket("mdata").default_collection()
+                logging.info(self.threadName + ': Couchbase connection success')
+            except:
+                logging.error("*** %s in connect_cb ***" + str(sys.exc_info()[0]))
+                sys.exit("*** Error when connecting to mysql database: ")
+            
     def connect_mysql(self):
         # Connect to the database using connection info from XML file
         try:
@@ -278,7 +296,9 @@ class GsdIngestManager(Process):
         except (RuntimeError, TypeError, NameError, KeyError, AttributeError):
             logging.error("*** %s in run_sql ***" + str(sys.exc_info()[0]))
             sys.exit("*** Error when creating cursor: ")
-    
+
+        logging.info(self.threadName + ': Mysql connection success')
+
     def process_meta_ingest_document(self, document_id):
         self.document_map = {}
         _document_id = document_id
@@ -295,6 +315,7 @@ class GsdIngestManager(Process):
             logging.warning(
                 self.threadName + ": TimeoutException instantiating "
                                   "builder: " + "document_id: " + _document_id)
+            logging.error("*** %s in connect_cb ***" + str(sys.exc_info()[0]))
             raise TimeoutException('document_id: ' + _document_id)
         _ingest_document = ingest_document_result.content
         _template = _ingest_document['template']

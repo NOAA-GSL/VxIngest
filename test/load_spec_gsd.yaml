@@ -2,7 +2,7 @@ load_spec:
   email: "randy.pierce@noaa.gov"
   cb_connection:
     management_system: cb
-    host: "localhost"
+    host: "adb-cb1.gsd.esrl.noaa.gov"
     user: gsd
     password: gsd_pwd
   mysql_connection:

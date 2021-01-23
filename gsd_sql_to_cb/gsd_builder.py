@@ -114,7 +114,7 @@ class GsdBuilder(ABC):
                 return document_map
             for r in rows:
                 self.row = r
-                self.doc['data'] = {}
+                self.doc['data'] = []
                 for k in self.doc.keys():
                     if k == "data":
                         self.handle_data()
@@ -122,11 +122,10 @@ class GsdBuilder(ABC):
                     self.handle_key(k, interpolated_time)
             # put document into document map
             if self.doc['id'] in document_map.keys():
-                # put data into existing data map
-                for madis_id in self.doc['data'].keys():
-                    document_map[self.doc['id']]['data'][madis_id] = \
-                        self.doc['data'][madis_id]
+                # append data to existing document data map
+                document_map[self.doc['id']]['data'].extend(self.doc['data'])
             else:
+                # it is a new document
                 document_map[self.doc['id']] = self.doc
             return document_map
         except:
@@ -229,7 +228,7 @@ class GsdMetarObsBuilder(GsdBuilder):
                     if self.template['data'][k].startswith("ISO*"):
                         row_key = self.template['data'][k].replace('ISO*', '')
                         _data_elem[k] = convert_to_iso(self.row[row_key])
-            self.doc['data'][self.row['madis_id']] = _data_elem
+            self.doc['data'].append(_data_elem)
         except:
             e = sys.exc_info()[0]
             logging.error(

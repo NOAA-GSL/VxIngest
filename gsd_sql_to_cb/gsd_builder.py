@@ -109,25 +109,28 @@ class GsdBuilder(ABC):
         """
         # noinspection PyBroadException
         try:
+            """
+            We keep a local copy of the document map because I don't know
+            how to pass by reference in python and I don't want the
+            interpreter to constantly be making copies of the document map.
+            The only rational way I see to do this is to use an abstract
+            setter so that the child class actually implements the map.
+            """
+            self.set_document_map(document_map)
             self.doc = copy.deepcopy(self.template)
             if len(rows) == 0:
                 return document_map
             for r in rows:
                 self.row = r
-                self.doc['data'] = []
+                self.initialize_data()
                 for k in self.doc.keys():
                     if k == "data":
                         self.handle_data()
                         continue
                     self.handle_key(k, interpolated_time)
             # put document into document map
-            if self.doc['id'] in document_map.keys():
-                # append data to existing document data map
-                document_map[self.doc['id']]['data'].extend(self.doc['data'])
-            else:
-                # it is a new document
-                document_map[self.doc['id']] = self.doc
-            return document_map
+            self.load_data()
+            return self.get_document_map()
         except:
             e = sys.exc_info()[0]
             logging.error(
@@ -151,7 +154,7 @@ class GsdBuilder(ABC):
             if isinstance(self.doc[key], dict):
                 # process an embedded dictionary
                 for sub_key in self.template[key].keys():
-                    self.handle_key(sub_key)  # recursion here
+                    self.handle_key(sub_key, interpolated_time)  # recursion
             if self.template[key].startswith("*"):
                 row_key = self.template[key][1:]
                 if self.template[key] == "fcstValidEpoch":
@@ -172,7 +175,30 @@ class GsdBuilder(ABC):
             logging.error(
                 "Exception instantiating builder: " +
                 self.__class__.__name__ + " error: " + str(e))
-    
+
+    """
+    We keep a local copy of the document map because I don't know how to
+    pass by reference in python and I don't want the interpreter
+    to constantly be making copies of the document map. The only rational
+    way I see to do this is to use an abstract setter so that the child class
+    actually implements the map.
+    """
+    @abstractmethod
+    def set_document_map(self, document_map):
+        raise NotImplementedError("Must override set_document_map")
+
+    @abstractmethod
+    def get_document_map(self):
+        raise NotImplementedError("Must override get_document_map")
+
+    @abstractmethod
+    def initialize_data(self):
+        raise NotImplementedError("Must override initialize_data")
+
+    @abstractmethod
+    def load_data(self):
+        raise NotImplementedError("Must override load_data")
+
     @abstractmethod
     def get_template(self):
         """
@@ -205,10 +231,28 @@ class GsdMetarObsBuilder(GsdBuilder):
     
     def __init__(self, template):
         super(GsdBuilder, self).__init__()
+        self.document_map = {}
         self.template = template
         
     def get_template(self):
         return self.template
+
+    def initialize_data(self):
+        self.doc['data'] = []
+
+    def set_document_map(self, document_map):
+        self.document_map = document_map
+
+    def get_document_map(self):
+        return self.document_map
+
+    def load_data(self):
+        if self.doc['id'] in self.document_map.keys():
+            # append data to existing document data map
+            self.document_map[self.doc['id']]['data'].extend(self.doc['data'])
+        else:
+            # it is a new document
+            self.document_map[self.doc['id']] = self.doc
 
     def handle_data(self):
         """
@@ -234,3 +278,70 @@ class GsdMetarObsBuilder(GsdBuilder):
             logging.error(
                 "Exception instantiating builder: " +
                 self.__class__.__name__ + " error: " + str(e))
+
+
+"""
+GsdMetarObsBuilderV02
+This class is a builder for METAR obs. METAR obs are
+kept in the GSL tables madis3, ceiling2, and visibility.
+This class will transform those tables, based on a template from a metdata
+object, into Couchbase documents.
+This builder differs from GsdMetarObsBuilder in that GsdMetarObsBuilder
+keeps the data elements in a list whereas this one keeps the data elements
+in a map indexed by station_id.
+"""
+
+
+class GsdMetarObsBuilderV02(GsdBuilder):
+    
+    def load_data(self):
+        if self.doc['id'] in self.document_map.keys():
+            # put data into existing data map
+            for madis_id in self.doc['data'].keys():
+                self.document_map[self.doc['id']]['data'][madis_id] = \
+                    self.doc['data'][madis_id]
+        else:
+            self.document_map[self.doc['id']] = self.doc
+
+    def get_document_map(self):
+        return self.document_map
+
+    def __init__(self, template):
+        super(GsdBuilder, self).__init__()
+        self.document_map = {}
+        self.template = template
+    
+    def get_template(self):
+        return self.template
+
+    def initialize_data(self):
+        self.doc['data'] = {}
+
+    def set_document_map(self, document_map):
+        self.document_map = document_map
+        
+    def handle_data(self):
+        """
+        This is the only responsibility of the builder.
+        It receives a database row and processes it into
+        a data element based on the template modifying the self.doc that is
+        maintained in the parent class GsdBuilder.
+        """
+        # noinspection PyBroadException
+        try:
+            _data_elem = {}
+            for k in self.template['data'].keys():
+                if self.template['data'][k].startswith("*"):
+                    row_key = self.template['data'][k][1:]
+                    _data_elem[row_key] = self.row[row_key]
+                else:
+                    if self.template['data'][k].startswith("ISO*"):
+                        row_key = self.template['data'][k].replace('ISO*', '')
+                        _data_elem[k] = convert_to_iso(self.row[row_key])
+            self.doc['data'][self.row['madis_id']] = _data_elem
+        except:
+            e = sys.exc_info()[0]
+            logging.error(
+                "Exception instantiating builder: " +
+                self.__class__.__name__ + " error: " + str(
+                    e))

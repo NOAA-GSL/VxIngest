@@ -223,7 +223,8 @@ class GsdIngestManager(Process):
                 # this does not work yet - to get here use the -c option
                 # with a cert_path
                 self.cluster = Cluster(
-                    'couchbase://' + self.cb_credentials['host'], ClusterOptions(
+                    'couchbase://' + self.cb_credentials['host'],
+                    ClusterOptions(
                         PasswordAuthenticator(self.cb_credentials['user'],
                                               self.cb_credentials['password'],
                                               cert_path=self.cb_credentials[
@@ -237,9 +238,11 @@ class GsdIngestManager(Process):
                 # password='met_adm_pwd')  # cb = Bucket(connstr.format(  #  #
                 # 'mdata'), **credentials)  # collection =   #  #  #  #   #  #
                 # cb.default_collection()
-                logging.info(self.threadName + ': Couchbase connection success')
+                logging.info(self.threadName +
+                             ': Couchbase connection success')
             except:
-                logging.error("*** %s in connect_cb ***" + str(sys.exc_info()[0]))
+                logging.error("*** %s in connect_cb ***" +
+                              str(sys.exc_info()[0]))
                 sys.exit("*** Error when connecting to cb database: ")
         else:
             # this works but is not secure - don't provide the -c option
@@ -262,9 +265,11 @@ class GsdIngestManager(Process):
                     'couchbase://' + self.cb_credentials['host'], options)
                 self.collection = \
                     self.cluster.bucket("mdata").default_collection()
-                logging.info(self.threadName + ': Couchbase connection success')
+                logging.info(self.threadName +
+                             ': Couchbase connection success')
             except:
-                logging.error("*** %s in connect_cb ***" + str(sys.exc_info()[0]))
+                logging.error("*** %s in connect_cb ***" +
+                              str(sys.exc_info()[0]))
                 sys.exit("*** Error when connecting to mysql database: ")
             
     def connect_mysql(self):
@@ -300,6 +305,7 @@ class GsdIngestManager(Process):
         logging.info(self.threadName + ': Mysql connection success')
 
     def process_meta_ingest_document(self, document_id):
+        _start_process_time = int(time.time())
         self.document_map = {}
         _document_id = document_id
         # get the document from couchbase
@@ -358,6 +364,7 @@ class GsdIngestManager(Process):
             # iterate the result set
             _same_time_rows = []
             _time = 0
+            _interpolated_time = 0
             _delta = int(_document_template['delta'])
             _cadence = int(_document_template['cadence'])
             while True:
@@ -444,3 +451,7 @@ class GsdIngestManager(Process):
         finally:
             # reset the document map
             self.document_map = {}
+            _stop_process_time = int(time.time())
+            logging.info("GsdIngestManager.process_meta_ingest_document: "
+                         "elapsed time: " + str(_stop_process_time -
+                                                _start_process_time))

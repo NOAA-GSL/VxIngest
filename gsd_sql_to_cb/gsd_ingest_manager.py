@@ -377,11 +377,11 @@ class GsdIngestManager(Process):
                     _same_time_rows = []
                 else:
                     _same_time_rows.append(row)
-                # handle left overs
-                if len(_same_time_rows) != 0:
-                    self.document_map = builder.handle_document(
-                        _interpolated_time,
-                        _same_time_rows, self.document_map)
+            # handle left overs
+            if len(_same_time_rows) != 0:
+                self.document_map = builder.handle_document(
+                    _interpolated_time,
+                    _same_time_rows, self.document_map)
 
         except:
             e = sys.exc_info()[0]

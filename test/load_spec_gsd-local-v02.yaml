@@ -7,7 +7,7 @@ load_spec:
     password: gsd_pwd
   mysql_connection:
     management_system: mysql
-    host: "wolphin.fsl.noaa.gov"
+    host: "host"
     user: readonly
-    password: ReadOnly@2016!
+    password: readonly_pwd
   ingest_document_ids: ['MD::V02::METAR::obs']

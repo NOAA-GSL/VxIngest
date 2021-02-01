@@ -5,7 +5,11 @@ Abstract:
 
 History Log:  Initial version
 
-Usage: This script processes arguments which define a a yaml load_spec file,
+Usage:
+run_gsd_ingest_threads spec_file -c credentials_file [-t thread_count -p
+crt_path]
+This script processes arguments which define a a yaml load_spec file,
+a defaults file (for credentials),
 a thread count, and certificate for TSL.
 The script maintains a thread pool of GsdIngestManagers and a queue of
 load_metadata_document ids that is loaded from the load_spec.yaml
@@ -23,15 +27,24 @@ load_spec:
   ingest_document_ids: ['MD::V01::METAR::obs']
   cb_connection:
     management_system: cb
-    xhost: "adb-cb1.gsd_builder.esrl.noaa.gov"
-    host: "localhost"
-    user: gsd_builder
-    password: gsd_pwd
+    host: "cb_host"   - should come from defaults file
+    user: "cb_user"   - should come from defaults file
+    password: "cb_pwd" - should come from defaults file
   mysql_connection:
-    management_system: mysql
-    host: "wolphin.fsl.noaa.gov"
-    user: readonly
-    password: ReadOnly@2016!
+    management_system: mysql   - should come from defaults file
+    host: "mysql_host"   - should come from defaults file
+    user: "mysql_host"   - should come from defaults file
+    password: "mysql_pwd"   - should come from defaults file
+
+This is an example defaults file. The keys should match
+the keys in the connection clauses of the load_spec.
+defaults:
+  cb_host: my_cb_host.some_subdomain.some_domain
+  cb_user: some_cb_user_name
+  cb_password: password_for_some_cb_user_name
+  mysql_host: my_mysql_host.some_subdomain.some_domain
+  mysql_user: some_mysql_user_name
+  mysql_password: password_for_some_mysql_user_name
 
 Copyright 2019 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of
 Colorado, NOAA/OAR/ESRL/GSD
@@ -40,7 +53,8 @@ import argparse
 import logging
 import sys
 import time
-
+import yaml
+from pathlib import Path
 from datetime import datetime
 from datetime import timedelta
 from multiprocessing import JoinableQueue
@@ -48,40 +62,68 @@ from gsd_sql_to_cb.gsd_ingest_manager import GsdIngestManager
 from gsd_sql_to_cb.load_spec_yaml import LoadYamlSpecFile
 
 
+def parse_args(args):
+    begin_time = str(datetime.now())
+    logging.basicConfig(level=logging.INFO)
+    logging.info("--- *** --- Start METdbLoad --- *** ---")
+    logging.info("Begin a_time: %s" + begin_time)
+    # a_time execution
+    parser = argparse.ArgumentParser()
+    parser.add_argument("spec_file",
+                        help="Please provide required load_spec filename "
+                             "- something.xml or something.yaml")
+    parser.add_argument("-c", "--credentials_file", type=str,
+                        help="Please provide required credentials_file")
+    parser.add_argument("-t", "--threads", type=int, default=1,
+                        help="Number of threads to use")
+    parser.add_argument("-p", "--cert_path", type=str, default='',
+                        help="path to server public cert")
+    # get the command line arguments
+    args = parser.parse_args(args)
+    return args
+
+
 class VXIngestGSD(object):
     def __init__(self):
         self.load_time_start = time.perf_counter()
         self.spec_file = ""
+        self.credentials_file = ""
         self.thread_count = ""
         self.cert_path = None
-    
-    def parse_args(self, args):
-        begin_time = str(datetime.now())
-        logging.basicConfig(level=logging.INFO)
-        logging.info("--- *** --- Start METdbLoad --- *** ---")
-        logging.info("Begin a_time: %s" + begin_time)
-        # a_time execution
-        parser = argparse.ArgumentParser()
-        parser.add_argument("spec_file",
-                            help="Please provide required load_spec filename "
-                                 "- something.xml or something.yaml")
-        parser.add_argument("-t", "--threads", type=int, default=1,
-                            help="Number of threads to use")
-        parser.add_argument("-c", "--cert_path", type=str, default='',
-                            help="path to server public cert")
-        # get the command line arguments
-        args = parser.parse_args(args)
-        return args
-    
+
     def runit(self, args):
         """
         This is the entry point for run_cb_threads.py
         """
         self.spec_file = args['spec_file']
+        self.credentials_file = args['credentials_file']
         self.thread_count = args['threads']
         self.cert_path = None if 'cert_path' not in args.keys() else args[
             'cert_path']
-        
+        #
+        #  Read the credentials
+        #
+        logging.debug("credentials filename is %s" + self.credentials_file)
+        try:
+            # check for existence of file
+            if not Path(self.credentials_file).is_file():
+                sys.exit(
+                    "*** credentials_file file " + self.credentials_file +
+                    " can not be found!")
+            _f = open(self.credentials_file)
+            _yaml_data = yaml.load(_f, yaml.SafeLoader)
+            _cb_host = _yaml_data['cb_host']
+            _cb_user = _yaml_data['cb_user']
+            _cb_password = _yaml_data['cb_password']
+            _mysql_host = _yaml_data['mysql_host']
+            _mysql_user = _yaml_data['mysql_user']
+            _mysql_password = _yaml_data['mysql_password']
+
+            _f.close()
+        except (RuntimeError, TypeError, NameError, KeyError):
+            logging.error("*** %s in read ***", sys.exc_info()[0])
+            sys.exit("*** Parsing error(s) in load_spec file!")
+
         #
         #  Read the load_spec file
         #
@@ -96,6 +138,14 @@ class VXIngestGSD(object):
             # read in the load_spec file and get the information out of its
             # tags
             load_spec = load_spec_file.read()
+            # assign the credentials from the credentials file
+            load_spec['cb_connection']['host'] = _cb_host
+            load_spec['cb_connection']['user'] = _cb_user
+            load_spec['cb_connection']['password'] = _cb_password
+            load_spec['mysql_connection']['host'] = _mysql_host
+            load_spec['mysql_connection']['user'] = _mysql_user
+            load_spec['mysql_connection']['password'] = _mysql_password
+
         except (RuntimeError, TypeError, NameError, KeyError):
             logging.error(
                 "*** %s occurred in Main reading load_spec " +
@@ -135,7 +185,7 @@ class VXIngestGSD(object):
         logging.info("--- *** --- End METdbLoad --- *** ---")
     
     def main(self):
-        args = self.parse_args(sys.argv)
+        args = parse_args(sys.argv)
         self.runit(args)
 
 

@@ -222,6 +222,7 @@ class GsdIngestManager(Process):
                     self.threadName + ': attempting cb connection with cert')
                 # this does not work yet - to get here use the -c option
                 # with a cert_path
+                
                 self.cluster = Cluster(
                     'couchbase://' + self.cb_credentials['host'],
                     ClusterOptions(

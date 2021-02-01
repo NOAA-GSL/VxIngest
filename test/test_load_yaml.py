@@ -21,12 +21,13 @@ class TestLoadYamlSpecFile(unittest.TestCase):
         self.assertEqual(load_spec['cb_connection']['password'], "gsd_pwd")
         
         self.assertEqual(load_spec['mysql_connection']['host'],
-                         "wolphin.fsl.noaa.gov")
+                         "host")
         self.assertEqual(load_spec['mysql_connection']['user'], "readonly")
         self.assertEqual(load_spec['mysql_connection']['password'],
-                         "ReadOnly@2016!")
+                         "readonly_pwd")
     
-    # tests to demonstrate parsing a gsd_builder yaml load_spec file. Doesn't return
+    # tests to demonstrate parsing a gsd_builder yaml load_spec file.
+    # Doesn't return
     # any derived filenames
     def test_yaml_gsd_parse(self):
         cwd = os.getcwd()
@@ -47,12 +48,12 @@ class TestLoadYamlSpecFile(unittest.TestCase):
             yaml_data['load_spec']['mysql_connection']['management_system'],
             "mysql")
         self.assertEqual(yaml_data['load_spec']['mysql_connection']['host'],
-                         "wolphin.fsl.noaa.gov")
+                         "host")
         self.assertEqual(yaml_data['load_spec']['mysql_connection']['user'],
                          "readonly")
         self.assertEqual(
             yaml_data['load_spec']['mysql_connection']['password'],
-            "ReadOnly@2016!")
+            "readonly_pwd")
 
 
 if __name__ == '__main__':

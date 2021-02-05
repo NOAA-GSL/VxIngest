@@ -12,7 +12,7 @@ This script processes arguments which define a a yaml load_spec file,
 a defaults file (for credentials),
 a thread count, and certificate for TSL.
 The script maintains a thread pool of GsdIngestManagers and a queue of
-load_metadata_document ids that is loaded from the load_spec.yaml
+load_metadata_document ids that is loaded from the load_spec_stations.yaml
 ingest_document_ids field.
 The number of threads in the thread pool is set to the -t n (or --threads n)
 argument, where n is the number of threads to start. The script is expected

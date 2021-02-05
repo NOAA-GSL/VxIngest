@@ -91,7 +91,7 @@ class GsdBuilder(ABC):
         self.doc = {}
         self.row = {}
         self.template = self.get_template()
-        
+    
     def handle_document(self, interpolated_time, rows, document_map):
         """
         This is the entry point for any GsdBuilder, it must be called
@@ -136,8 +136,7 @@ class GsdBuilder(ABC):
             e = sys.exc_info()[0]
             logging.error(
                 "GsdBuilder.handle_document: Exception instantiating "
-                "builder: " +
-                self.__class__.__name__ + " error: " + str(e))
+                "builder: " + self.__class__.__name__ + " error: " + str(e))
     
     def handle_key(self, key, interpolated_time):
         """
@@ -178,8 +177,9 @@ class GsdBuilder(ABC):
             e = sys.exc_info()[0]
             logging.error(
                 "GsdBuilder.handle_key: Exception instantiating builder: " +
-                self.__class__.__name__ + " error: " + str(e))
-
+                self.__class__.__name__ + " error: " + str(
+                    e))
+    
     """
     We keep a local copy of the document map because I don't know how to
     pass by reference in python and I don't want the interpreter
@@ -187,30 +187,31 @@ class GsdBuilder(ABC):
     way I see to do this is to use an abstract setter so that the child class
     actually implements the map.
     """
+    
     @abstractmethod
     def set_document_map(self, document_map):
         raise NotImplementedError("Must override set_document_map")
-
+    
     @abstractmethod
     def get_document_map(self):
         raise NotImplementedError("Must override get_document_map")
-
+    
     @abstractmethod
     def set_id(self, an_id):
         raise NotImplementedError("Must override set_id")
-
+    
     @abstractmethod
     def get_id(self):
         raise NotImplementedError("Must override get_id")
-
+    
     @abstractmethod
     def initialize_data(self):
         raise NotImplementedError("Must override initialize_data")
-
+    
     @abstractmethod
     def load_data(self):
         raise NotImplementedError("Must override load_data")
-
+    
     @abstractmethod
     def get_template(self):
         """
@@ -219,7 +220,7 @@ class GsdBuilder(ABC):
         :return: template
         """
         raise NotImplementedError("Must override get_template")
-
+    
     @abstractmethod
     def handle_data(self):
         """
@@ -227,18 +228,16 @@ class GsdBuilder(ABC):
         overridden by the concrete builder
         """
         raise NotImplementedError("Must override handle_data")
-
+    
 
 # Concrete GsdBuilders:
 """
 GsdMetarObsBuilder
-This class is the builder for METAR obs. METAR obs are
-kept in the GSL tables madis3, ceiling2, and visibility.
-This class will transform those tables, based on a template from a metdata
-object, into Couchbase documents.
-This builder differs from GsdMetarObsBuilderV02 in that GsdMetarObsBuilderV02
-keeps the data elements in a in a map indexed by station_id whereas this
-one keeps the data elements in a list.
+This class is the builder for METAR obs. METAR obs are derived from
+the GSL tables madis3.obs, ceiling2.obs, and visibility.obs.
+This class will transform those tables, based on a
+template from an "MD::V01::METAR::obs"
+metadata document, into Couchbase documents.
 """
 
 
@@ -249,25 +248,25 @@ class GsdMetarObsBuilder(GsdBuilder):
         self.document_map = {}
         self.template = template
         self.id = ""
-        
+    
     def get_template(self):
         return self.template
-
+    
     def initialize_data(self):
         self.doc['data'] = []
-
+    
     def set_document_map(self, document_map):
         self.document_map = document_map
-
+    
     def get_document_map(self):
         return self.document_map
-
+    
     def set_id(self, an_id):
         self.id = an_id
-
+    
     def get_id(self):
         return self.id
-        
+    
     def load_data(self):
         # we do not really want the id to be IN the document
         # so we delete the id element. We needed it in the
@@ -280,7 +279,7 @@ class GsdMetarObsBuilder(GsdBuilder):
         else:
             # it is a new document
             self.document_map[self.id] = self.doc
-
+    
     def handle_data(self):
         """
         This is the only responsibility of the builder.
@@ -304,24 +303,19 @@ class GsdMetarObsBuilder(GsdBuilder):
             e = sys.exc_info()[0]
             logging.error(
                 "GsdMetarObsBuilder.handle_data: Exception instantiating "
-                "builder: " +
-                self.__class__.__name__ + " error: " + str(e))
+                "builder: " + self.__class__.__name__ + " error: " + str(e))
 
 
 """
-GsdMetarObsBuilderV02
-This class is a builder for METAR obs. METAR obs are
-kept in the GSL tables madis3, ceiling2, and visibility.
-This class will transform those tables, based on a template from a metdata
-object, into Couchbase documents.
-This builder differs from GsdMetarObsBuilder in that GsdMetarObsBuilder
-keeps the data elements in a list whereas this one keeps the data elements
-in a map indexed by station_id.
+GsdLocationsBuilder
+This class is the builder for GSD locations. Locations are derived
+from the madis3.metars_mats_global table. This class will transform that
+table, based on a template from an "MD::V01::LOCATIONS" metadata
+document, into a single Couchbase document.
 """
 
 
-class GsdMetarObsBuilderV02(GsdBuilder):
-    
+class GsdLocationsBuilder(GsdBuilder):
     def __init__(self, template):
         super(GsdBuilder, self).__init__()
         self.document_map = {}
@@ -330,22 +324,22 @@ class GsdMetarObsBuilderV02(GsdBuilder):
     
     def get_template(self):
         return self.template
-
+    
     def initialize_data(self):
-        self.doc['data'] = {}
-
+        self.doc['data'] = []
+    
     def set_document_map(self, document_map):
         self.document_map = document_map
-
+    
     def get_document_map(self):
         return self.document_map
-
+    
     def set_id(self, an_id):
         self.id = an_id
-
+    
     def get_id(self):
         return self.id
-
+    
     def load_data(self):
         # we do not really want the id to be IN the document
         # so we delete the id element. We needed it in the
@@ -353,13 +347,12 @@ class GsdMetarObsBuilderV02(GsdBuilder):
         # would be
         del self.doc['id']
         if self.id in self.document_map.keys():
-            # put data into existing data map
-            for madis_id in self.doc['data'].keys():
-                self.document_map[self.id]['data'][madis_id] = \
-                    self.doc['data'][madis_id]
+            # append data to existing document data map
+            self.document_map[self.id]['data'].extend(self.doc['data'])
         else:
+            # it is a new document
             self.document_map[self.id] = self.doc
-
+    
     def handle_data(self):
         """
         This is the only responsibility of the builder.
@@ -378,11 +371,9 @@ class GsdMetarObsBuilderV02(GsdBuilder):
                     if self.template['data'][k].startswith("ISO*"):
                         row_key = self.template['data'][k].replace('ISO*', '')
                         _data_elem[k] = convert_to_iso(self.row[row_key])
-            self.doc['data'][self.row['madis_id']] = _data_elem
+            self.doc['data'].append(_data_elem)
         except:
             e = sys.exc_info()[0]
             logging.error(
-                "GsdMetarObsBuilderV02.handle_data: Exception instantiating "
-                "builder: " +
-                self.__class__.__name__ + " error: " + str(
-                    e))
+                "GsdMetarObsBuilder.handle_data: Exception instantiating "
+                "builder: " + self.__class__.__name__ + " error: " + str(e))

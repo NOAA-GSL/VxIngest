@@ -1,26 +1,83 @@
 import sys
 from unittest import TestCase
-from couchbase.bucket import Bucket
+from pathlib import Path
+import yaml
+
+# these modules are used to access and authenticate with your
+# database cluster:
+from couchbase.cluster import Cluster, ClusterOptions
+from couchbase_core.cluster import PasswordAuthenticator
 
 
 class TestConnection(TestCase):
-    
-    def test_connection(self):
+    def test_adb_cb1_connection_no_cert(self):
+        # noinspection PyBroadException
         try:
-            # conn_str = 'couchbases://127.0.0.1/{
-            # }?certpath=/Users/randy.pierce/servercertfiles/ca.pem'
-            # credentials = dict(username='met_admin', password='met_adm_pwd')
-            # cb = Bucket(conn_str.format('mdata'), **credentials)
-            # print("success")
+            _credentials_file = '/Users/randy.pierce/adb-cb1-credentials'
+            # specify the cluster and specify an authenticator containing a
+            # username and password to be passed to the cluster.
+            if not Path(_credentials_file).is_file():
+                sys.exit(
+                    "*** credentials_file file " + _credentials_file +
+                    " can not be found!")
+            _f = open(_credentials_file)
+            _yaml_data = yaml.load(_f, yaml.SafeLoader)
+            _cb_host = _yaml_data['cb_host']
+            _cb_user = _yaml_data['cb_user']
+            _cb_password = _yaml_data['cb_password']
+            _mysql_host = _yaml_data['mysql_host']
+            _mysql_user = _yaml_data['mysql_user']
+            _mysql_password = _yaml_data['mysql_password']
             
-            conn_str = 'couchbases://adb-cb4.gsd_builder.esrl.noaa.gov/{' \
-                      '}?certpath=/certs/adb-cb4.gsd_builder.esrl.noaa.gov/cert.pem '
-            credentials = dict(username='met_admin', password='met_adm_pwd')
-            cb = Bucket(conn_str.format('mdata'), **credentials)
+            _f.close()
+            
+            cluster = Cluster('couchbase://' + _cb_host, ClusterOptions(
+                PasswordAuthenticator(_cb_user, _cb_password)))
+            
+            # following a successful authentication, a bucket can be opened.
+            # access a bucket in that cluster
+            
+            bucket = cluster.bucket('mdata')
+            collection = bucket.default_collection()
             print("success")
-        
         except:
-            print("*** %s Error in data_type_manager run ***",
-                  sys.exc_info()[0])
-            print("*** %s Error in data_type_manager run ***",
-                  sys.exc_info()[1])
+            self.fail(
+                "TestConnection.test_connection Exception failure: " + str(
+                    sys.exc_info()[0]))
+    
+    def test_adb_cb4_connection_no_cert(self):
+        # noinspection PyBroadException
+        try:
+            _credentials_file = '/Users/randy.pierce/adb-cb4-credentials'
+            # specify the cluster and specify an authenticator containing a
+            # username and password to be passed to the cluster.
+            if not Path(_credentials_file).is_file():
+                sys.exit(
+                    "*** credentials_file file " + _credentials_file + " can "
+                                                                       "not "
+                                                                       "be "
+                                                                       "found!")
+            _f = open(_credentials_file)
+            _yaml_data = yaml.load(_f, yaml.SafeLoader)
+            _cb_host = _yaml_data['cb_host']
+            _cb_user = _yaml_data['cb_user']
+            _cb_password = _yaml_data['cb_password']
+            _mysql_host = _yaml_data['mysql_host']
+            _mysql_user = _yaml_data['mysql_user']
+            _mysql_password = _yaml_data['mysql_password']
+            
+            _f.close()
+            
+            cluster = Cluster('couchbase://' + _cb_host, ClusterOptions(
+                PasswordAuthenticator(_cb_user, _cb_password)))
+            
+            # following a successful authentication, a bucket can be opened.
+            # access a bucket in that cluster
+            
+            bucket = cluster.bucket('mdata')
+            collection = bucket.default_collection()
+            print("success")
+        except:
+            self.fail(
+                "TestConnection.test_connection Exception failure: " + str(
+                    sys.exc_info()[0]))

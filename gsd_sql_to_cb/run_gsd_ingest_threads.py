@@ -69,9 +69,9 @@ def parse_args(args):
     logging.info("Begin a_time: %s" + begin_time)
     # a_time execution
     parser = argparse.ArgumentParser()
-    parser.add_argument("spec_file",
+    parser.add_argument("-s", "--spec_file", type=str,
                         help="Please provide required load_spec filename "
-                             "- something.xml or something.yaml")
+                             "-s something.xml or -s something.yaml")
     parser.add_argument("-c", "--credentials_file", type=str,
                         help="Please provide required credentials_file")
     parser.add_argument("-t", "--threads", type=int, default=1,
@@ -185,8 +185,8 @@ class VXIngestGSD(object):
         logging.info("--- *** --- End METdbLoad --- *** ---")
     
     def main(self):
-        args = parse_args(sys.argv)
-        self.runit(args)
+        args = parse_args(sys.argv[1:])
+        self.runit(vars(args))
 
 
 if __name__ == '__main__':

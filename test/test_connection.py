@@ -1,4 +1,5 @@
 import sys
+import os
 from pathlib import Path
 from unittest import TestCase
 import yaml
@@ -19,7 +20,7 @@ class TestConnection(TestCase):
     def test_adb_cb1_connection_no_cert(self):
         # noinspection PyBroadException
         try:
-            _credentials_file = '/Users/randy.pierce/adb-cb1-credentials'
+            _credentials_file = os.environ['HOME'] + "/adb-cb1-credentials"
             # specify the cluster and specify an authenticator containing a
             # username and password to be passed to the cluster.
             if not Path(_credentials_file).is_file():
@@ -40,7 +41,7 @@ class TestConnection(TestCase):
     def test_adb_cb4_connection_no_cert(self):
         # noinspection PyBroadException
         try:
-            _credentials_file = '/Users/randy.pierce/adb-cb4-credentials'
+            _credentials_file = os.environ['HOME'] + "/adb-cb4-credentials"
             # specify the cluster and specify an authenticator containing a
             # username and password to be passed to the cluster.
             if not Path(_credentials_file).is_file():

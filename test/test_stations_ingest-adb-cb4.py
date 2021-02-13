@@ -10,13 +10,13 @@ class TestGsdIngestManager(TestCase):
         # noinspection PyBroadException
         try:
             cwd = os.getcwd()
-            self.spec_file = cwd + '/load_spec_gsd-metars.yaml'
+            self.spec_file = cwd + '/load_spec_gsd-stations.yaml'
             self.thread_count = 1
             self.cert_path = None
             vx_ingest = VXIngestGSD()
             vx_ingest.runit({'spec_file': self.spec_file,
                              'credentials_file':
-                                 '/Users/randy.pierce/adb-credentials-local',
+                                 '/Users/randy.pierce/adb-cb4-credentials',
                              'threads': self.thread_count,
                              'cert_path': self.cert_path})
         except:

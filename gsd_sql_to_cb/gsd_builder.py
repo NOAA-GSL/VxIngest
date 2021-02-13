@@ -49,11 +49,11 @@ Copyright 2019 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of
 Colorado, NOAA/OAR/ESRL/GSD
 """
 
+import copy
+import datetime as dt
 import logging
 import sys
-import copy
 from abc import ABC, abstractmethod
-import datetime as dt
 
 TS_OUT_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
@@ -61,8 +61,7 @@ TS_OUT_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 def convert_to_iso(an_epoch):
     if not isinstance(an_epoch, int):
         an_epoch = int(an_epoch)
-    _valid_time_str = dt.datetime.utcfromtimestamp(an_epoch).strftime(
-        TS_OUT_FORMAT)
+    _valid_time_str = dt.datetime.utcfromtimestamp(an_epoch).strftime(TS_OUT_FORMAT)
     return _valid_time_str
 
 
@@ -124,7 +123,7 @@ class GsdBuilder(ABC):
             for r in rows:
                 self.row = r
                 self.initialize_data()
-                for k in self.doc.keys():
+                for k in self.template.keys():
                     if k == "data":
                         self.handle_data()
                         continue
@@ -134,9 +133,8 @@ class GsdBuilder(ABC):
             return self.get_document_map()
         except:
             e = sys.exc_info()[0]
-            logging.error(
-                "GsdBuilder.handle_document: Exception instantiating "
-                "builder: " + self.__class__.__name__ + " error: " + str(e))
+            logging.error("GsdBuilder.handle_document: Exception instantiating "
+                          "builder: " + self.__class__.__name__ + " error: " + str(e))
     
     def handle_key(self, key, interpolated_time):
         """
@@ -150,8 +148,7 @@ class GsdBuilder(ABC):
         # noinspection PyBroadException
         try:
             if key == 'id':
-                _an_id = derive_id(self.template['id'], self.row,
-                                   interpolated_time)
+                _an_id = derive_id(self.template['id'], self.row, interpolated_time)
                 self.set_id(_an_id)
                 return
             if isinstance(self.doc[key], dict):
@@ -176,8 +173,7 @@ class GsdBuilder(ABC):
         except:
             e = sys.exc_info()[0]
             logging.error(
-                "GsdBuilder.handle_key: Exception instantiating builder: " +
-                self.__class__.__name__ + " error: " + str(
+                "GsdBuilder.handle_key: Exception instantiating builder: " + self.__class__.__name__ + " error: " + str(
                     e))
     
     """
@@ -228,16 +224,15 @@ class GsdBuilder(ABC):
         overridden by the concrete builder
         """
         raise NotImplementedError("Must override handle_data")
-    
+
 
 # Concrete GsdBuilders:
 """
 GsdMetarObsBuilder
 This class is the builder for METAR obs. METAR obs are derived from
 the GSL tables madis3.obs, ceiling2.obs, and visibility.obs.
-This class will transform those tables, based on a
-template from an "MD::V01::METAR::obs"
-metadata document, into Couchbase documents.
+This class will transform those tables, based on a "MD::V01::METAR::obs"
+metdata object, into Couchbase documents.
 """
 
 
@@ -301,21 +296,21 @@ class GsdMetarObsBuilder(GsdBuilder):
             self.doc['data'].append(_data_elem)
         except:
             e = sys.exc_info()[0]
-            logging.error(
-                "GsdMetarObsBuilder.handle_data: Exception instantiating "
-                "builder: " + self.__class__.__name__ + " error: " + str(e))
+            logging.error("GsdMetarObsBuilder.handle_data: Exception instantiating "
+                          "builder: " + self.__class__.__name__ + " error: " + str(e))
 
 
 """
-GsdLocationsBuilder
-This class is the builder for GSD locations. Locations are derived
+GsdSingleDocumentMapBuilder
+This class is the builder for things like GSD stations. Stations are derived
 from the madis3.metars_mats_global table. This class will transform that
-table, based on a template from an "MD::V01::LOCATIONS" metadata
-document, into a single Couchbase document.
+table, based on a template from an "MD::V01::METAR::STATIONS" metadata
+document, into a single Couchbase document. The stations are keyed
+by the stationName and an ancestor number
 """
 
 
-class GsdLocationsBuilder(GsdBuilder):
+class GsdSingleDocumentMapBuilder(GsdBuilder):
     def __init__(self, template):
         super(GsdBuilder, self).__init__()
         self.document_map = {}
@@ -326,7 +321,11 @@ class GsdLocationsBuilder(GsdBuilder):
         return self.template
     
     def initialize_data(self):
-        self.doc['data'] = []
+        """ for a singleDocumentMapBuilder we initialize
+        the data by just making sure the data element has been removed.
+        All the data elements are going to be top level elements"""
+        if 'data' in self.doc.keys():
+            del self.doc['data']
     
     def set_document_map(self, document_map):
         self.document_map = document_map
@@ -346,12 +345,21 @@ class GsdLocationsBuilder(GsdBuilder):
         # template to tell us to set an id and what the id format
         # would be
         del self.doc['id']
-        if self.id in self.document_map.keys():
-            # append data to existing document data map
-            self.document_map[self.id]['data'].extend(self.doc['data'])
-        else:
-            # it is a new document
-            self.document_map[self.id] = self.doc
+        self.document_map[self.id] = self.doc
+    
+    def translate_template_item(self, value):
+        _replacements = value.split('*')[1:]
+        # skip the first replacement, its never
+        # really a replacement. It is either '' or not a
+        # replacement
+        if len(_replacements) > 0:
+            for _ri in _replacements:
+                if _ri.startswith("{ISO}"):
+                    row_key = _ri.replace('{ISO}', '')
+                    value = value.replace("*" + _ri, convert_to_iso(self.row[row_key]))
+                else:
+                    value = value.replace("*" + _ri, str(self.row[_ri]))
+        return value
     
     def handle_data(self):
         """
@@ -359,21 +367,22 @@ class GsdLocationsBuilder(GsdBuilder):
         It receives a database row and processes it into
         a data element based on the template modifying the self.doc that is
         maintained in the parent class GsdBuilder.
+        For a singleDocumentArrayBuilder the output will be a single document
+        that has a data section that is an array of objects.
         """
         # noinspection PyBroadException
         try:
             _data_elem = {}
-            for k in self.template['data'].keys():
-                if self.template['data'][k].startswith("*"):
-                    row_key = self.template['data'][k][1:]
-                    _data_elem[row_key] = self.row[row_key]
-                else:
-                    if self.template['data'][k].startswith("ISO*"):
-                        row_key = self.template['data'][k].replace('ISO*', '')
-                        _data_elem[k] = convert_to_iso(self.row[row_key])
-            self.doc['data'].append(_data_elem)
+            _data_key = next(iter(self.template['data']))
+            _data_template = self.template['data'][_data_key]
+            for key in _data_template.keys():
+                value = _data_template[key]
+                value = self.translate_template_item(value)
+                _data_elem[key] = value
+            _data_key = self.translate_template_item(_data_key)
+            self.doc[_data_key] = _data_elem
         except:
             e = sys.exc_info()[0]
-            logging.error(
-                "GsdMetarObsBuilder.handle_data: Exception instantiating "
-                "builder: " + self.__class__.__name__ + " error: " + str(e))
+            logging.error("GsdSingleDocumentArrayBuilder.handle_data: "
+                          "Exception instantiating "
+                          "builder: " + self.__class__.__name__ + " error: " + str(e))

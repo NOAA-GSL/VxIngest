@@ -2,7 +2,7 @@ load_spec:
   email: "randy.pierce@noaa.gov"
   cb_connection:
     management_system: cb
-    host: "localhost"
+    host: "host"
     user: gsd
     password: gsd_pwd
   mysql_connection:
@@ -10,4 +10,4 @@ load_spec:
     host: "host"
     user: readonly
     password: readonly_pwd
-  ingest_document_ids: ['MD::V02::METAR::obs']
+  ingest_document_ids: ['MD::V01::METAR::obs']

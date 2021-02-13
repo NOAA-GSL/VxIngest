@@ -1,20 +1,23 @@
 import sys
 import os
 from unittest import TestCase
-from stations.stations_ingest import VXStationsIngest
+from gsd_sql_to_cb.run_gsd_ingest_threads import VXIngestGSD
 
 
-class TestVXStationsIngest(TestCase):
+class TestGsdIngestManager(TestCase):
+    
     def test_main(self):
         # noinspection PyBroadException
         try:
             cwd = os.getcwd()
-            self.spec_file = cwd + '/load_spec_stations.yaml'
+            self.spec_file = cwd + '/load_spec_gsd-stations.yaml'
+            self.thread_count = 1
             self.cert_path = None
-            vx_ingest = VXStationsIngest()
+            vx_ingest = VXIngestGSD()
             vx_ingest.runit({'spec_file': self.spec_file,
                              'credentials_file':
-                                 '/Users/randy.pierce/adb-credentials-local',
+                                 '/Users/randy.pierce/adb-cb1-credentials',
+                             'threads': self.thread_count,
                              'cert_path': self.cert_path})
         except:
             self.fail("TestGsdIngestManager Exception failure: " +

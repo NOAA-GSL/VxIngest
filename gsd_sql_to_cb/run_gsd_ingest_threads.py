@@ -76,15 +76,16 @@ def parse_args(args):
                         help="Please provide required credentials_file")
     parser.add_argument("-t", "--threads", type=int, default=1,
                         help="Number of threads to use")
-    parser.add_argument("-f", "--first_epoch", type=int, default=0,
+    parser.add_argument("-f", "--{first_epoch}", type=int, default=0,
                         help="The first epoch to use, inclusive")
-    parser.add_argument("-l", "--last_epoch", type=int, default=0,
+    parser.add_argument("-l", "--{last_epoch}", type=int, default=0,
                         help="The last epoch to use, exclusive")
 
     parser.add_argument("-p", "--cert_path", type=str, default='',
                         help="path to server public cert")
     # get the command line arguments
     args = parser.parse_args(args)
+    
     return args
 
 
@@ -96,6 +97,8 @@ class VXIngestGSD(object):
         self.thread_count = ""
         self.cert_path = None
         self.statement_replacement_params = None
+        self.first_epoch = None
+        self.last_epoch = None
 
     def runit(self, args):
         """
@@ -174,6 +177,7 @@ class VXIngestGSD(object):
         # Make the Pool of data_type_managers
         _dtm_list = []
         for _threadCount in range(int(self.thread_count)):
+            # noinspection PyBroadException
             try:
                 dtm_thread = GsdIngestManager(
                     "GsdIngestManager-" + str(self.thread_count),

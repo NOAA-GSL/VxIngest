@@ -348,6 +348,7 @@ class GsdIngestManager(Process):
             while True:
                 row = self.cursor.fetchone()
                 if not row:
+                    logging.warning("executing query: NO DATA:")
                     break
                 if _requires_time_interpolation:
                     _interpolated_time = interpolate_time(_cadence, _delta, int(row['time']))

@@ -61,11 +61,10 @@ import queue
 import re
 import sys
 import time
-from datetime import timedelta
 from multiprocessing import Process
 
 import pymysql
-from couchbase.cluster import Cluster, ClusterOptions, ClusterTimeoutOptions
+from couchbase.cluster import Cluster, ClusterOptions
 from couchbase.exceptions import DocumentNotFoundException, TimeoutException
 from couchbase_core.cluster import PasswordAuthenticator
 from pymysql.constants import CLIENT
@@ -116,7 +115,7 @@ class GsdIngestManager(Process):
     and dies.
     """
     
-    def __init__(self, name, cb_credentials, mysql_credentials, document_id_queue):
+    def __init__(self, name, cb_credentials, mysql_credentials, document_id_queue, statement_replacement_params):
         """
         :param name: (str) the thread name for this IngestManager
         :param cb_credentials: (Object) Couchbase credentials
@@ -128,6 +127,7 @@ class GsdIngestManager(Process):
         self.threadName = name
         self.cb_credentials = cb_credentials
         self.mysql_credentials = mysql_credentials
+        self.statement_replacement_params = statement_replacement_params
         # made this an instance variable because I don't know how to pass it
         # into the run method
         self.queue = document_id_queue
@@ -139,7 +139,8 @@ class GsdIngestManager(Process):
         self.collection = None
         self.connection = None
         self.cursor = None
-    
+        self.metadata = None
+        
     # entry point of the thread. Is invoked automatically when the thread is
     # started.
     def run(self):
@@ -215,18 +216,10 @@ class GsdIngestManager(Process):
                 logging.info(self.threadName + ': attempting cb connection with cert')
                 # this does not work yet - to get here use the -c option
                 # with a cert_path
-                
                 self.cluster = Cluster('couchbase://' + self.cb_credentials['host'], ClusterOptions(
                     PasswordAuthenticator(self.cb_credentials['user'], self.cb_credentials['password'],
                                           cert_path=self.cb_credentials['cert_path'])))
                 self.collection = self.cluster.bucket("mdata").default_collection()  # this works with a cert  #
-                # to local server - but not to adb-cb4  # connstr =
-                # 'couchbases://127.0.0.1/{  #  #  #  #   #   #  #
-                # }?certpath=/Users/randy.pierce/servercertfiles/ca.pem'  #  #
-                # credentials = dict(username='met_admin',
-                # password='met_adm_pwd')  # cb = Bucket(connstr.format(  #  #
-                # 'mdata'), **credentials)  # collection =   #  #  #  #   #  #
-                # cb.default_collection()
                 logging.info(self.threadName + ': Couchbase connection success')
             except:
                 logging.error("*** %s in connect_cb ***" + str(sys.exc_info()[0]))
@@ -294,6 +287,15 @@ class GsdIngestManager(Process):
         _ingest_document = ingest_document_result.content
         _template = _ingest_document['template']
         _ingest_type_builder_name = _ingest_document['builder_type']
+        # get required metadata, if any
+        try:
+            if 'metadata' in _ingest_document.keys():
+                _metadata_id = _ingest_document['metadata']
+                self.metadata = self.collection.get(_metadata_id).content
+        except DocumentNotFoundException:
+            logging.warning(self.threadName + ": DocumentNotFoundException instantiating "
+                                              "builder: " + "document_id: " + _document_id)
+
         # get or instantiate the builder
         # noinspection PyBroadException
         try:
@@ -301,10 +303,13 @@ class GsdIngestManager(Process):
                 builder = self.builder_map[_ingest_type_builder_name]
             else:
                 builder_class = getattr(gsd_builder, _ingest_type_builder_name)
-                builder = builder_class(_template)
+                builder = builder_class(_template, self.metadata)
                 self.builder_map[_ingest_type_builder_name] = builder
             # process the document
             _statement = _ingest_document['statement']
+            # replace any statement params - replacement params are like {param}=replacement
+            for _k in self.statement_replacement_params.keys():
+                _statement = _statement.replace(_k, str(self.statement_replacement_params[_k]))
             # print(json.dumps(ingest_document))
             _document_template = _ingest_document['template']
             logging.info("GsdMetarObsBuilder: building with "
@@ -331,12 +336,12 @@ class GsdIngestManager(Process):
             _requires_time_interpolation = False
             """
             Note about interpolated time:
-            Some ingest metadata will
+            Some ingest metadata will require time interpolation.
+            If there is a keyword 'requires_time_interpolation' in the template
+            and if it is set to 'True' then the time field will be interpolated.
             """
-            if 'requires_time_interpolation' in _document_template.keys() and _document_template[
-                'requires_time_interpolation'].lower(
-            
-            ) == "true":
+            if 'requires_time_interpolation' in _ingest_document.keys() and \
+                    _ingest_document['requires_time_interpolation'].lower() == "true":
                 _requires_time_interpolation = True
                 _delta = int(_document_template['delta'])
                 _cadence = int(_document_template['cadence'])
@@ -346,10 +351,15 @@ class GsdIngestManager(Process):
                     break
                 if _requires_time_interpolation:
                     _interpolated_time = interpolate_time(_cadence, _delta, int(row['time']))
+                else:
+                    if 'time' in row.keys():
+                        _interpolated_time = int(row['time'])
+                        
                 if _time == 0:
                     _time = _interpolated_time
                 if _interpolated_time != _time:
-                    self.document_map = builder.handle_document(_interpolated_time, _same_time_rows, self.document_map)
+                    self.document_map = builder.handle_document(_interpolated_time, _same_time_rows,
+                                                                self.document_map)
                     _time = 0
                     _time = _interpolated_time
                     _same_time_rows = []

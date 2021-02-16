@@ -16,7 +16,7 @@ class TestGsdIngestManager(TestCase):
             vx_ingest = VXIngestGSD()
             vx_ingest.runit({'spec_file': self.spec_file,
                              'credentials_file':
-                                 '/Users/randy.pierce/adb-cb4-credentials',
+                                 os.environ['HOME'] + '/adb-cb4-credentials',
                              'threads': self.thread_count,
                              'cert_path': self.cert_path})
         except:

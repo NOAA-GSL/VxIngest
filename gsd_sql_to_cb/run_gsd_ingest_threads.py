@@ -76,6 +76,11 @@ def parse_args(args):
                         help="Please provide required credentials_file")
     parser.add_argument("-t", "--threads", type=int, default=1,
                         help="Number of threads to use")
+    parser.add_argument("-f", "--first_epoch", type=int, default=0,
+                        help="The first epoch to use, inclusive")
+    parser.add_argument("-l", "--last_epoch", type=int, default=0,
+                        help="The last epoch to use, exclusive")
+
     parser.add_argument("-p", "--cert_path", type=str, default='',
                         help="path to server public cert")
     # get the command line arguments
@@ -90,6 +95,7 @@ class VXIngestGSD(object):
         self.credentials_file = ""
         self.thread_count = ""
         self.cert_path = None
+        self.statement_replacement_params = None
 
     def runit(self, args):
         """
@@ -100,6 +106,9 @@ class VXIngestGSD(object):
         self.thread_count = args['threads']
         self.cert_path = None if 'cert_path' not in args.keys() else args[
             'cert_path']
+        # capture any statement replacement params
+        self.statement_replacement_params = {key: val for key, val in args.items() if key.startswith('{')}
+
         #
         #  Read the credentials
         #
@@ -169,7 +178,7 @@ class VXIngestGSD(object):
                 dtm_thread = GsdIngestManager(
                     "GsdIngestManager-" + str(self.thread_count),
                     load_spec['cb_connection'], load_spec['mysql_connection'],
-                    q)
+                    q, self.statement_replacement_params)
                 _dtm_list.append(dtm_thread)
                 dtm_thread.start()
             except:

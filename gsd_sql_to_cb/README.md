@@ -98,14 +98,21 @@ This is an example credentials file, the user and password are fake.
 You must have both of these files and you must supply them to 
 the program as a parameter.
 ##Example invocation
+This assumes that you have cloned this repo into your home directory.
+```
+export PYTHONPATH=~/VxIngest
 ~/anaconda3/bin/python3 gsd_sql_to_cb/run_gsd_ingest_threads.py -s /home/pierce/VxIngest/test/load_spec_gsd-stations.yaml -c /home/pierce/adb-cb4-credentials
-
+```
 this will create or update a document with the id "MD::V01::METAR::stations"
 and this document will contain all of the stations that are in the 
 GSD madis3.stations table. 
 
 ##Tests
-there are tests in the test directory. To run the connections test
-for example switch to the test directory and use this invocation...
-```~/anaconda3/bin/python3 -m unittest test_connection.py```
+There are tests in the test directory. To run the connections test
+for example switch to the test directory and use this invocation.
+This assumes that you have cloned this repo into your home directory.
+
+```
+export PYTHONPATH=~/VxIngest
+~/anaconda3/bin/python3 -m unittest test_connection.py```
 .

@@ -47,8 +47,6 @@ def initialize_data(doc):
         return doc
 
 
-
-
 class GsdBuilder:
     def __init__(self, template, metadata):
         self.template = template
@@ -57,7 +55,7 @@ class GsdBuilder:
     
     def load_data(self, doc, key, element):
         pass
-
+    
     @staticmethod
     def get_name(metadata, params_dict):
         _lat = int(params_dict['lat'])
@@ -71,7 +69,7 @@ class GsdBuilder:
             logging.error("GsdBuilder.get_name: Exception finding station to match lat and lon  error: " + str(
                 e) + " params: " + str(params_dict))
             return None
-
+    
     @staticmethod
     def translate_template_item(value, row, interpolated_time):
         """
@@ -183,7 +181,7 @@ class GsdBuilder:
                 "GsdBuilder: Using " + _func + " - could not find station for " + row['name'] + str(_dict_params))
             _data_key = row['name'] + "0"
         return _data_key
-
+    
     def handle_data(self, doc, row, interpolated_time):
         # noinspection PyBroadException
         try:

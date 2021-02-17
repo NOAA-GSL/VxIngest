@@ -394,8 +394,8 @@ class GsdIngestManager(Process):
                 logging.info("executing upsert: elapsed time: " + str(_upsert_stop_time - _upsert_start_time))
                 logging.info(self.threadName + ': data_type_manager wrote '
                                                'documents for '
-                                               'ingest_document :  ' + str(
-                    _document_id) + "threadName: " + self.threadName)
+                                               'ingest_document :  ' +
+                             str(_document_id) + "threadName: " + self.threadName)
             except:
                 e = sys.exc_info()[0]
                 e1 = sys.exc_info()[1]

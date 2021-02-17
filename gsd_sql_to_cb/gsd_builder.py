@@ -10,7 +10,6 @@ import copy
 import datetime as dt
 import logging
 import sys
-import re
 
 TS_OUT_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
@@ -48,29 +47,30 @@ def initialize_data(doc):
         return doc
 
 
+
+
 class GsdBuilder:
     def __init__(self, template, metadata):
         self.template = template
         self.metadata = metadata
         self.id = None
     
-    def get_name(self, params_dict):
+    def load_data(self, doc, key, element):
+        pass
+
+    @staticmethod
+    def get_name(metadata, params_dict):
         _lat = int(params_dict['lat'])
         _lon = int(params_dict['lon'])
         # _elev = int(params_dict['elev'])
-        for station_key in self.metadata.keys():
-            # noinspection PyBroadException
-            try:
-                if not isinstance(self.metadata[station_key], dict):
-                    continue
-                if 'lat' not in self.metadata[station_key].keys():
-                    continue
-                if int(self.metadata[station_key]['lat']) == _lat and int(self.metadata[station_key]['lon']) == _lon:
-                    return station_key
-            except:
-                e = sys.exc_info()[0]
-                logging.error("GsdBuilder.get_name: Exception finding station to match lat and lon  error: " + str(e) +
-                              " params: " + str(params_dict))
+        # noinspection PyBroadException
+        try:
+            return next((x for x in metadata['data'] if int(x['lat']) == _lat and int(x['lon']) == _lon), None)
+        except:
+            e = sys.exc_info()[0]
+            logging.error("GsdBuilder.get_name: Exception finding station to match lat and lon  error: " + str(
+                e) + " params: " + str(params_dict))
+            return None
 
     @staticmethod
     def translate_template_item(value, row, interpolated_time):
@@ -169,6 +169,21 @@ class GsdBuilder:
             e = sys.exc_info()[0]
             logging.error("GsdBuilder.handle_key: Exception instantiating builder:  error: " + str(e))
     
+    def handle_named_function(self, metadata, _data_key, interpolated_time, row):
+        # used to call a function named in the template
+        _func = _data_key.split(':')[0].replace('&', '')
+        _params = _data_key.split(':')[1].split(',')
+        _dict_params = {}
+        for _p in _params:
+            # be sure to slice the * off of the front of the param
+            _dict_params[_p[1:]] = self.translate_template_item(_p, row, interpolated_time)
+        _data_key = getattr(self, _func)(metadata, _dict_params)
+        if _data_key is None:
+            logging.warning(
+                "GsdBuilder: Using " + _func + " - could not find station for " + row['name'] + str(_dict_params))
+            _data_key = row['name'] + "0"
+        return _data_key
+
     def handle_data(self, doc, row, interpolated_time):
         # noinspection PyBroadException
         try:
@@ -177,29 +192,43 @@ class GsdBuilder:
             _data_template = self.template['data'][_data_key]
             for key in _data_template.keys():
                 value = _data_template[key]
-                value = self.translate_template_item(value, row, interpolated_time)
+                if value.startswith('&'):
+                    value = self.handle_named_function(self.metadata, value, interpolated_time, row)
+                else:
+                    value = self.translate_template_item(value, row, interpolated_time)
                 _data_elem[key] = value
             if _data_key.startswith('&'):
-                # invoke a named function
-                # first create a **kwargs list of params.
-                # &get_name:*lat,*lon,*elev => locals()['get_name']({lat:nnn,lon:nnn,elev:nnn})
-                _func = _data_key.split(':')[0].replace('&', '')
-                _params = _data_key.split(':')[1].split(',')
-                _dict_params = {}
-                for _p in _params:
-                    # be sure to slice the * off of the front of the param
-                    _dict_params[_p[1:]] = self.translate_template_item(_p, row, interpolated_time)
-                _data_key = getattr(self, 'get_name')(_dict_params)
-                if _data_key is None:
-                    logging.warning(
-                        "GsdBuilder: Using get_name - could not find station for " + row['name'] + str(_dict_params))
-                    _data_key = row['name'] + "0"
+                _data_key = self.translate_template_item(value, row, interpolated_time)
             else:
                 _data_key = self.translate_template_item(_data_key, row, interpolated_time)
                 if _data_key is None:
                     logging.warning("GsdBuilder: Using template - could not find station for " + row['name'])
-            doc[_data_key] = _data_elem
+            doc = self.load_data(doc, _data_key, _data_elem)
             return doc
+        
         except:
             e = sys.exc_info()[0]
             logging.error("handle_data: Exception instantiating builder:  error: " + str(e))
+            return doc
+
+
+class GsdBuilderList(GsdBuilder):
+    def __init__(self, template, metadata):
+        GsdBuilder.__init__(self, template, metadata)
+    
+    def load_data(self, doc, key, element):
+        if 'data' not in doc.keys() or doc['data'] is None:
+            doc['data'] = []
+        doc['data'].append(element)
+        return doc
+
+
+class GsdBuilderFlat(GsdBuilder):
+    def __init__(self, template, metadata):
+        GsdBuilder.__init__(self, template, metadata)
+    
+    def load_data(self, doc, key, element):
+        if doc['data'] is None:
+            doc['data'] = []
+        doc[key] = element
+        return doc

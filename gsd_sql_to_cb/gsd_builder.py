@@ -81,11 +81,18 @@ class GsdBuilder:
         :param value: a value from the template
         :return:
         """
-        _replacements = value.split('*')[1:]
+        _replacements = []
+        if isinstance(value, str):
+            _replacements = value.split('*')[1:]
         # skip the first replacement, its never
         # really a replacement. It is either '' or not a
         # replacement
+        _make_str = False
         if len(_replacements) > 0:
+            for _ri in _replacements:
+                if type(_ri) is str:
+                    _make_str = True
+                    break
             for _ri in _replacements:
                 if _ri.startswith("{ISO}"):
                     if _ri == '{ISO}time':
@@ -94,9 +101,12 @@ class GsdBuilder:
                         value = value.replace("*" + _ri, convert_to_iso(row[_ri]))
                 else:
                     if _ri == 'time':
-                        value = value.replace("*" + _ri, str(interpolated_time))
+                        value = interpolated_time
                     else:
-                        value = value.replace("*" + _ri, str(row[_ri]))
+                        if _make_str:
+                            value = value.replace('*' + _ri, str(row[_ri]))
+                        else:
+                            value = row[_ri]
         return value
     
     def handle_document(self, interpolated_time, rows, document_map):
@@ -196,11 +206,11 @@ class GsdBuilder:
                     value = self.translate_template_item(value, row, interpolated_time)
                 _data_elem[key] = value
             if _data_key.startswith('&'):
-                _data_key = self.translate_template_item(value, row, interpolated_time)
+                _data_key = self.handle_named_function(self.metadata, _data_key, interpolated_time, row)
             else:
                 _data_key = self.translate_template_item(_data_key, row, interpolated_time)
-                if _data_key is None:
-                    logging.warning("GsdBuilder: Using template - could not find station for " + row['name'])
+            if _data_key is None:
+                logging.warning("GsdBuilder: Using template - could not find station for " + row['name'])
             doc = self.load_data(doc, _data_key, _data_elem)
             return doc
         
@@ -226,7 +236,7 @@ class GsdBuilderFlat(GsdBuilder):
         GsdBuilder.__init__(self, template, metadata)
     
     def load_data(self, doc, key, element):
-        if doc['data'] is None:
-            doc['data'] = []
+        # In GsdSingleDocumentMapBuilder there is only one document created
+        # so we simply assign it here
         doc[key] = element
         return doc

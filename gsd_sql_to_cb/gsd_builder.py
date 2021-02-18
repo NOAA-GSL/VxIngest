@@ -47,6 +47,30 @@ def initialize_data(doc):
         return doc
 
 
+def get_name(metadata, params_dict):
+    _lat = params_dict['lat']
+    _lon = params_dict['lon']
+    # _elev = params_dict['elev']
+    # noinspection PyBroadException
+    try:
+        if metadata['version'] == "V02":
+            for station in metadata['data']:
+                if isinstance(station, dict):
+                    if station['lat'] == _lat and station['lon'] == _lon:
+                        return station['name']
+        elif metadata['version'] == "V01":
+            for elem in metadata:
+                if isinstance(metadata[elem], dict):
+                    if metadata[elem]['lat'] == _lat and metadata[elem]['lon'] == _lon:
+                        return elem
+    except:
+        e = sys.exc_info()[0]
+        logging.error(
+            "GsdBuilder.get_name: Exception finding station to match lat and lon  error: " + str(e) + " params: " +
+            str(params_dict))
+    return None
+
+
 class GsdBuilder:
     def __init__(self, template, metadata):
         self.template = template
@@ -55,21 +79,7 @@ class GsdBuilder:
     
     def load_data(self, doc, key, element):
         pass
-    
-    @staticmethod
-    def get_name(metadata, params_dict):
-        _lat = int(params_dict['lat'])
-        _lon = int(params_dict['lon'])
-        # _elev = int(params_dict['elev'])
-        # noinspection PyBroadException
-        try:
-            return next((x for x in metadata['data'] if int(x['lat']) == _lat and int(x['lon']) == _lon), None)
-        except:
-            e = sys.exc_info()[0]
-            logging.error("GsdBuilder.get_name: Exception finding station to match lat and lon  error: " + str(
-                e) + " params: " + str(params_dict))
-            return None
-    
+
     @staticmethod
     def translate_template_item(value, row, interpolated_time):
         """
@@ -90,7 +100,7 @@ class GsdBuilder:
         _make_str = False
         if len(_replacements) > 0:
             for _ri in _replacements:
-                if type(_ri) is str:
+                if _ri.startswith('{ISO}') or type(row[_ri]) is str:
                     _make_str = True
                     break
             for _ri in _replacements:
@@ -223,7 +233,7 @@ class GsdBuilder:
 class GsdBuilderList(GsdBuilder):
     def __init__(self, template, metadata):
         GsdBuilder.__init__(self, template, metadata)
-    
+
     def load_data(self, doc, key, element):
         if 'data' not in doc.keys() or doc['data'] is None:
             doc['data'] = []
@@ -234,7 +244,7 @@ class GsdBuilderList(GsdBuilder):
 class GsdBuilderFlat(GsdBuilder):
     def __init__(self, template, metadata):
         GsdBuilder.__init__(self, template, metadata)
-    
+        
     def load_data(self, doc, key, element):
         # In GsdSingleDocumentMapBuilder there is only one document created
         # so we simply assign it here

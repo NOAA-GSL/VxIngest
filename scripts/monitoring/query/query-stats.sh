@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+
+# set the cluster username / password
+CB_USERNAME='Administrator'
+CB_PASSWORD='password'
+
+# make sure jq exists
+if [ "$(command -v jq)" = "" ]; then
+  echo >&2 "jq command is required, see (https://stedolan.github.io/jq/download)";
+  exit 1;
+fi
+
+curl \
+  --user "$CB_USERNAME:$CB_PASSWORD" \
+  --silent \
+  http://localhost:8091/pools/default/buckets/@query/stats | \
+  jq -r "def roundit: .*100.0 + 0.5|floor/100.0 | .*100.0;
+  .op.samples |
+  \"  query_avg_req_time: \" + (try (.query_avg_req_time | (. | add / length | roundit/100.0 | tostring)) catch \"N/A\") +
+  \"\n  query_avg_svc_time: \" + (try (.query_avg_svc_time | (. | add / length | roundit/100.0 | tostring)) catch \"N/A\") +
+  \"\n  query_avg_response_size: \" + (try (.query_avg_response_size | (. | add / length | roundit/100.0 | tostring)) catch \"N/A\") +
+  \"\n  query_avg_result_count: \" + (try (.query_avg_result_count | (. | add / length | roundit/100.0 | tostring)) catch \"N/A\") +
+  \"\n  query_active_requests: \" + (try (.query_active_requests | (. | add / length | roundit/100.0 | tostring)) catch \"N/A\") +
+  \"\n  query_errors: \" + (try (.query_errors | (. | add / length | roundit/100.0 | tostring)) catch \"N/A\") +
+  \"\n  query_invalid_requests: \" + (try (.query_invalid_requests | (. | add / length | roundit/100.0 | tostring)) catch \"N/A\") +
+  \"\n  query_queued_requests: \" + (try (.query_queued_requests | (. | add / length | roundit/100.0 | tostring)) catch \"N/A\") +
+  \"\n  query_request_time: \" + (try (.query_request_time | (. | add / length | roundit/100.0 | tostring)) catch \"N/A\") +
+  \"\n  query_requests: \" + (try (.query_requests | (. | add / length | roundit/100.0 | tostring)) catch \"N/A\") +
+  \"\n  query_requests_1000ms: \" + (try (.query_requests_1000ms | (. | add / length | roundit/100.0 | tostring)) catch \"N/A\") +
+  \"\n  query_requests_250ms: \" + (try (.query_requests_250ms | (. | add / length | roundit/100.0 | tostring)) catch \"N/A\") +
+  \"\n  query_requests_5000ms: \" + (try (.query_requests_5000ms | (. | add / length | roundit/100.0 | tostring)) catch \"N/A\") +
+  \"\n  query_requests_500ms: \" + (try (.query_requests_500ms | (. | add / length | roundit/100.0 | tostring)) catch \"N/A\") +
+  \"\n  query_result_count: \" + (try (.query_result_count | (. | add / length | roundit/100.0 | tostring)) catch \"N/A\") +
+  \"\n  query_result_size: \" + (try (.query_result_size | (. | add / length | roundit/100.0 | tostring)) catch \"N/A\") +
+  \"\n  query_selects: \" + (try (.query_selects | (. | add / length | roundit/100.0 | tostring)) catch \"N/A\") +
+  \"\n  query_service_time: \" + (try (.query_service_time | (. | add / length | roundit/100.0 | tostring)) catch \"N/A\") +
+  \"\n  query_warnings: \" + (try (.query_warnings | (. | add / length | roundit/100.0 | tostring)) catch \"N/A\")
+  "

@@ -11,6 +11,8 @@ import datetime as dt
 import logging
 import sys
 
+from couchbase.exceptions import DocumentNotFoundException, TimeoutException
+
 TS_OUT_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
 
@@ -24,18 +26,18 @@ def convert_to_iso(an_epoch):
 def derive_id(an_id, row, interpolated_time):
     # Private method to derive a document id from the current row,
     # substituting *values from the corresponding row field as necessary.
-    _parts = an_id.split('::')
+    _parts = an_id.split(':')
     new_parts = []
     for _part in _parts:
         if _part.startswith("*"):
             if _part == "*time":
                 value = str(interpolated_time)
             else:
-                value = str(row[_part[1:]])
+                value = GsdBuilder.translate_template_item(_part, row, interpolated_time)
             new_parts.append(value)
         else:
             new_parts.append(str(_part))
-    _new_id = "::".join(new_parts)
+    _new_id = ":".join(new_parts)
     return _new_id
 
 
@@ -44,41 +46,51 @@ def initialize_data(doc):
     All the data elements are going to be top level elements"""
     if 'data' in doc.keys():
         del doc['data']
-        return doc
-
-
-def get_name(metadata, params_dict):
-    _lat = params_dict['lat']
-    _lon = params_dict['lon']
-    # _elev = params_dict['elev']
-    # noinspection PyBroadException
-    try:
-        if metadata['version'] == "V02":
-            for station in metadata['data']:
-                if isinstance(station, dict):
-                    if station['lat'] == _lat and station['lon'] == _lon:
-                        return station['name']
-        elif metadata['version'] == "V01":
-            for elem in metadata:
-                if isinstance(metadata[elem], dict):
-                    if metadata[elem]['lat'] == _lat and metadata[elem]['lon'] == _lon:
-                        return elem
-    except:
-        e = sys.exc_info()[0]
-        logging.error(
-            "GsdBuilder.get_name: Exception finding station to match lat and lon  error: " + str(e) + " params: " +
-            str(params_dict))
-    return None
+    return doc
 
 
 class GsdBuilder:
-    def __init__(self, template, metadata):
+    def __init__(self, template, collection):
+        self.metadata = None
         self.template = template
-        self.metadata = metadata
+        self.collection = collection
         self.id = None
-    
+
     def load_data(self, doc, key, element):
         pass
+
+    @staticmethod
+    def conv_latlon(meta_data, params_dict):
+        return "{0:.4f}".format(next(iter(params_dict.values())) / 182)
+    
+    @staticmethod
+    # not yet implemented
+    def conv_elev(meta_data, params_dict):
+        return next(iter(params_dict.values()))
+
+
+    @staticmethod
+    def get_name(metadata, params_dict):
+        _lat = params_dict['lat']
+        _lon = params_dict['lon']
+        # _elev = params_dict['elev']
+        # noinspection PyBroadException
+        try:
+            if metadata['version'] == "V02":
+                for station in metadata['data']:
+                    if isinstance(station, dict):
+                        if station['lat'] == _lat and station['lon'] == _lon:
+                            return station['name']
+            elif metadata['version'] == "V01":
+                for elem in metadata:
+                    if isinstance(metadata[elem], dict):
+                        if metadata[elem]['lat'] == _lat and metadata[elem]['lon'] == _lon:
+                            return elem
+        except:
+            e = sys.exc_info()
+            logging.error("GsdBuilder.get_name: Exception finding station to match lat and lon  error: " + str(
+                e) + " params: " + str(params_dict))
+        return None
 
     @staticmethod
     def translate_template_item(value, row, interpolated_time):
@@ -157,7 +169,7 @@ class GsdBuilder:
             document_map[self.id] = doc
             return document_map
         except:
-            e = sys.exc_info()[0]
+            e = sys.exc_info()
             logging.error("GsdBuilder.handle_document: Exception instantiating "
                           "builder: " + self.__class__.__name__ + " error: " + str(e))
     
@@ -179,29 +191,39 @@ class GsdBuilder:
                 return doc
             if isinstance(doc[key], dict):
                 # process an embedded dictionary
-                for sub_key in self.template[key].keys():
-                    self.handle_key(doc, row, sub_key, interpolated_time)  # recursion
-            doc[key] = self.translate_template_item(doc[key], row, interpolated_time)
+                _tmp_doc = copy.deepcopy(self.template[key])
+                for sub_key in _tmp_doc.keys():
+                    _tmp_doc = self.handle_key(_tmp_doc, row, sub_key, interpolated_time)  # recursion
+                doc[key] = _tmp_doc
+            if not isinstance(doc[key], dict) and doc[key].startswith('&'):
+                doc[key] = self.handle_named_function(self.metadata, doc[key], interpolated_time, row)
+            else:
+                doc[key] = self.translate_template_item(doc[key], row, interpolated_time)
             return doc
         except:
-            e = sys.exc_info()[0]
+            e = sys.exc_info()
             logging.error("GsdBuilder.handle_key: Exception instantiating builder:  error: " + str(e))
     
     def handle_named_function(self, metadata, _data_key, interpolated_time, row):
-        # used to call a function named in the template
-        _func = _data_key.split(':')[0].replace('&', '')
-        _params = _data_key.split(':')[1].split(',')
-        _dict_params = {}
-        for _p in _params:
-            # be sure to slice the * off of the front of the param
-            _dict_params[_p[1:]] = self.translate_template_item(_p, row, interpolated_time)
-        _data_key = getattr(self, _func)(metadata, _dict_params)
-        if _data_key is None:
-            logging.warning(
-                "GsdBuilder: Using " + _func + " - could not find station for " + row['name'] + str(_dict_params))
-            _data_key = row['name'] + "0"
+        # noinspection PyBroadException
+        try:
+            _func = _data_key.split(':')[0].replace('&', '')
+            _params = _data_key.split(':')[1].split(',')
+            _dict_params = {}
+            for _p in _params:
+                # be sure to slice the * off of the front of the param
+                _dict_params[_p[1:]] = self.translate_template_item(_p, row, interpolated_time)
+            _data_key = getattr(self, _func)(metadata, _dict_params)
+            if _data_key is None:
+                logging.warning(
+                    "GsdBuilder: Using " + _func + " - could not find station for " + row['name'] + str(_dict_params))
+                _data_key = row['name'] + "0"
+                return _data_key
+        except:
+            e = sys.exc_info()
+            logging.error("handle_named_function: Exception instantiating builder:  error: " + str(e))
         return _data_key
-    
+
     def handle_data(self, doc, row, interpolated_time):
         # noinspection PyBroadException
         try:
@@ -225,14 +247,36 @@ class GsdBuilder:
             return doc
         
         except:
-            e = sys.exc_info()[0]
+            e = sys.exc_info()
             logging.error("handle_data: Exception instantiating builder:  error: " + str(e))
             return doc
 
 
-class GsdBuilderList(GsdBuilder):
-    def __init__(self, template, metadata):
-        GsdBuilder.__init__(self, template, metadata)
+""" Concrete builders """
+
+
+class GsdObsBuilderV01(GsdBuilder):
+    def __init__(self, template, collection):
+        GsdBuilder.__init__(self, template, collection)
+        # noinspection PyBroadException
+        try:
+            self.metadata = collection.get("MD:V01:METAR:stations").content
+        except:
+            logging.error("GsdStationsBuilderV01: error getting metadata, " + str(sys.exc_info()))
+    
+    def load_data(self, doc, key, element):
+        doc[key] = element
+        return doc
+
+
+class GsdObsBuilderV02(GsdBuilder):
+    def __init__(self, template, collection):
+        GsdBuilder.__init__(self, template, collection)
+        # noinspection PyBroadException
+        try:
+            self.metadata = collection.get("MD:V02:METAR:stations").content
+        except:
+            logging.error("GsdStationsBuilderV02: error getting metadata, " + str(sys.exc_info()))
 
     def load_data(self, doc, key, element):
         if 'data' not in doc.keys() or doc['data'] is None:
@@ -241,12 +285,49 @@ class GsdBuilderList(GsdBuilder):
         return doc
 
 
-class GsdBuilderFlat(GsdBuilder):
-    def __init__(self, template, metadata):
-        GsdBuilder.__init__(self, template, metadata)
-        
+class GsdStationsBuilderV01(GsdBuilder):
+    def __init__(self, template, collection):
+        """
+        This builder creates a single document of stations with the stations being top level
+        objects keyed by the station name which is an ICAO with a trailing ancestor count.
+        like CWDP0.
+        :type template: object - This is the template from "MD:V01:METAR:stations"
+        :type collection: object - this is a connection to the couchbase mdata default collection
+        """
+        GsdBuilder.__init__(self, template, collection)
+    
     def load_data(self, doc, key, element):
-        # In GsdSingleDocumentMapBuilder there is only one document created
-        # so we simply assign it here
         doc[key] = element
         return doc
+
+
+class GsdStationsBuilderV02(GsdBuilder):
+    def __init__(self, template, collection):
+        """
+        This builder creates a single document of stations with the stations being top level
+        objects keyed by the station name which is an ICAO with a trailing ancestor count.
+        like CWDP0.
+        :type template: object - This is the template from "MD:V02:METAR:stations"
+        :type collection: object - this is a connection to the couchbase mdata default collection
+        """
+        GsdBuilder.__init__(self, template, collection)
+
+    def load_data(self, doc, key, element):
+        if 'data' not in doc.keys() or doc['data'] is None:
+            doc['data'] = []
+        doc['data'].append(element)
+        return doc
+
+
+class GsdStationsBuilderV03(GsdBuilder):
+    def __init__(self, template, collection):
+        """
+        This builder creates multiple documents one per station with the id being
+        MD:V03:METAR:stations:*name*ancestor_count where the variable part of the id
+        is the the station name which, is an ICAO with a trailing ancestor count.
+        like CWDP0. So an ID might be "MD:V03:METAR:stations:CWDP0". The lat, lon, and elvation are
+        encoded into a "geo" element such that we can create a geojson searc index over the data.
+        :type template: object - This is the template from "MD:V03:METAR:stations"
+        :type collection: object - this is a connection to the couchbase mdata default collection
+        """
+        GsdBuilder.__init__(self, template, collection)

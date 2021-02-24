@@ -96,7 +96,7 @@ class GsdIngestManager(Process):
     
     This class will process data by collecting ingest_document_ids - one at a
     a_time - from the document_id_queue. For each ingest_document_id it
-    retrieves the identified load metadata document from the couchbase
+    retrieves the identified load metadata document[s] from the couchbase
     collection. From that document it retrieves an sql statement,
     a concrete GsdBuilder class name, a document template, and some other
     fields. It uses the statement in the load metadata document to
@@ -201,46 +201,16 @@ class GsdIngestManager(Process):
     def connect_cb(self):
         logging.info(self.threadName + ': data_type_manager - Connecting to couchbase')
         # get a reference to our cluster
-        # derive the path to the public certificate for the host
-        # see ...
-        # https://docs.couchbase.com/server/current/manage/manage
-        # -security/configure-server-certificates.html#root-and-node
-        # -certificates
-        # and
-        # https://docs.couchbase.com/server/current/manage/manage
-        # -security/configure-client-certificates.html#client
-        # -certificate-authorized-by-a-root-certificate
-        if 'cert_path' in self.cb_credentials:
-            # noinspection PyBroadException
-            try:
-                logging.info(self.threadName + ': attempting cb connection with cert')
-                # this does not work yet - to get here use the -c option
-                # with a cert_path
-                self.cluster = Cluster('couchbase://' + self.cb_credentials['host'], ClusterOptions(
-                    PasswordAuthenticator(self.cb_credentials['user'], self.cb_credentials['password'],
-                                          cert_path=self.cb_credentials['cert_path'])))
-                self.collection = self.cluster.bucket("mdata").default_collection()  # this works with a cert  #
-                logging.info(self.threadName + ': Couchbase connection success')
-            except:
-                logging.error("*** %s in connect_cb ***" + str(sys.exc_info()[0]))
-                sys.exit("*** Error when connecting to cb database: ")
-        else:
-            # this works but is not secure - don't provide the -c option
-            # to get here
-            # get a reference to our cluster
-            # noinspection PyBroadException
-            try:
-                logging.info(self.threadName + ': attempting cb connection with NO '
-                                               'cert')
-                options = ClusterOptions(
-                    PasswordAuthenticator(self.cb_credentials['user'], self.cb_credentials['password']))
-                
-                self.cluster = Cluster('couchbase://' + self.cb_credentials['host'], options)
-                self.collection = self.cluster.bucket("mdata").default_collection()
-                logging.info(self.threadName + ': Couchbase connection success')
-            except:
-                logging.error("*** %s in connect_cb ***" + str(sys.exc_info()[0]))
-                sys.exit("*** Error when connecting to mysql database: ")
+        # noinspection PyBroadException
+        try:
+            options = ClusterOptions(
+                PasswordAuthenticator(self.cb_credentials['user'], self.cb_credentials['password']))
+            self.cluster = Cluster('couchbase://' + self.cb_credentials['host'], options)
+            self.collection = self.cluster.bucket("mdata").default_collection()
+            logging.info(self.threadName + ': Couchbase connection success')
+        except:
+            logging.error("*** %s in connect_cb ***" + str(sys.exc_info()[0]))
+            sys.exit("*** Error when connecting to mysql database: ")
     
     def connect_mysql(self):
         # Connect to the database using connection info from XML file
@@ -287,15 +257,6 @@ class GsdIngestManager(Process):
         _ingest_document = ingest_document_result.content
         _template = _ingest_document['template']
         _ingest_type_builder_name = _ingest_document['builder_type']
-        # get required metadata, if any
-        try:
-            if 'metadata' in _ingest_document.keys():
-                _metadata_id = _ingest_document['metadata']
-                self.metadata = self.collection.get(_metadata_id).content
-        except DocumentNotFoundException:
-            logging.warning(self.threadName + ": DocumentNotFoundException instantiating "
-                                              "builder: " + "document_id: " + _document_id)
-
         # get or instantiate the builder
         # noinspection PyBroadException
         try:
@@ -303,7 +264,7 @@ class GsdIngestManager(Process):
                 builder = self.builder_map[_ingest_type_builder_name]
             else:
                 builder_class = getattr(gsd_builder, _ingest_type_builder_name)
-                builder = builder_class(_template, self.metadata)
+                builder = builder_class(_template, self.collection)
                 self.builder_map[_ingest_type_builder_name] = builder
             # process the document
             _statement = _ingest_document['statement']
@@ -341,7 +302,7 @@ class GsdIngestManager(Process):
             and if it is set to 'True' then the time field will be interpolated.
             """
             if 'requires_time_interpolation' in _ingest_document.keys() and \
-                    _ingest_document['requires_time_interpolation'].lower() == "true":
+                    _ingest_document['requires_time_interpolation'] is True:
                 _requires_time_interpolation = True
                 _delta = int(_document_template['delta'])
                 _cadence = int(_document_template['cadence'])
@@ -350,6 +311,12 @@ class GsdIngestManager(Process):
                 if not row:
                     logging.warning("executing query: NO DATA:")
                     break
+                
+                # handle singular documents that are not time based.
+                if "singularData" in _ingest_document.keys() and _ingest_document["singularData"] is True:
+                    self.document_map = builder.handle_document(_interpolated_time, [row], self.document_map)
+                    continue
+                    
                 if _requires_time_interpolation:
                     _interpolated_time = interpolate_time(_cadence, _delta, int(row['time']))
                 else:

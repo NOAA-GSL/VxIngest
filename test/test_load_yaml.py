@@ -15,7 +15,7 @@ class TestLoadYamlSpecFile(unittest.TestCase):
         load_spec = load_spec_file.read()
         self.assertEqual(load_spec['email'], "randy.pierce@noaa.gov")
         self.assertEqual(load_spec['ingest_document_ids'][0],
-                         'MD::V01::METAR::obs')
+                         'MD:V01:METAR:obs')
         self.assertEqual(load_spec['cb_connection']['host'], "localhost")
         self.assertEqual(load_spec['cb_connection']['user'], "gsd_builder")
         self.assertEqual(load_spec['cb_connection']['password'], "gsd_pwd")
@@ -36,7 +36,7 @@ class TestLoadYamlSpecFile(unittest.TestCase):
         self.assertEqual(yaml_data['load_spec']['email'],
                          "randy.pierce@noaa.gov")
         self.assertEqual(yaml_data['load_spec']['ingest_document_ids'][0],
-                         "MD::V01::METAR::obs")
+                         "MD:V01:METAR:obs")
         self.assertEqual(yaml_data['load_spec']['cb_connection']['host'],
                          "localhost")
         self.assertEqual(yaml_data['load_spec']['cb_connection']['user'],

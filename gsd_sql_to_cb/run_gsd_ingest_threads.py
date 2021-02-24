@@ -10,7 +10,7 @@ run_gsd_ingest_threads spec_file -c credentials_file [-t thread_count -p
 crt_path]
 This script processes arguments which define a a yaml load_spec file,
 a defaults file (for credentials),
-a thread count, and certificate for TSL.
+and a thread count.
 The script maintains a thread pool of GsdIngestManagers and a queue of
 load_metadata_document ids that is loaded from the load_spec_stations.yaml
 ingest_document_ids field.
@@ -24,7 +24,7 @@ This is an example load_spec...
 
 load_spec:
   email: "randy.pierce@noaa.gov"
-  ingest_document_ids: ['MD::V01::METAR::obs']
+  ingest_document_ids: ['MD:V01:METAR:obs']
   cb_connection:
     management_system: cb
     host: "cb_host"   - should come from defaults file
@@ -80,9 +80,6 @@ def parse_args(args):
                         help="The first epoch to use, inclusive")
     parser.add_argument("-l", "--{last_epoch}", type=int, default=0,
                         help="The last epoch to use, exclusive")
-
-    parser.add_argument("-p", "--cert_path", type=str, default='',
-                        help="path to server public cert")
     # get the command line arguments
     args = parser.parse_args(args)
     
@@ -95,7 +92,6 @@ class VXIngestGSD(object):
         self.spec_file = ""
         self.credentials_file = ""
         self.thread_count = ""
-        self.cert_path = None
         self.statement_replacement_params = None
         self.first_epoch = None
         self.last_epoch = None
@@ -107,8 +103,6 @@ class VXIngestGSD(object):
         self.spec_file = args['spec_file']
         self.credentials_file = args['credentials_file']
         self.thread_count = args['threads']
-        self.cert_path = None if 'cert_path' not in args.keys() else args[
-            'cert_path']
         # capture any statement replacement params
         self.statement_replacement_params = {key: val for key, val in args.items() if key.startswith('{')}
 

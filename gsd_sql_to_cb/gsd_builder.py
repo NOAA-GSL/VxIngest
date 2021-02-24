@@ -68,7 +68,6 @@ class GsdBuilder:
     def conv_elev(meta_data, params_dict):
         return next(iter(params_dict.values()))
 
-
     @staticmethod
     def get_name(metadata, params_dict):
         _lat = params_dict['lat']
@@ -195,7 +194,8 @@ class GsdBuilder:
                 for sub_key in _tmp_doc.keys():
                     _tmp_doc = self.handle_key(_tmp_doc, row, sub_key, interpolated_time)  # recursion
                 doc[key] = _tmp_doc
-            if not isinstance(doc[key], dict) and doc[key].startswith('&'):
+            if not isinstance(doc[key], dict) and \
+                    isinstance(doc[key], str) and doc[key].startswith('&'):
                 doc[key] = self.handle_named_function(self.metadata, doc[key], interpolated_time, row)
             else:
                 doc[key] = self.translate_template_item(doc[key], row, interpolated_time)

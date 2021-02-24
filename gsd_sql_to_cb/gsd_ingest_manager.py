@@ -172,8 +172,6 @@ class GsdIngestManager(Process):
                 except queue.Empty:
                     if empty_count < 3:
                         empty_count += 1
-                        logging.info(self.threadName + ': GsdIngestManager - got ' + 'Queue.Empty - retrying: ' + str(
-                            empty_count) + " of 3 times")
                         time.sleep(1)
                         continue
                     else:
@@ -309,7 +307,6 @@ class GsdIngestManager(Process):
             while True:
                 row = self.cursor.fetchone()
                 if not row:
-                    logging.warning("executing query: NO DATA:")
                     break
                 
                 # handle singular documents that are not time based.
@@ -355,13 +352,12 @@ class GsdIngestManager(Process):
                 # if it does, please just fix it.
                 _upsert_start_time = int(time.time())
                 logging.info("executing upsert: stop time: " + str(_upsert_start_time))
-                self.collection.upsert_multi(self.document_map)
+                _ret = self.collection.upsert_multi(self.document_map)
                 _upsert_stop_time = int(time.time())
                 logging.info("executing upsert: stop time: " + str(_upsert_stop_time))
                 logging.info("executing upsert: elapsed time: " + str(_upsert_stop_time - _upsert_start_time))
-                logging.info(self.threadName + ': data_type_manager wrote '
-                                               'documents for '
-                                               'ingest_document :  ' +
+                logging.info(self.threadName + ': data_type_manager wrote ' + str(_ret.all_ok) +
+                             ' document[s] for ingest_document :  ' +
                              str(_document_id) + "threadName: " + self.threadName)
             except:
                 e = sys.exc_info()[0]

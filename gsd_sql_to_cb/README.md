@@ -40,10 +40,10 @@ are all pretty much like this.
 ```
 {
   "type": "MD",
-  "version": "V01",
   "docType": "ingest",
   "subset": "METAR",
-  "builder_type": "GsdBuilderFlat",
+  "version": "V01",
+  "builder_type": "GsdStationsBuilderV01",
   "statement": "select UNIX_TIMESTAMP() as updateTime, 0 as ancestor_count, m.name, m.madis_id, m.lat, m.lon, m.elev, s.disc as description, s.first, s.last, l.last_time from madis3.metars_mats_global as m, madis3.stations as s, madis3.locations as l where 1=1 and m.name = s.name and m.lat = l.lat and m.lon = l.lon and m.elev = l.elev;",
   "template": {
     "id": "MD:V01:METAR:stations",
@@ -56,7 +56,7 @@ are all pretty much like this.
     "updateTime": "*updateTime",
     "data": {
       "*name*ancestor_count": {
-        "icao": "*name",
+        "name": "*name",
         "lat": "*lat",
         "lon": "*lon",
         "elev": "*elev",
@@ -69,13 +69,13 @@ are all pretty much like this.
 }
 ```
 The line
-```"builder_type": "GsdBuilderFlat"```
-defines a python class in this directory. These builder classes are defined 
+```"builder_type": "GsdStationsBuilderV01"```
+defines a python class. These builder classes are defined 
 in the gsd_builder.py file. This class will interpret the
 load_spec and ingest data that is returned by the mysql statement
 in the "statement" field. Whether the entire result set is combined
 into one document or multiple documents depends on the "builder_type".
-In this example the "GsdBuilderFlat" combines all 
+In this example the "GsdStationsBuilderV01" combines all 
 the data into one document with the data fields ingested as top level
 entries.
 Notice 
@@ -85,6 +85,7 @@ Notice
     "docType": "ingest",
     "subset": "METAR",
 ```
+####field substitution by value in the template
 These fields describe a metadata document that is used by a program to ingest data.
 Data documents will be created according to the template defined in the "template" field.
 Template strings that start with an * will be replaced with data returned
@@ -94,43 +95,63 @@ field, and 0 was returned in the "ancestor_count" on the same row. In like manne
 the value "*description" will be replaced with the actual description text that
 was returned in the description field of the row.
 
-The ingest document "MD:V02:METAR:stations_ingest"
+The ingest document "MD:V03:METAR:stations:ingest "
 ```
 {
   "type": "MD",
-  "version": "V02",
   "docType": "ingest",
   "subset": "METAR",
-  "builder_type": "GsdBuilderList",
+  "version": "V03",
+  "builder_type": "GsdStationsBuilderV03",
+  "singularData": true,
   "statement": "select UNIX_TIMESTAMP() as updateTime, 0 as ancestor_count, m.name, m.madis_id, m.lat, m.lon, m.elev, s.disc as description, s.first, s.last, l.last_time from madis3.metars_mats_global as m, madis3.stations as s, madis3.locations as l where 1=1 and m.name = s.name and m.lat = l.lat and m.lon = l.lon and m.elev = l.elev;",
   "template": {
-    "id": "MD:V02:METAR:stations",
-    "type": "MD",
-    "docType": "stations",
+    "id": "DD:V03:METAR:station:*name*ancestor_count",
+    "type": "DD",
+    "docType": "station",
     "subset": "METAR",
     "dataFileId": "DF_id",
     "dataSourceId": "DS_id",
-    "version": "V02",
+    "version": "V03",
     "updateTime": "*updateTime",
-    "data": {
-      "data": {
-        "name": "*name*ancestor_count",
-        "icao": "*name",
-        "lat": "*lat",
-        "lon": "*lon",
-        "elev": "*elev",
-        "description": "*description",
-        "firstTime": "*first",
-        "lastTime": "*last"
-      }
+    "description": "*description",
+    "firstTime": "*first",
+    "lastTime": "*last",
+    "station": "*name*ancestor_count",
+    "name": "*name",
+    "notlat": "*lat",
+    "notlon": "*lon",
+    "geo": {
+      "lat": "&conv_latlon:*lat",
+      "lon": "&conv_latlon:*lon",
+      "elev": "&conv_elev:*elev"
     }
   }
 }
 ```
 
-The ingest document defines a builder type GsdBuilderList which will create a metadata
+The ingest document defines a builder type GsdStationsBuilderV03 which will create a metadata
 document that has all of the stations contained in a data list.
 
+####field substitution by value in the template
+In this template the line ```"&conv_latlon:*lat"``` 
+defines a field substitution by defined function. A defined function must 
+exist in the specified builder class. These functions have a signature like 
+```    
+@staticmethod
+def conv_latlon(meta_data, params_dict):
+...
+ ```
+The template line is divided into two parts that are separated by
+a ":". The first part specifies a function name ```conv_latlon``` and
+the second part specifies a parameter list that will be converted
+into a dict structure and passed into the named function.
+The parameter will have a key, in this case the parameter will be
+something like {'lat': latitude} where latitude will be the real
+lat value from the current data set.
+
+Substitutions can be for keys or values in the template, in top level documents or in sub documents.
+## Credentials files
 This is an example credentials file, the user and password are fake.
 ```
   cb_host: adb-cb1.gsd.esrl.noaa.gov

@@ -80,7 +80,7 @@ def interpolate_time(cadence, delta, a_time):
     if _remainder_time < delta:
         _t = a_time - _remainder_time
     else:
-        _t = a_time - _remainder_time + 1
+        _t = a_time - _remainder_time + cadence
     return _t
 
 
@@ -302,13 +302,12 @@ class GsdIngestManager(Process):
             if 'requires_time_interpolation' in _ingest_document.keys() and \
                     _ingest_document['requires_time_interpolation'] is True:
                 _requires_time_interpolation = True
-                _delta = int(_document_template['delta'])
-                _cadence = int(_document_template['cadence'])
+                _delta = int(_ingest_document['delta'])
+                _cadence = int(_ingest_document['cadence'])
             while True:
                 row = self.cursor.fetchone()
                 if not row:
                     break
-                
                 # handle singular documents that are not time based.
                 if "singularData" in _ingest_document.keys() and _ingest_document["singularData"] is True:
                     self.document_map = builder.handle_document(_interpolated_time, [row], self.document_map)

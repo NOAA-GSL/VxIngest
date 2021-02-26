@@ -140,7 +140,7 @@ class GsdIngestManager(Process):
         self.connection = None
         self.cursor = None
         self.metadata = None
-        
+    
     # entry point of the thread. Is invoked automatically when the thread is
     # started.
     def run(self):
@@ -221,8 +221,11 @@ class GsdIngestManager(Process):
             user = self.mysql_credentials['user']
             passwd = self.mysql_credentials['password']
             local_infile = True
-            self.connection = pymysql.connect(host=host, port=port, user=user, passwd=passwd, local_infile=local_infile,
-                                              autocommit=True, charset='utf8mb4',
+            self.connection = pymysql.connect(host=host, port=port, user=user,
+                                              passwd=passwd,
+                                              local_infile=local_infile,
+                                              autocommit=True,
+                                              charset='utf8mb4',
                                               cursorclass=pymysql.cursors.SSDictCursor,
                                               client_flag=CLIENT.MULTI_STATEMENTS)
         except pymysql.OperationalError as pop_err:
@@ -299,8 +302,8 @@ class GsdIngestManager(Process):
             If there is a keyword 'requires_time_interpolation' in the template
             and if it is set to 'True' then the time field will be interpolated.
             """
-            if 'requires_time_interpolation' in _ingest_document.keys() and \
-                    _ingest_document['requires_time_interpolation'] is True:
+            if 'requires_time_interpolation' in _ingest_document.keys() and _ingest_document[
+                'requires_time_interpolation'] is True:
                 _requires_time_interpolation = True
                 _delta = int(_ingest_document['delta'])
                 _cadence = int(_ingest_document['cadence'])
@@ -312,18 +315,17 @@ class GsdIngestManager(Process):
                 if "singularData" in _ingest_document.keys() and _ingest_document["singularData"] is True:
                     self.document_map = builder.handle_document(_interpolated_time, [row], self.document_map)
                     continue
-                    
+                
                 if _requires_time_interpolation:
                     _interpolated_time = interpolate_time(_cadence, _delta, int(row['time']))
                 else:
                     if 'time' in row.keys():
                         _interpolated_time = int(row['time'])
-                        
+                
                 if _time == 0:
                     _time = _interpolated_time
                 if _interpolated_time != _time:
-                    self.document_map = builder.handle_document(_interpolated_time, _same_time_rows,
-                                                                self.document_map)
+                    self.document_map = builder.handle_document(_interpolated_time, _same_time_rows, self.document_map)
                     _time = 0
                     _time = _interpolated_time
                     _same_time_rows = []
@@ -355,26 +357,19 @@ class GsdIngestManager(Process):
                 _upsert_stop_time = int(time.time())
                 logging.info("executing upsert: stop time: " + str(_upsert_stop_time))
                 logging.info("executing upsert: elapsed time: " + str(_upsert_stop_time - _upsert_start_time))
-                logging.info(self.threadName + ': data_type_manager wrote ' + str(_ret.all_ok) +
-                             ' document[s] for ingest_document :  ' +
-                             str(_document_id) + "threadName: " + self.threadName)
+                logging.info(self.threadName + ': data_type_manager wrote ' + str(
+                    _ret.all_ok) + ' document[s] for ingest_document :  ' + str(
+                    _document_id) + "threadName: " + self.threadName)
             except:
-                e = sys.exc_info()[0]
-                e1 = sys.exc_info()[1]
+                e = sys.exc_info()
                 logging.error(self.threadName + ": *** %s Error multi-upsert to "
                                                 "Couchbase: in data_type_manager "
                                                 "*** " + str(e))
-                logging.error(self.threadName + ": *** %s Error multi-upsert to "
-                                                "Couchbase: in data_type_manager "
-                                                "*** " + str(e1))
             self.document_map = {}
         except:
-            e = sys.exc_info()[0]
-            e1 = sys.exc_info()[1]
+            e = sys.exc_info()
             logging.error(self.threadName + ": *** %s Error writing to Couchbase: in "
                                             "data_type_manager writing document ***" + str(e))
-            logging.error(self.threadName + ": *** %s Error writing to Couchbase: in "
-                                            "data_type_manager writing document ***" + str(e1))
         finally:
             # reset the document map
             self.document_map = {}

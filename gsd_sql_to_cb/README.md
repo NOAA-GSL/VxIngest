@@ -44,7 +44,7 @@ are all pretty much like this.
   "subset": "METAR",
   "version": "V01",
   "builder_type": "GsdStationsBuilderV01",
-  "statement": "select UNIX_TIMESTAMP() as updateTime, 0 as ancestor_count, m.name, m.madis_id, m.lat, m.lon, m.elev, s.disc as description, s.first, s.last, l.last_time from madis3.metars_mats_global as m, madis3.stations as s, madis3.locations as l where 1=1 and m.name = s.name and m.lat = l.lat and m.lon = l.lon and m.elev = l.elev;",
+  "statement": "select UNIX_TIMESTAMP() as updateTime, m.name, m.madis_id, m.lat, m.lon, m.elev, s.disc as description, s.first, s.last, l.last_time from madis3.metars_mats_global as m, madis3.stations as s, madis3.locations as l where 1=1 and m.name = s.name and m.lat = l.lat and m.lon = l.lon and m.elev = l.elev;",
   "template": {
     "id": "MD:V01:METAR:stations",
     "type": "MD",
@@ -55,7 +55,7 @@ are all pretty much like this.
     "version": "V01",
     "updateTime": "*updateTime",
     "data": {
-      "*name*ancestor_count": {
+      "*name": {
         "name": "*name",
         "lat": "*lat",
         "lon": "*lon",
@@ -88,12 +88,15 @@ Notice
 ####field substitution by value in the template
 These fields describe a metadata document that is used by a program to ingest data.
 Data documents will be created according to the template defined in the "template" field.
-Template strings that start with an * will be replaced with data returned
-from the sql query. For example the key "\*name\*ancestor_count" might be replaced
-with "KDEN0" where "KDEN" was returned on one row of the result set in the "name"
-field, and 0 was returned in the "ancestor_count" on the same row. In like manner 
+Template strings that start with an '*' will be replaced with data returned
+from the sql query. For example the key "\*name" might be replaced
+with "KDEN"  returned on one row of the result set in the "name"
+field. In like manner 
 the value "*description" will be replaced with the actual description text that
-was returned in the description field of the row.
+was returned in the description field of the row. This example does not illustrate combinations of 
+replacement fields, but you could have a replacement field like "\*field1\*field2"
+which would result in the values represented by field1 and field2 being
+concatenated together in the result.
 
 The ingest document "MD:V03:METAR:stations:ingest "
 ```
@@ -104,9 +107,9 @@ The ingest document "MD:V03:METAR:stations:ingest "
   "version": "V03",
   "builder_type": "GsdStationsBuilderV03",
   "singularData": true,
-  "statement": "select UNIX_TIMESTAMP() as updateTime, 0 as ancestor_count, m.name, m.madis_id, m.lat, m.lon, m.elev, s.disc as description, s.first, s.last, l.last_time from madis3.metars_mats_global as m, madis3.stations as s, madis3.locations as l where 1=1 and m.name = s.name and m.lat = l.lat and m.lon = l.lon and m.elev = l.elev;",
+  "statement": "select UNIX_TIMESTAMP() as updateTime, m.name, m.madis_id, m.lat, m.lon, m.elev, s.disc as description, s.first, s.last, l.last_time from madis3.metars_mats_global as m, madis3.stations as s, madis3.locations as l where 1=1 and m.name = s.name and m.lat = l.lat and m.lon = l.lon and m.elev = l.elev;",
   "template": {
-    "id": "DD:V03:METAR:station:*name*ancestor_count",
+    "id": "DD:V03:METAR:station:*name",
     "type": "DD",
     "docType": "station",
     "subset": "METAR",
@@ -117,25 +120,25 @@ The ingest document "MD:V03:METAR:stations:ingest "
     "description": "*description",
     "firstTime": "*first",
     "lastTime": "*last",
-    "station": "*name*ancestor_count",
+    "station": "*name",
     "name": "*name",
     "notlat": "*lat",
     "notlon": "*lon",
     "geo": {
-      "lat": "&conv_latlon:*lat",
-      "lon": "&conv_latlon:*lon",
-      "elev": "&conv_elev:*elev"
+      "lat": "*lat",
+      "lon": "*lon",
+      "elev": "*elev"
     }
   }
 }
 ```
 
-The ingest document defines a builder type GsdStationsBuilderV03 which will create a metadata
-document that has all of the stations contained in a data list.
+The ingest document defines a builder type GsdStationsBuilderV03 which will create 
+a metadata document that has all of the stations contained in a data list.
 
-####field substitution by value in the template
-In this template the line ```"&conv_latlon:*lat"``` 
-defines a field substitution by defined function. A defined function must 
+####field substitution by function in the template
+If in this template the line ```"lat": "*lat"``` were replaced with 
+```"&conv_latlon:*lat"``` it would define a field substitution by defined function. A defined function must 
 exist in the specified builder class. These functions have a signature like 
 ```    
 @staticmethod
@@ -146,11 +149,36 @@ The template line is divided into two parts that are separated by
 a ":". The first part specifies a function name ```conv_latlon``` and
 the second part specifies a parameter list that will be converted
 into a dict structure and passed into the named function.
-The parameter will have a key, in this case the parameter will be
+The parameter dict will have a key, in this case the parameter will be
 something like {'lat': latitude} where latitude will be the real
 lat value from the current data set.
 
+#### Where to place substitutions
 Substitutions can be for keys or values in the template, in top level documents or in sub documents.
+## Structure of templates
+Templates are given document identifiers like
+```MD:V03:METAR:stations:ingest```
+This identifier is constrained to match specific fields within the 
+document. "type:version:subset:product:docType
+
+and MUST contain these keywords...
+ ```
+  "type": "MD",  - required to be 'MD'
+  "docType": "ingest",  - required to be 'ingest'
+  "subset": "METAR",  - required set to whatever is appropriate
+  "version": "V03",  - the version of the template
+  "product": "stations"
+  "builder_type": "some builder class",
+  "singularData": true,   - true if only one document is to be produced
+  "statement": "some statemnet",
+```
+## Backup templates!!!
+templates can be backed up with a utility in the scripts/VX_ingest_utilities
+directory... save_ingest_docs_to_csv.sh
+This utility requires a backup directory which is nominally
+VXingest/gsd_sql_to_cb/ingest_backup. The utility will backup all the currently defined ingest documents
+based on the id pattern "MD.*:ingest".
+
 ## Credentials files
 This is an example credentials file, the user and password are fake.
 ```
@@ -212,7 +240,8 @@ $HOME/VXingest/gsd_sql_to_cb/run_gsd_ingest_threads.py
 ```
 ###Ingest version 1 METAR obs
 This will ingest all records from Thursday, November 12, 2020 12:00:00 AM
-through Saturday, November 14, 2020 12:00:00 AM (INCLUSIVE)
+(epoch 1605139200) through Saturday, November 14, 2020 12:00:00 AM 
+(epoch 1605312000) INCLUSIVE.
 ```
 $HOME/VXingest/gsd_sql_to_cb/run_gsd_ingest_threads.py
 -s $HOME/VxIngest/test/load_spec_gsd-metars-v01.yaml
@@ -223,7 +252,7 @@ $HOME/VXingest/gsd_sql_to_cb/run_gsd_ingest_threads.py
 
 ###Ingest version 2 METAR obs
 This will ingest all records from Thursday, November 12, 2020 12:00:00 AM
-through Saturday, November 14, 2020 12:00:00 AM (INCLUSIVE)
+through Saturday, November 14, 2020 12:00:00 AM INCLUSIVE
 ```
 $HOME/VXingest/gsd_sql_to_cb/run_gsd_ingest_threads.py
 -s $HOME/VxIngest/test/load_spec_gsd-metars-v02.yaml

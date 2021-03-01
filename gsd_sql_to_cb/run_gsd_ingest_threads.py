@@ -6,8 +6,7 @@ Abstract:
 History Log:  Initial version
 
 Usage:
-run_gsd_ingest_threads spec_file -c credentials_file [-t thread_count -p
-crt_path]
+run_gsd_ingest_threads -s spec_file -c credentials_file [ -t thread_count -f first_epoch -l last_epoch]
 This script processes arguments which define a a yaml load_spec file,
 a defaults file (for credentials),
 and a thread count.
@@ -92,6 +91,9 @@ class VXIngestGSD(object):
         self.spec_file = ""
         self.credentials_file = ""
         self.thread_count = ""
+        # {first_epoch} and {last_epoch} are optional replacement params. If the statement
+        # in the template has {first_epoch} or {last_epoch} (the {} are literal) those keywords will
+        # be replaced with the supplied parameters for -f and -l
         self.statement_replacement_params = None
         self.first_epoch = None
         self.last_epoch = None
@@ -104,6 +106,7 @@ class VXIngestGSD(object):
         self.credentials_file = args['credentials_file']
         self.thread_count = args['threads']
         # capture any statement replacement params
+        # these are -f {first_epoch} and -f {last_epoch}
         self.statement_replacement_params = {key: val for key, val in args.items() if key.startswith('{')}
 
         #

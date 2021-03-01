@@ -11,6 +11,8 @@ import datetime as dt
 import logging
 import sys
 from decimal import Decimal
+# needed to support SQL++ (N1QL) query
+from couchbase.cluster import QueryOptions
 
 import math
 
@@ -56,9 +58,10 @@ def initialize_data(doc):
 
 
 class GsdBuilder:
-    def __init__(self, template, collection):
+    def __init__(self, template, cluster, collection):
         self.metadata = None
         self.template = template
+        self.cluster = cluster
         self.collection = collection
         self.id = None
     
@@ -67,36 +70,7 @@ class GsdBuilder:
     
     @staticmethod
     def get_name(metadata, params_dict):
-        """
-        This method uses the lat and lon that are in the params_dict
-        to find a station at that geopoint using math.isclose().
-        :param metadata:
-        :param params_dict:
-        :return:
-        """
-        _lat = params_dict['lat']
-        _lon = params_dict['lon']
-        # noinspection PyBroadException
-        try:
-            if metadata['version'] == "V02":
-                for elem in metadata['data']:
-                    if not isinstance(elem, dict):
-                        continue
-                    if math.isclose(elem['lat'], _lat, abs_tol=0.05) and math.isclose(elem['lon'], _lon, abs_tol=0.05):
-                        return elem['name']
-            elif metadata['version'] == "V01":
-                for elem in metadata:
-                    if not isinstance(metadata[elem], dict):
-                        continue
-                    if math.isclose(metadata[elem]['lat'], _lat, abs_tol=0.05) and math.isclose(metadata[elem]['lon'],
-                                                                                                _lon, abs_tol=0.05):
-                        return elem
-        except:
-            e = sys.exc_info()
-            logging.error("GsdBuilder.get_name: Exception finding station to match lat and lon  error: " + str(e) +
-                          " params: " + str(params_dict))
-        logging.info("station not found for lat: " + str(_lat) + " and lon " + str(_lon))
-        return None
+        pass
     
     @staticmethod
     def translate_template_item(value, row, interpolated_time):
@@ -272,14 +246,14 @@ class GsdBuilder:
 
 
 class GsdObsBuilderV01(GsdBuilder):
-    def __init__(self, template, collection):
+    def __init__(self, template, cluster, collection):
         """
         This builder creates a set of V01 obs documents using the V01 station metadata.
         The observation data is a set of top level elements that are keyed by the station name.
         :param template:
         :param collection: - essentially a couchbase connection object. It is used to retrieve metadata
         """
-        GsdBuilder.__init__(self, template, collection)
+        GsdBuilder.__init__(self, template, cluster, collection)
         # noinspection PyBroadException
         try:
             # Retrieve the required metadata
@@ -297,10 +271,36 @@ class GsdObsBuilderV01(GsdBuilder):
         """
         doc[key] = element
         return doc
+    
+    @staticmethod
+    def get_name(metadata, params_dict):
+        """
+        This method uses the lat and lon that are in the params_dict
+        to find a station at that geopoint using math.isclose().
+        :param metadata:
+        :param params_dict:
+        :return:
+        """
+        _lat = params_dict['lat']
+        _lon = params_dict['lon']
+        # noinspection PyBroadException
+        try:
+            for elem in metadata:
+                if not isinstance(metadata[elem], dict):
+                    continue
+                if math.isclose(metadata[elem]['lat'], _lat, abs_tol=0.05) and math.isclose(metadata[elem]['lon'],
+                                                                                            _lon, abs_tol=0.05):
+                    return elem
+        except:
+            e = sys.exc_info()
+            logging.error("GsdBuilder.get_name: Exception finding station to match lat and lon  error: " + str(e) +
+                          " params: " + str(params_dict))
+        logging.info("station not found for lat: " + str(_lat) + " and lon " + str(_lon))
+        return None
 
 
 class GsdObsBuilderV02(GsdBuilder):
-    def __init__(self, template, collection):
+    def __init__(self, template, cluster, collection):
         """
         This builder creates a set of V02 obs documents using the V02 station metadata.
         In each document the observation data is an array of objects each of which is the obs data
@@ -308,7 +308,7 @@ class GsdObsBuilderV02(GsdBuilder):
         :param template:
         :param collection: - essentially a couchbase connection object. It is used to retrieve metadata
         """
-        GsdBuilder.__init__(self, template, collection)
+        GsdBuilder.__init__(self, template, cluster, collection)
         # noinspection PyBroadException
         try:
             # Retrieve the required metadata
@@ -328,17 +328,99 @@ class GsdObsBuilderV02(GsdBuilder):
             doc['data'] = []
         doc['data'].append(element)
         return doc
+    
+    @staticmethod
+    def get_name(metadata, params_dict):
+        """
+        This method uses the lat and lon that are in the params_dict
+        to find a station at that geopoint using math.isclose().
+        :param metadata:
+        :param params_dict:
+        :return:
+        """
+        _lat = params_dict['lat']
+        _lon = params_dict['lon']
+        # noinspection PyBroadException
+        try:
+            for elem in metadata['data']:
+                if not isinstance(elem, dict):
+                    continue
+                if math.isclose(elem['lat'], _lat, abs_tol=0.05) and math.isclose(elem['lon'], _lon, abs_tol=0.05):
+                    return elem['name']
+        except:
+            e = sys.exc_info()
+            logging.error("GsdObsBuilderV02.get_name: Exception finding station to match lat and lon  error: " + str(e) +
+                          " params: " + str(params_dict))
+        logging.info("station not found for lat: " + str(_lat) + " and lon " + str(_lon))
+        return None
+
+
+class GsdObsBuilderV03(GsdBuilder):
+    def __init__(self, template, cluster, collection):
+        """
+        This builder creates a set of V03 obs documents using the V03 station metadata.
+        The primary difference is that this builder does not load station metadata into memory,
+        instead it uses a search to find the associated station.
+        In each document the observation data is an array of objects each of which is the obs data
+        for a specific station.
+        :param template:
+        :param collection: - essentially a couchbase connection object. It is used to retrieve metadata
+        """
+        GsdBuilder.__init__(self, template, cluster, collection)
+        self.metadata = cluster
+
+    @staticmethod
+    def get_name(metadata, params_dict):
+        """
+        This method uses the lat and lon that are in the params_dict
+        to find a station at that geopoint using a geospatial search.
+        :param metadata:
+        :param params_dict:
+        :return:
+        """
+        _lat = params_dict['lat']
+        _lon = params_dict['lon']
+        # noinspection PyBroadException
+        try:
+            cluster = metadata
+            sql_query = 'select raw meta().id from mdata where type="DD" and docType="station" ' \
+                        'and subset = "METAR"  and version ="V03" and geo.lat = $1 and geo.lon = $2'
+            row_iter = cluster.query(sql_query, QueryOptions(positional_parameters=[_lat, _lon]))
+            _id = next(iter(row_iter))
+            # since the id is resident in the index, and the name is part of the id we can just
+            # parse the name out of the id and avoid doing a fetch. Saves a few milliseconds, possibly.
+            if _id is not None:
+                return str.split(_id, ':')[4]
+        except:
+            e = sys.exc_info()
+            logging.error("GsdObsBuilderV03.get_name: Exception finding station to match lat and lon  error: " + str(e) +
+                          " params: " + str(params_dict))
+        logging.info("station not found for lat: " + str(_lat) + " and lon " + str(_lon))
+        return None
+
+    def load_data(self, doc, key, element):
+        """
+        This method appends an observation to the data array
+        :param doc: The document being created
+        :param key: Not used
+        :param element: the observation data
+        :return: the document being created
+        """
+        if 'data' not in doc.keys() or doc['data'] is None:
+            doc['data'] = []
+        doc['data'].append(element)
+        return doc
 
 
 class GsdStationsBuilderV01(GsdBuilder):
-    def __init__(self, template, collection):
+    def __init__(self, template, cluster, collection):
         """
         This builder creates a single document of stations with the stations being top level
         objects keyed by the station name which is an ICAO like 'CWDP'.
         :type template: object - This is the template from "MD:V01:METAR:stations"
         :type collection: object - this is a connection to the couchbase mdata default collection
         """
-        GsdBuilder.__init__(self, template, collection)
+        GsdBuilder.__init__(self, template, cluster, collection)
     
     def load_data(self, doc, key, element):
         """
@@ -353,14 +435,14 @@ class GsdStationsBuilderV01(GsdBuilder):
 
 
 class GsdStationsBuilderV02(GsdBuilder):
-    def __init__(self, template, collection):
+    def __init__(self, template, cluster, collection):
         """
         This builder creates a single document of stations with the stations being
         object elements of the data array.
         :type template: object - This is the template from "MD:V02:METAR:stations"
         :type collection: object - this is a connection to the couchbase mdata default collection
         """
-        GsdBuilder.__init__(self, template, collection)
+        GsdBuilder.__init__(self, template, cluster, collection)
     
     def load_data(self, doc, key, element):
         """
@@ -377,7 +459,7 @@ class GsdStationsBuilderV02(GsdBuilder):
 
 
 class GsdStationsBuilderV03(GsdBuilder):
-    def __init__(self, template, collection):
+    def __init__(self, template, cluster, collection):
         """
         This builder creates multiple documents one per station with the id being
         MD:V03:METAR:stations:*name where the variable part of the id
@@ -387,4 +469,4 @@ class GsdStationsBuilderV03(GsdBuilder):
         :type template: object - This is the template from "MD:V03:METAR:stations"
         :type collection: object - this is a connection to the couchbase mdata default collection
         """
-        GsdBuilder.__init__(self, template, collection)
+        GsdBuilder.__init__(self, template, cluster, collection)

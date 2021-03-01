@@ -265,7 +265,7 @@ class GsdIngestManager(Process):
                 builder = self.builder_map[_ingest_type_builder_name]
             else:
                 builder_class = getattr(gsd_builder, _ingest_type_builder_name)
-                builder = builder_class(_template, self.collection)
+                builder = builder_class(_template, self.cluster, self.collection)
                 self.builder_map[_ingest_type_builder_name] = builder
             # process the document
             _statement = _ingest_document['statement']
@@ -302,8 +302,8 @@ class GsdIngestManager(Process):
             If there is a keyword 'requires_time_interpolation' in the template
             and if it is set to 'True' then the time field will be interpolated.
             """
-            if 'requires_time_interpolation' in _ingest_document.keys() and _ingest_document[
-                'requires_time_interpolation'] is True:
+            if 'requires_time_interpolation' in _ingest_document.keys() and \
+                    _ingest_document['requires_time_interpolation'] is True:
                 _requires_time_interpolation = True
                 _delta = int(_ingest_document['delta'])
                 _cadence = int(_ingest_document['cadence'])

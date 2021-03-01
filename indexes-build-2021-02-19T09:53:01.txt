@@ -1,1 +1,0 @@
-BUILD INDEX ON `mdata`(`adv_type_subset_docType_fcstValidEpoch`,`adv_type_subset_docType_version`,`adv_type_subset_docType_version_fcstValidEpoch`);

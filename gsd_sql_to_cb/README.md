@@ -265,6 +265,16 @@ There are two index creation n1ql scripts in this directory.
 They can be loaded with the scripts/admin/index/index-import-all-indexes.sh
 script.
 
+Alternatively you can load the indexes in the query console of the UI and then 
+use the command
+```
+BUILD INDEX ON mdata (( 
+  SELECT RAW name 
+  FROM system:indexes
+  WHERE keyspace_id = "mdata"
+    AND state = 'deferred' ));
+```
+to actually build the indexes.
 ##Useful queries
 - select raw meta().id from mdata where docType="obs" and subset="METAR" and type="DD" and version="V01"
 - 

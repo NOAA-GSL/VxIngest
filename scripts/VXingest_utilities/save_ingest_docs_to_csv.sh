@@ -1,6 +1,10 @@
 #!/bin/sh
-if [ $# -ne 1 ]; then
-  echo "Usage $0 backupdir"
+if [ $# -ne 2 ]; then
+  echo "Usage $0 backupdir server"
+  exit 1
+fi
+if [[ ! -d "$1" ]]; then
+  echo "$1 is not a directory - exiting"
   exit 1
 fi
 if [[ $1 == /* ]]; then
@@ -8,5 +12,6 @@ if [[ $1 == /* ]]; then
 else
   backupdir="./$1"
 fi
-echo cbtransfer http://localhost:8091 csv://$backupdir/ingest.csv -u gsd -p 'gsd_pwd_av!d' -b mdata --silent -k 'MD.*:ingest'
-cbtransfer http://localhost:8091 csv:///$backupdir/ingest.csv -u gsd -p 'gsd_pwd_av!d' -b mdata --silent -k 'MD.*:ingest'
+server=$2
+
+curl -v "http://$server:8093/query/service" -u gsd  -d 'statement=select meta().id, mdata.* from mdata where type="MD" and docType="ingest" and subset="METAR" and  version is not missing;' | jq '.results' > "$backupdir/ingest-$(date +%Y%m%d:%H%M%S)"

@@ -139,7 +139,6 @@ class GsdIngestManager(Process):
         self.collection = None
         self.connection = None
         self.cursor = None
-        self.metadata = None
     
     # entry point of the thread. Is invoked automatically when the thread is
     # started.

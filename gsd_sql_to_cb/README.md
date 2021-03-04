@@ -172,12 +172,54 @@ and MUST contain these keywords...
   "singularData": true,   - true if only one document is to be produced
   "statement": "some statemnet",
 ```
-## Backup templates!!!
-templates can be backed up with a utility in the scripts/VX_ingest_utilities
+## Backup ingest documents!!!
+Ingest documents can be backed up with a utility in the scripts/VX_ingest_utilities
 directory... save_ingest_docs_to_csv.sh
 This utility requires a backup directory which is nominally
 VXingest/gsd_sql_to_cb/ingest_backup. The utility will backup all the currently defined ingest documents
 based on the id pattern "MD.*:ingest".
+#####Alternatively for personal backups:
+you can use the document export and import utility on the couchbase UI.
+navigate to the UI Query page
+
+https://adb-cb4.gsd.esrl.noaa.gov:18091/ui/index.html#!/query
+
+Enter this query into the query editor and execute the query.
+```
+select meta().id, ingest_docs.*
+from mdata as ingest_docs
+WHERE type="MD"
+and docType = "ingest"
+and subset = "METAR"
+and version is not missing
+```
+This will retrieve all the ingest documents for the subset 'METAR' and
+associate an id field with each document.
+
+Click 'EXPORT' at the top right of the page, select the 'current query results (JSON)'
+radio button, enter a file name, do not include a path. Whatever file you specify will 
+show up in your Downloads directory. If you specify a path
+the path will get munged into the filename. The save button will save all the ingest documents to 
+the file that you specified IN THE DOWNLOADS DIRECTORY.
+
+##### Restore ingest documents on local server
+Ingest documents can be restored from the documents page IF YOU HAVE ADMINISTRATOR privileges. 
+This is useful to restore ingest documents to your laptop.
+
+Login wih administrator privileges. The go to the documents page...
+```http://localhost:8091/ui/index.html#!/documents/import?scenarioZoom=minute```
+
+There should be an 'Import Documents' button at the top, click that. 
+Choose the file that you previously saved. On the import panel make sure
+that the 'Parse File As' selector is set to 'JSON List'.
+Choose the destination bucket, for us it is usually 'mdata'. For the
+'Import With Document ID' choose the 'Value of Field' radio button.
+From the 'Value of Field:' selector choose 'id'.
+
+Click the 'Import Data' button.
+
+Your ingest documents should now be available.
+
 
 ## Credentials files
 This is an example credentials file, the user and password are fake.
@@ -196,7 +238,7 @@ the program as a parameter.
 This assumes that you have cloned this repo into your home directory.
 ```
 export PYTHONPATH=~/VxIngest
-~/anaconda3/bin/python3 gsd_sql_to_cb/run_gsd_ingest_threads.py -s /home/pierce/VxIngest/test/load_spec_gsd-stations.yaml -c /home/pierce/adb-cb4-credentials
+~/anaconda3/bin/python3 gsd_sql_to_cb/run_gsd_ingest_threads.py -s /home/pierce/VxIngest/test/load_spec_gsd-stations_v03.yaml -c /home/pierce/adb-cb4-credentials
 ```
 this will create or update a document with the id "MD:V01:METAR:stations"
 and this document will contain all of the stations that are in the 
@@ -221,41 +263,23 @@ export PYTHONPATH=~/VxIngest
 
 -l this is the last fcstValid epoch to get ingested
 
-###Ingest version 1 stations
-This needs no first and last epoch parameter
-```
-export PYTHONPATH=$HOME/VXingest
-$HOME/VXingest/gsd_sql_to_cb/run_gsd_ingest_threads.py
--s $HOME/VxIngest/test/load_spec_gsd-stations-v01.yaml
--c $HOME/adb-credentials-local
-```
-###Ingest version 2 stations
+###Ingest version 3 stations
 This needs no first and last epoch parameter
 
 ```
 export PYTHONPATH=$HOME/VXingest
 $HOME/VXingest/gsd_sql_to_cb/run_gsd_ingest_threads.py
--s $HOME/VxIngest/test/load_spec_gsd-stations-v02.yaml
+-s $HOME/VxIngest/test/load_spec_gsd-stations-v03.yaml
 -c $HOME/adb-credentials-local
 ```
-###Ingest version 1 METAR obs
+###Ingest version 4 METAR obs
 This will ingest all records from Thursday, November 12, 2020 12:00:00 AM
 (epoch 1605139200) through Saturday, November 14, 2020 12:00:00 AM 
 (epoch 1605312000) INCLUSIVE.
 ```
+export PYTHONPATH=$HOME/VXingest
 $HOME/VXingest/gsd_sql_to_cb/run_gsd_ingest_threads.py
--s $HOME/VxIngest/test/load_spec_gsd-metars-v01.yaml
--c $HOME/adb-credentials-local
--f 1605139200
--l 1605312000
-```
-
-###Ingest version 2 METAR obs
-This will ingest all records from Thursday, November 12, 2020 12:00:00 AM
-through Saturday, November 14, 2020 12:00:00 AM INCLUSIVE
-```
-$HOME/VXingest/gsd_sql_to_cb/run_gsd_ingest_threads.py
--s $HOME/VxIngest/test/load_spec_gsd-metars-v02.yaml
+-s $HOME/VxIngest/test/load_spec_gsd-metars-v04.yaml
 -c $HOME/adb-credentials-local
 -f 1605139200
 -l 1605312000
@@ -275,17 +299,109 @@ BUILD INDEX ON mdata ((
     AND state = 'deferred' ));
 ```
 to actually build the indexes.
-##Useful queries
-- select raw meta().id from mdata where docType="obs" and subset="METAR" and type="DD" and version="V01"
-- 
+##Useful and interesting queries
+- This [page](https://docs.couchbase.com/server/current/fts/fts-geospatial-queries.html) talks about geospatial queries.
+- This [page](https://docs.couchbase.com/server/current/fts/fts-searching-from-the-ui.html) talks about full text searches from the UI. Note that UI FTS searches are pretty limited.
+- This [page](https://docs.couchbase.com/server/current/fts/fts-searching-with-the-rest-api.html)] talks about using curl.
+### Important note about OUR N1QL queries and indexes.
+Each N1QL query requires an index to work. Our basic indexes
+cover the type, docType, version, and subset fields.
+That means, for our case, that you must have
+```
+WHERE type="DD"
+and docType = "station"
+and subset = "METAR"
+and version = "V03"
+```
+in each of your N1QL queries.
+ 
+### N1QL queries
+This query will return a lot of results without further filtering in the predicates.
+``` 
+  select raw meta().id from mdata 
+  where type="DD" and 
+  docType="obs" 
+  and subset="METAR" 
+  and version="V01" 
+  limit 100 
+  ```
+This query will use N1QL to perform a basic geospatial query, it assumes that the 
+full text search index for stations has been loaded. 
+That index creation script is in 
+```VXingest/gsd_sql_to_cb/index_creation_scripts```.
 
+This query should find the "PORT_MORESBY_INTL" station.
+```
+select raw station
+from mdata as station
+WHERE type="DD"
+and docType = "station"
+and subset = "METAR"
+and version = "V03"
+and SEARCH(station,
+{
+"location": {"lat": -9.4286, "lon": 147.2198},
+"distance": "100ft",
+"field": "geo"
+}
+)
+```
+This is a search by station name query and should return DIA.
+```
+select raw station
+from mdata as station
+WHERE type="DD"
+and docType = "station"
+and subset = "METAR"
+and version = "V03"
+and SEARCH(station.name,"KDEN")
+```
+This is another way to do the above query.
+```
+select raw station
+from mdata as station
+WHERE type="DD"
+and docType = "station"
+and subset = "METAR"
+and version = "V03"
+and SEARCH(station,{"field":"name", "match": "kden"})
+```
+This is a N1QL search by partial description, using a regular expression
+against the description field. It should return DIA.
+```
+select raw station
+from mdata as station
+WHERE type="DD"
+and docType = "station"
+and subset = "METAR"
+and version = "V03"
+and SEARCH(station,{"field":"description", "regexp": "denver.*"})
+```
 ##Useful curl queries
+Curl queries can be implemented on the command line or in the client SDK.
+This is an example of doing a regular expression query for the word "denver" (case insensitive because of the search index analyzer) at the front of any description. The results are piped into jq to make them pretty. 
+The password is fake so replace it with the gsd password.
+
 **change user and password**
 
-```curl -u 'gsd:gsd_pwd' -d "statement=select raw meta().id from mdata where docType='obs' and subset='METAR' and type='DD' and version='V01'" http://localhost:8093/query/service``` 
-between 1605139200 and 1605312000
+- This returns a hit list with one hit for DIA.
 
-curl -u 'gsd:gsd_pwd_av!d' -d "statement=select raw meta().id from mdata where docType='ingest' and subset='METAR' and type='MD' and version IN ['V01','V02']" http://localhost:8093/query/service
+```curl -XPOST -H "Content-Type: application/json" -u 'gsd:fakepassword' http://adb-cb4.gsd.esrl.noaa.gov:8094/api/index/station_geo/query -d '{"fields": ["*"],"query": {"fields":["*"], "regexp": "^denver.*","field":"description"}}' | jq '.'```
+
+This is a curl command that searches by lat and lon for stations within 1 mile of 39.86, -104.67 and it finds DIA 
+
+```
+curl -XPOST -H "Content-Type: application/json" -u 'gsd:fakepassword' http://adb-cb4.gsd.esrl.noaa.gov:8094/api/index/station_geo/query -d '{"fields": ["*"],"query":{"location":{"lat":39.86,"lon":-104.67},"distance":"1mi","field":"geo"}}' | jq '.'
+```
+
+It completes in under 40 milliseconds.
+
+This command looks for all the stations within an arbitrary polygon that I drew on google maps, 
+maybe about a third of the country somewhere in the west...
+
+```curl -XPOST -H "Content-Type: application/json" -u 'gsd:fakepassword' http://adb-cb4.gsd.esrl.noaa.gov:8094/api/index/station_geo/query -d '{"fields": ["*"],"query":{"polygon_points":["47.69065526395918, -120.699049630136","44.97376705258397, -91.33055527950087","36.68188062186998, -92.26638359058016","37.13420293523954, -114.52912609347626"]},"field":"geo"}' | jq '.'```
+
+It returns 148 stations in under half a second.
 
 ## Useful utilities
 There is a scripts directory, much of which came from Couchbase training.

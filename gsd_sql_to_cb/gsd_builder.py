@@ -39,7 +39,7 @@ def derive_id(an_id, row, interpolated_time):
                     value = str(interpolated_time)
                 else:
                     value = GsdBuilder.translate_template_item(_part, row, interpolated_time)
-                new_parts.append(value)
+                new_parts.append(str(value))
             else:
                 new_parts.append(str(_part))
         _new_id = ":".join(new_parts)
@@ -378,9 +378,9 @@ class GsdObsBuilderV03(GsdBuilder):
         # noinspection PyBroadException
         try:
             cluster = self.cluster
-            sql_query = 'select raw meta().id from mdata where type="DD" and docType="station" ' \
+            n1ql_query = 'select raw meta().id from mdata where type="DD" and docType="station" ' \
                         'and subset = "METAR"  and version ="V03" and geo.lat = $1 and geo.lon = $2'
-            row_iter = cluster.query(sql_query, QueryOptions(positional_parameters=[_lat, _lon]))
+            row_iter = cluster.query(n1ql_query, QueryOptions(positional_parameters=[_lat, _lon]))
             _id = next(iter(row_iter))
             # since the id is resident in the index, and the name is part of the id we can just
             # parse the name out of the id and avoid doing a fetch. Saves a few milliseconds, possibly.
@@ -428,9 +428,9 @@ class GsdObsBuilderV04(GsdBuilder):
         # noinspection PyBroadException
         try:
             # Retrieve the required station data
-            sql_query = 'SELECT raw {mdata.name, mdata.geo.lat, mdata.geo.lon} FROM mdata ' \
+            n1ql_query = 'SELECT raw {mdata.name, mdata.geo.lat, mdata.geo.lon} FROM mdata ' \
                         'WHERE type="DD" AND docType="station" AND subset="METAR" AND version ="V03"'
-            row_iter = cluster.query(sql_query, QueryOptions(read_only=True))
+            row_iter = cluster.query(n1ql_query, QueryOptions(read_only=True))
             for _station in row_iter:
                 self.stations.append(_station)
             
@@ -461,6 +461,48 @@ class GsdObsBuilderV04(GsdBuilder):
         return None
     
     def load_data(self, doc, key, element):
+
+        """
+        This method appends an observation to the data array
+        :param doc: The document being created
+        :param key: Not used
+        :param element: the observation data
+        :return: the document being created
+        """
+        if 'data' not in doc.keys() or doc['data'] is None:
+            doc['data'] = []
+        doc['data'].append(element)
+        return doc
+
+
+class GsdModelBuilderV04(GsdBuilder):
+    def __init__(self, template, cluster, collection):
+        """
+        This builder creates a set of V03 model documents using the V03 station documents.
+        This builder is very much like the GsdObsBuilderV04 except that it builds model documents.
+        In each document the specific model data is an array of objects each of which is the model data
+        for a specific station. The particular model name is supplied in the template.
+        :param template: the document template from the ingest document
+        :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
+        :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
+        """
+        GsdBuilder.__init__(self, template, cluster, collection)
+        self.cluster = cluster
+        self.stations = []
+        # noinspection PyBroadException
+        try:
+            # Retrieve the required station data
+            n1ql_query = 'SELECT raw {mdata.name, mdata.geo.lat, mdata.geo.lon} FROM mdata ' \
+                        'WHERE type="DD" AND docType="station" AND subset="METAR" AND version ="V03"'
+            row_iter = cluster.query(n1ql_query, QueryOptions(read_only=True))
+            for _station in row_iter:
+                self.stations.append(_station)
+        
+        except:
+            logging.error("GsdStationsBuilderV01: error getting stations, " + str(sys.exc_info()))
+    
+    def load_data(self, doc, key, element):
+        
         """
         This method appends an observation to the data array
         :param doc: The document being created

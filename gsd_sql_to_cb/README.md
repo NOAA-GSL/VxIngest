@@ -316,6 +316,16 @@ and version = "V03"
 in each of your N1QL queries.
  
 ### N1QL queries
+This query returns the minimum fcstValidBeg and the maximum
+fcstValidBeg for all the METAR obs in the mdata bucket.
+```
+select min(mdata.fcstValidBeg) as min_fcstValidBeg, max(mdata.fcstValidBeg) as max_fcstValidBeg
+from mdata
+WHERE type="DD"
+and docType = "obs"
+and subset = "METAR"
+and version is not missing 
+```
 This query will return a lot of results without further filtering in the predicates.
 ``` 
   select raw meta().id from mdata 

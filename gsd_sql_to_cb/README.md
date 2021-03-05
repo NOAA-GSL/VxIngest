@@ -4,6 +4,12 @@ These programs are intended to import GSD
 (currently the organization is GSL but the data came from GSD) 
 database tables into Couchbase taking advantage of the GSL Couchbase data schema
 that has been developed by the GSL AVID model verification team.
+##Environment
+These programs require python3, and couchbase sdk 3.0 (see [couchbase sdk](https://docs.couchbase.com/python-sdk/current/hello-world/start-using-sdk.html) )
+
+You can see a list of installed python packages that is known to satisfy requirements
+in the python_packages.md file in this directory.
+
 ##Approach
 These programs use a load_spec YAML file and a credentials file.
 ### load_spec example
@@ -263,6 +269,9 @@ export PYTHONPATH=~/VxIngest
 
 -l this is the last fcstValid epoch to get ingested
 
+All of these examples assume that you are in the VxIngest/gsd_sql_to_cb
+directory. It also assumes that you have a proper python3 and that you have installed 
+python packages.
 ###Ingest version 3 stations
 This needs no first and last epoch parameter
 
@@ -326,6 +335,17 @@ and docType = "obs"
 and subset = "METAR"
 and version is not missing 
 ```
+This is the same thing but with epochs, which is useful for setting
+parameters for ingest.
+```
+select min(mdata.fcstValidEpoch) as min_fcstValidEpoch, max(mdata.fcstValidEpoch) as max_fcstValidEpoch
+from mdata
+WHERE type="DD"
+and docType = "obs"
+and subset = "METAR"
+and version is not missing
+```
+
 This query will return a lot of results without further filtering in the predicates.
 ``` 
   select raw meta().id from mdata 

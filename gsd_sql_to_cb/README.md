@@ -413,10 +413,23 @@ This is an example of doing a regular expression query for the word "denver" (ca
 The password is fake so replace it with the gsd password.
 
 **change user and password**
+- This is the N1QL search mentioned above for returning the minimum fcstValidBeg
+for all the METAR obs in the mdata bucket, executed with the curl rest api.
+
+```
+curl -s -u 'gsd:gsd_pwd_av!d' http://adb-cb4.gsd.esrl.noaa.gov:8093/query/service  -d 'statement=select min(mdata.fcstValidEpoch) as min_fcstValidEpoch, max(mdata.fcstValidEpoch) as max_fcstValidEpoch from mdata WHERE type="DD" and docType = "obs" and subset = "METAR" and version is not missing' | jq -r '.results | .[] | .min_fcstValidEpoch'
+```
+
+This is the same but it returns the max fcstValidBeg
+```
+curl -s -u 'gsd:gsd_pwd_av!d' http://adb-cb4.gsd.esrl.noaa.gov:8093/query/service  -d 'statement=select min(mdata.fcstValidEpoch) as min_fcstValidEpoch, max(mdata.fcstValidEpoch) as max_fcstValidEpoch from mdata WHERE type="DD" and docType = "obs" and subset = "METAR" and version is not missing' | jq -r '.results | .[] | .max_fcstValidEpoch'
+```
 
 - This returns a hit list with one hit for DIA.
 
-```curl -XPOST -H "Content-Type: application/json" -u 'gsd:fakepassword' http://adb-cb4.gsd.esrl.noaa.gov:8094/api/index/station_geo/query -d '{"fields": ["*"],"query": {"fields":["*"], "regexp": "^denver.*","field":"description"}}' | jq '.'```
+```
+curl -XPOST -H "Content-Type: application/json" -u 'gsd:fakepassword' http://adb-cb4.gsd.esrl.noaa.gov:8094/api/index/station_geo/query -d '{"fields": ["*"],"query": {"fields":["*"], "regexp": "^denver.*","field":"description"}}' | jq '.'
+```
 
 This is a curl command that searches by lat and lon for stations within 1 mile of 39.86, -104.67 and it finds DIA 
 

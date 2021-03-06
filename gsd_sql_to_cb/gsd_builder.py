@@ -58,11 +58,12 @@ def initialize_data(doc):
 
 
 class GsdBuilder:
-    def __init__(self, template, cluster, collection):
-        self.template = template
+    def __init__(self, ingest_document, cluster, collection):
+        self.template = ingest_document['template']
         self.cluster = cluster
         self.collection = collection
         self.id = None
+        self.document_map = {}
     
     def load_data(self, doc, key, element):
         pass
@@ -117,11 +118,19 @@ class GsdBuilder:
             e = sys.exc_info()
             logging.error("GsdBuilder.translate_template_item: Exception  error: " + str(e))
         return value
-
-    def handle_document(self, interpolated_time, rows, document_map):
+    
+    def handle_row(self, row):
         """
-        This is the entry point for any GsdBuilder, it must be called
-        from a GsdIngestManager.
+        This is the entry point from the IngestManager.
+        This method is responsible to collate rows into a set that is to be given to the handle_document.
+        This method is always overridden
+        :param row: A result set row
+        :return:
+        """
+        pass
+    
+    def handle_document(self, interpolated_time, rows):
+        """
         :param interpolated_time: The time field in a row, if there is one,
         may have been interpolated in the ingest_manager to the closest time
         to the cadence within the delta. If interpolation was not required then the
@@ -131,7 +140,6 @@ class GsdBuilder:
         array, AND importantly the document id derived from this a_time may
         already exist in the document. If the id does not exist it will be
         created, if it does exist, the data will be appended.
-        :param document_map: This is the top level dictionary to which this
         builder's documents will be added, the GsdIngestManager will do the
         upsert
         :return: The modified document_map
@@ -139,9 +147,8 @@ class GsdBuilder:
         # noinspection PyBroadException
         try:
             doc = copy.deepcopy(self.template)
-            document_map = document_map
             if len(rows) == 0:
-                return document_map
+                return
             doc = initialize_data(doc)
             for r in rows:
                 for k in self.template.keys():
@@ -153,8 +160,7 @@ class GsdBuilder:
             # to tell us how to format the id)
             del doc['id']
             # put document into document map
-            document_map[self.id] = doc
-            return document_map
+            self.document_map[self.id] = doc
         except:
             e = sys.exc_info()
             logging.error("GsdBuilder.handle_document: Exception instantiating "
@@ -240,191 +246,27 @@ class GsdBuilder:
         return doc
 
 
-""" Concrete builders """
-
-
+# Concrete builders
 class GsdObsBuilderV01(GsdBuilder):
-    
-    def __init__(self, template, cluster, collection):
+    def __init__(self, ingest_document, cluster, collection):
         """
-        This builder creates a set of V01 obs documents using the V01 station metadata.
-        The observation data is a set of top level elements that are keyed by the station name.
-        :param template:
-        :param collection: - essentially a couchbase connection object. It is used to retrieve metadata
-        """
-        GsdBuilder.__init__(self, template, cluster, collection)
-        # noinspection PyBroadException
-        try:
-            # Retrieve the required station data
-            self.stations = collection.get("MD:V01:METAR:stations").content
-        except:
-            logging.error("GsdStationsBuilderV01: error getting stations, " + str(sys.exc_info()))
-    
-    def load_data(self, doc, key, element):
-        """
-        This method adds an observation to the  document as a top level object keyed by the station name.
-        :param doc: The document being created
-        :param key: The station name
-        :param element: the observation data
-        :return: the document being created
-        """
-        doc[key] = element
-        return doc
-    
-    def get_name(self, params_dict):
-        """
-        This method uses the lat and lon that are in the params_dict
-        to find a station at that geopoint using math.isclose().
-        :param params_dict:
-        :return:
-        """
-        _lat = params_dict['lat']
-        _lon = params_dict['lon']
-        # noinspection PyBroadException
-        try:
-            for elem in self.stations:
-                if not isinstance(self.stations[elem], dict):
-                    continue
-                if math.isclose(self.stations[elem]['lat'], _lat, abs_tol=0.05) and \
-                        math.isclose(self.stations[elem]['lon'], _lon, abs_tol=0.05):
-                    return elem
-        except:
-            e = sys.exc_info()
-            logging.error("GsdBuilder.get_name: Exception finding station to match lat and lon  error: " + str(e) +
-                          " params: " + str(params_dict))
-        logging.info("station not found for lat: " + str(_lat) + " and lon " + str(_lon))
-        return None
-
-
-class GsdObsBuilderV02(GsdBuilder):
-    def __init__(self, template, cluster, collection):
-        """
-        This builder creates a set of V02 obs documents using the V02 station metadata.
+        This builder creates a set of V01 obs documents using the V01 station documents.
+        This builder loads V01 station data into memory, and uses them to associate a station with an observation
+        lat, lon point.
         In each document the observation data is an array of objects each of which is the obs data
         for a specific station.
-        :param template:
+        :param ingest_document: the document from the ingest document
         :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
         :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
         """
-        GsdBuilder.__init__(self, template, cluster, collection)
-        # noinspection PyBroadException
-        try:
-            # Retrieve the required stations
-            self.stations = collection.get("MD:V02:METAR:stations").content
-        except:
-            logging.error("GsdStationsBuilderV02: error getting stations, " + str(sys.exc_info()))
-    
-    def load_data(self, doc, key, element):
-        """
-        This method appends an observation to the data array
-        :param doc: The document being created
-        :param key: Not used
-        :param element: the observation data
-        :return: the document being created
-        """
-        if 'data' not in doc.keys() or doc['data'] is None:
-            doc['data'] = []
-        doc['data'].append(element)
-        return doc
-    
-    def get_name(self, params_dict):
-        """
-        This method uses the lat and lon that are in the params_dict
-        to find a station at that geopoint using math.isclose().
-        :param params_dict:
-        :return:
-        """
-        _lat = params_dict['lat']
-        _lon = params_dict['lon']
-        # noinspection PyBroadException
-        try:
-            for elem in self.stations['data']:
-                if not isinstance(elem, dict):
-                    continue
-                if math.isclose(elem['lat'], _lat, abs_tol=0.05) and math.isclose(elem['lon'], _lon, abs_tol=0.05):
-                    return elem['name']
-        except:
-            e = sys.exc_info()
-            logging.error("GsdObsBuilderV02.get_name: Exception finding station to match lat and lon  error: " + str(e) +
-                          " params: " + str(params_dict))
-        logging.info("station not found for lat: " + str(_lat) + " and lon " + str(_lon))
-        return None
-
-
-class GsdObsBuilderV03(GsdBuilder):
-    def __init__(self, template, cluster, collection):
-        """
-        This builder creates a set of V03 obs documents using the V03 station documents.
-        The primary difference is that this builder does not load station data into memory,
-        instead it uses a search to find the associated station.
-        In each document the observation data is an array of objects each of which is the obs data
-        for a specific station.
-        :param template: the document template from the ingest document
-        :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
-        :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
-        """
-        GsdBuilder.__init__(self, template, cluster, collection)
-        self.cluster = cluster
-
-    def get_name(self, params_dict):
-        """
-        This method uses the lat and lon that are in the params_dict
-        to find a station at that geopoint using a geospatial search.
-        :param params_dict:
-        :return:
-        """
-        _lat = params_dict['lat']
-        _lon = params_dict['lon']
-        # noinspection PyBroadException
-        try:
-            cluster = self.cluster
-            n1ql_query = 'select raw meta().id from mdata where type="DD" and docType="station" ' \
-                        'and subset = "METAR"  and version ="V03" and geo.lat = $1 and geo.lon = $2'
-            row_iter = cluster.query(n1ql_query, QueryOptions(positional_parameters=[_lat, _lon]))
-            _id = next(iter(row_iter))
-            # since the id is resident in the index, and the name is part of the id we can just
-            # parse the name out of the id and avoid doing a fetch. Saves a few milliseconds, possibly.
-            if _id is not None:
-                return str.split(_id, ':')[4]
-        except:
-            e = sys.exc_info()
-            logging.error("GsdObsBuilderV03.get_name: Exception finding station to match lat and lon  error: " + str(e) +
-                          " params: " + str(params_dict))
-        logging.info("station not found for lat: " + str(_lat) + " and lon " + str(_lon))
-        return None
-
-    def load_data(self, doc, key, element):
-        """
-        This method appends an observation to the data array
-        :param doc: The document being created
-        :param key: Not used
-        :param element: the observation data
-        :return: the document being created
-        """
-        if 'data' not in doc.keys() or doc['data'] is None:
-            doc['data'] = []
-        doc['data'].append(element)
-        return doc
-
-
-class GsdObsBuilderV04(GsdBuilder):
-    def __init__(self, template, cluster, collection):
-        """
-        This builder creates a set of V03 obs documents using the V03 station documents.
-        The primary difference is that this builder loads V03 station data into memory,
-        like the GsdObsBuilderV01 and GsdObsBuilderV02, but from the V03 station objects.
-        This is important because it turns out that we have to keep appending to the station data
-        and that is most quickly done with an upsert, even if it is an upsert of thousands of
-        small documents, like stations.
-        In each document the observation data is an array of objects each of which is the obs data
-        for a specific station.
-        :param template: the document template from the ingest document
-        :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
-        :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
-        """
-        GsdBuilder.__init__(self, template, cluster, collection)
+        GsdBuilder.__init__(self, ingest_document, cluster, collection)
         self.cluster = cluster
         self.stations = []
+        self.same_time_rows = []
+        self.time = 0
+        self.interpolated_time = 0
+        self.delta = ingest_document['delta']
+        self.cadence = ingest_document['cadence']
         # noinspection PyBroadException
         try:
             # Retrieve the required station data
@@ -436,7 +278,44 @@ class GsdObsBuilderV04(GsdBuilder):
             
         except:
             logging.error("GsdStationsBuilderV01: error getting stations, " + str(sys.exc_info()))
-    
+
+    def interpolate_time(self, a_time):
+        _remainder_time = a_time % self.cadence
+        _cadence_time = a_time / self.cadence * self.cadence
+        if _remainder_time < self.delta:
+            _t = a_time - _remainder_time
+        else:
+            _t = a_time - _remainder_time + self.cadence
+        return _t
+
+    def handle_row(self, row):
+        """
+        This is the entry point from the IngestManager.
+        This method is responsible to collate rows into a set that is to be given to the handle_document.
+        Rows are collated according to interpolated time. Each set of rows that have the same interpolated time
+        are passed to the handle_document to be processed into a single document.
+        :param row: A result set row
+        :return:
+        """
+        self.interpolated_time = self.interpolate_time(int(row['time']))
+        if self.time == 0:
+            self.time = self.interpolated_time
+        if self.interpolated_time != self.time:
+            # we have a new interpolated time so build a document
+            self.handle_document(self.interpolated_time, self.same_time_rows)
+            self.time = 0
+            self.same_time_rows = []
+        self.same_time_rows.append(row)
+
+    def get_document_map(self):
+        """
+        In case there are leftovers we have to process them first.
+        :return: the document_map
+        """
+        if len(self.same_time_rows) != 0:
+            self.handle_document(self.interpolated_time, self.same_time_rows)
+        return self.document_map
+
     def get_name(self, params_dict):
         """
          This method uses the lat and lon that are in the params_dict
@@ -461,7 +340,6 @@ class GsdObsBuilderV04(GsdBuilder):
         return None
     
     def load_data(self, doc, key, element):
-
         """
         This method appends an observation to the data array
         :param doc: The document being created
@@ -476,19 +354,22 @@ class GsdObsBuilderV04(GsdBuilder):
 
 
 class GsdModelBuilderV04(GsdBuilder):
-    def __init__(self, template, cluster, collection):
+    def __init__(self, ingest_document, cluster, collection):
         """
-        This builder creates a set of V03 model documents using the V03 station documents.
+        This builder creates a set of V03 model documents using the V01 station documents
         This builder is very much like the GsdObsBuilderV04 except that it builds model documents.
         In each document the specific model data is an array of objects each of which is the model data
         for a specific station. The particular model name is supplied in the template.
-        :param template: the document template from the ingest document
+        :param ingest_document: the document from the ingest document like MD:V04:METAR:HRRR:ingest
         :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
         :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
         """
-        GsdBuilder.__init__(self, template, cluster, collection)
+        GsdBuilder.__init__(self, ingest_document, cluster, collection)
         self.cluster = cluster
         self.stations = []
+        self.same_time_rows = []
+        self.time = 0
+        self.fcst_len = 0
         # noinspection PyBroadException
         try:
             # Retrieve the required station data
@@ -497,12 +378,37 @@ class GsdModelBuilderV04(GsdBuilder):
             row_iter = cluster.query(n1ql_query, QueryOptions(read_only=True))
             for _station in row_iter:
                 self.stations.append(_station)
-        
         except:
             logging.error("GsdStationsBuilderV01: error getting stations, " + str(sys.exc_info()))
     
+    def get_document_map(self):
+        """
+        In case there are leftovers we have to process them first.
+        :return: the document_map
+        """
+        if len(self.same_time_rows) != 0:
+            self.handle_document(self.time, self.same_time_rows)
+        return self.document_map
+
+    def handle_row(self, row):
+        """
+        This is the entry point from the IngestManager.
+        This method is responsible to collate rows into a set that is to be given to the handle_document.
+        Rows are collated according to interpolated time and fcst_len. Each set of rows that have the same interpolated
+        time and fcst_len are passed to the handle_document to be processed into a single document.
+        :param row: A result set row
+        :return:
+        """
+        if self.time == 0:
+            self.time = int(row['time'])
+            self.fcst_len = int(row['fcst_len'])
+        if int(row['time']) != self.time or int(row['fcst_len']) != self.fcst_len:
+            self.handle_document(self.time, self.same_time_rows)
+            self.time = 0
+            self.same_time_rows = []
+        self.same_time_rows.append(row)
+
     def load_data(self, doc, key, element):
-        
         """
         This method appends an observation to the data array
         :param doc: The document being created
@@ -517,63 +423,34 @@ class GsdModelBuilderV04(GsdBuilder):
 
 
 class GsdStationsBuilderV01(GsdBuilder):
-    def __init__(self, template, cluster, collection):
-        """
-        This builder creates a single document of stations with the stations being top level
-        objects keyed by the station name which is an ICAO like 'CWDP'.
-        :type template: object - This is the template from "MD:V01:METAR:stations"
-        :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
-        :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
-        """
-        GsdBuilder.__init__(self, template, cluster, collection)
-    
-    def load_data(self, doc, key, element):
-        """
-        This method sets the element for a specific data row as a top level object in the
-        document.
-        :param doc: object - this is the main document that is being created
-        :param key: The key that this element will be indexed by
-        :param element: an object that has been translated from a data row
-        """
-        doc[key] = element
-        return doc
-
-
-class GsdStationsBuilderV02(GsdBuilder):
-    def __init__(self, template, cluster, collection):
-        """
-        This builder creates a single document of stations with the stations being
-        object elements of the data array.
-        :type template: object - This is the template from "MD:V02:METAR:stations"
-        :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
-        :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
-        """
-        GsdBuilder.__init__(self, template, cluster, collection)
-    
-    def load_data(self, doc, key, element):
-        """
-        This method sets the element for a specific data row as an object element in the
-        document['data'] array.
-        :param element: an object that has been translated from a data row
-        :param key: The key that this element will be indexed by
-        :type doc: object - this is the main document that is being created
-        """
-        if 'data' not in doc.keys() or doc['data'] is None:
-            doc['data'] = []
-        doc['data'].append(element)
-        return doc
-
-
-class GsdStationsBuilderV03(GsdBuilder):
-    def __init__(self, template, cluster, collection):
+    def __init__(self, ingest_document, cluster, collection):
         """
         This builder creates multiple documents one per station with the id being
         MD:V03:METAR:stations:*name where the variable part of the id
         is the the station name which, is an ICAO, like CWDP. So an ID
         might be "MD:V03:METAR:stations:CWDP". The lat, lon, and elevation are
         encoded into a "geo" element such that we can create a geojson search index over the data.
-        :type template: object - This is the template from "MD:V03:METAR:stations"
+        :type ingest_document: object - This is the ingest document from "MD:V01:METAR:stations:ingest"
         :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
         :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
         """
-        GsdBuilder.__init__(self, template, cluster, collection)
+        GsdBuilder.__init__(self, ingest_document, cluster, collection)
+        self.same_time_rows = []
+    
+    def get_document_map(self):
+        """
+        singleDocument builders (each row becomes a document) never have leftovers
+        :return:  the document_map
+        """
+        return self.document_map
+
+    def handle_row(self, row):
+        """
+        This is the entry point from the IngestManager.
+        This method is responsible to collate rows into a set that is to be given to the handle_document.
+        With the stationBuilder each row becomes a document so each row  passed to the handle_document to be processed
+        into a single document.
+        :param row: A result set row
+        :return:
+        """
+        GsdBuilder.handle_document(self, 0, [row])

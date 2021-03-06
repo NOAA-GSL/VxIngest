@@ -41,9 +41,8 @@ concrete builder to process the line.
 
 The builders are instantiated once and kept in a map of objects for the
 duration of the programs life.
-When GsdIngestManager finishes a document specification  it converts the
-data in the document_map into a document and "upserts" it to the couchbase
-database.
+When GsdIngestManager finishes a document specification  it  "upserts"
+document_map to the couchbase database.
 
         Attributes:
             document_id_queue - a document_id_queue of filenames that are
@@ -72,16 +71,6 @@ from pymysql.constants import CLIENT
 from gsd_sql_to_cb import gsd_builder as gsd_builder
 
 SQL_PORT = 3306
-
-
-def interpolate_time(cadence, delta, a_time):
-    _remainder_time = a_time % cadence
-    _cadence_time = a_time / cadence * cadence
-    if _remainder_time < delta:
-        _t = a_time - _remainder_time
-    else:
-        _t = a_time - _remainder_time + cadence
-    return _t
 
 
 class GsdIngestManager(Process):
@@ -131,9 +120,8 @@ class GsdIngestManager(Process):
         # made this an instance variable because I don't know how to pass it
         # into the run method
         self.queue = document_id_queue
-        
-        self.builder_map = {}
         self.document_map = {}
+        self.builder_map = {}
         self.database_name = ""
         self.cluster = None
         self.collection = None
@@ -240,23 +228,18 @@ class GsdIngestManager(Process):
     
     def process_meta_ingest_document(self, document_id):
         _start_process_time = int(time.time())
-        self.document_map = {}
         _document_id = document_id
         # get the document from couchbase
+        # noinspection PyBroadException
         try:
             ingest_document_result = self.collection.get(_document_id)
-        except DocumentNotFoundException:
-            logging.warning(self.threadName + ": DocumentNotFoundException instantiating "
-                                              "builder: " + "document_id: " + _document_id)
-            raise DocumentNotFoundException('document_id: ' + _document_id)
-        except TimeoutException:
-            logging.warning(self.threadName + ": TimeoutException instantiating "
-                                              "builder: " + "document_id: " + _document_id)
-            logging.error("*** %s in connect_cb ***" + str(sys.exc_info()[0]))
-            raise TimeoutException('document_id: ' + _document_id)
-        _ingest_document = ingest_document_result.content
-        _template = _ingest_document['template']
-        _ingest_type_builder_name = _ingest_document['builder_type']
+            _ingest_document = ingest_document_result.content
+            _ingest_type_builder_name = _ingest_document['builder_type']
+        except:
+            e = sys.exc_info()[0]
+            logging.error(self.threadName + ".process_meta_ingest_document: Exception getting ingest document: "
+                          + str(e))
+            sys.exit("*** Error getting ingest document ***")
         # get or instantiate the builder
         # noinspection PyBroadException
         try:
@@ -264,17 +247,19 @@ class GsdIngestManager(Process):
                 builder = self.builder_map[_ingest_type_builder_name]
             else:
                 builder_class = getattr(gsd_builder, _ingest_type_builder_name)
-                builder = builder_class(_template, self.cluster, self.collection)
+                builder = builder_class(_ingest_document, self.cluster, self.collection)
                 self.builder_map[_ingest_type_builder_name] = builder
+        except:
+            logging.error(self.threadName + ": Exception instantiating builder: " +
+                          str(_ingest_type_builder_name) + " error: " + str(sys.exc_info()))
+
+        # noinspection PyBroadException
+        try:
             # process the document
             _statement = _ingest_document['statement']
             # replace any statement params - replacement params are like {param}=replacement
             for _k in self.statement_replacement_params.keys():
                 _statement = _statement.replace(_k, str(self.statement_replacement_params[_k]))
-            # print(json.dumps(ingest_document))
-            _document_template = _ingest_document['template']
-            logging.info("GsdMetarObsBuilder: building with "
-                         "template: " + json.dumps(_document_template, indent=2))
             _statements = _statement.split(';')
             for s in _statements:
                 if s.strip().upper().startswith('SET'):
@@ -288,90 +273,49 @@ class GsdIngestManager(Process):
             _query_stop_time = int(time.time())
             logging.info("executing query: stop time: " + str(_query_stop_time))
             logging.info("executing query: elapsed seconds: " + str(_query_stop_time - _query_start_time))
-            # iterate the result set
-            _same_time_rows = []
-            _time = 0
-            _interpolated_time = 0
-            _delta = 0
-            _cadence = 0
-            _requires_time_interpolation = False
-            """
-            Note about interpolated time:
-            Some ingest metadata will require time interpolation.
-            If there is a keyword 'requires_time_interpolation' in the template
-            and if it is set to 'True' then the time field will be interpolated.
-            """
-            if 'requires_time_interpolation' in _ingest_document.keys() and \
-                    _ingest_document['requires_time_interpolation'] is True:
-                _requires_time_interpolation = True
-                _delta = int(_ingest_document['delta'])
-                _cadence = int(_ingest_document['cadence'])
+        except:
+            logging.error(self.threadName + ": Exception processing the statement: " + str(
+                _ingest_type_builder_name) + " error: " + str(sys.exc_info()))
+        # noinspection PyBroadException
+        try:
             while True:
                 row = self.cursor.fetchone()
                 if not row:
                     break
-                # handle singular documents that are not time based.
-                if "singularData" in _ingest_document.keys() and _ingest_document["singularData"] is True:
-                    self.document_map = builder.handle_document(_interpolated_time, [row], self.document_map)
-                    continue
-                
-                if _requires_time_interpolation:
-                    _interpolated_time = interpolate_time(_cadence, _delta, int(row['time']))
-                else:
-                    if 'time' in row.keys():
-                        _interpolated_time = int(row['time'])
-                
-                if _time == 0:
-                    _time = _interpolated_time
-                if _interpolated_time != _time:
-                    self.document_map = builder.handle_document(_interpolated_time, _same_time_rows, self.document_map)
-                    _time = 0
-                    _time = _interpolated_time
-                    _same_time_rows = []
-                else:
-                    _same_time_rows.append(row)
-            # handle left overs
-            if len(_same_time_rows) != 0:
-                self.document_map = builder.handle_document(_interpolated_time, _same_time_rows, self.document_map)
-        
+                builder.handle_row(row)
+            # The document_map could potentially have a lot of documents in it
+            # depending on how the builder collated the rows into documents
+            # i.e. by time like for obs, or by time and fcst_len like for models,
+            # or all in one like for stations
+            self.document_map = builder.getDocumentMap()
         except:
             e = sys.exc_info()[0]
-            logging.error(self.threadName + ": Exception instantiating builder: " + str(
-                _ingest_type_builder_name) + " error: " + str(e))
-        # all the lines are now processed for this file so write all the
+            logging.error(self.threadName + ": Exception with builder handle_row: " +
+                          str(_ingest_type_builder_name) + " error: " + str(e))
+        # all the lines are now processed for this result set so write all the
         # documents in the document_map
         # noinspection PyBroadException
         try:
             logging.info(self.threadName + ': data_type_manager writing documents for '
                                            'ingest_document :  ' + str(_document_id) + "threadName: " + self.threadName)
-            
-            # noinspection PyBroadException
-            try:
-                # this call is volatile i.e. it might change syntax in
-                # the future.
-                # if it does, please just fix it.
-                _upsert_start_time = int(time.time())
-                logging.info("executing upsert: stop time: " + str(_upsert_start_time))
-                _ret = self.collection.upsert_multi(self.document_map)
-                _upsert_stop_time = int(time.time())
-                logging.info("executing upsert: stop time: " + str(_upsert_stop_time))
-                logging.info("executing upsert: elapsed time: " + str(_upsert_stop_time - _upsert_start_time))
-                logging.info(self.threadName + ': data_type_manager wrote ' + str(
-                    _ret.all_ok) + ' document[s] for ingest_document :  ' + str(
-                    _document_id) + "threadName: " + self.threadName)
-            except:
-                e = sys.exc_info()
-                logging.error(self.threadName + ": *** %s Error multi-upsert to "
-                                                "Couchbase: in data_type_manager "
-                                                "*** " + str(e))
-            self.document_map = {}
+            # this call is volatile i.e. it might change syntax in
+            # the future.
+            # if it does, please just fix it.
+            _upsert_start_time = int(time.time())
+            logging.info("executing upsert: stop time: " + str(_upsert_start_time))
+            _ret = self.collection.upsert_multi(self.document_map)
+            _upsert_stop_time = int(time.time())
+            logging.info("executing upsert: stop time: " + str(_upsert_stop_time))
+            logging.info("executing upsert: elapsed time: " + str(_upsert_stop_time - _upsert_start_time))
+            logging.info(self.threadName + ': data_type_manager wrote ' + str(
+                _ret.all_ok) + ' document[s] for ingest_document :  ' + str(
+                _document_id) + "threadName: " + self.threadName)
         except:
             e = sys.exc_info()
             logging.error(self.threadName + ": *** %s Error writing to Couchbase: in "
                                             "data_type_manager writing document ***" + str(e))
         finally:
             # reset the document map
-            self.document_map = {}
             _stop_process_time = int(time.time())
             logging.info("GsdIngestManager.process_meta_ingest_document: "
                          "elapsed time: " + str(_stop_process_time - _start_process_time))

@@ -287,7 +287,7 @@ class GsdIngestManager(Process):
             # depending on how the builder collated the rows into documents
             # i.e. by time like for obs, or by time and fcst_len like for models,
             # or all in one like for stations
-            self.document_map = builder.getDocumentMap()
+            self.document_map = builder.get_document_map()
         except:
             e = sys.exc_info()[0]
             logging.error(self.threadName + ": Exception with builder handle_row: " +

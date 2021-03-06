@@ -353,7 +353,7 @@ class GsdObsBuilderV01(GsdBuilder):
         return doc
 
 
-class GsdModelBuilderV04(GsdBuilder):
+class GsdModelBuilderV01(GsdBuilder):
     def __init__(self, ingest_document, cluster, collection):
         """
         This builder creates a set of V03 model documents using the V01 station documents

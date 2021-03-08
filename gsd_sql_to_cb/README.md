@@ -104,24 +104,24 @@ replacement fields, but you could have a replacement field like "\*field1\*field
 which would result in the values represented by field1 and field2 being
 concatenated together in the result.
 
-The ingest document "MD:V03:METAR:stations:ingest "
+The ingest document "MD:V01:METAR:stations:ingest "
 ```
 {
   "type": "MD",
   "docType": "ingest",
   "subset": "METAR",
-  "version": "V03",
-  "builder_type": "GsdStationsBuilderV03",
+  "version": "V01",
+  "builder_type": "GsdStationsBuilderV01",
   "singularData": true,
   "statement": "select UNIX_TIMESTAMP() as updateTime, m.name, m.madis_id, m.lat, m.lon, m.elev, s.disc as description, s.first, s.last, l.last_time from madis3.metars_mats_global as m, madis3.stations as s, madis3.locations as l where 1=1 and m.name = s.name and m.lat = l.lat and m.lon = l.lon and m.elev = l.elev;",
   "template": {
-    "id": "DD:V03:METAR:station:*name",
+    "id": "DD:V01:METAR:station:*name",
     "type": "DD",
     "docType": "station",
     "subset": "METAR",
     "dataFileId": "DF_id",
     "dataSourceId": "DS_id",
-    "version": "V03",
+    "version": "V01",
     "updateTime": "*updateTime",
     "description": "*description",
     "firstTime": "*first",
@@ -139,7 +139,7 @@ The ingest document "MD:V03:METAR:stations:ingest "
 }
 ```
 
-The ingest document defines a builder type GsdStationsBuilderV03 which will create 
+The ingest document defines a builder type GsdStationsBuilderV01 which will create 
 a metadata document that has all of the stations contained in a data list.
 
 ####field substitution by function in the template
@@ -163,7 +163,7 @@ lat value from the current data set.
 Substitutions can be for keys or values in the template, in top level documents or in sub documents.
 ## Structure of templates
 Templates are given document identifiers like
-```MD:V03:METAR:stations:ingest```
+```MD:V01:METAR:stations:ingest```
 This identifier is constrained to match specific fields within the 
 document. "type:version:subset:product:docType
 
@@ -172,7 +172,7 @@ and MUST contain these keywords...
   "type": "MD",  - required to be 'MD'
   "docType": "ingest",  - required to be 'ingest'
   "subset": "METAR",  - required set to whatever is appropriate
-  "version": "V03",  - the version of the template
+  "version": "V01",  - the version of the template
   "product": "stations"
   "builder_type": "some builder class",
   "singularData": true,   - true if only one document is to be produced
@@ -182,7 +182,7 @@ and MUST contain these keywords...
 Ingest documents can be backed up with a utility in the scripts/VX_ingest_utilities
 directory... save_ingest_docs_to_csv.sh
 This utility requires a backup directory which is nominally
-VXingest/gsd_sql_to_cb/ingest_backup. The utility will backup all the currently defined ingest documents
+VXingest/gsd_sql_to_cb/ingest_backup, and a server name. The utility will backup all the currently defined ingest documents
 based on the id pattern "MD.*:ingest".
 #####Alternatively for personal backups:
 you can use the document export and import utility on the couchbase UI.
@@ -320,7 +320,7 @@ That means, for our case, that you must have
 WHERE type="DD"
 and docType = "station"
 and subset = "METAR"
-and version = "V03"
+and version = "V01"
 ```
 in each of your N1QL queries.
  
@@ -367,7 +367,7 @@ from mdata as station
 WHERE type="DD"
 and docType = "station"
 and subset = "METAR"
-and version = "V03"
+and version = "V01"
 and SEARCH(station,
 {
 "location": {"lat": -9.4286, "lon": 147.2198},
@@ -383,7 +383,7 @@ from mdata as station
 WHERE type="DD"
 and docType = "station"
 and subset = "METAR"
-and version = "V03"
+and version = "V01"
 and SEARCH(station.name,"KDEN")
 ```
 This is another way to do the above query.
@@ -393,7 +393,7 @@ from mdata as station
 WHERE type="DD"
 and docType = "station"
 and subset = "METAR"
-and version = "V03"
+and version = "V01"
 and SEARCH(station,{"field":"name", "match": "kden"})
 ```
 This is a N1QL search by partial description, using a regular expression
@@ -404,7 +404,7 @@ from mdata as station
 WHERE type="DD"
 and docType = "station"
 and subset = "METAR"
-and version = "V03"
+and version = "V01"
 and SEARCH(station,{"field":"description", "regexp": "denver.*"})
 ```
 ##Useful curl queries

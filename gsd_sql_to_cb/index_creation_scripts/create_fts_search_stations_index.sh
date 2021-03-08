@@ -3,8 +3,6 @@ if [ $# -ne 1 ]; then
   echo "Usage $0 server"
   exit 1
 fi
-#server="adb-cb4.gsd.esrl.noaa.gov"
-#server="localhost"
 
 curl -XPUT -H "Content-Type: application/json" \
 -u <username>:<password> http://adb-cb4.gsd.esrl.noaa.gov:8094/api/index/station_geo -d \

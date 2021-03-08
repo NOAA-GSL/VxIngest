@@ -64,7 +64,7 @@ from gsd_sql_to_cb.load_spec_yaml import LoadYamlSpecFile
 def parse_args(args):
     begin_time = str(datetime.now())
     logging.basicConfig(level=logging.INFO)
-    logging.info("--- *** --- Start METdbLoad --- *** ---")
+    logging.info("--- *** --- Start --- *** ---")
     logging.info("Begin a_time: %s" + begin_time)
     # a_time execution
     parser = argparse.ArgumentParser()
@@ -192,7 +192,7 @@ class VXIngestGSD(object):
         load_time = timedelta(seconds=load_time_end - self.load_time_start)
         logging.info("    >>> Total load a_time: %s" + str(load_time))
         logging.info("End a_time: %s" + str(datetime.now()))
-        logging.info("--- *** --- End METdbLoad --- *** ---")
+        logging.info("--- *** --- End  --- *** ---")
     
     def main(self):
         args = parse_args(sys.argv[1:])

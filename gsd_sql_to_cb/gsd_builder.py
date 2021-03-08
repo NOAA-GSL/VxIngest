@@ -210,7 +210,7 @@ class GsdBuilder:
             _data_key = getattr(self, _func)(_dict_params)
             if _data_key is None:
                 logging.warning(
-                    "GsdBuilder: Using " + _func + " - could not find station for " + row['name'] + str(_dict_params))
+                    "GsdBuilder: Using " + _func + " - None returned for " + str(_dict_params))
                 _data_key = row['name'] + "0"
                 return _data_key
         except:
@@ -236,7 +236,7 @@ class GsdBuilder:
             else:
                 _data_key = self.translate_template_item(_data_key, row, interpolated_time)
             if _data_key is None:
-                logging.warning("GsdBuilder: Using template - could not find station for " + row['name'])
+                logging.warning("GsdBuilder.handle_data - _data_key is None")
             doc = self.load_data(doc, _data_key, _data_elem)
             return doc
         
@@ -270,12 +270,10 @@ class GsdObsBuilderV01(GsdBuilder):
         # noinspection PyBroadException
         try:
             # Retrieve the required station data
-            n1ql_query = 'SELECT raw {mdata.name, mdata.geo.lat, mdata.geo.lon} FROM mdata ' \
-                        'WHERE type="DD" AND docType="station" AND subset="METAR" AND version ="V03"'
+            n1ql_query = ingest_document['station_query']
             row_iter = cluster.query(n1ql_query, QueryOptions(read_only=True))
             for _station in row_iter:
                 self.stations.append(_station)
-            
         except:
             logging.error("GsdStationsBuilderV01: error getting stations, " + str(sys.exc_info()))
 
@@ -334,9 +332,9 @@ class GsdObsBuilderV01(GsdBuilder):
                     return elem['name']
         except:
             e = sys.exc_info()
-            logging.error("GsdObsBuilderV02.get_name: Exception finding station to match lat and lon  error: " + str(
-                e) + " params: " + str(params_dict))
-        logging.info("station not found for lat: " + str(_lat) + " and lon " + str(_lon))
+            logging.error("GsdObsBuilderV02.get_name: Exception finding station to match lat and lon  error: " +
+                          str(e) + " params: " + str(params_dict))
+        logging.error("GsdObsBuilderV02.get_name: No station found to match lat and lon for " + str(params_dict))
         return None
     
     def load_data(self, doc, key, element):

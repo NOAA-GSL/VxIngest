@@ -34,5 +34,15 @@ while [ $end -lt $stop ]; do
 
 	echo "time python3 run_gsd_ingest_threads.py  -s ${HOME}/VxIngest/test/load_spec_gsd-hrrr-v01.yaml -c ${credentials} -f $start -l $end"
 	time python3 run_gsd_ingest_threads.py  -s ${HOME}/VxIngest/test/load_spec_gsd-hrrr-v01.yaml -c ${credentials} -f $start -l $end
+
+	echo "time python3 run_gsd_ingest_threads.py  -s ${HOME}/VxIngest/test/load_spec_gsd-hrrr_ops-v01.yaml -c ${credentials} -f $start -l $end"
+	time python3 run_gsd_ingest_threads.py  -s ${HOME}/VxIngest/test/load_spec_gsd-hrrr_ops-v01.yaml -c ${credentials} -f $start -l $end
+
+	echo "time python3 run_gsd_ingest_threads.py  -s ${HOME}/VxIngest/test/load_spec_gsd-rap_ops-v01.yaml -c ${credentials} -f $start -l $end"
+	time python3 run_gsd_ingest_threads.py  -s ${HOME}/VxIngest/test/load_spec_gsd-rap_ops-v01.yaml -c ${credentials} -f $start -l $end
+
+	echo "time python3 run_gsd_ingest_threads.py  -s ${HOME}/VxIngest/test/load_spec_gsd-rrfs_dev1-v01.yaml -c ${credentials} -f $start -l $end"
+	time python3 run_gsd_ingest_threads.py  -s ${HOME}/VxIngest/test/load_spec_gsd-rrfs_dev1-v01.yaml -c ${credentials} -f $start -l $end
+
 done
 

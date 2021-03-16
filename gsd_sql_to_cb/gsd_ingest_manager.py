@@ -229,6 +229,7 @@ class GsdIngestManager(Process):
     def process_meta_ingest_document(self, document_id):
         _start_process_time = int(time.time())
         _document_id = document_id
+        builder = None
         # get the document from couchbase
         # noinspection PyBroadException
         try:
@@ -253,6 +254,8 @@ class GsdIngestManager(Process):
             logging.error(self.threadName + ": Exception instantiating builder: " +
                           str(_ingest_type_builder_name) + " error: " + str(sys.exc_info()))
 
+        # noinspection PyBroadException
+        _statement = ""
         # noinspection PyBroadException
         try:
             # process the document
@@ -296,24 +299,30 @@ class GsdIngestManager(Process):
         # documents in the document_map
         # noinspection PyBroadException
         try:
-            logging.info(self.threadName + ': data_type_manager writing documents for '
+            logging.info(self.threadName + ': process_meta_ingest_document writing documents for '
                                            'ingest_document :  ' + str(_document_id) + "threadName: " + self.threadName)
             # this call is volatile i.e. it might change syntax in
             # the future.
             # if it does, please just fix it.
             _upsert_start_time = int(time.time())
-            logging.info("executing upsert: stop time: " + str(_upsert_start_time))
-            _ret = self.collection.upsert_multi(self.document_map)
+            logging.info("process_meta_ingest_document - executing upsert: stop time: " + str(_upsert_start_time))
+            if not self.document_map:
+                logging.info(self.threadName +
+                             ": process_meta_ingest_document - would upsert documents but DOCUMENT_MAP IS EMPTY for "
+                             "statement:" + _statement)
+            else:
+                _ret = self.collection.upsert_multi(self.document_map)
+                logging.info(self.threadName + ': process_meta_ingest_document wrote ' +
+                             str(_ret.all_ok) + ' document[s] for ingest_document :  ' +
+                             str(_document_id) + "threadName: " + self.threadName)
             _upsert_stop_time = int(time.time())
-            logging.info("executing upsert: stop time: " + str(_upsert_stop_time))
-            logging.info("executing upsert: elapsed time: " + str(_upsert_stop_time - _upsert_start_time))
-            logging.info(self.threadName + ': data_type_manager wrote ' + str(
-                _ret.all_ok) + ' document[s] for ingest_document :  ' + str(
-                _document_id) + "threadName: " + self.threadName)
+            logging.info("process_meta_ingest_document - executing upsert: stop time: " + str(_upsert_stop_time))
+            logging.info("process_meta_ingest_document - executing upsert: elapsed time: " +
+                         str(_upsert_stop_time - _upsert_start_time))
         except:
             e = sys.exc_info()
             logging.error(self.threadName + ": *** %s Error writing to Couchbase: in "
-                                            "data_type_manager writing document ***" + str(e))
+                                            "process_meta_ingest_document writing document ***" + str(e))
         finally:
             # reset the document map
             _stop_process_time = int(time.time())

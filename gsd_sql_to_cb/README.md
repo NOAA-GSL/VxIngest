@@ -239,7 +239,7 @@ The json documents must be in the form of a json list and each document must
 have an 'id' field with a unique value. The 'id' value should reflect the identifiers in our data model.
 #### Example restore ingest with cbimports
 ```
-cbimport json --cluster couchbase://adb-cb4.gsd.esrl.noaa.gov --bucket mdata --username gsd --password 'gsd_pwd_av!d' --format list --generate-key %id% --dataset file:///${HOME}/VXingest/gsd_sql_to_cb/ingest_backup/ingest-20210313:083606
+cbimport json --cluster couchbase://adb-cb4.gsd.esrl.noaa.gov --bucket mdata --username gsd --password 'getapassword' --format list --generate-key %id% --dataset file:///${HOME}/VXingest/gsd_sql_to_cb/ingest_backup/ingest-20210313:083606
 ```
 #### Restore other metadata with cbimports
 Refer to the VXingest/gsd_sql_to_cb/metadata_files/regions.json for

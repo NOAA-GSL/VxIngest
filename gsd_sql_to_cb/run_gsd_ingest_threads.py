@@ -81,7 +81,6 @@ def parse_args(args):
                         help="The last epoch to use, exclusive")
     # get the command line arguments
     args = parser.parse_args(args)
-    
     return args
 
 

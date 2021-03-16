@@ -184,7 +184,12 @@ directory... save_ingest_docs_to_csv.sh
 This utility requires a backup directory which is nominally
 VXingest/gsd_sql_to_cb/ingest_backup, and a server name. The utility will backup all the currently defined ingest documents
 based on the id pattern "MD.*:ingest".
-#####Alternatively for personal backups:
+
+##### Example
+```
+${HOME}/VXingest/scripts/VXingest_utilities/save_ingest_docs_to_csv.sh ${HOME}/VXingest/gsd_sql_to_cb/ingest_backup adb-cb1.gsd.esrl.noaa.gov
+```
+##### Alternatively for personal backups:
 you can use the document export and import utility on the couchbase UI IF THE COUCHBASE
 SERVER VERSION IS GREATER THAN 6.5.
 
@@ -232,13 +237,17 @@ Your ingest documents should now be available.
 If the version is less than 6.6 or you want to script loading jason documents you can use the cbimports utility.
 The json documents must be in the form of a json list and each document must
 have an 'id' field with a unique value. The 'id' value should reflect the identifiers in our data model.
-Refer to the VXingest/gsd_sql_to_cb/metadata_files/regions.json for
-an example of a multi-document file. The cbimport command for importing these region definitions
-into a server would look like this for the server adb-cb4.gsd.esrl.noaa.gov
-The password has been obscured and the PATHTOFILE needs to match where you
-cloned this repo....
+#### Example restore ingest with cbimports
 ```
-cbimport json --cluster couchbase://adb-cb4.gsd.esrl.noaa.gov --bucket mdata --username gsd --password 'getyourselfapassword' --format list --generate-key key::%id% --dataset file:///PATHTO/VXingest/gsd_sql_to_cb/metadata_files/regions.json
+cbimport json --cluster couchbase://adb-cb4.gsd.esrl.noaa.gov --bucket mdata --username gsd --password 'gsd_pwd_av!d' --format list --generate-key %id% --dataset file:///${HOME}/VXingest/gsd_sql_to_cb/ingest_backup/ingest-20210313:083606
+```
+#### Restore other metadata with cbimports
+Refer to the VXingest/gsd_sql_to_cb/metadata_files/regions.json for
+an example of a multi-document metadata file. The cbimport command for importing these region definitions
+into a server would look like this for the server adb-cb4.gsd.esrl.noaa.gov
+The password has been obscured and the example assumes that you cloned this repo into ${HOME}....
+```
+cbimport json --cluster couchbase://adb-cb4.gsd.esrl.noaa.gov --bucket mdata --username gsd --password 'getyourselfapassword' --format list --generate-key %id% --dataset file:///${HOME}/VXingest/gsd_sql_to_cb/metadata_files/regions.json
 ```
 For more information on cbimport see [cbimport](https://docs.couchbase.com/server/current/tools/cbimport-json.html)
 ## Credentials files

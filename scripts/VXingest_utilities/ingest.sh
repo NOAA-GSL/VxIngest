@@ -43,10 +43,6 @@ function DO_MODEL() {
       "select min(time) from ${visibilityTableName};" \
       | sort -n | tail -1)
   fi
-  gsd_start=$(mysql -u${m_user} -p${m_password} -h${m_host} -B -N -e "select min(time) from ${madisTableName}; " \
-    "select min(time) from ${ceilingTableName}; " \
-    "select min(time) from ${visibilityTableName};" \
-    | sort -n | tail -1)
   # find the max time in the couchbase
   echo "curl -s -u ${cred} http://${cb_host}:8093/query/service -d \"statement=select max(mdata.fcstValidEpoch) as max_fcstValidEpoch from mdata WHERE type=\"DD\" and docType = \"${docType}\" and subset = \"METAR\" and version = \"V01\"\""
   cb_start=$(curl -s -u ${cred} http://${cb_host}:8093/query/service \

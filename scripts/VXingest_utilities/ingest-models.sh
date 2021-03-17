@@ -19,7 +19,7 @@ DO_CREDENTIALS "$credentials"
 
 # Do all the models using DO_MODEL
 #HRRR
-DO_MODEL "${HOME}/VxIngest/test/load_spec_gsd-hrrr-v01.yaml" "madis3.HRRR" "ceiling2.HRRR" "visibility.HRRR" "HRRR"
+DO_MODEL "${HOME}/VxIngest/test/load_spec_gsd-hrrr-v01.yaml" "madis3.HRRRqp" "ceiling2.HRRR" "visibility.HRRR" "HRRR"
 
 #HRRR_OPS
 DO_MODEL "${HOME}/VxIngest/test/load_spec_gsd-hrrr_ops-v01.yaml" "madis3.HRRR_OPSqp" "ceiling2.HRRR_OPS" "visibility.HRRR_OPS" "HRRR_OPS"

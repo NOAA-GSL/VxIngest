@@ -13,7 +13,7 @@ fi
   credentials=$1
 
 # source the functions file
-. ${HOME}/VXingest/scripts/VXingest_utilities/ingest_functions.sh
+. ${HOME}/VxIngest/scripts/VXingest_utilities/ingest_functions.sh
 
 DO_CREDENTIALS "$credentials"
 

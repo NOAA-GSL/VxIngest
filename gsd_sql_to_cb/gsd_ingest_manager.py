@@ -73,15 +73,11 @@ from gsd_sql_to_cb import gsd_builder as gsd_builder
 SQL_PORT = 3306
 
 
-class GsdIngestManager(Process):
+class GsdIngestManagerParent(Process):
     """
     GsdIngestManager is a Thread that manages an object pool of
     GsdBuilders to ingest data from GSD databases into documents that can be
     inserted into couchbase.
-    
-    This class receives connection credentials for couchbase and for mysql.
-    It uses the credentials to open connections to both database systems. These
-    connections are maintained by this thread.
     
     This class will process data by collecting ingest_document_ids - one at a
     a_time - from the document_id_queue. For each ingest_document_id it
@@ -104,29 +100,23 @@ class GsdIngestManager(Process):
     and dies.
     """
     
-    def __init__(self, name, cb_credentials, mysql_credentials, document_id_queue, statement_replacement_params):
+    def __init__(self, name, cb_credentials, document_id_queue, statement_replacement_params):
         """
         :param name: (str) the thread name for this IngestManager
         :param cb_credentials: (Object) Couchbase credentials
-        :param mysql_credentials: (Object) mysql credentials
         :param document_id_queue: (Object) reference to a queue
         """
         # The Constructor for the RunCB class.
         Process.__init__(self)
         self.threadName = name
         self.cb_credentials = cb_credentials
-        self.mysql_credentials = mysql_credentials
         self.statement_replacement_params = statement_replacement_params
         # made this an instance variable because I don't know how to pass it
         # into the run method
         self.queue = document_id_queue
-        self.document_map = {}
         self.builder_map = {}
-        self.database_name = ""
         self.cluster = None
         self.collection = None
-        self.connection = None
-        self.cursor = None
     
     # entry point of the thread. Is invoked automatically when the thread is
     # started.
@@ -144,7 +134,6 @@ class GsdIngestManager(Process):
             # establish connections to mysql and cb, collection, connection,
             # and cursor are contained in self
             self.connect_cb()
-            self.connect_mysql()
             
             # infinite loop terminates when the document_id_queue is empty
             empty_count = 0
@@ -169,16 +158,12 @@ class GsdIngestManager(Process):
             logging.error(self.threadName + ": *** %s Error in GsdIngestManager run "
                                             "***" + str(sys.exc_info()[1]))
         finally:
-            # close any mysql connections
-            self.close_mysql()
             self.close_cb()
+            self.close()
     
-    def close_mysql(self):
-        if self.cursor:
-            self.cursor.close()
-        if self.connection:
-            self.connection.close()
-    
+    def close(self):
+        pass
+        
     def close_cb(self):
         if self.cluster:
             self.cluster.disconnect()
@@ -197,34 +182,28 @@ class GsdIngestManager(Process):
             logging.error("*** %s in connect_cb ***" + str(sys.exc_info()[0]))
             sys.exit("*** Error when connecting to mysql database: ")
     
-    def connect_mysql(self):
+    @staticmethod
+    def connect_mysql(mysql_credentials):
         # Connect to the database using connection info from XML file
         try:
-            host = self.mysql_credentials['host']
-            if 'port' in self.mysql_credentials.keys():
-                port = int(self.mysql_credentials['port'])
+            host = mysql_credentials['host']
+            if 'port' in mysql_credentials.keys():
+                port = int(mysql_credentials['port'])
             else:
                 port = SQL_PORT
-            user = self.mysql_credentials['user']
-            passwd = self.mysql_credentials['password']
+            user = mysql_credentials['user']
+            passwd = mysql_credentials['password']
             local_infile = True
-            self.connection = pymysql.connect(host=host, port=port, user=user,
-                                              passwd=passwd,
-                                              local_infile=local_infile,
-                                              autocommit=True,
-                                              charset='utf8mb4',
-                                              cursorclass=pymysql.cursors.SSDictCursor,
-                                              client_flag=CLIENT.MULTI_STATEMENTS)
+            _connection = pymysql.connect(host=host, port=port, user=user, passwd=passwd, local_infile=local_infile,
+                                          autocommit=True, charset='utf8mb4', cursorclass=pymysql.cursors.SSDictCursor,
+                                          client_flag=CLIENT.MULTI_STATEMENTS)
+            return _connection
         except pymysql.OperationalError as pop_err:
             logging.error("*** %s in connect_mysql ***" + str(pop_err))
             sys.exit("*** Error when connecting to mysql database: ")
-        try:
-            self.cursor = self.connection.cursor(pymysql.cursors.DictCursor)
-        except (RuntimeError, TypeError, NameError, KeyError, AttributeError):
-            logging.error("*** %s in run_sql ***" + str(sys.exc_info()[0]))
-            sys.exit("*** Error when creating cursor: ")
         
-        logging.info(self.threadName + ': Mysql connection success')
+    def build_document(self, _ingest_document, _ingest_type_builder_name, builder):
+        pass
     
     def process_meta_ingest_document(self, document_id):
         _start_process_time = int(time.time())
@@ -254,7 +233,70 @@ class GsdIngestManager(Process):
             logging.error(self.threadName + ": Exception instantiating builder: " +
                           str(_ingest_type_builder_name) + " error: " + str(sys.exc_info()))
 
+        _document_map = self.build_document(_ingest_document, _ingest_type_builder_name, builder)
+        # all the lines are now processed for this result set so write all the
+        # documents in the document_map
         # noinspection PyBroadException
+        try:
+            logging.info(self.threadName + ': process_meta_ingest_document writing documents for '
+                                           'ingest_document :  ' + str(_document_id) + "threadName: " + self.threadName)
+            # this call is volatile i.e. it might change syntax in
+            # the future.
+            # if it does, please just fix it.
+            _upsert_start_time = int(time.time())
+            logging.info("process_meta_ingest_document - executing upsert: stop time: " + str(_upsert_start_time))
+            if not _document_map:
+                logging.info(self.threadName +
+                             ": process_meta_ingest_document: would upsert documents but DOCUMENT_MAP IS EMPTY")
+            else:
+                _ret = self.collection.upsert_multi(_document_map)
+                logging.info(self.threadName + ': process_meta_ingest_document wrote ' +
+                             str(_ret.all_ok) + ' document[s] for ingest_document :  ' +
+                             str(_document_id) + "threadName: " + self.threadName)
+            _upsert_stop_time = int(time.time())
+            logging.info("process_meta_ingest_document - executing upsert: stop time: " + str(_upsert_stop_time))
+            logging.info("process_meta_ingest_document - executing upsert: elapsed time: " +
+                         str(_upsert_stop_time - _upsert_start_time))
+        except:
+            e = sys.exc_info()
+            logging.error(self.threadName + ": *** %s Error writing to Couchbase: in "
+                                            "process_meta_ingest_document writing document ***" + str(e))
+        finally:
+            # reset the document map
+            _stop_process_time = int(time.time())
+            logging.info("GsdIngestManager.process_meta_ingest_document: "
+                         "elapsed time: " + str(_stop_process_time - _start_process_time))
+
+
+class GsdIngestManager(GsdIngestManagerParent):
+    """
+    This class processes templates that have the GSD mysql databases as input.
+    This class receives connection credentials for couchbase and for mysql.
+    It uses the credentials to open connections to both database systems. These
+    connections are maintained by this thread.
+    """
+    def __init__(self, name, cb_credentials, mysql_credentials, document_id_queue, statement_replacement_params):
+        """
+        :param name: (str) the thread name for this IngestManager
+        :param cb_credentials: (Object) Couchbase credentials
+        :param mysql_credentials: (Object) mysql credentials
+        :param document_id_queue: (Object) reference to a queue
+        :type statement_replacement_params: object
+        """
+        GsdIngestManagerParent.__init__(self, name, cb_credentials, document_id_queue, statement_replacement_params)
+        self.mysql_credentials = mysql_credentials
+        self.connection = None
+        self.cursor = None
+        self.connection = self.connect_mysql(mysql_credentials)
+        self.cursor = self.connection.cursor(pymysql.cursors.DictCursor)
+        
+    def close(self):
+        if self.cursor:
+            self.cursor.close()
+        if self.connection:
+            self.connection.close()
+            
+    def build_document(self, _ingest_document, _ingest_type_builder_name, builder):
         _statement = ""
         # noinspection PyBroadException
         try:
@@ -290,41 +332,10 @@ class GsdIngestManager(Process):
             # depending on how the builder collated the rows into documents
             # i.e. by time like for obs, or by time and fcst_len like for models,
             # or all in one like for stations
-            self.document_map = builder.get_document_map()
+            _document_map = builder.get_document_map()
+            return _document_map
         except:
             e = sys.exc_info()[0]
             logging.error(self.threadName + ": Exception with builder handle_row: " +
                           str(_ingest_type_builder_name) + " error: " + str(e))
-        # all the lines are now processed for this result set so write all the
-        # documents in the document_map
-        # noinspection PyBroadException
-        try:
-            logging.info(self.threadName + ': process_meta_ingest_document writing documents for '
-                                           'ingest_document :  ' + str(_document_id) + "threadName: " + self.threadName)
-            # this call is volatile i.e. it might change syntax in
-            # the future.
-            # if it does, please just fix it.
-            _upsert_start_time = int(time.time())
-            logging.info("process_meta_ingest_document - executing upsert: stop time: " + str(_upsert_start_time))
-            if not self.document_map:
-                logging.info(self.threadName +
-                             ": process_meta_ingest_document - would upsert documents but DOCUMENT_MAP IS EMPTY for "
-                             "statement:" + _statement)
-            else:
-                _ret = self.collection.upsert_multi(self.document_map)
-                logging.info(self.threadName + ': process_meta_ingest_document wrote ' +
-                             str(_ret.all_ok) + ' document[s] for ingest_document :  ' +
-                             str(_document_id) + "threadName: " + self.threadName)
-            _upsert_stop_time = int(time.time())
-            logging.info("process_meta_ingest_document - executing upsert: stop time: " + str(_upsert_stop_time))
-            logging.info("process_meta_ingest_document - executing upsert: elapsed time: " +
-                         str(_upsert_stop_time - _upsert_start_time))
-        except:
-            e = sys.exc_info()
-            logging.error(self.threadName + ": *** %s Error writing to Couchbase: in "
-                                            "process_meta_ingest_document writing document ***" + str(e))
-        finally:
-            # reset the document map
-            _stop_process_time = int(time.time())
-            logging.info("GsdIngestManager.process_meta_ingest_document: "
-                         "elapsed time: " + str(_stop_process_time - _start_process_time))
+        return _statement

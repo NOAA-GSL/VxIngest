@@ -36,7 +36,8 @@ class LoadYamlSpecFile:
         self.spec_file_name = args['spec_file']
         self.connection_list = ['cb_connection', 'mysql_connection']
         self.load_spec = {'cb_connection': {'host': None, 'user': None, 'password': None, },
-            'mysql_connection': {'host': None, 'password': None, }, 'email': None, 'ingest_document_ids': []}
+                          'mysql_connection': {
+            'host': None, 'password': None, }, 'email': None, 'ingest_document_ids': []}
         self.yaml_data = {}
     
     def read(self):

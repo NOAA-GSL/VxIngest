@@ -53,6 +53,7 @@ import logging
 import sys
 import time
 import yaml
+import json
 from pathlib import Path
 from datetime import datetime
 from datetime import timedelta
@@ -109,65 +110,30 @@ class VXIngestGSD(object):
         self.statement_replacement_params = {key: val for key, val in args.items() if key.startswith('{')}
 
         #
-        #  Read the credentials
-        #
-        logging.debug("credentials filename is %s" + self.credentials_file)
-        try:
-            # check for existence of file
-            if not Path(self.credentials_file).is_file():
-                sys.exit(
-                    "*** credentials_file file " + self.credentials_file +
-                    " can not be found!")
-            _f = open(self.credentials_file)
-            _yaml_data = yaml.load(_f, yaml.SafeLoader)
-            _cb_host = _yaml_data['cb_host']
-            _cb_user = _yaml_data['cb_user']
-            _cb_password = _yaml_data['cb_password']
-            _mysql_host = _yaml_data['mysql_host']
-            _mysql_user = _yaml_data['mysql_user']
-            _mysql_password = _yaml_data['mysql_password']
-
-            _f.close()
-        except (RuntimeError, TypeError, NameError, KeyError):
-            logging.error("*** %s in read ***", sys.exc_info()[0])
-            sys.exit("*** Parsing error(s) in load_spec file!")
-
-        #
         #  Read the load_spec file
         #
         try:
             logging.debug("load_spec filename is %s" + self.spec_file)
-            
-            # instantiate a load_spec file
-            # read in the load_spec file and get the information out of its
-            # tags
             load_spec_file = LoadYamlSpecFile(
                 {'spec_file': self.spec_file})
-            # read in the load_spec file and get the information out of its
-            # tags
-            load_spec = load_spec_file.read()
-            # assign the credentials from the credentials file
-            load_spec['cb_connection']['host'] = _cb_host
-            load_spec['cb_connection']['user'] = _cb_user
-            load_spec['cb_connection']['password'] = _cb_password
-            load_spec['mysql_connection']['host'] = _mysql_host
-            load_spec['mysql_connection']['user'] = _mysql_user
-            load_spec['mysql_connection']['password'] = _mysql_password
-
+            # read in the load_spec file
+            load_spec = dict(load_spec_file.read())
+            # put the real credentials into the load_spec
+            load_spec = self.get_credentials(load_spec)
         except (RuntimeError, TypeError, NameError, KeyError):
             logging.error(
                 "*** %s occurred in Main reading load_spec " +
                 self.spec_file + " ***",
-                sys.exc_info()[0])
+                sys.exc_info())
             sys.exit("*** Error reading load_spec: " + self.spec_file)
         
-        # process the spec file??
         # get all the ingest_document_ids and put them into a my_queue
         # load the my_queue with
         # Constructor for an infinite size  FIFO my_queue
         q = JoinableQueue()
         for f in load_spec['ingest_document_ids']:
             q.put(f)
+
         # instantiate data_type_manager pool - each data_type_manager is a
         # thread that uses builders to process a file
         # Make the Pool of data_type_managers
@@ -176,14 +142,12 @@ class VXIngestGSD(object):
             # noinspection PyBroadException
             try:
                 dtm_thread = GsdIngestManager(
-                    "GsdIngestManager-" + str(self.thread_count),
-                    load_spec['cb_connection'], load_spec['mysql_connection'],
-                    q, self.statement_replacement_params)
+                    "GsdIngestManager-" + str(self.thread_count), load_spec, q, self.statement_replacement_params)
                 _dtm_list.append(dtm_thread)
                 dtm_thread.start()
             except:
                 logging.error(
-                    "*** Error in  VXIngestGSD ***" + str(sys.exc_info()[0]))
+                    "*** Error in  VXIngestGSD ***" + str(sys.exc_info()))
         # be sure to join all the threads to wait on them
         [proc.join() for proc in _dtm_list]
         logging.info("finished starting threads")
@@ -192,7 +156,30 @@ class VXIngestGSD(object):
         logging.info("    >>> Total load a_time: %s" + str(load_time))
         logging.info("End a_time: %s" + str(datetime.now()))
         logging.info("--- *** --- End  --- *** ---")
-    
+
+    def get_credentials(self, load_spec):
+        #
+        #  Read the credentials
+        #
+        logging.debug("credentials filename is %s" + self.credentials_file)
+        try:
+            # check for existence of file
+            if not Path(self.credentials_file).is_file():
+                sys.exit("*** credentials_file file " + self.credentials_file + " can not be found!")
+            _f = open(self.credentials_file)
+            _yaml_data = yaml.load(_f, yaml.SafeLoader)
+            load_spec['cb_connection']['host'] = _yaml_data['cb_host']
+            load_spec['cb_connection']['user'] = _yaml_data['cb_user']
+            load_spec['cb_connection']['password'] = _yaml_data['cb_password']
+            load_spec['mysql_connection']['host'] = _yaml_data['mysql_host']
+            load_spec['mysql_connection']['user'] = _yaml_data['mysql_user']
+            load_spec['mysql_connection']['password'] = _yaml_data['mysql_password']
+            _f.close()
+            return load_spec
+        except (RuntimeError, TypeError, NameError, KeyError):
+            logging.error("*** %s in read ***", sys.exc_info()[0])
+            sys.exit("*** Parsing error(s) in load_spec file!")
+
     def main(self):
         args = parse_args(sys.argv[1:])
         self.runit(vars(args))

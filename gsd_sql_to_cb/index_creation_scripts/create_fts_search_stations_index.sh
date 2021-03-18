@@ -3,20 +3,17 @@ if [ $# -ne 1 ]; then
   echo "Usage $0 server"
   exit 1
 fi
-
+server=$1
 curl -XPUT -H "Content-Type: application/json" \
--u <username>:<password> http://adb-cb4.gsd.esrl.noaa.gov:8094/api/index/station_geo -d \
+-u gsd http://${server}:8094/api/index/station_geo -d \
 '{
   "type": "fulltext-index",
   "name": "station_geo",
-  "uuid": "1cb8cdc388e13dad",
   "sourceType": "couchbase",
   "sourceName": "mdata",
-  "sourceUUID": "096a42f61beb578dfc5d1e3286e98876",
   "planParams": {
-    "maxPartitionsPerPIndex": 86,
-    "indexPartitions": 12,
-    "numReplicas": 2
+    "maxPartitionsPerPIndex": 16,
+    "indexPartitions": 4
   },
   "params": {
     "doc_config": {
@@ -49,6 +46,7 @@ curl -XPUT -H "Content-Type: application/json" \
               "enabled": true,
               "fields": [
                 {
+                  "analyzer": "keyword",
                   "docvalues": true,
                   "include_in_all": true,
                   "include_term_vectors": true,

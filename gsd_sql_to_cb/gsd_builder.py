@@ -10,13 +10,17 @@ import copy
 import datetime as dt
 import logging
 import sys
+import re
+import pymysql
+import math
+import time
 from decimal import Decimal
 # needed to support SQL++ (N1QL) query
 from couchbase.cluster import QueryOptions
-
-import math
+from pymysql.constants import CLIENT
 
 TS_OUT_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+SQL_PORT = 3306
 
 
 def convert_to_iso(an_epoch):
@@ -58,17 +62,47 @@ def initialize_data(doc):
 
 
 class GsdBuilder:
-    def __init__(self, ingest_document, cluster, collection):
+    def __init__(self, load_spec, statement_replacement_params, ingest_document, cluster, collection):
         self.template = ingest_document['template']
+        self.load_spec = load_spec
         self.cluster = cluster
         self.collection = collection
         self.id = None
         self.document_map = {}
-    
+        self.statement_replacement_params = statement_replacement_params
+        
+        try:
+            mysql_credentials = self.load_spec['mysql_connection']
+            host = mysql_credentials['host']
+            if 'port' in mysql_credentials.keys():
+                port = int(mysql_credentials['port'])
+            else:
+                port = SQL_PORT
+            user = mysql_credentials['user']
+            passwd = mysql_credentials['password']
+            local_infile = True
+            self.connection = pymysql.connect(host=host, port=port, user=user, passwd=passwd, local_infile=local_infile,
+                                              autocommit=True, charset='utf8mb4',
+                                              cursorclass=pymysql.cursors.SSDictCursor,
+                                              client_flag=CLIENT.MULTI_STATEMENTS)
+            self.cursor = self.connection.cursor(pymysql.cursors.SSDictCursor)
+        except pymysql.OperationalError as pop_err:
+            logging.error(self.__class__.__name__ + "*** %s in connect_mysql ***" + str(pop_err))
+            sys.exit("*** Error when connecting to mysql database: ")
+
+    def close(self):
+        if self.cursor:
+            self.cursor.close()
+        if self.connection:
+            self.connection.close()
+
     def load_data(self, doc, key, element):
         pass
     
     def get_name(self, params_dict):
+        pass
+    
+    def get_document_map(self):
         pass
     
     @staticmethod
@@ -116,7 +150,7 @@ class GsdBuilder:
             return value
         except:
             e = sys.exc_info()
-            logging.error("GsdBuilder.translate_template_item: Exception  error: " + str(e))
+            logging.error(self.__class__.__name__ + "GsdBuilder.translate_template_item: Exception  error: " + str(e))
         return value
     
     def handle_row(self, row):
@@ -163,8 +197,8 @@ class GsdBuilder:
             self.document_map[self.id] = doc
         except:
             e = sys.exc_info()
-            logging.error("GsdBuilder.handle_document: Exception instantiating "
-                          "builder: " + self.__class__.__name__ + " error: " + str(e))
+            logging.error(self.__class__.__name__ + "GsdBuilder.handle_document: Exception instantiating "
+                                                    "builder: " + self.__class__.__name__ + " error: " + str(e))
     
     def handle_key(self, doc, row, key, interpolated_time):
         """
@@ -195,9 +229,10 @@ class GsdBuilder:
             return doc
         except:
             e = sys.exc_info()
-            logging.error("GsdBuilder.handle_key: Exception instantiating builder:  error: " + str(e))
+            logging.error(
+                self.__class__.__name__ + "GsdBuilder.handle_key: Exception instantiating builder:  error: " + str(e))
         return doc
-
+    
     def handle_named_function(self, _data_key, interpolated_time, row):
         # noinspection PyBroadException
         try:
@@ -209,13 +244,14 @@ class GsdBuilder:
                 _dict_params[_p[1:]] = self.translate_template_item(_p, row, interpolated_time)
             _data_key = getattr(self, _func)(_dict_params)
             if _data_key is None:
-                logging.warning(
-                    "GsdBuilder: Using " + _func + " - None returned for " + str(_dict_params))
+                logging.warning("self.__class__.__name__ + GsdBuilder: Using " + _func + " - None returned for " + str(
+                    _dict_params))
                 _data_key = row['name'] + "0"
                 return _data_key
         except:
             e = sys.exc_info()
-            logging.error("handle_named_function: Exception instantiating builder:  error: " + str(e))
+            logging.error(
+                self.__class__.__name__ + "handle_named_function: Exception instantiating builder:  error: " + str(e))
         return _data_key
     
     def handle_data(self, doc, row, interpolated_time):
@@ -236,19 +272,65 @@ class GsdBuilder:
             else:
                 _data_key = self.translate_template_item(_data_key, row, interpolated_time)
             if _data_key is None:
-                logging.warning("GsdBuilder.handle_data - _data_key is None")
+                logging.warning(self.__class__.__name__ + "GsdBuilder.handle_data - _data_key is None")
             doc = self.load_data(doc, _data_key, _data_elem)
             return doc
         
         except:
             e = sys.exc_info()
-            logging.error("handle_data: Exception instantiating builder:  error: " + str(e))
+            logging.error(self.__class__.__name__ + "handle_data: Exception instantiating builder:  error: " + str(e))
         return doc
+    
+    def build_document(self, _ingest_document):
+        _statement = ""
+        # noinspection PyBroadException
+        try:
+            # process the document
+            _statement = _ingest_document['statement']
+            # replace any statement params - replacement params are like {param}=replacement
+            for _k in self.statement_replacement_params.keys():
+                _statement = _statement.replace(_k, str(self.statement_replacement_params[_k]))
+            _statements = _statement.split(';')
+            for s in _statements:
+                if s.strip().upper().startswith('SET'):
+                    _value = re.split("=", s)[1].strip()
+                    _m = re.findall(r'[@]\w+', s)[0]
+                    _statement = _statement.replace(s + ';', '')
+                    _statement = _statement.replace(_m, _value)
+            _query_start_time = int(time.time())
+            logging.info(self.__class__.__name__ + "executing query: start time: " + str(_query_start_time))
+            self.cursor.execute(_statement)
+            _query_stop_time = int(time.time())
+            logging.info(self.__class__.__name__ + "executing query: stop time: " + str(_query_stop_time))
+            logging.info(self.__class__.__name__ + "executing query: elapsed seconds: " + str(
+                _query_stop_time - _query_start_time))
+        except:
+            logging.error(
+                self.__class__.__name__ + ": Exception processing the statement: error: " + str(sys.exc_info()))
+        # noinspection PyBroadException
+        try:
+            while True:
+                row = self.cursor.fetchone()
+                if not row:
+                    break
+                self.handle_row(row)
+            # The document_map could potentially have a lot of documents in it
+            # depending on how the builder collated the rows into documents
+            # i.e. by time like for obs, or by time and fcst_len like for models,
+            # or all in one like for stations
+            _document_map = self.get_document_map()
+            return _document_map
+            self.close()
+        except:
+            e = sys.exc_info()
+            logging.error(self.__class__.__name__ + ": Exception with builder handle_row: error: " + str(e))
+            self.close()
+            return {}
 
 
 # Concrete builders
 class GsdObsBuilderV01(GsdBuilder):
-    def __init__(self, ingest_document, cluster, collection):
+    def __init__(self, load_spec, statement_replacement_params, ingest_document, cluster, collection):
         """
         This builder creates a set of V01 obs documents using the V01 station documents.
         This builder loads V01 station data into memory, and uses them to associate a station with an observation
@@ -259,7 +341,7 @@ class GsdObsBuilderV01(GsdBuilder):
         :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
         :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
         """
-        GsdBuilder.__init__(self, ingest_document, cluster, collection)
+        GsdBuilder.__init__(self, load_spec, statement_replacement_params, ingest_document, cluster, collection)
         self.cluster = cluster
         self.stations = []
         self.same_time_rows = []
@@ -275,8 +357,9 @@ class GsdObsBuilderV01(GsdBuilder):
             for _station in row_iter:
                 self.stations.append(_station)
         except:
-            logging.error("GsdStationsBuilderV01: error getting stations, " + str(sys.exc_info()))
-
+            logging.error(
+                self.__class__.__name__ + "GsdStationsBuilderV01: error getting stations, " + str(sys.exc_info()))
+    
     def interpolate_time(self, a_time):
         _remainder_time = a_time % self.cadence
         _cadence_time = a_time / self.cadence * self.cadence
@@ -285,7 +368,7 @@ class GsdObsBuilderV01(GsdBuilder):
         else:
             _t = a_time - _remainder_time + self.cadence
         return _t
-
+    
     def handle_row(self, row):
         """
         This is the entry point from the IngestManager.
@@ -304,7 +387,7 @@ class GsdObsBuilderV01(GsdBuilder):
             self.time = 0
             self.same_time_rows = []
         self.same_time_rows.append(row)
-
+    
     def get_document_map(self):
         """
         In case there are leftovers we have to process them first.
@@ -313,7 +396,7 @@ class GsdObsBuilderV01(GsdBuilder):
         if len(self.same_time_rows) != 0:
             self.handle_document(self.interpolated_time, self.same_time_rows)
         return self.document_map
-
+    
     def get_name(self, params_dict):
         """
          This method uses the lat and lon that are in the params_dict
@@ -332,9 +415,13 @@ class GsdObsBuilderV01(GsdBuilder):
                     return elem['name']
         except:
             e = sys.exc_info()
-            logging.error("GsdObsBuilderV02.get_name: Exception finding station to match lat and lon  error: " +
-                          str(e) + " params: " + str(params_dict))
-        logging.error("GsdObsBuilderV02.get_name: No station found to match lat and lon for " + str(params_dict))
+            logging.error(
+                self.__class__.__name__ + "GsdObsBuilderV02.get_name: Exception finding station to match lat and lon  "
+                                          "error: " + str(e) + " params: " + str(params_dict))
+        # if we got here then there is an error - should have returned above
+        logging.error(
+            self.__class__.__name__ + "GsdObsBuilderV02.get_name: No station found to match lat and lon for " + str(
+                params_dict))
         return None
     
     def load_data(self, doc, key, element):
@@ -352,7 +439,7 @@ class GsdObsBuilderV01(GsdBuilder):
 
 
 class GsdModelBuilderV01(GsdBuilder):
-    def __init__(self, ingest_document, cluster, collection):
+    def __init__(self, load_spec, statement_replacement_params, ingest_document, cluster, collection):
         """
         This builder creates a set of V03 model documents using the V01 station documents
         This builder is very much like the GsdObsBuilderV04 except that it builds model documents.
@@ -362,7 +449,7 @@ class GsdModelBuilderV01(GsdBuilder):
         :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
         :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
         """
-        GsdBuilder.__init__(self, ingest_document, cluster, collection)
+        GsdBuilder.__init__(self, load_spec, statement_replacement_params, ingest_document, cluster, collection)
         self.cluster = cluster
         self.stations = []
         self.same_time_rows = []
@@ -372,12 +459,13 @@ class GsdModelBuilderV01(GsdBuilder):
         try:
             # Retrieve the required station data
             n1ql_query = 'SELECT raw {mdata.name, mdata.geo.lat, mdata.geo.lon} FROM mdata ' \
-                        'WHERE type="DD" AND docType="station" AND subset="METAR" AND version ="V03"'
+                         'WHERE type="DD" AND docType="station" AND subset="METAR" AND version ="V03"'
             row_iter = cluster.query(n1ql_query, QueryOptions(read_only=True))
             for _station in row_iter:
                 self.stations.append(_station)
         except:
-            logging.error("GsdStationsBuilderV01: error getting stations, " + str(sys.exc_info()))
+            logging.error(
+                self.__class__.__name__ + "GsdStationsBuilderV01: error getting stations, " + str(sys.exc_info()))
     
     def get_document_map(self):
         """
@@ -387,7 +475,7 @@ class GsdModelBuilderV01(GsdBuilder):
         if len(self.same_time_rows) != 0:
             self.handle_document(self.time, self.same_time_rows)
         return self.document_map
-
+    
     def handle_row(self, row):
         """
         This is the entry point from the IngestManager.
@@ -405,7 +493,7 @@ class GsdModelBuilderV01(GsdBuilder):
             self.time = 0
             self.same_time_rows = []
         self.same_time_rows.append(row)
-
+    
     def load_data(self, doc, key, element):
         """
         This method appends an observation to the data array
@@ -421,7 +509,7 @@ class GsdModelBuilderV01(GsdBuilder):
 
 
 class GsdStationsBuilderV01(GsdBuilder):
-    def __init__(self, ingest_document, cluster, collection):
+    def __init__(self, load_spec, statement_replacement_params, ingest_document, cluster, collection):
         """
         This builder creates multiple documents one per station with the id being
         MD:V03:METAR:stations:*name where the variable part of the id
@@ -432,7 +520,7 @@ class GsdStationsBuilderV01(GsdBuilder):
         :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
         :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
         """
-        GsdBuilder.__init__(self, ingest_document, cluster, collection)
+        GsdBuilder.__init__(self, load_spec, statement_replacement_params, ingest_document, cluster, collection)
         self.same_time_rows = []
     
     def get_document_map(self):
@@ -441,7 +529,7 @@ class GsdStationsBuilderV01(GsdBuilder):
         :return:  the document_map
         """
         return self.document_map
-
+    
     def handle_row(self, row):
         """
         This is the entry point from the IngestManager.

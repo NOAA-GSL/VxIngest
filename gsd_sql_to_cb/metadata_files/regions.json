@@ -7,7 +7,8 @@
     "subset": "COMMON",
     "name": "E_US",
     "description": "Eastern US",
-    "bbox": {
+    "displayOrder": 1,
+    "geo": {
       "top_left": {
         "lat": 49,
         "lon": -102

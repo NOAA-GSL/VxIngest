@@ -63,6 +63,16 @@ from couchbase.cluster import Cluster, ClusterOptions
 from couchbase.exceptions import DocumentNotFoundException, TimeoutException
 from couchbase_core.cluster import PasswordAuthenticator
 from gsd_sql_to_cb import gsd_builder as gsd_builder
+from itertools import islice
+
+
+def document_map_chunks(data, chunk_size=5000):
+    """
+    Simple utility for chunking document maps into reasonable upsert sizes
+    """
+    it = iter(data)
+    for i in range(0, len(data), chunk_size):
+        yield {k: data[k] for k in islice(it, chunk_size)}
 
 
 class GsdIngestManager(Process):
@@ -218,10 +228,8 @@ class GsdIngestManager(Process):
                     self.threadName + ": process_meta_ingest_document: would upsert documents but DOCUMENT_MAP IS "
                                       "EMPTY")
             else:
-                _ret = self.collection.upsert_multi(_document_map)
-                logging.info(self.threadName + ': process_meta_ingest_document wrote ' + str(
-                    _ret.all_ok) + ' document[s] for ingest_document :  ' + str(
-                    _document_id) + "threadName: " + self.threadName)
+                for _item in document_map_chunks(_document_map):
+                    _ret = self.collection.upsert_multi(_item)
             _upsert_stop_time = int(time.time())
             logging.info("process_meta_ingest_document - executing upsert: stop time: " + str(_upsert_stop_time))
             logging.info("process_meta_ingest_document - executing upsert: elapsed time: " + str(

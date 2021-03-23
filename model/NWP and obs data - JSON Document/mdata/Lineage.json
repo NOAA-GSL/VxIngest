@@ -1,0 +1,9 @@
+{
+    "lineageId": "Lorem",
+    "subset": "Lorem",
+    "type": "DataFile, LoadJob, DataSource, DataDocument, Lineage, Owner, Group",
+    "ownerId": "Lorem",
+    "creationTime": "Lorem",
+    "updateTime": "Lorem",
+    "accessPolicy": "Lorem"
+}

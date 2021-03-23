@@ -1,0 +1,12 @@
+{
+    "dataFileId": "Lorem",
+    "subset": "Lorem",
+    "type": "DataFile, LoadJob, DataSource, DataDocument, Lineage, Owner, Group",
+    "fileType": "Lorem",
+    "originType": "Lorem",
+    "loadJobId": "Lorem",
+    "dataSourceId": "Lorem",
+    "url": "Lorem",
+    "projection": "Lorem",
+    "interpolation": "Lorem"
+}

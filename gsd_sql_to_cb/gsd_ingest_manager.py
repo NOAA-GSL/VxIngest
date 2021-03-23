@@ -63,6 +63,16 @@ from couchbase.cluster import Cluster, ClusterOptions
 from couchbase.exceptions import DocumentNotFoundException, TimeoutException
 from couchbase_core.cluster import PasswordAuthenticator
 from gsd_sql_to_cb import gsd_builder as gsd_builder
+from itertools import islice
+
+
+def document_map_chunks(data, chunk_size=5000):
+    """
+    Simple utility for chunking document maps into reasonable upsert sizes
+    """
+    it = iter(data)
+    for i in range(0, len(data), chunk_size):
+        yield {k: data[k] for k in islice(it, chunk_size)}
 
 
 class GsdIngestManager(Process):
@@ -146,9 +156,10 @@ class GsdIngestManager(Process):
                         logging.info(
                             self.threadName + ': GsdIngestManager - Queue ' + 'empty - disconnecting ' + 'couchbase')
                         break
-        except:
+        except Exception as e:
             logging.error(self.threadName + ": *** %s Error in GsdIngestManager run "
-                                            "***" + str(sys.exc_info()[1]))
+                                            "***" + str(e))
+            raise e
         finally:
             self.close_cb()
     
@@ -166,8 +177,8 @@ class GsdIngestManager(Process):
             self.cluster = Cluster('couchbase://' + self.cb_credentials['host'], options)
             self.collection = self.cluster.bucket("mdata").default_collection()
             logging.info(self.threadName + ': Couchbase connection success')
-        except:
-            logging.error("*** %s in connect_cb ***" + str(sys.exc_info()[0]))
+        except Exception as e:
+            logging.error("*** %s in connect_cb ***" + str(e))
             sys.exit("*** Error when connecting to mysql database: ")
         
     def process_meta_ingest_document(self, document_id):
@@ -180,8 +191,7 @@ class GsdIngestManager(Process):
             ingest_document_result = self.collection.get(_document_id)
             _ingest_document = ingest_document_result.content
             _ingest_type_builder_name = _ingest_document['builder_type']
-        except:
-            e = sys.exc_info()[0]
+        except Exception as e:
             logging.error(
                 self.threadName + ".process_meta_ingest_document: Exception getting ingest document: " + str(e))
             sys.exit("*** Error getting ingest document ***")
@@ -198,9 +208,10 @@ class GsdIngestManager(Process):
                                         self.cluster, self.collection)
                 self.builder_map[_ingest_type_builder_name] = builder
             _document_map = builder.build_document(_ingest_document)
-        except:
+        except Exception as e:
             logging.error(self.threadName + ": Exception instantiating builder: " +
-                          str(_ingest_type_builder_name) + " error: " + str(sys.exc_info()))
+                          str(_ingest_type_builder_name) + " error: " + str(e))
+            raise e
         
         # The document_map is all built now so write all the
         # documents in the document_map into couchbase
@@ -218,18 +229,28 @@ class GsdIngestManager(Process):
                     self.threadName + ": process_meta_ingest_document: would upsert documents but DOCUMENT_MAP IS "
                                       "EMPTY")
             else:
-                _ret = self.collection.upsert_multi(_document_map)
-                logging.info(self.threadName + ': process_meta_ingest_document wrote ' + str(
-                    _ret.all_ok) + ' document[s] for ingest_document :  ' + str(
-                    _document_id) + "threadName: " + self.threadName)
+                for _item in document_map_chunks(_document_map):
+                    try:
+                        _ret = self.collection.upsert_multi(_item)
+                    except TimeoutException as t:
+                        logging.info(
+                            "process_meta_ingest_document - executing upsert: Got TimeOutException - " +
+                            " Document may not be persisted. retrying: " + str(t))
+                        try:
+                            _ret = self.collection.upsert_multi(_item)
+                        except TimeoutException as t1:
+                            logging.info(
+                                "process_meta_ingest_document - retying upsert: Got TimeOutException - " +
+                                " Document may not be persisted.Giving up: " + str(t1))
+
             _upsert_stop_time = int(time.time())
             logging.info("process_meta_ingest_document - executing upsert: stop time: " + str(_upsert_stop_time))
             logging.info("process_meta_ingest_document - executing upsert: elapsed time: " + str(
                 _upsert_stop_time - _upsert_start_time))
-        except:
-            e = sys.exc_info()
+        except Exception as e:
             logging.error(self.threadName + ": *** %s Error writing to Couchbase: in "
                                             "process_meta_ingest_document writing document ***" + str(e))
+            raise e
         finally:
             # reset the document map
             _stop_process_time = int(time.time())

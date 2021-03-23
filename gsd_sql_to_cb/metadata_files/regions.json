@@ -27,7 +27,7 @@
     "subset": "COMMON",
     "name": "ALL_HRRR ",
     "description": "HRRR domain",
-    "bbox": {
+    "geo": {
       "top_left": {
         "lat": 52.3516,
         "lon": -126.5495
@@ -46,7 +46,7 @@
     "subset": "COMMON",
     "name": "E_HRRR",
     "description": "Eastern HRRR domain",
-    "bbox": {
+    "geo": {
       "top_left": {
         "lat": 52.3516,
         "lon": -99.9725
@@ -65,7 +65,7 @@
     "subset": "COMMON",
     "name": "W_HRRR",
     "description": "Western HRRR domain",
-    "bbox": {
+    "geo": {
       "top_left": {
         "lat": 52.1593,
         "lon": -126.5495
@@ -84,7 +84,7 @@
     "subset": "COMMON",
     "name": "GtLk",
     "description": "Great Lakes",
-    "bbox": {
+    "geo": {
       "top_left": {
         "lat": 49,
         "lon": -99

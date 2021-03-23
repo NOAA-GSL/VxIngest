@@ -2,7 +2,7 @@
   {
     "id": "MD:V01:REGION:E_US",
     "type": "MD",
-    "docType": "REGION",
+    "docType": "region",
     "version": "V01",
     "subset": "COMMON",
     "name": "E_US",
@@ -22,11 +22,12 @@
   {
     "id": "MD:V01:REGION:ALL_HRRR",
     "type": "MD",
-    "docType": "REGION",
+    "docType": "region",
     "version": "V01",
     "subset": "COMMON",
     "name": "ALL_HRRR ",
     "description": "HRRR domain",
+    "displayOrder": 2,
     "geo": {
       "top_left": {
         "lat": 52.3516,
@@ -41,11 +42,12 @@
   {
     "id": "MD:V01:REGION:E_HRRR",
     "type": "MD",
-    "docType": "REGION",
+    "docType": "region",
     "version": "V01",
     "subset": "COMMON",
     "name": "E_HRRR",
     "description": "Eastern HRRR domain",
+    "displayOrder": 3,
     "geo": {
       "top_left": {
         "lat": 52.3516,
@@ -60,11 +62,12 @@
   {
     "id": "MD:V01:REGION:W_HRRR",
     "type": "MD",
-    "docType": "REGION",
+    "docType": "region",
     "version": "V01",
     "subset": "COMMON",
     "name": "W_HRRR",
     "description": "Western HRRR domain",
+    "displayOrder": 4,
     "geo": {
       "top_left": {
         "lat": 52.1593,
@@ -79,11 +82,12 @@
   {
     "id": "MD:V01:REGION:GtLk",
     "type": "MD",
-    "docType": "REGION",
+    "docType": "region",
     "version": "V01",
     "subset": "COMMON",
     "name": "GtLk",
     "description": "Great Lakes",
+    "displayOrder": 5,
     "geo": {
       "top_left": {
         "lat": 49,

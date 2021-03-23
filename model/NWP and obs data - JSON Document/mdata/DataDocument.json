@@ -1,0 +1,21 @@
+{
+    "dataDocumentId": "Lorem",
+    "subset": "Lorem",
+    "type": "DataFile, LoadJob, DataSource, DataDocument, Lineage, Owner, Group",
+    "docType": "Lorem",
+    "dataFileId": "Lorem",
+    "dataSourceId": "Lorem",
+    "version": "Lorem",
+    "model": "Lorem",
+    "interpMethod": "Lorem",
+    "geo": "Lorem",
+    "region": "Lorem",
+    "station": "Lorem",
+    "leadTime": "Lorem",
+    "validTime": "Lorem",
+    "obsTime": "Lorem",
+    "ensMember": "Lorem",
+    "data": [
+        {}
+    ]
+}

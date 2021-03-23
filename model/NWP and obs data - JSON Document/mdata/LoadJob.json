@@ -1,0 +1,10 @@
+{
+    "loadJobId": "Lorem",
+    "subset": "Lorem",
+    "type": "DataFile, LoadJob, DataSource, DataDocument, Lineage, Owner, Group",
+    "lineageId": "Lorem",
+    "script": "Lorem",
+    "scriptVersion": "Lorem",
+    "loadSpec": "Lorem",
+    "note": "Lorem"
+}

@@ -148,9 +148,8 @@ class GsdBuilder:
                                 else:
                                     value = row[_ri]
             return value
-        except:
-            e = sys.exc_info()
-            logging.error(self.__class__.__name__ + "GsdBuilder.translate_template_item: Exception  error: " + str(e))
+        except Exception as e:
+            logging.error("GsdBuilder.translate_template_item: Exception  error: " + str(e))
         return value
     
     def handle_row(self, row):
@@ -195,11 +194,11 @@ class GsdBuilder:
             del doc['id']
             # put document into document map
             self.document_map[self.id] = doc
-        except:
-            e = sys.exc_info()
+        except Exception as e:
             logging.error(self.__class__.__name__ + "GsdBuilder.handle_document: Exception instantiating "
                                                     "builder: " + self.__class__.__name__ + " error: " + str(e))
-    
+            raise e
+        
     def handle_key(self, doc, row, key, interpolated_time):
         """
         This routine handles keys by substituting row fields into the values
@@ -227,10 +226,9 @@ class GsdBuilder:
             else:
                 doc[key] = self.translate_template_item(doc[key], row, interpolated_time)
             return doc
-        except:
-            e = sys.exc_info()
+        except Exception as e:
             logging.error(
-                self.__class__.__name__ + "GsdBuilder.handle_key: Exception instantiating builder:  error: " + str(e))
+                self.__class__.__name__ + "GsdBuilder.handle_key: Exception in builder:  error: " + str(e))
         return doc
     
     def handle_named_function(self, _data_key, interpolated_time, row):
@@ -248,8 +246,7 @@ class GsdBuilder:
                     _dict_params))
                 _data_key = row['name'] + "0"
                 return _data_key
-        except:
-            e = sys.exc_info()
+        except Exception as e:
             logging.error(
                 self.__class__.__name__ + "handle_named_function: Exception instantiating builder:  error: " + str(e))
         return _data_key
@@ -276,8 +273,7 @@ class GsdBuilder:
             doc = self.load_data(doc, _data_key, _data_elem)
             return doc
         
-        except:
-            e = sys.exc_info()
+        except Exception as e:
             logging.error(self.__class__.__name__ + "handle_data: Exception instantiating builder:  error: " + str(e))
         return doc
     
@@ -304,9 +300,9 @@ class GsdBuilder:
             logging.info(self.__class__.__name__ + "executing query: stop time: " + str(_query_stop_time))
             logging.info(self.__class__.__name__ + "executing query: elapsed seconds: " + str(
                 _query_stop_time - _query_start_time))
-        except:
+        except Exception as e:
             logging.error(
-                self.__class__.__name__ + ": Exception processing the statement: error: " + str(sys.exc_info()))
+                self.__class__.__name__ + ": Exception processing the statement: error: " + str(e))
         # noinspection PyBroadException
         try:
             while True:
@@ -321,8 +317,7 @@ class GsdBuilder:
             _document_map = self.get_document_map()
             return _document_map
             self.close()
-        except:
-            e = sys.exc_info()
+        except Exception as e:
             logging.error(self.__class__.__name__ + ": Exception with builder handle_row: error: " + str(e))
             self.close()
             return {}
@@ -356,10 +351,11 @@ class GsdObsBuilderV01(GsdBuilder):
             row_iter = cluster.query(n1ql_query, QueryOptions(read_only=True))
             for _station in row_iter:
                 self.stations.append(_station)
-        except:
+        except Exception as e:
             logging.error(
-                self.__class__.__name__ + "GsdStationsBuilderV01: error getting stations, " + str(sys.exc_info()))
-    
+                self.__class__.__name__ + "GsdStationsBuilderV01: error getting stations, " + str(e))
+            raise e
+        
     def interpolate_time(self, a_time):
         _remainder_time = a_time % self.cadence
         _cadence_time = a_time / self.cadence * self.cadence
@@ -413,8 +409,7 @@ class GsdObsBuilderV01(GsdBuilder):
                     continue
                 if math.isclose(elem['lat'], _lat, abs_tol=0.05) and math.isclose(elem['lon'], _lon, abs_tol=0.05):
                     return elem['name']
-        except:
-            e = sys.exc_info()
+        except Exception as e:
             logging.error(
                 self.__class__.__name__ + "GsdObsBuilderV02.get_name: Exception finding station to match lat and lon  "
                                           "error: " + str(e) + " params: " + str(params_dict))
@@ -463,9 +458,9 @@ class GsdModelBuilderV01(GsdBuilder):
             row_iter = cluster.query(n1ql_query, QueryOptions(read_only=True))
             for _station in row_iter:
                 self.stations.append(_station)
-        except:
+        except Exception as e:
             logging.error(
-                self.__class__.__name__ + "GsdStationsBuilderV01: error getting stations, " + str(sys.exc_info()))
+                self.__class__.__name__ + "GsdStationsBuilderV01: error getting stations, " + str(e))
     
     def get_document_map(self):
         """

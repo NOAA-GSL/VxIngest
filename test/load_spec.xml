@@ -8,7 +8,7 @@
     <host>127.0.0.1</host>
     <database>mv_gfs_grid2obs_vsdb1</database>
     <user>met_admin</user>
-    <password>met_adm_pwd</password>
+    <password>fake passwd</password>
   </connection>
   <verbose>false</verbose>
   <insert_size>1</insert_size>

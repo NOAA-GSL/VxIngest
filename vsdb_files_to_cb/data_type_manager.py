@@ -150,7 +150,7 @@ class DataTypeManager(Process):
                 # 'couchbases://127.0.0.1/{
                 # }?certpath=/Users/randy.pierce/servercertfiles/ca.pem'  #
                 # credentials = dict(username='met_admin',
-                # password='met_adm_pwd')  # cb = Bucket(connstr.format(
+                # password='a password')  # cb = Bucket(connstr.format(
                 # 'mdata'), **credentials)  # collection =
                 # cb.default_collection()
             

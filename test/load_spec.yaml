@@ -8,7 +8,7 @@ load_spec:
   host: "127.0.0.1"
   database: mv_gfs_grid2obs_vsdb1
   user: met_admin
-  password: met_adm_pwd
+  password: fake_password
  verbose: false
  insert_size: 1
  stat_header_db_check: true

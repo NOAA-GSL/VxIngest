@@ -17,7 +17,7 @@ class TestLoadXmlSpecFile(TestCase):
         self.assertEqual(load_spec['connection']['management_system'], "cb")
         self.assertEqual(load_spec['connection']['host'], "127.0.0.1")
         self.assertEqual(load_spec['connection']['user'], "met_admin")
-        self.assertEqual(load_spec['connection']['password'], "met_adm_pwd")
+        self.assertEqual(load_spec['connection']['password'], "fake password")
         self.assertEqual(load_spec['connection']['database'],
                          "mv_gfs_grid2obs_vsdb1")
         self.assertEqual(load_spec['flags']['verbose'], False)

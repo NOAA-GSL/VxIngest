@@ -79,3 +79,4 @@ DO_CTC "${HOME}/VXingest/test/load_spec_gsd-RRFS_dev1_Gtlk_CTC-v01.yaml" \
 
 DO_CTC "${HOME}/VXingest/test/load_spec_gsd-RRFS_dev1_W_HRRR_CTC-v01.yaml" \
   "ceiling_sums2.RRFS_dev1_W_HRRR" "RRFS_dev1_W_HRRR_CTC"
+

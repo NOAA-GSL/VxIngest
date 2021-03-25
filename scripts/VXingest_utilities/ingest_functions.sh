@@ -65,7 +65,7 @@ function DO_MODEL() {
 function DO_CTC() {
   loadSpec=$1
   ctc_table_name=$2
-  docType=$3
+  region=$3
   # find the max time in the gsd mysql database
   stop=$(mysql -u${m_user} -p${m_password} -h${m_host} -B -N \
     -e "select max(time) from ${ctc_table_name};" | sort -n | head -1)
@@ -75,10 +75,10 @@ function DO_CTC() {
   # find the max time in the couchbase
 
   echo "curl -s -u ${cred} http://${cb_host}:8093/query/service -d \"statement=select max(mdata.fcstValidEpoch) as max_fcstValidEpoch from mdata " \
-    "WHERE type=\"DD\" and docType = \"${docType}\" and subset = \"METAR\" and version = \"V01\"\""
+    "WHERE type=\"DD\" and docType = \"CTC\" and region=\"${region}\" and subset = \"METAR\" and version = \"V01\"\""
   cb_start=$(curl -s -u ${cred} http://${cb_host}:8093/query/service \
     -d "statement=select max(mdata.fcstValidEpoch) as max_fcstValidEpoch from mdata \
-    WHERE type=\"DD\" and docType = \"${docType}\" and subset = \"METAR\" and version = \"V01\"" | jq -r '.results | .[] | .max_fcstValidEpoch')
+    WHERE type=\"DD\" and docType = \"CTC\" and region=\"${region}\" and subset = \"METAR\" and version = \"V01\"" | jq -r '.results | .[] | .max_fcstValidEpoch')
   echo gsd_start is ${gsd_start} cb_start is ${cb_start}
   if [[ $cb_start == "null" ]]; then
     echo Using minimum time from gsd mysql database

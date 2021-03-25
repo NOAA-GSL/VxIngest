@@ -10,4 +10,4 @@ load_spec:
     host: "host"
     user: readonly
     password: readonly_pwd
-  ingest_document_ids: [ "MD:V01:METAR:HRRR_ALL_HRRR_CTC:ingest"]
+  ingest_document_ids: [ "MD:V01:METAR:HRRR:ALL_HRRR:CTC:ingest"]

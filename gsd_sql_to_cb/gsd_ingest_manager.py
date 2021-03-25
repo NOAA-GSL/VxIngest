@@ -66,7 +66,7 @@ from gsd_sql_to_cb import gsd_builder as gsd_builder
 from itertools import islice
 
 
-def document_map_chunks(data, chunk_size=5000):
+def document_map_chunks(data, chunk_size=1000):
     """
     Simple utility for chunking document maps into reasonable upsert sizes
     """
@@ -232,17 +232,22 @@ class GsdIngestManager(Process):
                 for _item in document_map_chunks(_document_map):
                     try:
                         _ret = self.collection.upsert_multi(_item)
+                        time.sleep(1)
                     except TimeoutException as t:
                         logging.info(
-                            "process_meta_ingest_document - executing upsert: Got TimeOutException - " +
-                            " Document may not be persisted. retrying: " + str(t))
+                            "process_meta_ingest_document - trying upsert: Got TimeOutException - " +
+                            " Document may not be persisted. Retrying: " + str(t.result.errstr))
+                        _retry_items = {}
+                        for _key, _result in t.all_results.items():
+                            if not _result.success:
+                                _retry_items[_key] = _result
+                        time.sleep(2)   # wait 2 seconds, be polite to the server
                         try:
-                            _ret = self.collection.upsert_multi(_item)
+                            _ret = self.collection.upsert_multi(_retry_items)
                         except TimeoutException as t1:
                             logging.info(
-                                "process_meta_ingest_document - retying upsert: Got TimeOutException - " +
-                                " Document may not be persisted.Giving up: " + str(t1))
-
+                                "process_meta_ingest_document - retrying upsert: Got TimeOutException - " +
+                                " Document may not be persisted.Giving up: " + str(t1.result.errstr))
             _upsert_stop_time = int(time.time())
             logging.info("process_meta_ingest_document - executing upsert: stop time: " + str(_upsert_stop_time))
             logging.info("process_meta_ingest_document - executing upsert: elapsed time: " + str(

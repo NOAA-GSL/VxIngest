@@ -75,10 +75,8 @@ function DO_CTC() {
   # find the max time in the couchbase
 
   echo "curl -s -u ${cred} http://${cb_host}:8093/query/service -d \"statement=select max(mdata.fcstValidEpoch) as max_fcstValidEpoch from mdata " \
-    "WHERE type=\"DD\" and docType = \"CTC\" and region=\"${region}\" and subset = \"METAR\" and version = \"V01\"\""
-  cb_start=$(curl -s -u ${cred} http://${cb_host}:8093/query/service \
-    -d "statement=select max(mdata.fcstValidEpoch) as max_fcstValidEpoch from mdata \
-    WHERE type=\"DD\" and docType = \"CTC\" and region=\"${region}\" and subset = \"METAR\" and version = \"V01\"" | jq -r '.results | .[] | .max_fcstValidEpoch')
+    "WHERE type=\\"DD\\" and docType = \\"CTC\\" and region=\\"${region}\\" and subset = \\"METAR\\" and version = \\"V01\\"\""
+  cb_start=$(curl -s -u ${cred} http://${cb_host}:8093/query/service -d "statement=select max(mdata.fcstValidEpoch) as max_fcstValidEpoch from mdata WHERE type=\"DD\" and docType = \"CTC\" and region=\"${region}\" and subset = \"METAR\" and version = \"V01\"" | jq -r '.results | .[] | .max_fcstValidEpoch')
   echo gsd_start is ${gsd_start} cb_start is ${cb_start}
   if [[ $cb_start == "null" ]]; then
     echo Using minimum time from gsd mysql database

@@ -10,18 +10,18 @@ load_spec:
     host: "host"
     user: readonly
     password: readonly_pwd
-  ingest_document_ids: [ "MD:V01:METAR:HRRR_E_US_CTC:ingest",
-                         "MD:V01:METAR:HRRR_ALL_HRRR_CTC:ingest",
-                         "MD:V01:METAR:HRRR_E_HRRR_CTC:ingest",
-                         "MD:V01:METAR:HRRR_W_HRRR_CTC:ingest",
-                         "MD:V01:METAR:HRRR_Gtlk_CTC:ingest",
-                         "MD:V01:METAR:HRRR_OPS_E_US_CTC:ingest",
-                         "MD:V01:METAR:HRRR_OPS_ALL_HRRR_CTC:ingest",
-                         "MD:V01:METAR:HRRR_OPS_E_HRRR_CTC:ingest",
-                         "MD:V01:METAR:HRRR_OPS_W_HRRR_CTC:ingest",
-                         "MD:V01:METAR:HRRR_OPS_Gtlk_CTC:ingest",
-                         "MD:V01:METAR:RRFS_dev1_E_US_CTC:ingest",
-                         "MD:V01:METAR:RRFS_dev1_ALL_HRRR_CTC:ingest",
-                         "MD:V01:METAR:RRFS_dev1_E_HRRR_CTC:ingest",
-                         "MD:V01:METAR:RRFS_dev1_W_HRRR_CTC:ingest",
-                         "MD:V01:METAR:RRFS_dev1_Gtlk_CTC:ingest" ]
+  ingest_document_ids: [ "MD:V01:METAR:HRRR:E_US:CTC:ingest",
+                         "MD:V01:METAR:HRRR:ALL_HRRR:CTC:ingest",
+                         "MD:V01:METAR:HRRR:E_HRRR:CTC:ingest",
+                         "MD:V01:METAR:HRRR:W_HRRR:CTC:ingest",
+                         "MD:V01:METAR:HRRR:Gtlk:CTC:ingest",
+                         "MD:V01:METAR:HRRR_OPS:E_US:CTC:ingest",
+                         "MD:V01:METAR:HRRR_OPS:ALL_HRRR:CTC:ingest",
+                         "MD:V01:METAR:HRRR_OPS:E_HRRR:CTC:ingest",
+                         "MD:V01:METAR:HRRR_OPS:W_HRRR:CTC:ingest",
+                         "MD:V01:METAR:HRRR_OPS:Gtlk:CTC:ingest",
+                         "MD:V01:METAR:RRFS_dev1:E_US:CTC:ingest",
+                         "MD:V01:METAR:RRFS_dev1:ALL_HRRR:CTC:ingest",
+                         "MD:V01:METAR:RRFS_dev1:E_HRRR:CTC:ingest",
+                         "MD:V01:METAR:RRFS_dev1:W_HRRR:CTC:ingest",
+                         "MD:V01:METAR:RRFS_dev1:Gtlk:CTC:ingest" ]

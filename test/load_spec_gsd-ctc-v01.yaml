@@ -14,14 +14,14 @@ load_spec:
                          "MD:V01:METAR:HRRR:ALL_HRRR:CTC:ingest",
                          "MD:V01:METAR:HRRR:E_HRRR:CTC:ingest",
                          "MD:V01:METAR:HRRR:W_HRRR:CTC:ingest",
-                         "MD:V01:METAR:HRRR:Gtlk:CTC:ingest",
+                         "MD:V01:METAR:HRRR:GtLk:CTC:ingest",
                          "MD:V01:METAR:HRRR_OPS:E_US:CTC:ingest",
                          "MD:V01:METAR:HRRR_OPS:ALL_HRRR:CTC:ingest",
                          "MD:V01:METAR:HRRR_OPS:E_HRRR:CTC:ingest",
                          "MD:V01:METAR:HRRR_OPS:W_HRRR:CTC:ingest",
-                         "MD:V01:METAR:HRRR_OPS:Gtlk:CTC:ingest",
+                         "MD:V01:METAR:HRRR_OPS:GtLk:CTC:ingest",
                          "MD:V01:METAR:RRFS_dev1:E_US:CTC:ingest",
                          "MD:V01:METAR:RRFS_dev1:ALL_HRRR:CTC:ingest",
                          "MD:V01:METAR:RRFS_dev1:E_HRRR:CTC:ingest",
                          "MD:V01:METAR:RRFS_dev1:W_HRRR:CTC:ingest",
-                         "MD:V01:METAR:RRFS_dev1:Gtlk:CTC:ingest" ]
+                         "MD:V01:METAR:RRFS_dev1:GtLk:CTC:ingest" ]

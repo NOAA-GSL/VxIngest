@@ -498,8 +498,8 @@ class GsdModelBuilderV01(GsdBuilder):
         :return: the document being created
         """
         if 'data' not in doc.keys() or doc['data'] is None:
-            doc['data'] = []
-        doc['data'].append(element)
+            doc['data'] = {}
+        doc['data'][key] = element
         return doc
 
 

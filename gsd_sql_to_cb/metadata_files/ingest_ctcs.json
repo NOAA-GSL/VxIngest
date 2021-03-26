@@ -136,7 +136,7 @@
     }
   },
   {
-    "id": "MD:V01:METAR:HRRR: GtLk:CTC:ingest",
+    "id": "MD:V01:METAR:HRRR:GtLk:CTC:ingest",
     "builder_type": "GsdModelBuilderV01",
     "docType": "ingest",
     "type": "MD",

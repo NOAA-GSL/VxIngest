@@ -128,8 +128,8 @@
   {
     "builder_type": "GsdModelBuilderV01",
     "docType": "ingest",
-    "id": "MD:V01:METAR:HRRR_Gtlk_CTC:ingest",
-    "statement": "set @FirstTime = {first_epoch}; set @LastTime = {last_epoch}; select time, fcst_len, trsh*10 as threshold, yy as hits, yn as false_alarms, ny as misses, nn as correct_negatives from ceiling_sums2.HRRR_Gtlk WHERE time >= @FirstTime and time <= @LastTime order by time, fcst_len, threshold;",
+    "id": "MD:V01:METAR:HRRR_GtLk_CTC:ingest",
+    "statement": "set @FirstTime = {first_epoch}; set @LastTime = {last_epoch}; select time, fcst_len, trsh*10 as threshold, yy as hits, yn as false_alarms, ny as misses, nn as correct_negatives from ceiling_sums2.HRRR_GtLk WHERE time >= @FirstTime and time <= @LastTime order by time, fcst_len, threshold;",
     "subType": "CTC",
     "subset": "METAR",
     "template": {
@@ -143,11 +143,11 @@
       },
       "dataFileId": "DF_id",
       "dataSourceId": "DS_id",
-      "docType": "HRRR_Gtlk_CTC",
+      "docType": "HRRR_GtLk_CTC",
       "fcstLen": "*fcst_len",
       "fcstValidBeg": "*{ISO}time",
       "fcstValidEpoch": "*time",
-      "id": "DD:V01:METAR:HRRR_Gtlk_CTC:*time:*fcst_len",
+      "id": "DD:V01:METAR:HRRR_GtLk_CTC:*time:*fcst_len",
       "subset": "METAR",
       "type": "DD",
       "version": "V01"
@@ -284,8 +284,8 @@
   {
     "builder_type": "GsdModelBuilderV01",
     "docType": "ingest",
-    "id": "MD:V01:METAR:HRRR_OPS_Gtlk_CTC:ingest",
-    "statement": "set @FirstTime = {first_epoch}; set @LastTime = {last_epoch}; select time, fcst_len, trsh*10 as threshold, yy as hits, yn as false_alarms, ny as misses, nn as correct_negatives from ceiling_sums2.HRRR_OPS_Gtlk WHERE time >= @FirstTime and time <= @LastTime order by time, fcst_len, threshold;",
+    "id": "MD:V01:METAR:HRRR_OPS_GtLk_CTC:ingest",
+    "statement": "set @FirstTime = {first_epoch}; set @LastTime = {last_epoch}; select time, fcst_len, trsh*10 as threshold, yy as hits, yn as false_alarms, ny as misses, nn as correct_negatives from ceiling_sums2.HRRR_OPS_GtLk WHERE time >= @FirstTime and time <= @LastTime order by time, fcst_len, threshold;",
     "subType": "CTC",
     "subset": "METAR",
     "template": {
@@ -299,11 +299,11 @@
       },
       "dataFileId": "DF_id",
       "dataSourceId": "DS_id",
-      "docType": "HRRR_OPS_Gtlk_CTC",
+      "docType": "HRRR_OPS_GtLk_CTC",
       "fcstLen": "*fcst_len",
       "fcstValidBeg": "*{ISO}time",
       "fcstValidEpoch": "*time",
-      "id": "DD:V01:METAR:HRRR_OPS_Gtlk_CTC:*time:*fcst_len",
+      "id": "DD:V01:METAR:HRRR_OPS_GtLk_CTC:*time:*fcst_len",
       "subset": "METAR",
       "type": "DD",
       "version": "V01"
@@ -535,8 +535,8 @@
   {
     "builder_type": "GsdModelBuilderV01",
     "docType": "ingest",
-    "id": "MD:V01:METAR:RRFS_dev1_Gtlk_CTC:ingest",
-    "statement": "set @FirstTime = {first_epoch}; set @LastTime = {last_epoch}; select time, fcst_len, trsh*10 as threshold, yy as hits, yn as false_alarms, ny as misses, nn as correct_negatives from ceiling_sums2.RRFS_dev1_Gtlk WHERE time >= @FirstTime and time <= @LastTime order by time, fcst_len, threshold;",
+    "id": "MD:V01:METAR:RRFS_dev1_GtLk_CTC:ingest",
+    "statement": "set @FirstTime = {first_epoch}; set @LastTime = {last_epoch}; select time, fcst_len, trsh*10 as threshold, yy as hits, yn as false_alarms, ny as misses, nn as correct_negatives from ceiling_sums2.RRFS_dev1_GtLk WHERE time >= @FirstTime and time <= @LastTime order by time, fcst_len, threshold;",
     "subType": "CTC",
     "subset": "METAR",
     "template": {
@@ -550,11 +550,11 @@
       },
       "dataFileId": "DF_id",
       "dataSourceId": "DS_id",
-      "docType": "RRFS_dev1_Gtlk_CTC",
+      "docType": "RRFS_dev1_GtLk_CTC",
       "fcstLen": "*fcst_len",
       "fcstValidBeg": "*{ISO}time",
       "fcstValidEpoch": "*time",
-      "id": "DD:V01:METAR:RRFS_dev1_Gtlk_CTC:*time:*fcst_len",
+      "id": "DD:V01:METAR:RRFS_dev1_GtLk_CTC:*time:*fcst_len",
       "subset": "METAR",
       "type": "DD",
       "version": "V01"

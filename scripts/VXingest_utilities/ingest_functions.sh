@@ -29,7 +29,7 @@ function DO_MODEL() {
   echo "${visibilityTableName}" | grep -i none
   ret=$?
   if [[ ${ret} -eq 0 ]]; then
-    echo "query for min ceiling time: "mysql -u${m_user} -p${m_password} -h${m_host} -B -N -e \"select min(time) from ${madisTableName};select min(time) from ${ceilingTableName};\""
+    echo "query for min ceiling time: mysql -u${m_user} -p${m_password} -h${m_host} -B -N -e \"select min(time) from ${madisTableName};select min(time) from ${ceilingTableName};\""
     gsd_start=$(mysql -u${m_user} -p${m_password} -h${m_host} -B -N -e "select min(time) from ${madisTableName}; \
       select min(time) from ${ceilingTableName}; " |
       sort -n | tail -1)

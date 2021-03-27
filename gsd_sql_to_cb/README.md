@@ -501,6 +501,15 @@ variables at specific fcstValidBeg and are organized by metar station.
 ```
 select count(*) from mdata where type="DD" and docType="model" and subset="METAR" and version="V01" and model="HRRR_OPS"
 ```
+To retrieve the metadata document for cb-ceiling for the HRRR model
+```
+select mdata.* from mdata where type="MD" and docType="mats_gui" and subType="app" and subset="COMMON" and version="V01" and app="cb-ceiling" and model="HRRR"
+``` 
+To retrieve the metadata document for cb-ceiling for all models
+```
+select mdata.* from mdata where type="MD" and docType="mats_gui" and subType="app" and subset="COMMON" and version="V01" and app="cb-ceiling"
+``` 
+
 ## Initial configuration recommendations
 For both the single server and the three node cluster it is most advisable to 
 run the Query, Index, and Data services on all the nodes.

@@ -20,7 +20,7 @@ function DO_MODEL() {
   model=$5
   # find the max time in the gsd mysql database
   echo "In DO_MODEL"
-  echo "query for max time"
+  echo "query for max time: mysql -u${m_user} -p${m_password} -h${m_host} -B -N -e \"select max(time) from ${madisTableName};select max(time) from ${ceilingTableName};select max(time) from ${visibilityTableName};\""
   stop=$(mysql -u${m_user} -p${m_password} -h${m_host} -B -N -e "select max(time) from ${madisTableName}; \
   select max(time) from ${ceilingTableName}; \
   select max(time) from ${visibilityTableName};" |
@@ -29,12 +29,12 @@ function DO_MODEL() {
   echo "${visibilityTableName}" | grep -i none
   ret=$?
   if [[ ${ret} -eq 0 ]]; then
-    echo "query for min ceiling time"
+    echo "query for min ceiling time: "mysql -u${m_user} -p${m_password} -h${m_host} -B -N -e \"select min(time) from ${madisTableName};select min(time) from ${ceilingTableName};\""
     gsd_start=$(mysql -u${m_user} -p${m_password} -h${m_host} -B -N -e "select min(time) from ${madisTableName}; \
       select min(time) from ${ceilingTableName}; " |
       sort -n | tail -1)
   else
-    echo "query for min ceiling time"
+    echo "query for min ceiling time: mysql -u${m_user} -p${m_password} -h${m_host} -B -N -e \"select min(time) from ${madisTableName};select min(time) from ${ceilingTableName};select min(time) from ${visibilityTableName};\""
     gsd_start=$(mysql -u${m_user} -p${m_password} -h${m_host} -B -N -e "select min(time) from ${madisTableName};  \
       select min(time) from ${ceilingTableName};  \
       select min(time) from ${visibilityTableName};" |

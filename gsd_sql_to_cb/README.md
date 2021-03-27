@@ -473,9 +473,70 @@ It returns 148 stations in under half a second.
 There is a scripts directory, much of which came from Couchbase training.
 This directory contains many useful scripts for administration, monitoring, and accessing Couchbase statistics.
 
+## Useful search predicates for retrieving documents
+To retrive all the ingest documents for METARS
+```
+type="MD" and docType="ingest" and subset="METAR" and version="V01"
+```
+To retrieve all the ingest documents for METARS and restrict it to only CTC ingest documents.
+```
+type="MD" and docType="ingest" and subset="METAR" and version="V01" and subType="CTC"
+```
+To retrieve all the CTC documents for METARS and model HRRR
+```
+type="DD" and docType="CTC" and subset="METAR" and version="V01" and model="HRRR"
+```
+To retrieve 10 CTC documents for HRRR METARS
+```
+select mdata.* from mdata where type="DD" and docType="CTC" and subset="METAR" and version="V01" and model="HRRR" limit 10
+``` 
+
+To retrieve 10 CTC documents for HRRR METARS at a specific fcstValidEpoch
+```
+select mdata.* from mdata where type="DD" and docType="CTC" and subset="METAR" and version="V01" and model="HRRR" and fcstValidEpoch=1516986000 limit 10
+```
+To count all the METAR model documents where the model is HRR_OPS
+If you retrieve these documents and examine them you find that these documents have model 
+variables at specific fcstValidBeg and are organized by metar station.
+```
+select count(*) from mdata where type="DD" and docType="model" and subset="METAR" and version="V01" and model="HRRR_OPS"
+```
 ## Initial configuration recommendations
 For both the single server and the three node cluster it is most advisable to 
 run the Query, Index, and Data services on all the nodes.
 With the single node server there are no replications possible, but for
 the cluster we should start with num_recs = 2 (one less than the number of nodes) which
 will result in three instances of each service.
+
+##Example ingest commands
+This is bounded by a time range -f 1437084000 -l 1437688800 data will not be retrieved from the gsd tables outside this range.
+```
+python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-HRRR_GtLk_CTC-v01.yaml -c ${HOME}/adb-cb1-credentials -f 1437084000 -l 1437688800
+```
+These are unbounded by a time range - all data that the ingest statement can retrieve will be retrieved.
+```
+python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-HRRR_ALL_HRRR_CTC-v01.yaml -c ${HOME}/adb-cb1-credentials
+python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-HRRR_E_HRRR_CTC-v01.yaml -c ${HOME}/adb-cb1-credentials
+python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-HRRR_E_US_CTC-v01.yaml -c ${HOME}/adb-cb1-credentials
+python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-HRRR_GtLk_CTC-v01.yaml -c ${HOME}/adb-cb1-credentials
+python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-HRRR_OPS_ALL_HRRR_CTC-v01.yaml -c ${HOME}/adb-cb1-credentials
+python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-HRRR_OPS_E_HRRR_CTC-v01.yaml -c ${HOME}/adb-cb1-credentials
+python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-HRRR_OPS_E_US_CTC-v01.yaml -c ${HOME}/adb-cb1-credentials
+python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-HRRR_OPS_GtLk_CTC-v01.yaml -c ${HOME}/adb-cb1-credentials
+python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-hrrr_ops-v01.yaml -c ${HOME}/adb-cb1-credentials
+python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-HRRR_OPS_W_HRRR_CTC-v01.yaml -c ${HOME}/adb-cb1-credentials
+python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-HRRR_W_HRRR_CTC-v01.yaml -c ${HOME}/adb-cb1-credentials
+python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-metars-v01.yaml -c ${HOME}/adb-cb1-credentials
+python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-rrfs_dev1-v01.yaml -c ${HOME}/adb-cb1-credentials
+python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-stations-v01.yaml -c ${HOME}/adb-cb1-credentials
+```
+This script will consider all the above load_spec files and it will find the latest time for each that exists in the couchbase bucket 
+and the latest time that exists in the gsd table and use those values as a total time range. 
+The total time range will be further divided into one week intervalse that will
+be used to bound the run_gsd_ingest_threads.py. This script uses nohup because it might take a long time to run.
+It also runs in the background and this example puts the output into a log file.
+```
+nohup ../scripts/VXingest_utilities/ingest.sh ~/adb-cb1-credentials > logs/ingest-20210326-10-15 2>&1 &
+
+```
+

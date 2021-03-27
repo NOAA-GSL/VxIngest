@@ -1,6 +1,12 @@
 [
   {
-    "id": "auxilliary_mats_metadata",
+    "id": "MD:mats_gui:auxilliary:COMMON:V01",
+    "type": "MD",
+    "docType": "mats_gui",
+    "subType": "auxilliary",
+    "subset": "COMMON",
+    "version": "V01",
+    "updateTime": 1615377600,
     "standardized_model_list": {
       "RRFS_dev1": "RRFS_dev1",
       "RRFS_dev1_iso": "RRFS_dev1_iso",

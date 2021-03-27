@@ -19,7 +19,8 @@ function DO_MODEL() {
   visibilityTableName=$4
   model=$5
   # find the max time in the gsd mysql database
-
+  echo "In DO_MODEL"
+  echo "query for max time"
   stop=$(mysql -u${m_user} -p${m_password} -h${m_host} -B -N -e "select max(time) from ${madisTableName}; \
   select max(time) from ${ceilingTableName}; \
   select max(time) from ${visibilityTableName};" |
@@ -28,17 +29,19 @@ function DO_MODEL() {
   echo "${visibilityTableName}" | grep -i none
   ret=$?
   if [[ ${ret} -eq 0 ]]; then
+    echo "query for min ceiling time"
     gsd_start=$(mysql -u${m_user} -p${m_password} -h${m_host} -B -N -e "select min(time) from ${madisTableName}; \
       select min(time) from ${ceilingTableName}; " |
       sort -n | tail -1)
   else
+    echo "query for min ceiling time"
     gsd_start=$(mysql -u${m_user} -p${m_password} -h${m_host} -B -N -e "select min(time) from ${madisTableName};  \
       select min(time) from ${ceilingTableName};  \
       select min(time) from ${visibilityTableName};" |
       sort -n | tail -1)
   fi
 
-  # find the max time in the couchbase
+  echo "find the max time in the couchbase"
   echo "curl -s -u ${cred} http://${cb_host}:8093/query/service -d \"statement=select max(mdata.fcstValidEpoch) as max_fcstValidEpoch from mdata WHERE type=\"DD\" and docType \"model\" and model= \"${model}\" and subset = \"METAR\" and version = \"V01\"\""
   cb_start=$(curl -s -u ${cred} http://${cb_host}:8093/query/service \
     -d "statement=select max(mdata.fcstValidEpoch) as max_fcstValidEpoch from mdata \

@@ -1,13 +1,12 @@
 [
   {
-    "id": "MD:mats_gui:auxilliary:COMMON:V01",
+    "id": "MD:matsAux:COMMON:V01",
     "type": "MD",
-    "docType": "mats_gui",
-    "subType": "auxilliary",
+    "docType": "matsAux",
     "subset": "COMMON",
     "version": "V01",
-    "updateTime": 1615377600,
-    "standardized_model_list": {
+    "updated": 1615377600,
+    "standardizedModelList": {
       "RRFS_dev1": "RRFS_dev1",
       "RRFS_dev1_iso": "RRFS_dev1_iso",
       "RRFS_dev2": "RRFS_dev2",
@@ -497,7 +496,7 @@
       "aug19_GSLv0mGF": "aug19_GSLv0mGF",
       "aug19_GSDv0mGF": "aug19_GSLv0mGF"
     },
-    "primary_model_orders": {
+    "primaryModelOrders": {
       "RRFS_dev1": {
         "m_order": 10,
         "domain": "R",
@@ -1359,7 +1358,7 @@
         "cycle_seconds": "{\"0\":[0,43200]}"
       }
     },
-    "threshold_descriptions": {
+    "thresholdDescriptions": {
       "ceiling": {
         "50": "500 (ceiling <500 ft)",
         "100": "1000 (ceiling <1000 ft)",

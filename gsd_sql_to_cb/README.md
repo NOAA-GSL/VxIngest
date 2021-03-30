@@ -430,6 +430,42 @@ and subset = "METAR"
 and version = "V01"
 and SEARCH(station,{"field":"description", "regexp": "denver.*"})
 ```
+### N1QL metadata queries
+These are modtly oriented around cb-ceiling but they are illustrative.
+This will return the min and max fcstValidEpoch for the HRRR model
+```
+select min(mdata.fcstValidEpoch) as mindate, max(fcstValidEpoch) as maxdate from mdata where type="DD" and docType="model" and subset="METAR" and version="V01" and model='HRRR';
+```
+Alternatively the min and max fcstValidEpochs can be returned quickly with 
+```
+select min(meta().id) as minid, max(meta().id) as maxid from mdata where type="DD" and docType="CTC" and subset="METAR" and version="V01" and model='HRRR';
+```
+because the ids contain the fcstValidEpochs and the ids will sort by them.
+This returns the nuber of METAR contingency tables for the HRRR 
+select count(meta().id) from mdata where type="DD" and docType="CTC" and subset="METAR" and version="V01" and model='HRRR';
+numrecs: 1248123,
+
+This returns the current epoch
+```select floor(NOW_MILLIS()/1000)```
+
+This returns the distinct array of regions for the contingency tables for the HRRR
+```
+select raw array_agg(distinct mdata.region) from mdata where type="DD" and docType="CTC" and subset="METAR" and version="V01" and model='HRRR';
+```
+This returns the distinct array of forecast lengths for the contingency tables for the HRRR
+```
+select raw array_agg(distinct mdata.fcstLen) from mdata where type="DD" and docType="CTC" and subset="METAR" and version="V01" and model='HRRR';
+```
+This returns the distinct array of thresholds for the contingency tables for the HRRR. This takes a pretty long time,
+around a minute.
+```
+SELECT DISTINCT RAW d_thresholds
+FROM (SELECT OBJECT_NAMES (mdata.data) AS thresholds
+      FROM  mdata 
+      WHERE  type="DD" AND docType="CTC" AND  subset="METAR" AND  version="V01" AND model='HRRR')  AS d
+UNNEST d.thresholds AS d_thresholds;
+```
+
 ##Useful curl queries
 Curl queries can be implemented on the command line or in the client SDK.
 This is an example of doing a regular expression query for the word "denver" (case insensitive because of the search index analyzer) at the front of any description. The results are piped into jq to make them pretty. 

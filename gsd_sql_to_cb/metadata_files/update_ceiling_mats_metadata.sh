@@ -4,7 +4,7 @@ if [ $# -ne 1 ]; then
   exit 1
 fi
 if [[ ! -f "$1" ]]; then
-  echo "$1 is not a vslid file - exiting"
+  echo "$1 is not a valid file - exiting"
   exit 1
 fi
 credentials=$1
@@ -29,29 +29,39 @@ for model in HRRR HRRR_OPS RAP_OPS RRFS_dev1
                 AND object_names_t.model='${model}') AS d
         UNNEST d.thresholds AS d_thresholds),
     fcstLens=(
-        SELECT RAW ARRAY_AGG(DISTINCT fl.fcstLen)
-        FROM mdata AS fl
+    SELECT DISTINCT VALUE r.mdata.fcstLen
+    FROM (
+      SELECT fl.*
+      FROM mdata as fl
         WHERE fl.type='DD'
-            AND fl.docType='CTC'
-            AND fl.subset='METAR'
-            AND fl.version='V01'
-            AND fl.model='${model}'),
+          AND fl.docType='CTC'
+          AND fl.subset='METAR'
+          AND fl.version='V01'
+          AND fl.model='${model}') AS r
+    ORDER BY r.mdata.fcstLen),
     regions=(
-        SELECT RAW ARRAY_AGG(DISTINCT r.region)
-        FROM mdata AS r
-        WHERE r.type='DD'
-            AND r.docType='CTC'
-            AND r.subset='METAR'
-            AND r.version='V01'
-            AND r.model='${model}'),
-    numrecs=(
-        SELECT RAW COUNT(META().id)
-        FROM mdata AS n
-        WHERE n.type='DD'
-            AND n.docType='CTC'
-            AND n.subset='METAR'
-            AND n.version='V01'
-            AND n.model='${model}')[0],
+    SELECT DISTINCT VALUE r.mdata.region
+    FROM (
+      SELECT rg.*
+      FROM mdata as rg
+        WHERE rg.type='DD'
+          AND rg.docType='CTC'
+          AND rg.subset='METAR'
+          AND rg.version='V01'
+          AND rg.model='${model}') AS r
+    ORDER BY r.mdata.region),
+    displayText=(SELECT RAW m.standardizedModelList.${model}
+        FROM mdata AS m
+        USE KEYS "MD:matsAux:COMMON:V01")[0],
+    displayCategory=(select raw 1)[0],
+    displayOrder=(
+        WITH k AS
+            ( SELECT RAW m.standardizedModelList.${model}
+            FROM mdata AS m
+            USE KEYS "MD:matsAux:COMMON:V01" )
+        SELECT RAW m.primaryModelOrders.[k[0]].m_order
+        FROM mdata AS m
+        USE KEYS "MD:matsAux:COMMON:V01")[0],
     mindate=(
         SELECT RAW MIN(mt.fcstValidEpoch) AS mintime
         FROM mdata AS mt
@@ -68,11 +78,20 @@ for model in HRRR HRRR_OPS RAP_OPS RRFS_dev1
             AND mat.subset='METAR'
             AND mat.version='V01'
             AND mat.model='${model}')[0],
+    numrecs=(
+        SELECT RAW COUNT(META().id)
+        FROM mdata AS n
+        WHERE n.type='DD'
+            AND n.docType='CTC'
+            AND n.subset='METAR'
+            AND n.version='V01'
+            AND n.model='${model}')[0],
     updated=(SELECT RAW FLOOR(NOW_MILLIS()/1000))[0]
     WHERE type='MD'
         AND docType='matsGui'
         AND subset='COMMON'
         AND version='V01'
+        AND app='cb-ceiling'
         AND META().id='MD:matsGui:cb-ceiling:${model}:COMMON:V01';
 %EODupdatemetadata
 )

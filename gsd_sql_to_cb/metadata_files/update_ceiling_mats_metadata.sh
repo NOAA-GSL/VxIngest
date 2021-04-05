@@ -29,26 +29,22 @@ for model in HRRR HRRR_OPS RAP_OPS RRFS_dev1
                 AND object_names_t.model='${model}') AS d
         UNNEST d.thresholds AS d_thresholds),
     fcstLens=(
-    SELECT DISTINCT VALUE r.mdata.fcstLen
-    FROM (
-      SELECT fl.*
-      FROM mdata as fl
-        WHERE fl.type='DD'
-          AND fl.docType='CTC'
-          AND fl.subset='METAR'
-          AND fl.version='V01'
-          AND fl.model='${model}') AS r
-    ORDER BY r.mdata.fcstLen),
+    SELECT DISTINCT VALUE fl.fcstLen
+    FROM mdata as fl
+    WHERE fl.type='DD'
+        AND fl.docType='CTC'
+        AND fl.subset='METAR'
+        AND fl.version='V01'
+        AND fl.model='${model}'
+        ORDER BY fl.fcstLen),
     regions=(
-    SELECT DISTINCT VALUE r.mdata.region
-    FROM (
-      SELECT rg.*
-      FROM mdata as rg
-        WHERE rg.type='DD'
-          AND rg.docType='CTC'
-          AND rg.subset='METAR'
-          AND rg.version='V01'
-          AND rg.model='${model}') AS r
+    SELECT DISTINCT VALUE rg.region
+    FROM mdata as rg
+    WHERE rg.type='DD'
+        AND rg.docType='CTC'
+        AND rg.subset='METAR'
+        AND rg.version='V01'
+        AND rg.model='${model}'
     ORDER BY r.mdata.region),
     displayText=(SELECT RAW m.standardizedModelList.${model}
         FROM mdata AS m

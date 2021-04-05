@@ -79,7 +79,7 @@
     "version": "V01",
     "model": "RAP_OPS",
     "id": "MD:V01:METAR:RAP_OPS:ingest",
-    "statement": "set @FirstTime = {first_epoch}; set @LastTime = {last_epoch}; select m.time, m.fcst_len, m.sta_id as madis_id, m.temp, m.press  as slp, m.dp, m.rh, m.wd, m.ws, m.vgtyp, c.ceil, m.sta_id, s.id, s.net, s.name from madis3.RAP_OPSqp m, madis3.stations as s, ceiling2.RAP_OPS c, where 1 = 1 AND m.time >= @FirstTime and m.time <= @LastTime AND m.time = c.time and m.sta_id = c.madis_id and m.fcst_len = c.fcst_len and m.sta_id = s.id and s.net = 'METAR' order by time, fcst_len, name;",
+    "statement": "set @FirstTime = {first_epoch}; set @LastTime = {last_epoch}; select m.time, m.fcst_len, m.sta_id as madis_id, m.temp, m.press  as slp, m.dp, m.rh, m.wd, m.ws, m.vgtyp, c.ceil, m.sta_id, s.id, s.net, s.name from madis3.RAP_NCEP_fullqp m, madis3.stations as s, ceiling2.RAP_OPS c, where 1 = 1 AND m.time >= @FirstTime and m.time <= @LastTime AND m.time = c.time and m.sta_id = c.madis_id and m.fcst_len = c.fcst_len and m.sta_id = s.id and s.net = 'METAR' order by time, fcst_len, name;",
     "subset": "METAR",
     "template": {
       "dataSourceId": "RAP_OPS",

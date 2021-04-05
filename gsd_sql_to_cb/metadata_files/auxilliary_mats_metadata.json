@@ -498,214 +498,130 @@
     },
     "primaryModelOrders": {
       "RRFS_dev1": {
-        "m_order": 10,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 10
       },
       "RRFS_dev1_iso": {
-        "m_order": 11,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 11
       },
       "RRFS_dev2": {
-        "m_order": 12,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 12
       },
       "RRFS_dev2_iso": {
-        "m_order": 13,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 13
       },
       "RRFS_dev3": {
-        "m_order": 14,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 14
       },
       "RRFS_dev3_iso": {
-        "m_order": 15,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 15
       },
       "RRFS_dev4": {
-        "m_order": 16,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 16
       },
       "RRFS_dev4_iso": {
-        "m_order": 17,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 17
       },
       "RRFS_AK": {
-        "m_order": 18,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 18
       },
       "RRFS_AK_iso": {
-        "m_order": 19,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 19
       },
       "RRFS_Hera": {
-        "m_order": 20,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 20
       },
       "RRFS_Hera_iso": {
-        "m_order": 21,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 21
       },
       "RRFS_Hera_dev1": {
-        "m_order": 22,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 22
       },
       "RRFS_Hera_dev1_iso": {
-        "m_order": 23,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 23
       },
       "RAP_GSL": {
-        "m_order": 25,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 25
       },
       "RAP_GSL_iso": {
-        "m_order": 26,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 26
       },
       "RAP_GSL_130": {
-        "m_order": 27,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 27
       },
       "RAP_GSL_iso_130": {
-        "m_order": 28,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 28
       },
       "RAP_OPS": {
-        "m_order": 35,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 35
       },
       "RAP_OPS_iso": {
-        "m_order": 36,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 36
       },
       "RAP_OPS_130": {
-        "m_order": 37,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 37
       },
       "RAP_OPS_iso_130": {
-        "m_order": 38,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 38
       },
       "RAP_OPS_242": {
-        "m_order": 39,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 39
       },
       "RAP_OPS_iso_242": {
-        "m_order": 40,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 40
       },
       "RAP_smoke_GSL": {
-        "m_order": 102,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 102
       },
       "RAPv5_EMC": {
-        "m_order": 110,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 110
       },
       "RAPv5_EMC_iso": {
-        "m_order": 120,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 120
       },
       "RAPv5_EMC_130": {
-        "m_order": 130,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 130
       },
       "RAPv5_EMC_130_iso": {
-        "m_order": 131,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 131
       },
       "RAPv5_NCO": {
-        "m_order": 132,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 132
       },
       "RAPv5_NCO_iso": {
-        "m_order": 133,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 133
       },
       "RAPv5_NCO_130": {
-        "m_order": 134,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 134
       },
       "RAPv5_NCO_130_iso": {
-        "m_order": 135,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 135
       },
       "RAPnc_exp1": {
-        "m_order": 140,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 140
       },
       "RAPnc_iso_exp1": {
-        "m_order": 150,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 150
       },
       "RAPnc_exp2": {
-        "m_order": 160,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 160
       },
       "RAPnc_iso_exp2": {
-        "m_order": 170,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 170
       },
       "RAPnc_exp3": {
-        "m_order": 180,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 180
       },
       "RAPnc_iso_exp3": {
-        "m_order": 190,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 190
       },
       "RAPnc_exp4": {
-        "m_order": 200,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 200
       },
       "RAPnc_iso_exp4": {
-        "m_order": 210,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 210
       },
       "RAP_dev1": {
-        "m_order": 220,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 220
       },
       "RAP_dev2": {
         "m_order": 230,
@@ -768,188 +684,118 @@
         "currency": "P"
       },
       "HRRR_GSL": {
-        "m_order": 350,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 350
       },
       "HRRR_GSL_iso": {
-        "m_order": 360,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 360
       },
       "HRRR_OPS": {
-        "m_order": 370,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 370
       },
       "HRRR_OPS_iso": {
-        "m_order": 380,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 380
       },
       "HRRR_AK_GSL": {
-        "m_order": 390,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 390
       },
       "HRRR_AK_GSL_iso": {
-        "m_order": 395,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 395
       },
       "HRRR_AK_OPS": {
-        "m_order": 398,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 398
       },
       "HRRR_AK_OPS_iso": {
-        "m_order": 399,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 399
       },
       "HRRR_AK_EMC": {
-        "m_order": 400,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 400
       },
       "HRRR_AK_EMC_iso": {
-        "m_order": 401,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 401
       },
       "HRRR_HI_GSL": {
-        "m_order": 410,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 410
       },
       "HRRR_HI_GSL_iso": {
-        "m_order": 415,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 415
       },
       "HRRR_HI_OPS": {
-        "m_order": 418,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 418
       },
       "HRRR_HI_OPS_iso": {
-        "m_order": 419,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 419
       },
       "HRRR_HI_EMC": {
-        "m_order": 420,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 420
       },
       "HRRR_HI_EMC_iso": {
-        "m_order": 421,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 421
       },
       "HRRR_smoke_GSL": {
-        "m_order": 425,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 425
       },
       "HRRRv4_EMC": {
-        "m_order": 430,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 430
       },
       "HRRRv4_EMC_iso": {
-        "m_order": 431,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 431
       },
       "HRRR_AKv4_EMC": {
-        "m_order": 432,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 432
       },
       "HRRR_AKv4_EMC_iso": {
-        "m_order": 433,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 433
       },
       "HRRRv4_NCO": {
-        "m_order": 434,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 434
       },
       "HRRRv4_NCO_iso": {
-        "m_order": 435,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 435
       },
       "HRRR_AKv4_NCO": {
-        "m_order": 436,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 436
       },
       "HRRR_AKv4_NCO_iso": {
-        "m_order": 437,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 437
       },
       "HRRRE_mem0": {
         "m_order": 439,
-        "domain": "R",
-        "currency": "C",
         "cycle_seconds": "{\"0\":[0,32400],\"1520553600\":[0,43200,54000,64800],\"1522281600\":[0,43200,64800,75600],\"1530576000\":[0,43200],\"1552003200\":[0,43200,64800],\"1584403200\":[0,21600,43200,64800]}"
       },
       "HRRRE_mem1": {
         "m_order": 440,
-        "domain": "R",
-        "currency": "C",
         "cycle_seconds": "{\"0\":[0,32400],\"1520553600\":[0,43200,54000,64800],\"1522281600\":[0,43200,64800,75600],\"1530576000\":[0,43200],\"1552003200\":[0,43200,64800],\"1584403200\":[0,21600,43200,64800]}"
       },
       "HRRRE_mem2": {
         "m_order": 450,
-        "domain": "R",
-        "currency": "C",
         "cycle_seconds": "{\"0\":[0,32400],\"1520553600\":[0,43200,54000,64800],\"1522281600\":[0,43200,64800,75600],\"1530576000\":[0,43200],\"1552003200\":[0,43200,64800],\"1584403200\":[0,21600,43200,64800]}"
       },
       "HRRRE_mem3": {
         "m_order": 460,
-        "domain": "R",
-        "currency": "C",
         "cycle_seconds": "{\"0\":[0,32400],\"1520553600\":[0,43200,54000,64800],\"1522281600\":[0,43200,64800,75600],\"1530576000\":[0,43200],\"1552003200\":[0,43200,64800],\"1584403200\":[0,21600,43200,64800]}"
       },
       "HRRRE_mem4": {
         "m_order": 470,
-        "domain": "R",
-        "currency": "C",
         "cycle_seconds": "{\"0\":[0,32400],\"1520553600\":[0,43200,54000,64800],\"1522281600\":[0,43200,64800,75600],\"1530576000\":[0,43200],\"1552003200\":[0,43200,64800],\"1584403200\":[0,21600,43200,64800]}"
       },
       "HRRRE_mem5": {
         "m_order": 480,
-        "domain": "R",
-        "currency": "C",
         "cycle_seconds": "{\"0\":[0,32400],\"1520553600\":[0,43200,54000,64800],\"1522281600\":[0,43200,64800,75600],\"1530576000\":[0,43200],\"1552003200\":[0,43200,64800],\"1584403200\":[0,21600,43200,64800]}"
       },
       "HRRRE_mem6": {
         "m_order": 490,
-        "domain": "R",
-        "currency": "C",
         "cycle_seconds": "{\"0\":[0,32400],\"1520553600\":[0,43200,54000,64800],\"1522281600\":[0,43200,64800,75600],\"1530576000\":[0,43200],\"1552003200\":[0,43200,64800],\"1584403200\":[0,21600,43200,64800]}"
       },
       "HRRRE_mem7": {
         "m_order": 500,
-        "domain": "R",
-        "currency": "C",
         "cycle_seconds": "{\"0\":[0,32400],\"1520553600\":[0,43200,54000,64800],\"1522281600\":[0,43200,64800,75600],\"1530576000\":[0,43200],\"1552003200\":[0,43200,64800],\"1584403200\":[0,21600,43200,64800]}"
       },
       "HRRRE_mem8": {
         "m_order": 510,
-        "domain": "R",
-        "currency": "C",
         "cycle_seconds": "{\"0\":[0,32400],\"1520553600\":[0,43200,54000,64800],\"1522281600\":[0,43200,64800,75600],\"1530576000\":[0,43200],\"1552003200\":[0,43200,64800],\"1584403200\":[0,21600,43200,64800]}"
       },
       "HRRRE_mem9": {
         "m_order": 520,
-        "domain": "R",
-        "currency": "C",
         "cycle_seconds": "{\"0\":[0,32400],\"1520553600\":[0,43200,54000,64800],\"1522281600\":[0,43200,64800,75600],\"1530576000\":[0,43200],\"1552003200\":[0,43200,64800],\"1584403200\":[0,21600,43200,64800]}"
       },
       "HRRR_GSL_NREL": {
@@ -978,14 +824,10 @@
         "currency": "P"
       },
       "HRRR_dev3": {
-        "m_order": 580,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 580
       },
       "HRRR_dev3_iso": {
-        "m_order": 581,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 581
       },
       "HRRR_AK_dev": {
         "m_order": 584,
@@ -1018,19 +860,13 @@
         "currency": "P"
       },
       "RUC13x_GSL": {
-        "m_order": 630,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 630
       },
       "RUC13x_GSL_iso": {
-        "m_order": 640,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 640
       },
       "RUC13x_OPS": {
-        "m_order": 650,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 650
       },
       "RUC13x_dev": {
         "m_order": 660,
@@ -1053,308 +889,188 @@
         "currency": "P"
       },
       "RTMA_RU_GSL": {
-        "m_order": 700,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 700
       },
       "RTMA_RU_GSL_dev1": {
-        "m_order": 710,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 710
       },
       "RTMA_3D_GSL": {
-        "m_order": 720,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 720
       },
       "RTMA_3D_GSL_iso": {
-        "m_order": 721,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 721
       },
       "RTMA_3D_GSL_bl": {
-        "m_order": 722,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 722
       },
       "RTMA_3D_GSL_nb": {
-        "m_order": 723,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 723
       },
       "RTMA_3D_GSL_dev1": {
-        "m_order": 724,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 724
       },
       "RTMA_3D_GSL_dev1_iso": {
-        "m_order": 725,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 725
       },
       "RTMA_3D_GSL_dev1_bl": {
-        "m_order": 726,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 726
       },
       "RTMA_3D_GSL_dev1_nb": {
-        "m_order": 727,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 727
       },
       "RTMA_3D_AK_GSL": {
-        "m_order": 728,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 728
       },
       "RTMA_3D_AK_GSL_iso": {
-        "m_order": 729,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 729
       },
       "RTMA_OPS": {
-        "m_order": 730,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 730
       },
       "RTMA_RU_OPS": {
-        "m_order": 731,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 731
       },
       "RTMA_3D_RU_GSL": {
-        "m_order": 736,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 736
       },
       "RTMA_3D_RU_GSL_iso": {
-        "m_order": 737,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 737
       },
       "RTMA_3D_RU_EMC": {
-        "m_order": 738,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 738
       },
       "RTMA_3D_RU_EMC_iso": {
-        "m_order": 739,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 739
       },
       "URMA_OPS": {
-        "m_order": 745,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 745
       },
       "NAM": {
-        "m_order": 749,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 749
       },
       "NAM_NEST": {
-        "m_order": 750,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 750
       },
       "NAM_NEST_AK": {
-        "m_order": 760,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 760
       },
       "NAM_NEST_HI": {
-        "m_order": 770,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 770
       },
       "NAM_NEST_OPS_227": {
-        "m_order": 780,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 780
       },
       "NAM_OPS_iso_221": {
-        "m_order": 790,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 790
       },
       "NAM_ceil": {
-        "m_order": 800,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 800
       },
       "GLMP": {
-        "m_order": 810,
-        "domain": "R",
-        "currency": "C"
+        "m_order": 810
       },
       "NSSL_WRF": {
-        "m_order": 820,
-        "domain": "R",
-        "currency": "P"
+        "m_order": 820
       },
       "HIRES_ARW": {
-        "m_order": 830,
-        "domain": "R",
-        "currency": "P"
+        "m_order": 830
       },
       "HIRES_NMMB": {
-        "m_order": 840,
-        "domain": "R",
-        "currency": "P"
+        "m_order": 840
       },
       "Persistence": {
-        "m_order": 850,
-        "domain": "P",
-        "currency": "C"
+        "m_order": 850
       },
       "GFS": {
-        "m_order": 860,
-        "domain": "G",
-        "currency": "C"
+        "m_order": 860
       },
       "GFS_iso": {
-        "m_order": 870,
-        "domain": "G",
-        "currency": "C"
+        "m_order": 870
       },
       "FV3_CCPP_GSL": {
-        "m_order": 873,
-        "domain": "G",
-        "currency": "C"
+        "m_order": 873
       },
       "FV3_CCPP_EMC": {
-        "m_order": 874,
-        "domain": "G",
-        "currency": "C"
+        "m_order": 874
       },
       "FV3_CCPP_GSL_L127": {
-        "m_order": 875,
-        "domain": "G",
-        "currency": "C"
+        "m_order": 875
       },
       "FV3_CCPP_GSL_C384": {
-        "m_order": 876,
-        "domain": "G",
-        "currency": "C"
+        "m_order": 876
       },
       "FV3_CCPP_GSL_Chem": {
-        "m_order": 877,
-        "domain": "G",
-        "currency": "C"
+        "m_order": 877
       },
       "FV3_GFS_GSL": {
-        "m_order": 880,
-        "domain": "G",
-        "currency": "C"
+        "m_order": 880
       },
       "FV3_GFS_EMC": {
-        "m_order": 882,
-        "domain": "G",
-        "currency": "C"
+        "m_order": 882
       },
       "FV3_GFS_GF_GSL": {
-        "m_order": 890,
-        "domain": "G",
-        "currency": "C"
+        "m_order": 890
       },
       "FV3_GFS_GF_EMC": {
-        "m_order": 892,
-        "domain": "G",
-        "currency": "C"
+        "m_order": 892
       },
       "FIM": {
-        "m_order": 900,
-        "domain": "G",
-        "currency": "C"
+        "m_order": 900
       },
       "FIM_iso": {
-        "m_order": 910,
-        "domain": "G",
-        "currency": "P"
+        "m_order": 910
       },
       "FIM_130": {
-        "m_order": 920,
-        "domain": "G",
-        "currency": "P"
+        "m_order": 920
       },
       "FIM_prs": {
-        "m_order": 930,
-        "domain": "G",
-        "currency": "P"
+        "m_order": 930
       },
       "FIM_HRRRphys": {
-        "m_order": 940,
-        "domain": "G",
-        "currency": "P"
+        "m_order": 940
       },
       "FIMX": {
-        "m_order": 950,
-        "domain": "G",
-        "currency": "P"
+        "m_order": 950
       },
       "FIMXALT": {
-        "m_order": 960,
-        "domain": "G",
-        "currency": "P"
+        "m_order": 960
       },
       "FIMXALT_prs": {
-        "m_order": 970,
-        "domain": "G",
-        "currency": "P"
+        "m_order": 970
       },
       "FIM7": {
-        "m_order": 980,
-        "domain": "G",
-        "currency": "P"
+        "m_order": 980
       },
       "FIM9": {
-        "m_order": 990,
-        "domain": "G",
-        "currency": "P"
+        "m_order": 990
       },
       "FIM9XALT": {
-        "m_order": 1000,
-        "domain": "G",
-        "currency": "P"
+        "m_order": 1000
       },
       "FIMALT": {
-        "m_order": 1010,
-        "domain": "G",
-        "currency": "P"
+        "m_order": 1010
       },
       "FIMALT_prs": {
-        "m_order": 1020,
-        "domain": "G",
-        "currency": "P"
+        "m_order": 1020
       },
       "suite4new": {
         "m_order": 1030,
-        "domain": "G",
-        "currency": "P",
         "cycle_seconds": "{\"0\":[0,43200]}"
       },
       "aug19_EMC": {
         "m_order": 1031,
-        "domain": "G",
-        "currency": "P",
         "cycle_seconds": "{\"0\":[0,43200]}"
       },
       "aug19_EMCpGF": {
         "m_order": 1032,
-        "domain": "G",
-        "currency": "P",
         "cycle_seconds": "{\"0\":[0,43200]}"
       },
       "aug19_GSLv0": {
         "m_order": 1033,
-        "domain": "G",
-        "currency": "P",
         "cycle_seconds": "{\"0\":[0,43200]}"
       },
       "aug19_GSLv0mGF": {
         "m_order": 1034,
-        "domain": "G",
-        "currency": "P",
         "cycle_seconds": "{\"0\":[0,43200]}"
       }
     },

@@ -28,7 +28,7 @@ DO_MODEL "${HOME}/VXingest/test/load_spec_gsd-hrrr-v01.yaml" "madis3.HRRRqp" "ce
 DO_MODEL "${HOME}/VXingest/test/load_spec_gsd-hrrr_ops-v01.yaml" "madis3.HRRR_OPSqp" "ceiling2.HRRR_OPS" "visibility.HRRR_OPS" "HRRR_OPS"
 
 #RAP_OPS - ceiling only
-DO_MODEL "${HOME}/VXingest/test/load_spec_gsd-rap_ops-v01.yaml" "madis3.RAP_OPSqp" "ceiling2.RAP_OPS" "none" "RAP_OPS"
+DO_MODEL "${HOME}/VXingest/test/load_spec_gsd-rap_ops-v01.yaml" "madis3.RAP_NCEP_fullqp" "ceiling2.RAP_OPS" "none" "RAP_OPS"
 
 #RRFS_dev1
 DO_MODEL "${HOME}/VXingest/test/load_spec_gsd-rrfs_dev1-v01.yaml" "madis3.RRFS_dev1qp" "ceiling2.RRFS_dev1" "RRFS_dev1" "RRFS_dev1"

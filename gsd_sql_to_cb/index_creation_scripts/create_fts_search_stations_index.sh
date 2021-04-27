@@ -18,7 +18,7 @@ curl -XPUT -H "Content-Type: application/json" \
   "params": {
     "doc_config": {
       "docid_prefix_delim": "",
-      "docid_regexp": "^DD:V03:METAR:station",
+      "docid_regexp": "^MD:V01:METAR:station",
       "mode": "docid_regexp",
       "type_field": "type"
     },
@@ -37,7 +37,7 @@ curl -XPUT -H "Content-Type: application/json" \
       "store_dynamic": false,
       "type_field": "_type",
       "types": {
-        "DD:V03:METAR:station": {
+        "MD:V01:METAR:station": {
           "dynamic": false,
           "enabled": true,
           "properties": {
@@ -54,6 +54,21 @@ curl -XPUT -H "Content-Type: application/json" \
                   "name": "description",
                   "store": true,
                   "type": "text"
+                }
+              ]
+            },
+            "elevation": {
+              "dynamic": false,
+              "enabled": true,
+              "fields": [
+                {
+                  "docvalues": true,
+                  "include_in_all": true,
+                  "include_term_vectors": true,
+                  "index": true,
+                  "name": "elevation",
+                  "store": true,
+                  "type": "number"
                 }
               ]
             },

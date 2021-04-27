@@ -57,8 +57,8 @@
       "type": "MD",
       "updateTime": "*updateTime",
       "version": "V01",
+      "elevation": "*elev",
       "geo": {
-        "elev": "*elev",
         "lat": "*lat",
         "lon": "*lon"
       }

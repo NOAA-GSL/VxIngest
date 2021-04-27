@@ -348,6 +348,15 @@ and version = "V01"
 in each of your N1QL queries.
  
 ### N1QL queries
+This query returns all the metadata id's and updated time.
+```
+select updated, meta().id from mdata where type="MD" and docType is not missing and version = "V01"  and subset="COMMON"
+```
+This query modifies the above to only return for the models "HRRR" and "HRRR_OPS".
+```
+select meta().id, updated from mdata where type="MD" and docType is not missing and version = "V01"  and subset="COMMON" and model in ["HRRR", "HRRR_OPS"];
+```
+
 This query returns the minimum fcstValidBeg and the maximum
 fcstValidBeg for all the METAR obs in the mdata bucket.
 ```

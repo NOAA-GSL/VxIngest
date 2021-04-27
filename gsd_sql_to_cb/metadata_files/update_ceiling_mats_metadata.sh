@@ -62,7 +62,7 @@ for model in HRRR HRRR_OPS RAP_OPS RRFS_dev1
         SELECT RAW MIN(mt.fcstValidEpoch) AS mintime
         FROM mdata AS mt
         WHERE mt.type='DD'
-            AND mt.docType='model'
+            AND mt.docType='CTC'
             AND mt.subset='METAR'
             AND mt.version='V01'
             AND mt.model='${model}')[0],
@@ -70,7 +70,7 @@ for model in HRRR HRRR_OPS RAP_OPS RRFS_dev1
         SELECT RAW MAX(mat.fcstValidEpoch) AS maxtime
         FROM mdata AS mat
         WHERE mat.type='DD'
-            AND mat.docType='model'
+            AND mat.docType='CTC'
             AND mat.subset='METAR'
             AND mat.version='V01'
             AND mat.model='${model}')[0],

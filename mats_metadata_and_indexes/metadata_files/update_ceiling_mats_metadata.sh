@@ -7,11 +7,15 @@ if [[ ! -f "$1" ]]; then
   echo "$1 is not a valid file - exiting"
   exit 1
 fi
-credentials=$1
 
-echo source the functions file
-. ${HOME}/VXingest/scripts/VXingest_utilities/ingest_functions.sh
-DO_CREDENTIALS "$credentials"
+credentials=$1
+m_host=$(grep mysql_host ${credentials} | awk '{print $2}')
+m_user=$(grep mysql_user ${credentials} | awk '{print $2}')
+m_password=$(grep mysql_password ${credentials} | awk '{print $2}')
+cb_host=$(grep cb_host ${credentials} | awk '{print $2}')
+cb_user=$(grep cb_user ${credentials} | awk '{print $2}')
+cb_pwd=$(grep cb_password ${credentials} | awk '{print $2}')
+cred="${cb_user}:${cb_pwd}"
 
 for model in HRRR HRRR_OPS RAP_OPS RRFS_dev1
   do

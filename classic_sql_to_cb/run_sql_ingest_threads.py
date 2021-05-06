@@ -58,8 +58,8 @@ from pathlib import Path
 from datetime import datetime
 from datetime import timedelta
 from multiprocessing import JoinableQueue
-from gsd_sql_to_cb.gsd_ingest_manager import GsdIngestManager
-from gsd_sql_to_cb.load_spec_yaml import LoadYamlSpecFile
+from classic_sql_to_cb.gsd_ingest_manager import GsdIngestManager
+from classic_sql_to_cb.load_spec_yaml import LoadYamlSpecFile
 
 
 def parse_args(args):

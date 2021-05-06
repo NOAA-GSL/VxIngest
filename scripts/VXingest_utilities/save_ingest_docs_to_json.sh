@@ -14,4 +14,4 @@ else
 fi
 server=$2
 
-curl -v "http://$server:8093/query/service" -u gsd  -d 'statement=select meta().id, mdata.* from mdata where type="MD" and docType="ingest" and subset="METAR" and  version is not missing;' | jq '.results' > "$backupdir/ingest-$(date +%Y%m%d:%H%M%S)".json
+curl -v "http://$server:8093/query/service" -u avid  -d 'statement=select meta().id, mdata.* from mdata where type="MD" and docType="ingest" and subset="METAR" and  version is not missing;' | jq '.results' > "$backupdir/ingest-$(date +%Y%m%d:%H%M%S)".json

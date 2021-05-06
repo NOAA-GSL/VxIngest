@@ -5,7 +5,7 @@ if [ $# -ne 1 ]; then
 fi
 server=$1
 curl -XPUT -H "Content-Type: application/json" \
--u gsd http://${server}:8094/api/index/station_geo -d \
+-u avid http://${server}:8094/api/index/station_geo -d \
 '{
   "type": "fulltext-index",
   "name": "station_geo",

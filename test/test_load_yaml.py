@@ -2,7 +2,7 @@ import unittest
 import yaml
 import os
 
-from gsd_sql_to_cb.load_spec_yaml import LoadYamlSpecFile
+from classic_sql_to_cb.load_spec_yaml import LoadYamlSpecFile
 
 
 class TestLoadYamlSpecFile(unittest.TestCase):

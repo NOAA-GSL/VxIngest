@@ -2,7 +2,7 @@ import sys
 import os
 import yaml
 from unittest import TestCase
-from gsd_sql_to_cb.run_gsd_ingest_threads import VXIngestGSD
+from classic_sql_to_cb.run_gsd_ingest_threads import VXIngestGSD
 from couchbase.cluster import Cluster, ClusterOptions
 from couchbase_core.cluster import PasswordAuthenticator
 

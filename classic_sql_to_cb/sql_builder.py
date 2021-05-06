@@ -1,5 +1,5 @@
 """
-Program Name: Class gsd_builder.py
+Program Name: Class sql_builder.py
 Contact(s): Randy Pierce
 History Log:  Initial version
 Copyright 2019 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of

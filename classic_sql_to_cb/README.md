@@ -20,7 +20,7 @@ load_spec:
   cb_connection:
     management_system: cb
     host: "cb_host"
-    user: gsd
+    user: avid
     password: gsd_pwd
   mysql_connection:
     management_system: mysql
@@ -239,7 +239,7 @@ The json documents must be in the form of a json list and each document must
 have an 'id' field with a unique value. The 'id' value should reflect the identifiers in our data model.
 #### Example restore ingest with cbimports
 ```
-cbimport json --cluster couchbase://adb-cb4.gsd.esrl.noaa.gov --bucket mdata --username gsd --password 'getapassword' --format list --generate-key %id% --dataset file:///${HOME}/VXingest/gsd_sql_to_cb/ingest_backup/ingest-20210313:083606
+cbimport json --cluster couchbase://adb-cb4.gsd.esrl.noaa.gov --bucket mdata --username avid --password 'getapassword' --format list --generate-key %id% --dataset file:///${HOME}/VXingest/gsd_sql_to_cb/ingest_backup/ingest-20210313:083606
 ```
 #### Restore other metadata with cbimports
 Refer to the VXingest/gsd_sql_to_cb/metadata_files/regions.json for
@@ -247,7 +247,7 @@ an example of a multi-document metadata file. The cbimport command for importing
 into a server would look like this for the server adb-cb4.gsd.esrl.noaa.gov
 The password has been obscured and the example assumes that you cloned this repo into ${HOME}....
 ```
-cbimport json --cluster couchbase://adb-cb4.gsd.esrl.noaa.gov --bucket mdata --username gsd --password 'getyourselfapassword' --format list --generate-key %id% --dataset file:///${HOME}/VXingest/gsd_sql_to_cb/metadata_files/regions.json
+cbimport json --cluster couchbase://adb-cb4.gsd.esrl.noaa.gov --bucket mdata --username avid --password 'getyourselfapassword' --format list --generate-key %id% --dataset file:///${HOME}/VXingest/gsd_sql_to_cb/metadata_files/regions.json
 ```
 For more information on cbimport see [cbimport](https://docs.couchbase.com/server/current/tools/cbimport-json.html)
 ## Credentials files
@@ -478,31 +478,31 @@ UNNEST d.thresholds AS d_thresholds;
 ##Useful curl queries
 Curl queries can be implemented on the command line or in the client SDK.
 This is an example of doing a regular expression query for the word "denver" (case insensitive because of the search index analyzer) at the front of any description. The results are piped into jq to make them pretty. 
-The password is fake so replace it with the gsd password.
+The password is fake so replace it with the actual password.
 
 **change user and password**
 - This is the N1QL search mentioned above for returning the minimum fcstValidBeg
 for all the METAR obs in the mdata bucket, executed with the curl rest api.
 
 ```
-curl -s -u 'gsd:getapassword' http://adb-cb4.gsd.esrl.noaa.gov:8093/query/service  -d 'statement=select min(mdata.fcstValidEpoch) as min_fcstValidEpoch, max(mdata.fcstValidEpoch) as max_fcstValidEpoch from mdata WHERE type="DD" and docType = "obs" and subset = "METAR" and version is not missing' | jq -r '.results | .[] | .min_fcstValidEpoch'
+curl -s -u 'avid:getapassword' http://adb-cb4.gsd.esrl.noaa.gov:8093/query/service  -d 'statement=select min(mdata.fcstValidEpoch) as min_fcstValidEpoch, max(mdata.fcstValidEpoch) as max_fcstValidEpoch from mdata WHERE type="DD" and docType = "obs" and subset = "METAR" and version is not missing' | jq -r '.results | .[] | .min_fcstValidEpoch'
 ```
 
 This is the same but it returns the max fcstValidBeg
 ```
-curl -s -u 'gsd:getapassword' http://adb-cb4.gsd.esrl.noaa.gov:8093/query/service  -d 'statement=select min(mdata.fcstValidEpoch) as min_fcstValidEpoch, max(mdata.fcstValidEpoch) as max_fcstValidEpoch from mdata WHERE type="DD" and docType = "obs" and subset = "METAR" and version is not missing' | jq -r '.results | .[] | .max_fcstValidEpoch'
+curl -s -u 'avid:getapassword' http://adb-cb4.gsd.esrl.noaa.gov:8093/query/service  -d 'statement=select min(mdata.fcstValidEpoch) as min_fcstValidEpoch, max(mdata.fcstValidEpoch) as max_fcstValidEpoch from mdata WHERE type="DD" and docType = "obs" and subset = "METAR" and version is not missing' | jq -r '.results | .[] | .max_fcstValidEpoch'
 ```
 
 - This returns a hit list with one hit for DIA.
 
 ```
-curl -XPOST -H "Content-Type: application/json" -u 'gsd:fakepassword' http://adb-cb4.gsd.esrl.noaa.gov:8094/api/index/station_geo/query -d '{"fields": ["*"],"query": {"fields":["*"], "regexp": "^denver.*","field":"description"}}' | jq '.'
+curl -XPOST -H "Content-Type: application/json" -u 'avid:fakepassword' http://adb-cb4.gsd.esrl.noaa.gov:8094/api/index/station_geo/query -d '{"fields": ["*"],"query": {"fields":["*"], "regexp": "^denver.*","field":"description"}}' | jq '.'
 ```
 
 This is a curl command that searches by lat and lon for stations within 1 mile of 39.86, -104.67 and it finds DIA 
 
 ```
-curl -XPOST -H "Content-Type: application/json" -u 'gsd:fakepassword' http://adb-cb4.gsd.esrl.noaa.gov:8094/api/index/station_geo/query -d '{"fields": ["*"],"query":{"location":{"lat":39.86,"lon":-104.67},"distance":"1mi","field":"geo"}}' | jq '.'
+curl -XPOST -H "Content-Type: application/json" -u 'avid:fakepassword' http://adb-cb4.gsd.esrl.noaa.gov:8094/api/index/station_geo/query -d '{"fields": ["*"],"query":{"location":{"lat":39.86,"lon":-104.67},"distance":"1mi","field":"geo"}}' | jq '.'
 ```
 
 It completes in under 40 milliseconds.
@@ -510,7 +510,7 @@ It completes in under 40 milliseconds.
 This command looks for all the stations within an arbitrary polygon that I drew on google maps, 
 maybe about a third of the country somewhere in the west...
 
-```curl -XPOST -H "Content-Type: application/json" -u 'gsd:fakepassword' http://adb-cb4.gsd.esrl.noaa.gov:8094/api/index/station_geo/query -d '{"fields": ["*"],"query":{"polygon_points":["47.69065526395918, -120.699049630136","44.97376705258397, -91.33055527950087","36.68188062186998, -92.26638359058016","37.13420293523954, -114.52912609347626"]},"field":"geo"}' | jq '.'```
+```curl -XPOST -H "Content-Type: application/json" -u 'avid:fakepassword' http://adb-cb4.gsd.esrl.noaa.gov:8094/api/index/station_geo/query -d '{"fields": ["*"],"query":{"polygon_points":["47.69065526395918, -120.699049630136","44.97376705258397, -91.33055527950087","36.68188062186998, -92.26638359058016","37.13420293523954, -114.52912609347626"]},"field":"geo"}' | jq '.'```
 
 It returns 148 stations in under half a second.
 
@@ -563,7 +563,7 @@ the cluster we should start with num_recs = 2 (one less than the number of nodes
 will result in three instances of each service.
 
 ##Example ingest commands
-This is bounded by a time range -f 1437084000 -l 1437688800 data will not be retrieved from the gsd tables outside this range.
+This is bounded by a time range -f 1437084000 -l 1437688800 data will not be retrieved from the sql tables outside this range.
 ```
 python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-HRRR_GtLk_CTC-v01.yaml -c ${HOME}/adb-cb1-credentials -f 1437084000 -l 1437688800
 ```
@@ -585,7 +585,7 @@ python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-rrfs_d
 python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-stations-v01.yaml -c ${HOME}/adb-cb1-credentials
 ```
 This script will consider all the above load_spec files and it will find the latest time for each that exists in the couchbase bucket 
-and the latest time that exists in the gsd table and use those values as a total time range. 
+and the latest time that exists in the sql table and use those values as a total time range. 
 The total time range will be further divided into one week intervalse that will
 be used to bound the run_gsd_ingest_threads.py. This script uses nohup because it might take a long time to run.
 It also runs in the background and this example puts the output into a log file.

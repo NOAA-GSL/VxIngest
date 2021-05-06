@@ -62,7 +62,7 @@ from multiprocessing import Process
 from couchbase.cluster import Cluster, ClusterOptions
 from couchbase.exceptions import DocumentNotFoundException, TimeoutException
 from couchbase_core.cluster import PasswordAuthenticator
-from gsd_sql_to_cb import gsd_builder as gsd_builder
+from classic_sql_to_cb import gsd_builder as gsd_builder
 from itertools import islice
 
 

@@ -1,7 +1,7 @@
 import sys
 import os
 from unittest import TestCase
-from gsd_sql_to_cb.run_gsd_ingest_threads import VXIngestGSD
+from classic_sql_to_cb.run_gsd_ingest_threads import VXIngestGSD
 
 
 class TestGsdIngestManager(TestCase):

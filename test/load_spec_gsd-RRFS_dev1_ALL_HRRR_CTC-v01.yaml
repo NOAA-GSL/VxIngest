@@ -3,7 +3,7 @@ load_spec:
   cb_connection:
     management_system: cb
     host: "host"
-    user: gsd
+    user: avid
     password: gsd_pwd
   mysql_connection:
     management_system: mysql

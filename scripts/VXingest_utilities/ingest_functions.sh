@@ -18,14 +18,14 @@ function DO_MODEL() {
   ceilingTableName=$3
   visibilityTableName=$4
   model=$5
-  # find the max time in the gsd mysql database
+  # find the max time in the mysql database
   echo "In DO_MODEL"
   echo "query for max time: mysql -u${m_user} -p${m_password} -h${m_host} -B -N -e \"select max(time) from ${madisTableName};select max(time) from ${ceilingTableName};select max(time) from ${visibilityTableName};\""
   stop=$(mysql -u${m_user} -p${m_password} -h${m_host} -B -N -e "select max(time) from ${madisTableName}; \
   select max(time) from ${ceilingTableName}; \
   select max(time) from ${visibilityTableName};" |
     sort -n | head -1)
-  # find the min time in the gsd mysql database - RAP_OPS doesn't have visibility
+  # find the min time in the mysql database - RAP_OPS doesn't have visibility
   echo "${visibilityTableName}" | grep -i none
   ret=$?
   if [[ ${ret} -eq 0 ]]; then
@@ -48,12 +48,12 @@ function DO_MODEL() {
     WHERE type=\"DD\" and docType=\"model\" and model=\"${model}\" and subset=\"METAR\" and version=\"V01\"" | jq -r '.results | .[] | .max_fcstValidEpoch')
   echo gsd_start is ${gsd_start} cb_start is ${cb_start}
   if [[ $cb_start == "null" ]]; then
-    echo Using minimum time from gsd mysql database
+    echo Using minimum time from mysql database
     cb_start=${gsd_start}
   fi
   echo start is $cb_start
   echo stop is $stop
-  # do one week at a time to make it easier on the gsd database
+  # do one week at a time to make it easier on the sql database
   week=604800
   end=$cb_start
   export PYTHONPATH=${HOME}/VXingest
@@ -69,10 +69,10 @@ function DO_CTC() {
   loadSpec=$1
   ctc_table_name=$2
   region=$3
-  # find the max time in the gsd mysql database
+  # find the max time in the mysql database
   stop=$(mysql -u${m_user} -p${m_password} -h${m_host} -B -N \
     -e "select max(time) from ${ctc_table_name};" | sort -n | head -1)
-  # find the min time in the gsd mysql database
+  # find the min time in the mysql database
   gsd_start=$(mysql -u${m_user} -p${m_password} -h${m_host} -B -N \
     -e "select min(time) from ${ctc_table_name};" | sort -n | tail -1)
   # find the max time in the couchbase
@@ -82,12 +82,12 @@ function DO_CTC() {
   cb_start=$(curl -s -u ${cred} http://${cb_host}:8093/query/service -d "statement=select max(mdata.fcstValidEpoch) as max_fcstValidEpoch from mdata WHERE type=\"DD\" and docType = \"CTC\" and region=\"${region}\" and subset = \"METAR\" and version = \"V01\"" | jq -r '.results | .[] | .max_fcstValidEpoch')
   echo gsd_start is ${gsd_start} cb_start is ${cb_start}
   if [[ $cb_start == "null" ]]; then
-    echo Using minimum time from gsd mysql database
+    echo Using minimum time from mysql database
     cb_start=${gsd_start}
   fi
   echo start is $cb_start
   echo stop is $stop
-  # do one week at a time to make it easier on the gsd database
+  # do one week at a time to make it easier on the sql database
   week=604800
   end=$cb_start
   export PYTHONPATH=${HOME}/VXingest
@@ -101,21 +101,21 @@ function DO_CTC() {
 
 function DO_OBS_AND_STATIONS() {
   # for obs and stations we do them in this specific routine
-  # find the max time in the gsd mysql database
+  # find the max time in the mysql database
   stop=$(mysql -u${m_user} -p${m_password} -h${m_host} -B -N -e "select max(time) from madis3.obs; select max(time) from ceiling2.obs; select max(time) from visibility.obs;" | sort -n | head -1)
-  # find the min time in the gsd mysql database
+  # find the min time in the mysql database
   gsd_start=$(mysql -u${m_user} -p${m_password} -h${m_host} -B -N -e "select min(time) from madis3.obs; select min(time) from ceiling2.obs; select min(time) from visibility.obs;" | sort -n | tail -1)
   # find the max time in the couchbase
   echo "curl -s -u ${cred} http://${cb_host}:8093/query/service -d 'statement=select max(mdata.fcstValidEpoch) as max_fcstValidEpoch from mdata WHERE type=\"DD\" and docType=\"obs\" and subset=\"METAR\" and version=\"V01\"' | jq -r '.results | .[] | .max_fcstValidEpoch'"
   cb_start=$(curl -s -u ${cred} http://${cb_host}:8093/query/service -d 'statement=select max(mdata.fcstValidEpoch) as max_fcstValidEpoch from mdata WHERE type="DD" and docType="obs" and subset="METAR" and version="V01"' | jq -r '.results | .[] | .max_fcstValidEpoch')
   echo gsd_start is ${gsd_start} cb_start is ${cb_start}
   if [[ $cb_start == "null" ]]; then
-    echo Using minimum time from gsd mysql database
+    echo Using minimum time from mysql database
     cb_start=${gsd_start}
   fi
   echo start is $cb_start
   echo stop is $stop
-  # do one week at a time to make it easier on the gsd database
+  # do one week at a time to make it easier on the sql database
   week=604800
   end=$cb_start
   export PYTHONPATH=${HOME}/VXingest

@@ -249,6 +249,35 @@ The password has been obscured and the example assumes that you cloned this repo
 cbimport json --cluster couchbase://adb-cb4.gsd.esrl.noaa.gov --bucket mdata --username avid --password 'getyourselfapassword' --format list --generate-key %id% --dataset file:///${HOME}/VXingest/gsd_sql_to_cb/metadata_files/regions.json
 ```
 For more information on cbimport see [cbimport](https://docs.couchbase.com/server/current/tools/cbimport-json.html)
+#### Import data with cbimports
+In a similar manner to importing metadata, data files may be imported as well. This example
+would be for a datafile containing a document array i.e a data file that is constructed like this...
+```
+[
+{
+    id:"DD:V01:METAR:something:anepoch",
+    more stufff......
+},
+{
+    id:"DD:V01:METAR:something:anepoch",
+    more stufff......
+},
+more documents ,,,,
+
+]
+``` 
+The id's must conform to our data model and must be unique.
+The import command would be like this for importing to the cluster...
+```
+cbimport json --cluster couchbase://adb-cb4.gsd.esrl.noaa.gov --bucket mdata --username avid --password 'getyourselfapassword' --format list --generate-key %id% --dataset file:///path_to_the_file
+```
+and to use multiple threads and log any errors you can do this, you should not use more threads than you have cpu cores....
+```
+cbimport json --cluster couchbase://adb-cb4.gsd.esrl.noaa.gov --bucket mdata --username avid --password 'getyourselfapassword' --format list --generate-key %id% --dataset file:///path_to_the_file -t num_threads -e an_error_file
+```
+A strategy might be to seperate data into multiple files and run a different cbimport 
+instance on each file.
+
 ## Credentials files
 This is an example credentials file, the user and password are fake.
 ```

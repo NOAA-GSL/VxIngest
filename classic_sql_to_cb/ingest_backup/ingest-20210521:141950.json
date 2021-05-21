@@ -1,6 +1,8 @@
 [
   {
     "builder_type": "SqlModelBuilderV01",
+    "validTimeInterval": 3600,
+    "validTimeDelta": 1800,
     "docType": "ingest",
     "id": "MD:V01:METAR:HRRR:ALL_HRRR:CTC:ingest",
     "model": "HRRR",
@@ -35,6 +37,8 @@
   },
   {
     "builder_type": "SqlModelBuilderV01",
+    "validTimeInterval": 3600,
+    "validTimeDelta": 1800,
     "docType": "ingest",
     "id": "MD:V01:METAR:HRRR:E_HRRR:CTC:ingest",
     "model": "HRRR",
@@ -69,6 +73,8 @@
   },
   {
     "builder_type": "SqlModelBuilderV01",
+    "validTimeInterval": 3600,
+    "validTimeDelta": 1800,
     "docType": "ingest",
     "id": "MD:V01:METAR:HRRR:E_US:CTC:ingest",
     "model": "HRRR",
@@ -103,6 +109,8 @@
   },
   {
     "builder_type": "SqlModelBuilderV01",
+    "validTimeInterval": 3600,
+    "validTimeDelta": 1800,
     "docType": "ingest",
     "id": "MD:V01:METAR:HRRR:GtLk:CTC:ingest",
     "model": "HRRR",
@@ -137,6 +145,8 @@
   },
   {
     "builder_type": "SqlModelBuilderV01",
+    "validTimeInterval": 3600,
+    "validTimeDelta": 1800,
     "docType": "ingest",
     "id": "MD:V01:METAR:HRRR:W_HRRR:CTC:ingest",
     "model": "HRRR",
@@ -171,6 +181,8 @@
   },
   {
     "builder_type": "SqlModelBuilderV01",
+    "validTimeInterval": 3600,
+    "validTimeDelta": 1800,
     "docType": "ingest",
     "id": "MD:V01:METAR:HRRR:ingest",
     "model": "HRRR",
@@ -208,6 +220,8 @@
   },
   {
     "builder_type": "SqlModelBuilderV01",
+    "validTimeInterval": 3600,
+    "validTimeDelta": 1800,
     "docType": "ingest",
     "id": "MD:V01:METAR:HRRR_OPS:ALL_HRRR:CTC:ingest",
     "model": "HRRR_OPS",
@@ -242,6 +256,8 @@
   },
   {
     "builder_type": "SqlModelBuilderV01",
+    "validTimeInterval": 3600,
+    "validTimeDelta": 1800,
     "docType": "ingest",
     "id": "MD:V01:METAR:HRRR_OPS:E_HRRR:CTC:ingest",
     "model": "HRRR_OPS",
@@ -276,6 +292,8 @@
   },
   {
     "builder_type": "SqlModelBuilderV01",
+    "validTimeInterval": 3600,
+    "validTimeDelta": 1800,
     "docType": "ingest",
     "id": "MD:V01:METAR:HRRR_OPS:E_US:CTC:ingest",
     "model": "HRRR_OPS",
@@ -310,6 +328,8 @@
   },
   {
     "builder_type": "SqlModelBuilderV01",
+    "validTimeInterval": 3600,
+    "validTimeDelta": 1800,
     "docType": "ingest",
     "id": "MD:V01:METAR:HRRR_OPS:GtLk:CTC:ingest",
     "model": "HRRR_OPS",
@@ -344,6 +364,8 @@
   },
   {
     "builder_type": "SqlModelBuilderV01",
+    "validTimeInterval": 3600,
+    "validTimeDelta": 1800,
     "docType": "ingest",
     "id": "MD:V01:METAR:HRRR_OPS:W_HRRR:CTC:ingest",
     "model": "HRRR_OPS",
@@ -378,6 +400,8 @@
   },
   {
     "builder_type": "SqlModelBuilderV01",
+    "validTimeInterval": 3600,
+    "validTimeDelta": 1800,
     "docType": "ingest",
     "id": "MD:V01:METAR:HRRR_OPS:ingest",
     "model": "HRRR_OPS",
@@ -414,6 +438,8 @@
   },
   {
     "builder_type": "SqlModelBuilderV01",
+    "validTimeInterval": 3600,
+    "validTimeDelta": 1800,
     "docType": "ingest",
     "id": "MD:V01:METAR:RAP_OPS:ingest",
     "model": "RAP_OPS",
@@ -450,6 +476,8 @@
   },
   {
     "builder_type": "SqlModelBuilderV01",
+    "validTimeInterval": 3600,
+    "validTimeDelta": 1800,
     "docType": "ingest",
     "id": "MD:V01:METAR:RRFS_dev1:ALL_HRRR:CTC:ingest",
     "model": "RRFS_dev1",
@@ -484,6 +512,8 @@
   },
   {
     "builder_type": "SqlModelBuilderV01",
+    "validTimeInterval": 3600,
+    "validTimeDelta": 1800,
     "docType": "ingest",
     "id": "MD:V01:METAR:RRFS_dev1:E_HRRR:CTC:ingest",
     "model": "RRFS_dev1",
@@ -518,6 +548,8 @@
   },
   {
     "builder_type": "SqlModelBuilderV01",
+    "validTimeInterval": 3600,
+    "validTimeDelta": 1800,
     "docType": "ingest",
     "id": "MD:V01:METAR:RRFS_dev1:E_US:CTC:ingest",
     "model": "RRFS_dev1",
@@ -552,6 +584,8 @@
   },
   {
     "builder_type": "SqlModelBuilderV01",
+    "validTimeInterval": 3600,
+    "validTimeDelta": 1800,
     "docType": "ingest",
     "id": "MD:V01:METAR:RRFS_dev1:GtLk:CTC:ingest",
     "model": "RRFS_dev1",
@@ -586,6 +620,8 @@
   },
   {
     "builder_type": "SqlModelBuilderV01",
+    "validTimeInterval": 3600,
+    "validTimeDelta": 1800,
     "docType": "ingest",
     "id": "MD:V01:METAR:RRFS_dev1:W_HRRR:CTC:ingest",
     "model": "RRFS_dev1",
@@ -620,6 +656,8 @@
   },
   {
     "builder_type": "SqlModelBuilderV01",
+    "validTimeInterval": 3600,
+    "validTimeDelta": 1800,
     "docType": "ingest",
     "id": "MD:V01:METAR:RRFS_dev1:ingest",
     "model": "RFS_dev1",
@@ -656,8 +694,8 @@
   },
   {
     "builder_type": "SqlObsBuilderV01",
-    "cadence": 3600,
-    "delta": 1800,
+    "validTimeInterval": 3600,
+    "validTimeDelta": 1800,
     "docType": "ingest",
     "id": "MD:V01:METAR:obs:ingest",
     "requires_time_interpolation": true,

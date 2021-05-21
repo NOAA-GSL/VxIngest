@@ -1,5 +1,5 @@
 """
-Program Name: Class GsdIngestManager.py
+Program Name: Class SqlIngestManager.py
 Contact(s): Randy Pierce
 Abstract:
 
@@ -26,7 +26,7 @@ a_time of the program significantly.
 More than that does not. I would have left out threading all-together but
 someday we may decide to port this to a truly thread capable language.
 
-Usage: The GsdIngestManager extends Process - python multiprocess thread -
+Usage: The SqlIngestManager extends Process - python multiprocess thread -
 and runs as a Process and pulls from a queue of metadata document ids. It
 maintains its own connections one to
 the mysql database and one to couchbase which it keeps open until it finishes.
@@ -41,7 +41,7 @@ concrete builder to process the line.
 
 The builders are instantiated once and kept in a map of objects for the
 duration of the programs life.
-When GsdIngestManager finishes a document specification  it  "upserts"
+When SqlIngestManager finishes a document specification  it  "upserts"
 document_map to the couchbase database.
 
         Attributes:
@@ -62,7 +62,7 @@ from multiprocessing import Process
 from couchbase.cluster import Cluster, ClusterOptions
 from couchbase.exceptions import DocumentNotFoundException, TimeoutException
 from couchbase_core.cluster import PasswordAuthenticator
-from classic_sql_to_cb import gsd_builder as gsd_builder
+from classic_sql_to_cb import sql_builder as sql_builder
 from itertools import islice
 
 
@@ -75,9 +75,9 @@ def document_map_chunks(data, chunk_size=1000):
         yield {k: data[k] for k in islice(it, chunk_size)}
 
 
-class GsdIngestManager(Process):
+class SqlIngestManager(Process):
     """
-    GsdIngestManager is a Thread that manages an object pool of
+    SqlIngestManager is a Thread that manages an object pool of
     GsdBuilders to ingest data from GSD databases into documents that can be
     inserted into couchbase.
     
@@ -85,10 +85,10 @@ class GsdIngestManager(Process):
     a_time - from the document_id_queue. For each ingest_document_id it
     retrieves the identified load metadata document[s] from the couchbase
     collection. From that document it retrieves an sql statement,
-    a concrete GsdBuilder class name, a document template, and some other
+    a concrete SqlBuilder class name, a document template, and some other
     fields. It uses the statement in the load metadata document to
     retrieve a result set from the mysql databases and then instantiates
-    an appropriate builder using the GsdBuilder class name, and the template
+    an appropriate builder using the SqlBuilder class name, and the template
     as construction parameters, and passes the result set entries one at a
     a_time into the builders handle_entry method, along with a reference to
     the document map. The builders use the template to create documents for
@@ -96,7 +96,7 @@ class GsdIngestManager(Process):
     When all of the result set entries are processed the IngestManager upserts
     the documents to couchbase, retrieves a new ingest_document from
     the queue and starts over.
-    Each GsdBuilder is kept in a n object pool so that they do not need to
+    Each SqlBuilder is kept in a n object pool so that they do not need to
     be re instantiated.
     When the queue has been emptied the IngestManager closes its connections
     and dies.
@@ -125,7 +125,7 @@ class GsdIngestManager(Process):
     # started.
     def run(self):
         """
-        This is the entry point for the GsdIngestManager thread. It runs an
+        This is the entry point for the SqlIngestManager thread. It runs an
         infinite loop that only terminates when the  document_id_queue is 
         empty. For each enqueued document id it calls 
         process_meta_ingest_document with the document id and the couchbase 
@@ -154,10 +154,10 @@ class GsdIngestManager(Process):
                         continue
                     else:
                         logging.info(
-                            self.threadName + ': GsdIngestManager - Queue ' + 'empty - disconnecting ' + 'couchbase')
+                            self.threadName + ': SqlIngestManager - Queue ' + 'empty - disconnecting ' + 'couchbase')
                         break
         except Exception as e:
-            logging.error(self.threadName + ": *** %s Error in GsdIngestManager run "
+            logging.error(self.threadName + ": *** %s Error in SqlIngestManager run "
                                             "***" + str(e))
             raise e
         finally:
@@ -203,7 +203,7 @@ class GsdIngestManager(Process):
             if _ingest_type_builder_name in self.builder_map.keys():
                 builder = self.builder_map[_ingest_type_builder_name]
             else:
-                builder_class = getattr(gsd_builder, _ingest_type_builder_name)
+                builder_class = getattr(sql_builder, _ingest_type_builder_name)
                 builder = builder_class(self.load_spec, self.statement_replacement_params, _ingest_document,
                                         self.cluster, self.collection)
                 self.builder_map[_ingest_type_builder_name] = builder
@@ -259,5 +259,5 @@ class GsdIngestManager(Process):
         finally:
             # reset the document map
             _stop_process_time = int(time.time())
-            logging.info("GsdIngestManager.process_meta_ingest_document: "
+            logging.info("SqlIngestManager.process_meta_ingest_document: "
                          "elapsed time: " + str(_stop_process_time - _start_process_time))

@@ -1,6 +1,6 @@
 [
   {
-    "builder_type": "GsdObsBuilderV01",
+    "builder_type": "SqlObsBuilderV01",
     "cadence": 3600,
     "delta": 1800,
     "docType": "ingest",
@@ -36,7 +36,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "GsdStationsBuilderV01",
+    "builder_type": "SqlStationsBuilderV01",
     "docType": "ingest",
     "id": "MD:V01:METAR:stations:ingest",
     "statement": "set @FirstTime = {first_epoch}; set @LastTime = {last_epoch};  select UNIX_TIMESTAMP() as updateTime, l.lat / 182 as lat, l.lon / 182 as lon, l.elev, l.last_time, s.id as station, l.id as location, s.name, s.disc as description, s.first, s.last from madis3.locations l, madis3.stations s, madis3.obs o where 1 = 1 and s.id = o.sta_id and l.id = o.loc_id and s.net = 'METAR' and s.name != '' and o.time >= @FirstTime - 1800 and o.time <= @LastTime + 1799 GROUP BY(s.name);",

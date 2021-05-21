@@ -18,7 +18,7 @@ class TestLoadYamlSpecFile(unittest.TestCase):
                          'MD:V01:METAR:obs')
         self.assertEqual(load_spec['cb_connection']['host'], "localhost")
         self.assertEqual(load_spec['cb_connection']['user'], "gsd_builder")
-        self.assertEqual(load_spec['cb_connection']['password'], "gsd_pwd")
+        self.assertEqual(load_spec['cb_connection']['password'], "gsl_pwd")
         
         self.assertEqual(load_spec['mysql_connection']['host'],
                          "host")
@@ -42,7 +42,7 @@ class TestLoadYamlSpecFile(unittest.TestCase):
         self.assertEqual(yaml_data['load_spec']['cb_connection']['user'],
                          "gsd_builder")
         self.assertEqual(yaml_data['load_spec']['cb_connection']['password'],
-                         "gsd_pwd")
+                         "gsl_pwd")
         
         self.assertEqual(
             yaml_data['load_spec']['mysql_connection']['management_system'],

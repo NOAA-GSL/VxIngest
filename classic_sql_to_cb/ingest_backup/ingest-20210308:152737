@@ -1,6 +1,6 @@
 [
   {
-    "builder_type": "GsdModelBuilderV01",
+    "builder_type": "SqlModelBuilderV01",
     "docType": "ingest",
     "id": "MD:V01:METAR:HRRR:ingest",
     "statement": "set @FirstTime = {first_epoch}; set @LastTime = {last_epoch}; select m.time, m.fcst_len, m.sta_id as madis_id, m.temp, m.press  as slp, m.dp, m.rh, m.wd, m.ws, m.vgtyp, c.ceil, v.vis100 as vis, m.sta_id, s.id, s.net, s.name from madis3.HRRRqp m, madis3.stations as s, ceiling2.HRRR c, visibility.HRRR v where 1 = 1 AND m.time >= @FirstTime and m.time <= @LastTime AND m.time = c.time AND m.time = v.time and m.sta_id = c.madis_id and m.sta_id = v.madis_id and m.fcst_len = c.fcst_len and m.fcst_len = v.fcst_len and m.sta_id = s.id and s.net = 'METAR' order by time, fcst_len, name;",
@@ -36,7 +36,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "GsdObsBuilderV01",
+    "builder_type": "SqlObsBuilderV01",
     "cadence": 3600,
     "delta": 1800,
     "docType": "ingest",
@@ -74,7 +74,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "GsdStationsBuilderV01",
+    "builder_type": "SqlStationsBuilderV01",
     "docType": "ingest",
     "id": "MD:V01:METAR:stations:ingest",
     "singularData": true,

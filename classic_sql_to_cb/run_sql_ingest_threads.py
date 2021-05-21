@@ -6,11 +6,11 @@ Abstract:
 History Log:  Initial version
 
 Usage:
-run_gsd_ingest_threads -s spec_file -c credentials_file [ -t thread_count -f first_epoch -l last_epoch]
+run_sql_ingest_threads -s spec_file -c credentials_file [ -t thread_count -f first_epoch -l last_epoch]
 This script processes arguments which define a a yaml load_spec file,
 a defaults file (for credentials),
 and a thread count.
-The script maintains a thread pool of GsdIngestManagers and a queue of
+The script maintains a thread pool of SqlIngestManagers and a queue of
 load_metadata_document ids that is loaded from the load_spec_stations.yaml
 ingest_document_ids field.
 The number of threads in the thread pool is set to the -t n (or --threads n)
@@ -46,7 +46,7 @@ defaults:
   mysql_password: password_for_some_mysql_user_name
 
 Copyright 2019 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of
-Colorado, NOAA/OAR/ESRL/GSD
+Colorado, NOAA/OAR/ESRL/GSL
 """
 import argparse
 import logging
@@ -58,7 +58,7 @@ from pathlib import Path
 from datetime import datetime
 from datetime import timedelta
 from multiprocessing import JoinableQueue
-from classic_sql_to_cb.gsd_ingest_manager import GsdIngestManager
+from classic_sql_to_cb.sql_ingest_manager import SqlIngestManager
 from classic_sql_to_cb.load_spec_yaml import LoadYamlSpecFile
 
 
@@ -85,7 +85,7 @@ def parse_args(args):
     return args
 
 
-class VXIngestGSD(object):
+class VXIngestGSL(object):
     def __init__(self):
         self.load_time_start = time.perf_counter()
         self.spec_file = ""
@@ -141,13 +141,13 @@ class VXIngestGSD(object):
         for _threadCount in range(int(self.thread_count)):
             # noinspection PyBroadException
             try:
-                dtm_thread = GsdIngestManager(
-                    "GsdIngestManager-" + str(self.thread_count), load_spec, q, self.statement_replacement_params)
+                dtm_thread = SqlIngestManager(
+                    "SqlIngestManager-" + str(self.thread_count), load_spec, q, self.statement_replacement_params)
                 _dtm_list.append(dtm_thread)
                 dtm_thread.start()
             except:
                 logging.error(
-                    "*** Error in  VXIngestGSD ***" + str(sys.exc_info()))
+                    "*** Error in  VXIngestGSL ***" + str(sys.exc_info()))
         # be sure to join all the threads to wait on them
         [proc.join() for proc in _dtm_list]
         logging.info("finished starting threads")
@@ -186,4 +186,4 @@ class VXIngestGSD(object):
 
 
 if __name__ == '__main__':
-    VXIngestGSD().main()
+    VXIngestGSL().main()

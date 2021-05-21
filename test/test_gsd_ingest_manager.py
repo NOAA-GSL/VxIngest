@@ -29,7 +29,7 @@ class TestGsdIngestManager(TestCase):
         try:
             self.connect_cb()
             cwd = os.getcwd()
-            self.spec_file = cwd + '/load_spec_gsd-test-GsdIngestManager-V01.yaml'
+            self.spec_file = cwd + '/load_spec_gsd-test-SqlIngestManager-V01.yaml'
             self.thread_count = 1
             self.cert_path = None
             vx_ingest = VXIngestGSD()
@@ -38,23 +38,23 @@ class TestGsdIngestManager(TestCase):
                                  os.environ['HOME'] + '/adb-credentials-local',
                              'threads': self.thread_count,
                              'cert_path': self.cert_path})
-            test_document = self.collection.get("MD:V01:METAR:test:GsdIngestManager").content
+            test_document = self.collection.get("MD:V01:METAR:test:SqlIngestManager").content
             self.assertEqual(test_document['description'], "a description", "test document name is wrong: " +
                              test_document['description'] + " is not 'a description'")
-            self.assertEqual(test_document['name'], "GsdIngestManager", "test document name is wrong: " +
-                             test_document['name'] + " is not GsdIngestManager")
+            self.assertEqual(test_document['name'], "SqlIngestManager", "test document name is wrong: " +
+                             test_document['name'] + " is not SqlIngestManager")
             self.assertEqual(test_document['firstTime'], 1, "test document firstTime is not 1 and it should be")
             self.assertEqual(test_document['lastTime'], 10, "test document lastTime is not 10 and it should be")
             self.assertIsNotNone(test_document['updateTime'], "test document has None for updateTime")
             # tests pass = delete the document
             
         except:
-            self.collection.remove("MD:V01:METAR:test:GsdIngestManager")
+            self.collection.remove("MD:V01:METAR:test:SqlIngestManager")
             if self.cluster:
                 self.cluster.disconnect()
             self.fail("TestGsdIngestManager Exception failure: " + str(sys.exc_info()))
 
     def tearDown(self):
-        self.collection.remove("MD:V01:METAR:test:GsdIngestManager")
+        self.collection.remove("MD:V01:METAR:test:SqlIngestManager")
         if self.cluster:
             self.cluster.disconnect()

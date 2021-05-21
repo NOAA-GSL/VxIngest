@@ -1,6 +1,6 @@
 [
   {
-    "builder_type": "GsdModelBuilderV01",
+    "builder_type": "SqlModelBuilderV01",
     "docType": "ingest",
     "type": "MD",
     "version": "V01",
@@ -37,7 +37,7 @@
     }
   },
   {
-    "builder_type": "GsdModelBuilderV01",
+    "builder_type": "SqlModelBuilderV01",
     "docType": "ingest",
     "type": "MD",
     "version": "V01",
@@ -73,7 +73,7 @@
     }
   },
   {
-    "builder_type": "GsdModelBuilderV01",
+    "builder_type": "SqlModelBuilderV01",
     "docType": "ingest",
     "type": "MD",
     "version": "V01",
@@ -109,7 +109,7 @@
     }
   },
   {
-    "builder_type": "GsdModelBuilderV01",
+    "builder_type": "SqlModelBuilderV01",
     "docType": "ingest",
     "type": "MD",
     "version": "V01",

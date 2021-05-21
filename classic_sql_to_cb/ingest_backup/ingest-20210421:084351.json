@@ -655,7 +655,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "GsdObsBuilderV01",
+    "builder_type": "SqlObsBuilderV01",
     "cadence": 3600,
     "delta": 1800,
     "docType": "ingest",

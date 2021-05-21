@@ -127,7 +127,7 @@ function DO_OBS_AND_STATIONS() {
     time python3 run_sql_ingest_threads.py -s ${HOME}/VXingest/test/load_spec_gsd-stations-v01.yaml -c ${credentials} -f $cb_start -l $end
     # ingest the obs
     echo "time python3 run_sql_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-metars-v01.yaml -c ${credentials} -f $cb_start -l $end"
-    time python3 run_gsd_ingest_threads.py -s ${HOME}/VXingest/test/load_spec_gsd-metars-v01.yaml -c ${credentials} -f $cb_start -l $end
+    time python3 run_sql_ingest_threads.py -s ${HOME}/VXingest/test/load_spec_gsd-metars-v01.yaml -c ${credentials} -f $cb_start -l $end
     cb_start=$(($cb_start + $week))
   done
 }

@@ -31,7 +31,7 @@ DO_MODEL "${HOME}/VXingest/test/load_spec_gsd-hrrr_ops-v01.yaml" "madis3.HRRR_OP
 DO_MODEL "${HOME}/VXingest/test/load_spec_gsd-rap_ops-v01.yaml" "madis3.RAP_NCEP_fullqp" "ceiling2.RAP_OPS" "none" "RAP_OPS"
 
 #RRFS_dev1
-DO_MODEL "${HOME}/VXingest/test/load_spec_gsd-rrfs_dev1-v01.yaml" "madis3.RRFS_dev1qp" "ceiling2.RRFS_dev1" "RRFS_dev1" "RRFS_dev1"
+DO_MODEL "${HOME}/VXingest/test/load_spec_gsd-rrfs_dev1-v01.yaml" "madis3.RRFS_dev1qp" "ceiling2.RRFS_dev1" "visibility.RRFS_dev1" "RRFS_dev1"
 
 #do all the contingency tables with DO_CTC
 # CTC's are so similar that it is possible to use a function with 3 parameters to process them

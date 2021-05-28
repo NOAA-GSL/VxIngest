@@ -42,7 +42,7 @@ function DO_MODEL() {
   fi
 
   echo "find the max time in the couchbase"
-  echo "curl -s -u ${cred} http://${cb_host}:8093/query/service -d \"statement=select max(mdata.fcstValidEpoch) as max_fcstValidEpoch from mdata WHERE type=\"DD\" and docType \"model\" and model= \"${model}\" and subset = \"METAR\" and version = \"V01\"\""
+  echo "curl -s -u ${cred} http://${cb_host}:8093/query/service -d \"statement=select max(mdata.fcstValidEpoch) as max_fcstValidEpoch from mdata WHERE type=\"DD\" and docType = \"model\" and model= \"${model}\" and subset = \"METAR\" and version = \"V01\"\""
   cb_start=$(curl -s -u ${cred} http://${cb_host}:8093/query/service \
     -d "statement=select max(mdata.fcstValidEpoch) as max_fcstValidEpoch from mdata \
     WHERE type=\"DD\" and docType=\"model\" and model=\"${model}\" and subset=\"METAR\" and version=\"V01\"" | jq -r '.results | .[] | .max_fcstValidEpoch')

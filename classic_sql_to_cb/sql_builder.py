@@ -338,24 +338,12 @@ class SqlObsBuilderV01(SqlBuilder):
         """
         SqlBuilder.__init__(self, load_spec, statement_replacement_params, ingest_document, cluster, collection)
         self.cluster = cluster
-        self.stations = []
         self.same_time_rows = []
         self.time = 0
         self.interpolated_time = 0
         self.delta = ingest_document['validTimeDelta']
         self.cadence = ingest_document['validTimeInterval']
-        # noinspection PyBroadException
-        # try:
-        #     # Retrieve the required station data
-        #     n1ql_query = ingest_document['station_query']
-        #     row_iter = cluster.query(n1ql_query, QueryOptions(read_only=True))
-        #     for _station in row_iter:
-        #         self.stations.append(_station)
-        # except Exception as e:
-        #     logging.error(
-        #         self.__class__.__name__ + "SqlStationsBuilderV01: error getting stations, " + str(e))
-        #     raise e
-        
+
     def interpolate_time(self, a_time):
         _remainder_time = a_time % self.cadence
         _cadence_time = a_time / self.cadence * self.cadence
@@ -446,24 +434,11 @@ class SqlModelBuilderV01(SqlBuilder):
         """
         SqlBuilder.__init__(self, load_spec, statement_replacement_params, ingest_document, cluster, collection)
         self.cluster = cluster
-        self.stations = []
         self.same_time_rows = []
         self.time = 0
         self.interpolated_time = 0
         self.delta = ingest_document['validTimeDelta']
         self.cadence = ingest_document['validTimeInterval']
-        # noinspection PyBroadException
-        try:
-            # Retrieve the required station data
-            n1ql_query = 'SELECT raw {mdata.name, mdata.geo.lat, mdata.geo.lon} FROM mdata ' \
-                         'WHERE type="DD" AND docType="station" AND subset="METAR" AND version ="V03"'
-            row_iter = cluster.query(n1ql_query, QueryOptions(read_only=True))
-            for _station in row_iter:
-                self.stations.append(_station)
-        except Exception as e:
-            logging.error(
-                self.__class__.__name__ + "SqlStationsBuilderV01: error getting stations, " + str(e))
-            raise e
         
     def interpolate_time(self, a_time):
         _remainder_time = a_time % self.cadence

@@ -50,6 +50,7 @@ Colorado, NOAA/OAR/ESRL/GSL
 """
 import argparse
 import logging
+import os
 import sys
 import time
 import yaml
@@ -102,8 +103,8 @@ class VXIngestGSL(object):
         """
         This is the entry point for run_cb_threads.py
         """
-        self.spec_file = args['spec_file']
-        self.credentials_file = args['credentials_file']
+        self.spec_file = args['spec_file'].strip()
+        self.credentials_file = args['credentials_file'].strip()
         self.thread_count = args['threads']
         # capture any statement replacement params
         # these are -f {first_epoch} and -f {last_epoch}
@@ -181,6 +182,7 @@ class VXIngestGSL(object):
             sys.exit("*** Parsing error(s) in load_spec file!")
 
     def main(self):
+        print ("PYTHONPATH: " + os.environ['PYTHONPATH'])
         args = parse_args(sys.argv[1:])
         self.runit(vars(args))
 

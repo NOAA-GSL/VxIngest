@@ -1,4 +1,6 @@
 .idea/
+.vscode/
 [Ll]ogs/
 venv/
 __pycache__/
+.DS_Store

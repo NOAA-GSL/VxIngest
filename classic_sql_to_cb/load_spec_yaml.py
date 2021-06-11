@@ -33,7 +33,7 @@ class LoadYamlSpecFile:
     def __init__(self, args):
         # set the defaults
         # args requires {'spec_file':something, ['spec_type':'gsd_builder'] }
-        self.spec_file_name = args['spec_file']
+        self.spec_file_name = args['spec_file'].lstrip()
         self.connection_list = ['cb_connection', 'mysql_connection']
         self.load_spec = {'cb_connection': {'host': None, 'user': None, 'password': None, },
                           'mysql_connection': {

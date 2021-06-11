@@ -49,6 +49,7 @@
       "dataSourceId": "HRRR_OPS",
       "docType": "model",
       "model": "HRRR_OPS",
+      "fcstLen": "*fcst_len",
       "fcstValidBeg": "*{ISO}time",
       "fcstValidEpoch": "*time",
       "id": "DD:V01:METAR:HRRR_OPS:*time:*fcst_len",

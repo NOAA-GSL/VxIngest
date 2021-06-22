@@ -36,47 +36,47 @@ DO_MODEL "${HOME}/VXingest/test/load_spec_gsd-rrfs_dev1-v01.yaml" "madis3.RRFS_d
 #do all the contingency tables with DO_CTC
 # CTC's are so similar that it is possible to use a function with 3 parameters to process them
 DO_CTC "${HOME}/VXingest/test/load_spec_gsd-HRRR_ALL_HRRR_CTC-v01.yaml" \
-  "ceiling_sums2.HRRR_ALL_HRRR" "ALL_HRRR"
+  "ceiling_sums2.HRRR_ALL_HRRR" "ALL_HRRR" "HRRR"
 
 DO_CTC "${HOME}/VXingest/test/load_spec_gsd-HRRR_E_HRRR_CTC-v01.yaml" \
-  "ceiling_sums2.HRRR_E_HRRR" "E_HRRR"
+  "ceiling_sums2.HRRR_E_HRRR" "E_HRRR"  "HRRR"
 
 DO_CTC "${HOME}/VXingest/test/load_spec_gsd-HRRR_W_HRRR_CTC-v01.yaml" \
-  "ceiling_sums2.HRRR_W_HRRR" "W_HRRR"
+  "ceiling_sums2.HRRR_W_HRRR" "W_HRRR" "HRRR"
 
 DO_CTC "${HOME}/VXingest/test/load_spec_gsd-HRRR_E_US_CTC-v01.yaml" \
-  "ceiling_sums2.HRRR_E_US" "E_US"
+  "ceiling_sums2.HRRR_E_US" "E_US" "HRRR"
 
 DO_CTC "${HOME}/VXingest/test/load_spec_gsd-HRRR_GtLk_CTC-v01.yaml" \
-  "ceiling_sums2.HRRR_GtLk" "GtLk"
+  "ceiling_sums2.HRRR_GtLk" "GtLk" "HRRR"
 
 DO_CTC "${HOME}/VXingest/test/load_spec_gsd-HRRR_OPS_ALL_HRRR_CTC-v01.yaml" \
-  "ceiling_sums2.HRRR_OPS_ALL_HRRR" "ALL_HRRR"
+  "ceiling_sums2.HRRR_OPS_ALL_HRRR" "ALL_HRRR" "HRRR_OPS"
 
 DO_CTC "${HOME}/VXingest/test/load_spec_gsd-HRRR_OPS_E_HRRR_CTC-v01.yaml" \
-  "ceiling_sums2.HRRR_OPS_E_HRRR" "E_HRRR"
+  "ceiling_sums2.HRRR_OPS_E_HRRR" "E_HRRR" "HRRR_OPS"
 
 DO_CTC "${HOME}/VXingest/test/load_spec_gsd-HRRR_OPS_W_HRRR_CTC-v01.yaml" \
-  "ceiling_sums2.HRRR_OPS_W_HRRR" "W_HRRR"
+  "ceiling_sums2.HRRR_OPS_W_HRRR" "W_HRRR" "HRRR_OPS"
 
 DO_CTC "${HOME}/VXingest/test/load_spec_gsd-HRRR_OPS_E_US_CTC-v01.yaml" \
-  "ceiling_sums2.HRRR_OPS_E_US" "E_US"
+  "ceiling_sums2.HRRR_OPS_E_US" "E_US" "HRRR_OPS"
 
 DO_CTC "${HOME}/VXingest/test/load_spec_gsd-HRRR_OPS_GtLk_CTC-v01.yaml" \
-  "ceiling_sums2.HRRR_OPS_GtLk" "GtLk"
+  "ceiling_sums2.HRRR_OPS_GtLk" "GtLk" "HRRR_OPS"
 
 DO_CTC "${HOME}/VXingest/test/load_spec_gsd-RRFS_dev1_ALL_HRRR_CTC-v01.yaml" \
-  "ceiling_sums2.RRFS_dev1_ALL_HRRR" "ALL_HRRR"
+  "ceiling_sums2.RRFS_dev1_ALL_HRRR" "ALL_HRRR" "RRFS_dev1"
 
 DO_CTC "${HOME}/VXingest/test/load_spec_gsd-RRFS_dev1_E_HRRR_CTC-v01.yaml" \
-  "ceiling_sums2.RRFS_dev1_E_HRRR" "E_HRRR"
+  "ceiling_sums2.RRFS_dev1_E_HRRR" "E_HRRR" "RRFS_dev1"
 
 DO_CTC "${HOME}/VXingest/test/load_spec_gsd-RRFS_dev1_W_HRRR_CTC-v01.yaml" \
-  "ceiling_sums2.RRFS_dev1_W_HRRR" "W_HRRR"
+  "ceiling_sums2.RRFS_dev1_W_HRRR" "W_HRRR" "RRFS_dev1"
 
 DO_CTC "${HOME}/VXingest/test/load_spec_gsd-RRFS_dev1_E_US_CTC-v01.yaml" \
-  "ceiling_sums2.RRFS_dev1_E_US" "E_US"
+  "ceiling_sums2.RRFS_dev1_E_US" "E_US" "RRFS_dev1"
 
 DO_CTC "${HOME}/VXingest/test/load_spec_gsd-RRFS_dev1_GtLk_CTC-v01.yaml" \
-  "ceiling_sums2.RRFS_dev1_GtLk" "GtLk"
+  "ceiling_sums2.RRFS_dev1_GtLk" "GtLk" "RRFS_dev1"
 

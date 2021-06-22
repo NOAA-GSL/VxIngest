@@ -232,6 +232,18 @@ class SqlBuilder:
         return doc
     
     def handle_named_function(self, _data_key, interpolated_time, row):
+        """
+        This routine processes a named function entry from a template.
+        :param _data_key - this can be either a template key or a template value.
+        The template entry looks like "&named_function:*field1:*field2:*field3..."
+        It is expected that field1, field2, and field3 etc are all valid fields in row.
+        Each field will be translated with the interpolated_time and the row into value1, value2 etc. 
+        The method "named_function" will be called like..
+        named_function({field1:value1, field2:value2, field3:value3}) and the return value from named_function
+        will be substituted into the document.
+        :interpolated_time - either the time or the interpolated time.
+        :row the data row being processed.
+        """
         # noinspection PyBroadException
         try:
             _func = _data_key.split(':')[0].replace('&', '')
@@ -489,6 +501,40 @@ class SqlModelBuilderV01(SqlBuilder):
             doc['data'] = []
         doc['data'].append(element)
         return doc
+
+class SqlCtcBuilderV01(SqlModelBuilderV01):
+    def __init__(self, load_spec, statement_replacement_params, ingest_document, cluster, collection):
+        """
+        This builder creates a set of V01 ctc documents using the V01 ingest ctc documents.
+        This builder is very much like the SqlModelBuilderV01 (the parent) except that it builds ctc documents.
+        The difference is the load_data method is overridden in order to put data into a map instead of a list.
+        In each document the specific ctc data is a map of objects each of which is the ctc data
+        for a specific threshold indexed by the threshold.
+        :param ingest_document: the document from the ingest document like MD:V01:METAR:HRRR:ALL_HRRR:CTC:ingest
+        :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
+        :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
+        """
+        SqlBuilder.__init__(self, load_spec, statement_replacement_params, ingest_document, cluster, collection)
+        self.cluster = cluster
+        self.same_time_rows = []
+        self.time = 0
+        self.interpolated_time = 0
+        self.delta = ingest_document['validTimeDelta']
+        self.cadence = ingest_document['validTimeInterval']
+
+    def load_data(self, doc, key, element):
+        """
+        This method appends an observation to the data array
+        :param doc: The document being created
+        :param key: Not used
+        :param element: the observation data
+        :return: the document being created
+        """
+        if 'data' not in doc.keys() or doc['data'] is None:
+            doc['data'] = {}
+        doc['data'][key] = element
+        return doc
+        
 
 class SqlStationsBuilderV01(SqlBuilder):
     def __init__(self, load_spec, statement_replacement_params, ingest_document, cluster, collection):

@@ -69,16 +69,18 @@ function DO_CTC() {
   loadSpec=$1
   ctc_table_name=$2
   region=$3
+  model=$4
+  table_parts=echo ${ctc_table_name} | cut -d'.' -f2
   # find the max time in the mysql database
   stop=$(mysql -u${m_user} -p${m_password} -h${m_host} -B -N \
-    -e "select max(time) from ${ctc_table_name};" | sort -n | head -1)
+    -e "select max(time) from ${ctc_table_name};")
   # find the min time in the mysql database
   gsd_start=$(mysql -u${m_user} -p${m_password} -h${m_host} -B -N \
-    -e "select min(time) from ${ctc_table_name};" | sort -n | tail -1)
+    -e "select min(time) from ${ctc_table_name};")
   # find the max time in the couchbase
 
   echo "curl -s -u ${cred} http://${cb_host}:8093/query/service -d \"statement=select max(mdata.fcstValidEpoch) as max_fcstValidEpoch from mdata " \
-    "WHERE type=\\"DD\\" and docType = \\"CTC\\" and region=\\"${region}\\" and subset = \\"METAR\\" and version = \\"V01\\"\""
+    "WHERE type=\\"DD\\" and docType = \\"CTC\\" and region=\\"${region}\\" and model=\\"${model}\\" and subset = \\"METAR\\" and version = \\"V01\\"\""
   cb_start=$(curl -s -u ${cred} http://${cb_host}:8093/query/service -d "statement=select max(mdata.fcstValidEpoch) as max_fcstValidEpoch from mdata WHERE type=\"DD\" and docType = \"CTC\" and region=\"${region}\" and subset = \"METAR\" and version = \"V01\"" | jq -r '.results | .[] | .max_fcstValidEpoch')
   echo gsd_start is ${gsd_start} cb_start is ${cb_start}
   if [[ $cb_start == "null" ]]; then

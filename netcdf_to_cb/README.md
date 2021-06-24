@@ -23,62 +23,76 @@ load_spec:
   mysql_connection:
     management_system: netcdf
     path: "/public/data/metar/netcdf"
-    
-  ingest_document_ids: ['MD:V01:METAR:stations_ingest']
+    mask: "YYDOYmmssbiniT"
+  ingest_document_ids: ['MD:V01:METAR:obs:ingest:netcdf']
 ```
 The email is optional - currently not used.
-The cb_connection block defines the connection values that will be used 
-to authenticate a connection to the host.
-The mysql_connection defines the connection to a mysql database.
-The ingest_document_ids: ['MD:V01:METAR:stations_ingest'] line defines
-a list of metadata documents. These documents define how thr program will operate.
-The 'MD::V01::METAR::stations_ingest' value is the id of a couchbase metadata document.
+The cb_connection block defines the connection values that will be used to authenticate a connection to the host.
+The path specifies a path to a directory that contains netcdf files.
+The mask specifies the file name mask, i.e. 2117302100005 would be 2021, doy 173 (June 22), 02 Z plus ten minutes,
+'bini' is the bin interval, for example 0100 is one hour, and T is the tyoe. For METARS the type is either
+'o' (observation time) or 'r' (receipt time).
+The ingest_document_ids: ['MD:V01:METAR:obs:ingest:netcdf'] line defines
+one or a list of metadata documents. These documents define how the program will operate.
+The 'MD:V01:METAR:obs:ingest:netcdf' value is the id of a couchbase metadata document.
 This document MUST exist on the couchbase cluster defined by cb_host
 and MUST be readable by the cb_user.
 ### metadata Example
 This is the contents of "MD:V01:METAR:stations_ingest". If
 you intend to use a metadata ingest document you must either
-be certain that it already exists or you must create it. They
-are all pretty much like this.
+be certain that it already exists or you must create it. 
 ```
 {
-  "type": "MD",
+  "builder_type": "NetCDFObsBuilderV01",
+  "validTimeInterval": 3600,
+  "validTimeDelta": 1800,
   "docType": "ingest",
+  "subDocType": "netcdf",
+  "id": "MD:V01:METAR:obs:ingest:netcdf",
+  "requires_time_interpolation": true,
+  "variableList": "stationName, locationName, latitude, longitude, elevation, timeObs, temperature, dewpoint, altimeter, windDir, windSpeed, skyCover, visibility",
+  "station_query": "SELECT raw {mdata.name, mdata.geo.lat, mdata.geo.lon} FROM mdata WHERE type='MD' AND docType='station' AND subset='METAR' AND version ='V01'",
+  "stationFunction": "stationChecker.py",
+  "dataFunction": "METARingest.py",
+  "subType": "obs",
   "subset": "METAR",
-  "version": "V01",
-  "builder_type": "SqlStationsBuilderV01",
-  "statement": "select UNIX_TIMESTAMP() as updateTime, m.name, m.madis_id, m.lat, m.lon, m.elev, s.disc as description, s.first, s.last, l.last_time from madis3.metars_mats_global as m, madis3.stations as s, madis3.locations as l where 1=1 and m.name = s.name and m.lat = l.lat and m.lon = l.lon and m.elev = l.elev;",
   "template": {
-    "id": "MD:V01:METAR:stations",
-    "type": "MD",
-    "docType": "stations",
-    "subset": "METAR",
-    "dataFileId": "DF_id",
-    "dataSourceId": "DS_id",
-    "version": "V01",
-    "updateTime": "*updateTime",
+    "correctedTime": "",
     "data": {
       "*name": {
-        "name": "*name",
-        "lat": "*lat",
-        "lon": "*lon",
-        "elev": "*elev",
-        "description": "*description",
-        "firstTime": "*first",
-        "lastTime": "*last"
+        "Ceiling": "&METARingest.ceilingTransform(skyCover)",
+        "DewPoint": "*dewpoint",
+        "Reported Time": "*timeObs",
+        "Surface Pressure": "*altimeter",
+        "Temperature": "*temperature",
+        "Visibility": "*visibility",
+        "WD": "*windDir",
+        "WS": "*windSpeed",
+        "name": "*stationName"
       }
-    }
-  }
+    },
+    "dataSourceId": "MADIS",
+    "docType": "obs",
+    "fcstValidBeg": "*{ISO}time",
+    "fcstValidEpoch": "*time",
+    "id": "DD:V01:METAR:obs:*time",
+    "subset": "METAR",
+    "type": "DD",
+    "version": "V01"
+  },
+  "type": "MD",
+  "version": "V01"
+}
 }
 ```
 The line
-```"builder_type": "SqlStationsBuilderV01"```
+```"builder_type": "NetCDFObsBuilderV01"```
 defines a python class. These builder classes are defined 
-in the gsd_builder.py file. This class will interpret the
-load_spec and ingest data that is returned by the mysql statement
-in the "statement" field. Whether the entire result set is combined
+in the netcdf_builder.py file. This class will interpret the
+load_spec and ingest data from a set of netcdf files retrieved from the path. 
+Whether the entire result set is combined
 into one document or multiple documents depends on the "builder_type".
-In this example the "SqlStationsBuilderV01" combines all 
+In this example the "NetCDFObsBuilderV01" combines all 
 the data into one document with the data fields ingested as top level
 entries.
 Notice 

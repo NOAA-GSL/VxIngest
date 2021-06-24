@@ -6,8 +6,7 @@ load_spec:
     user: avid
     password: gsl_pwd
   mysql_connection:
-    management_system: mysql
-    host: "host"
-    user: readonly
-    password: readonly_pwd
-  ingest_document_ids: ["MD:V01:METAR:HRRR_OPS:ALL_HRRR:CTC:ingest"]
+    management_system: netcdf
+    path: "/public/data/metar/netcdf"
+    mask: "YYDOYHHmmss??"
+  ingest_document_ids: ["MD:V01:METAR:HRRR_OPS:ALL_HRRR:CTC:ingest:netcdf"]

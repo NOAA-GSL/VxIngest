@@ -15,13 +15,10 @@ import pymysql
 import math
 import time
 from decimal import Decimal
-# needed to support SQL++ (N1QL) query
 from couchbase.cluster import QueryOptions
 from pymysql.constants import CLIENT
 
 TS_OUT_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
-SQL_PORT = 3306
-
 
 def convert_to_iso(an_epoch):
     if not isinstance(an_epoch, int):
@@ -42,7 +39,7 @@ def derive_id(an_id, row, interpolated_time):
                 if _part == "*time":
                     value = str(interpolated_time)
                 else:
-                    value = SqlBuilder.translate_template_item(_part, row, interpolated_time)
+                    value = NetcdfBuilder.translate_template_item(_part, row, interpolated_time)
                 new_parts.append(str(value))
             else:
                 new_parts.append(str(_part))
@@ -50,7 +47,7 @@ def derive_id(an_id, row, interpolated_time):
         return _new_id
     except:
         e = sys.exc_info()
-        logging.error("SqlBuilder.derive_id: Exception  error: " + str(e))
+        logging.error("NetcdfBuilder.derive_id: Exception  error: " + str(e))
 
 
 def initialize_data(doc):
@@ -61,7 +58,7 @@ def initialize_data(doc):
     return doc
 
 
-class SqlBuilder:
+class NetcdfBuilder:
     def __init__(self, load_spec, statement_replacement_params, ingest_document, cluster, collection):
         self.template = ingest_document['template']
         self.load_spec = load_spec
@@ -149,7 +146,7 @@ class SqlBuilder:
                                     value = row[_ri]
             return value
         except Exception as e:
-            logging.error("SqlBuilder.translate_template_item: Exception  error: " + str(e))
+            logging.error("NetcdfBuilder.translate_template_item: Exception  error: " + str(e))
         return value
     
     def handle_row(self, row):
@@ -195,7 +192,7 @@ class SqlBuilder:
             # put document into document map
             self.document_map[self.id] = doc
         except Exception as e:
-            logging.error(self.__class__.__name__ + "SqlBuilder.handle_document: Exception instantiating "
+            logging.error(self.__class__.__name__ + "NetcdfBuilder.handle_document: Exception instantiating "
                                                     "builder: " + self.__class__.__name__ + " error: " + str(e))
             raise e
         
@@ -228,7 +225,7 @@ class SqlBuilder:
             return doc
         except Exception as e:
             logging.error(
-                self.__class__.__name__ + "SqlBuilder.handle_key: Exception in builder:  error: " + str(e))
+                self.__class__.__name__ + "NetcdfBuilder.handle_key: Exception in builder:  error: " + str(e))
         return doc
     
     def handle_named_function(self, _data_key, interpolated_time, row):
@@ -254,7 +251,7 @@ class SqlBuilder:
                 _dict_params[_p[1:]] = self.translate_template_item(_p, row, interpolated_time)
             _data_key = getattr(self, _func)(_dict_params)
             if _data_key is None:
-                logging.warning("self.__class__.__name__ + SqlBuilder: Using " + _func + " - None returned for " + str(
+                logging.warning("self.__class__.__name__ + NetcdfBuilder: Using " + _func + " - None returned for " + str(
                     _dict_params))
                 _data_key = row['name'] + "0"
                 return _data_key
@@ -271,7 +268,8 @@ class SqlBuilder:
             _data_template = self.template['data'][_data_key]
             for key in _data_template.keys():
                 value = _data_template[key]
-                if value.startswith('&'):
+                # values can be null...
+                if value and value.startswith('&'):
                     value = self.handle_named_function(value, interpolated_time, row)
                 else:
                     value = self.translate_template_item(value, row, interpolated_time)
@@ -281,7 +279,7 @@ class SqlBuilder:
             else:
                 _data_key = self.translate_template_item(_data_key, row, interpolated_time)
             if _data_key is None:
-                logging.warning(self.__class__.__name__ + "SqlBuilder.handle_data - _data_key is None")
+                logging.warning(self.__class__.__name__ + "NetcdfBuilder.handle_data - _data_key is None")
             doc = self.load_data(doc, _data_key, _data_elem)
             return doc
         
@@ -336,7 +334,7 @@ class SqlBuilder:
 
 
 # Concrete builders
-class SqlObsBuilderV01(SqlBuilder):
+class NetcdfObsBuilderV01(NetcdfBuilder):
     def __init__(self, load_spec, statement_replacement_params, ingest_document, cluster, collection):
         """
         This builder creates a set of V01 obs documents using the V01 station documents.
@@ -348,7 +346,7 @@ class SqlObsBuilderV01(SqlBuilder):
         :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
         :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
         """
-        SqlBuilder.__init__(self, load_spec, statement_replacement_params, ingest_document, cluster, collection)
+        NetcdfBuilder.__init__(self, load_spec, statement_replacement_params, ingest_document, cluster, collection)
         self.cluster = cluster
         self.same_time_rows = []
         self.time = 0
@@ -433,7 +431,7 @@ class SqlObsBuilderV01(SqlBuilder):
         return doc
 
 
-class SqlModelBuilderV01(SqlBuilder):
+class NetcdfModelBuilderV01(NetcdfBuilder):
     def __init__(self, load_spec, statement_replacement_params, ingest_document, cluster, collection):
         """
         This builder creates a set of V03 model documents using the V01 station documents
@@ -444,7 +442,7 @@ class SqlModelBuilderV01(SqlBuilder):
         :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
         :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
         """
-        SqlBuilder.__init__(self, load_spec, statement_replacement_params, ingest_document, cluster, collection)
+        NetcdfBuilder.__init__(self, load_spec, statement_replacement_params, ingest_document, cluster, collection)
         self.cluster = cluster
         self.same_time_rows = []
         self.time = 0
@@ -502,7 +500,7 @@ class SqlModelBuilderV01(SqlBuilder):
         doc['data'].append(element)
         return doc
 
-class SqlCtcBuilderV01(SqlModelBuilderV01):
+class NetcdfCtcBuilderV01(NetcdfModelBuilderV01):
     def __init__(self, load_spec, statement_replacement_params, ingest_document, cluster, collection):
         """
         This builder creates a set of V01 ctc documents using the V01 ingest ctc documents.
@@ -514,7 +512,7 @@ class SqlCtcBuilderV01(SqlModelBuilderV01):
         :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
         :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
         """
-        SqlBuilder.__init__(self, load_spec, statement_replacement_params, ingest_document, cluster, collection)
+        NetcdfBuilder.__init__(self, load_spec, statement_replacement_params, ingest_document, cluster, collection)
         self.cluster = cluster
         self.same_time_rows = []
         self.time = 0
@@ -536,7 +534,7 @@ class SqlCtcBuilderV01(SqlModelBuilderV01):
         return doc
         
 
-class SqlStationsBuilderV01(SqlBuilder):
+class NetcdfStationsBuilderV01(NetcdfBuilder):
     def __init__(self, load_spec, statement_replacement_params, ingest_document, cluster, collection):
         """
         This builder creates multiple documents one per station with the id being
@@ -548,7 +546,7 @@ class SqlStationsBuilderV01(SqlBuilder):
         :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
         :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
         """
-        SqlBuilder.__init__(self, load_spec, statement_replacement_params, ingest_document, cluster, collection)
+        NetcdfBuilder.__init__(self, load_spec, statement_replacement_params, ingest_document, cluster, collection)
         self.same_time_rows = []
     
     def get_document_map(self):
@@ -567,4 +565,4 @@ class SqlStationsBuilderV01(SqlBuilder):
         :param row: A result set row
         :return:
         """
-        SqlBuilder.handle_document(self, 0, [row])
+        NetcdfBuilder.handle_document(self, 0, [row])

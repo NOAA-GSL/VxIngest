@@ -271,7 +271,8 @@ class SqlBuilder:
             _data_template = self.template['data'][_data_key]
             for key in _data_template.keys():
                 value = _data_template[key]
-                if value.startswith('&'):
+                # values can be null...
+                if value and value.startswith('&'):
                     value = self.handle_named_function(value, interpolated_time, row)
                 else:
                     value = self.translate_template_item(value, row, interpolated_time)

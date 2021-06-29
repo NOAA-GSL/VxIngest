@@ -417,62 +417,13 @@ class NetcdfModelBuilderV01(NetcdfBuilder):
         :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
         """
         NetcdfBuilder.__init__(self, load_spec, statement_replacement_params, ingest_document, cluster, collection)
+        self.template = ingest_document['template']
+        self.load_spec = load_spec
         self.cluster = cluster
-        self.same_time_rows = []
-        self.time = 0
-        self.interpolated_time = 0
-        self.delta = ingest_document['validTimeDelta']
-        self.cadence = ingest_document['validTimeInterval']
-        
-    def interpolate_time(self, a_time):
-        _remainder_time = a_time % self.cadence
-        _cadence_time = a_time / self.cadence * self.cadence
-        if _remainder_time < self.delta:
-            _t = a_time - _remainder_time
-        else:
-            _t = a_time - _remainder_time + self.cadence
-        return _t
-    
-    def handle_row(self, row):
-        """
-        This is the entry point from the IngestManager.
-        This method is responsible to collate rows into a set that is to be given to the handle_document.
-        Rows are collated according to interpolated time and fcst_len. Each set of rows that have the same interpolated
-        time and fcst_len are passed to the handle_document to be processed into a single document.
-        :param row: A result set row
-        :return:
-        """
-        self.interpolated_time = self.interpolate_time(int(row['time']))
-        if self.time == 0:
-            self.time = self.interpolated_time
-            self.fcst_len = int(row['fcst_len'])
-        if self.interpolated_time != self.time or int(row['fcst_len']) != self.fcst_len:
-            self.handle_document(self.interpolated_time, self.same_time_rows)
-            self.time = 0
-            self.same_time_rows = []
-        self.same_time_rows.append(row)
-
-    def get_document_map(self):
-        """
-        In case there are leftovers we have to process them first.
-        :return: the document_map
-        """
-        if len(self.same_time_rows) != 0:
-            self.handle_document(self.interpolated_time, self.same_time_rows)
-        return self.document_map
-
-    def load_data(self, doc, key, element):
-        """
-        This method appends an observation to the data array
-        :param doc: The document being created
-        :param key: Not used
-        :param element: the observation data
-        :return: the document being created
-        """
-        if 'data' not in doc.keys() or doc['data'] is None:
-            doc['data'] = []
-        doc['data'].append(element)
-        return doc
+        self.collection = collection
+        self.id = None
+        self.document_map = {}
+        self.ncdf_data_set = None
 
 class NetcdfCtcBuilderV01(NetcdfModelBuilderV01):
     def __init__(self, load_spec, statement_replacement_params, ingest_document, cluster, collection):
@@ -486,57 +437,14 @@ class NetcdfCtcBuilderV01(NetcdfModelBuilderV01):
         :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
         :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
         """
-        NetcdfBuilder.__init__(self, load_spec, statement_replacement_params, ingest_document, cluster, collection)
+        self.template = ingest_document['template']
+        self.load_spec = load_spec
         self.cluster = cluster
-        self.same_time_rows = []
-        self.time = 0
-        self.interpolated_time = 0
-        self.delta = ingest_document['validTimeDelta']
-        self.cadence = ingest_document['validTimeInterval']
+        self.collection = collection
+        self.id = None
+        self.document_map = {}
+        self.ncdf_data_set = None
 
-    def load_data(self, doc, key, element):
-        """
-        This method appends an observation to the data array
-        :param doc: The document being created
-        :param key: Not used
-        :param element: the observation data
-        :return: the document being created
-        """
-        if 'data' not in doc.keys() or doc['data'] is None:
-            doc['data'] = {}
-        doc['data'][key] = element
-        return doc
+
         
 
-class NetcdfStationsBuilderV01(NetcdfBuilder):
-    def __init__(self, load_spec, statement_replacement_params, ingest_document, cluster, collection):
-        """
-        This builder creates multiple documents one per station with the id being
-        MD:V03:METAR:stations:*name where the variable part of the id
-        is the the station name which, is an ICAO, like CWDP. So an ID
-        might be "MD:V03:METAR:stations:CWDP". The lat, lon, and elevation are
-        encoded into a "geo" element such that we can create a geojson search index over the data.
-        :type ingest_document: object - This is the ingest document from "MD:V01:METAR:stations:ingest"
-        :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
-        :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
-        """
-        NetcdfBuilder.__init__(self, load_spec, statement_replacement_params, ingest_document, cluster, collection)
-        self.same_time_rows = []
-    
-    def get_document_map(self):
-        """
-        singleDocument builders (each row becomes a document) never have leftovers
-        :return:  the document_map
-        """
-        return self.document_map
-    
-    def handle_row(self, row):
-        """
-        This is the entry point from the IngestManager.
-        This method is responsible to collate rows into a set that is to be given to the handle_document.
-        With the stationBuilder each row becomes a document so each row  passed to the handle_document to be processed
-        into a single document.
-        :param row: A result set row
-        :return:
-        """
-        NetcdfBuilder.handle_document(self, 0, [row])

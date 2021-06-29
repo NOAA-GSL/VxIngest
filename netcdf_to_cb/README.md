@@ -11,7 +11,7 @@ in the python_packages.md file in this directory.
 ##Approach
 These programs use a load_spec YAML file and a credentials file.
 ### load_spec example
-This is the test/load_spec_stations.yaml file from this distribution.
+This is the test/load_spec_netcdf_metar_obs.yaml file from this distribution.
 ```
 load_spec:
   email: "randy.pierce@noaa.gov"
@@ -20,11 +20,9 @@ load_spec:
     host: "cb_host"
     user: avid
     password: gsl_pwd
-  mysql_connection:
-    management_system: netcdf
-    path: "/public/data/metar/netcdf"
-    mask: "YYDOYmmssbiniT"
   ingest_document_ids: ['MD:V01:METAR:obs:ingest:netcdf']
+  path:/public/data/madis/point/metar/netcdf
+  mask:
 ```
 The email is optional - currently not used.
 The cb_connection block defines the connection values that will be used to authenticate a connection to the host.

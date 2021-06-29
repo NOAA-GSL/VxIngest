@@ -14,9 +14,13 @@ import re
 import pymysql
 import math
 import time
+import netCDF4 as nc
+import re
 from decimal import Decimal
 from couchbase.cluster import QueryOptions
+from couchbase.search import QueryStringQuery
 from pymysql.constants import CLIENT
+from datetime import datetime, timedelta
 
 TS_OUT_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
@@ -27,19 +31,16 @@ def convert_to_iso(an_epoch):
     return _valid_time_str
 
 
-def derive_id(an_id, row, interpolated_time):
-    # Private method to derive a document id from the current row,
-    # substituting *values from the corresponding row field as necessary.
+def derive_id(template_id, recNum):
+    # Private method to derive a document id from the current recNum,
+    # substituting *values from the corresponding netcdf fields as necessary.
     # noinspection PyBroadException
     try:
-        _parts = an_id.split(':')
+        _parts = template_id.split(':')
         new_parts = []
         for _part in _parts:
             if _part.startswith("*"):
-                if _part == "*time":
-                    value = str(interpolated_time)
-                else:
-                    value = NetcdfBuilder.translate_template_item(_part, row, interpolated_time)
+                value = NetcdfBuilder.translate_template_item(_part, recNum)
                 new_parts.append(str(value))
             else:
                 new_parts.append(str(_part))
@@ -59,133 +60,79 @@ def initialize_data(doc):
 
 
 class NetcdfBuilder:
-    def __init__(self, load_spec, statement_replacement_params, ingest_document, cluster, collection):
+    def __init__(self, load_spec, ingest_document, cluster, collection):
         self.template = ingest_document['template']
         self.load_spec = load_spec
         self.cluster = cluster
         self.collection = collection
         self.id = None
         self.document_map = {}
-        self.statement_replacement_params = statement_replacement_params
+        self.ncdf_data_set = None
         
-        try:
-            mysql_credentials = self.load_spec['mysql_connection']
-            host = mysql_credentials['host']
-            if 'port' in mysql_credentials.keys():
-                port = int(mysql_credentials['port'])
-            else:
-                port = SQL_PORT
-            user = mysql_credentials['user']
-            passwd = mysql_credentials['password']
-            local_infile = True
-            self.connection = pymysql.connect(host=host, port=port, user=user, passwd=passwd, local_infile=local_infile,
-                                              autocommit=True, charset='utf8mb4',
-                                              cursorclass=pymysql.cursors.SSDictCursor,
-                                              client_flag=CLIENT.MULTI_STATEMENTS)
-            self.cursor = self.connection.cursor(pymysql.cursors.SSDictCursor)
-        except pymysql.OperationalError as pop_err:
-            logging.error(self.__class__.__name__ + "*** %s in connect_mysql ***" + str(pop_err))
-            sys.exit("*** Error when connecting to mysql database: ")
-
-    def close(self):
-        if self.cursor:
-            self.cursor.close()
-        if self.connection:
-            self.connection.close()
-
     def load_data(self, doc, key, element):
         pass
-    
-    def get_name(self, params_dict):
-        pass
-    
+        
     def get_document_map(self):
         pass
     
-    @staticmethod
-    def translate_template_item(value, row, interpolated_time):
+    def handle_recNum(self, row):
+        pass
+
+    def translate_template_item(self, variable, recNum):
         """
         This method translates template replacements (*item).
-        It can translate keys or values. In addition it can eval a named function
-        with locals(). Example get_name(param_dict)
-        :param interpolated_time: either the time in the row['time'] or the interpolated_time if required.
-        :param row: a row from the result set
-        :param value: a value from the template
+        It can translate keys or values. 
+        :param variable: a value from the template - should be a netcdf variable
+        :param recNum: the current recNum
         :return:
         """
         _replacements = []
         # noinspection PyBroadException
         try:
-            if isinstance(value, str):
-                _replacements = value.split('*')[1:]
+            if isinstance(variable, str):
+                _replacements = variable.split('*')[1:]
             # skip the first replacement, its never
             # really a replacement. It is either '' or not a
             # replacement
             _make_str = False
+            value = variable
             if len(_replacements) > 0:
                 for _ri in _replacements:
-                    if _ri.startswith('{ISO}') or type(row[_ri]) is str:
+                    vtype = self.ncdf_data_set.variables[variable].dtype
+                    if _ri.startswith('{ISO}') or vtype is '|S1':
                         _make_str = True
                         break
                 for _ri in _replacements:
                     if _ri.startswith("{ISO}"):
-                        if _ri == '{ISO}time':
-                            value = value.replace("*" + _ri, convert_to_iso(interpolated_time))
-                        else:
-                            value = value.replace("*" + _ri, convert_to_iso(row[_ri]))
+                        value = value.replace("*" + _ri, convert_to_iso(self.ncdf_data_set[_ri][recNum]))
                     else:
-                        if _ri == 'time':
-                            value = interpolated_time
+                        if _make_str:
+                            value = value.replace('*' + _ri, str(self.ncdf_data_set[_ri][recNum]))
                         else:
-                            if _make_str:
-                                value = value.replace('*' + _ri, str(row[_ri]))
-                            else:
-                                if isinstance(row[_ri], Decimal):
-                                    value = float(row[_ri])
-                                else:
-                                    value = row[_ri]
+                            value = self.ncdf_data_set[_ri][recNum]
             return value
         except Exception as e:
             logging.error("NetcdfBuilder.translate_template_item: Exception  error: " + str(e))
         return value
     
-    def handle_row(self, row):
-        """
-        This is the entry point from the IngestManager.
-        This method is responsible to collate rows into a set that is to be given to the handle_document.
-        This method is always overridden
-        :param row: A result set row
-        :return:
-        """
-        pass
     
-    def handle_document(self, interpolated_time, rows):
+    def handle_document(self):
         """
-        :param interpolated_time: The time field in a row, if there is one,
-        may have been interpolated in the ingest_manager to the closest time
-        to the cadence within the delta. If interpolation was not required then the
-        interpolated_time will be the same as the row['time']
-        :param rows: This is a row array that contains rows from the result set
-        that all have the same a_time. There may be many stations in this row
-        array, AND importantly the document id derived from this a_time may
-        already exist in the document. If the id does not exist it will be
-        created, if it does exist, the data will be appended.
-        builder's documents will be added, the SqlIngestManager will do the
-        upsert
         :return: The modified document_map
         """
         # noinspection PyBroadException
         try:
             doc = copy.deepcopy(self.template)
-            if len(rows) == 0:
+            _recNum_data_size = self.ncdf_data_set.dimensions['recNum'].size
+            if _recNum_data_size == 0:
                 return
             doc = initialize_data(doc)
-            for r in rows:
-                for k in self.template.keys():
-                    if k == "data":
-                        doc = self.handle_data(doc, r, interpolated_time)
+            for _recNum in range(_recNum_data_size):
+                for _key in self.template.keys():
+                    if _key == "data":
+                        doc = self.handle_data(doc, _recNum)
                         continue
-                    doc = self.handle_key(doc, r, k, interpolated_time)
+                    doc = self.handle_key(doc, _recNum, _key)
             # remove id (it isn't needed inside the doc, we needed it in the template
             # to tell us how to format the id)
             del doc['id']
@@ -196,71 +143,71 @@ class NetcdfBuilder:
                                                     "builder: " + self.__class__.__name__ + " error: " + str(e))
             raise e
         
-    def handle_key(self, doc, row, key, interpolated_time):
+    def handle_key(self, doc, _recNum, _key):
         """
-        This routine handles keys by substituting row fields into the values
+        This routine handles keys by substituting 
+        the netcdf variables that correspond to the key into the values
         in the template that begin with *
         :param doc: the current document
-        :param row: The data row from the mysql result set
-        :param interpolated_time: The closest time to the cadence within the
-        delta.
-        :param key: A key to be processed, This can be a key to a primitive
-        or to another dictionary
+        :param _recNum: The current recNum
+        :param _key: A key to be processed, This can be a key to a primitive,
+        or to another dictionary, or to a named function
         """
         # noinspection PyBroadException
         try:
-            if key == 'id':
-                self.id = derive_id(self.template['id'], row, interpolated_time)
+            if _key == 'id':
+                self.id = derive_id(self.template['id'], _recNum)
                 return doc
-            if isinstance(doc[key], dict):
+            if isinstance(doc[_key], dict):
                 # process an embedded dictionary
-                _tmp_doc = copy.deepcopy(self.template[key])
-                for sub_key in _tmp_doc.keys():
-                    _tmp_doc = self.handle_key(_tmp_doc, row, sub_key, interpolated_time)  # recursion
-                doc[key] = _tmp_doc
-            if not isinstance(doc[key], dict) and isinstance(doc[key], str) and doc[key].startswith('&'):
-                doc[key] = self.handle_named_function(doc[key], interpolated_time, row)
+                _tmp_doc = copy.deepcopy(self.template[_key])
+                for _sub_key in _tmp_doc.keys():
+                    _tmp_doc = self.handle_key(_tmp_doc, _recNum, _sub_key)  # recursion
+                doc[_key] = _tmp_doc
+            if not isinstance(doc[_key], dict) and isinstance(doc[_key], str) and doc[_key].startswith('&'):
+                doc[_key] = self.handle_named_function(doc[_key], _recNum)
             else:
-                doc[key] = self.translate_template_item(doc[key], row, interpolated_time)
+                doc[_key] = self.translate_template_item(doc[_key], _recNum)
             return doc
         except Exception as e:
             logging.error(
                 self.__class__.__name__ + "NetcdfBuilder.handle_key: Exception in builder:  error: " + str(e))
         return doc
     
-    def handle_named_function(self, _data_key, interpolated_time, row):
+    def handle_named_function(self, _named_function_def, _recNum):
         """
         This routine processes a named function entry from a template.
-        :param _data_key - this can be either a template key or a template value.
-        The template entry looks like "&named_function:*field1:*field2:*field3..."
-        It is expected that field1, field2, and field3 etc are all valid fields in row.
-        Each field will be translated with the interpolated_time and the row into value1, value2 etc. 
-        The method "named_function" will be called like..
-        named_function({field1:value1, field2:value2, field3:value3}) and the return value from named_function
+        :param _named_function_def - this can be either a template key or a template value.
+        The _named_function_def looks like "&named_function:*field1:*field2:*field3..."
+        where named_function is the literal function name of a defined function.
+        It is expected that field1, field2, and field3 etc are all valid variable names.
+        Each field will be translated from the netcdf file into value1, value2 etc. 
+        The method "named_function" will be called like...
+        named_function({field1:value1, field2:value2, ... fieldn:valuen}) and the return value from named_function
         will be substituted into the document.
-        :interpolated_time - either the time or the interpolated time.
-        :row the data row being processed.
+        :_recNum the recNum being processed.
         """
         # noinspection PyBroadException
         try:
-            _func = _data_key.split(':')[0].replace('&', '')
-            _params = _data_key.split(':')[1].split(',')
-            _dict_params = {}
+            _func = _named_function_def.split(':')[0].replace('&', '')
+            _params = _named_function_def.split(':')[1].split(',')
+            _dict_params = {"recNum":_recNum}
             for _p in _params:
                 # be sure to slice the * off of the front of the param
-                _dict_params[_p[1:]] = self.translate_template_item(_p, row, interpolated_time)
-            _data_key = getattr(self, _func)(_dict_params)
-            if _data_key is None:
+                _dict_params[_p[1:]] = self.translate_template_item(_p, _recNum)
+            # call the named function using getattr
+            _replace_with = getattr(self, _func)(_dict_params)
+            if _replace_with is None:
                 logging.warning("self.__class__.__name__ + NetcdfBuilder: Using " + _func + " - None returned for " + str(
                     _dict_params))
-                _data_key = row['name'] + "0"
-                return _data_key
+                _replace_with = _func + "_not_found"
+                return _replace_with
         except Exception as e:
             logging.error(
                 self.__class__.__name__ + "handle_named_function: Exception instantiating builder:  error: " + str(e))
-        return _data_key
+        return _replace_with
     
-    def handle_data(self, doc, row, interpolated_time):
+    def handle_data(self, doc, recNum):
         # noinspection PyBroadException
         try:
             _data_elem = {}
@@ -270,60 +217,34 @@ class NetcdfBuilder:
                 value = _data_template[key]
                 # values can be null...
                 if value and value.startswith('&'):
-                    value = self.handle_named_function(value, interpolated_time, row)
+                    value = self.handle_named_function(value, recNum)
                 else:
-                    value = self.translate_template_item(value, row, interpolated_time)
+                    value = self.translate_template_item(value, recNum)
                 _data_elem[key] = value
             if _data_key.startswith('&'):
-                _data_key = self.handle_named_function(_data_key, interpolated_time, row)
+                _data_key = self.handle_named_function(_data_key, recNum)
             else:
-                _data_key = self.translate_template_item(_data_key, row, interpolated_time)
+                _data_key = self.translate_template_item(_data_key, recNum)
             if _data_key is None:
                 logging.warning(self.__class__.__name__ + "NetcdfBuilder.handle_data - _data_key is None")
             doc = self.load_data(doc, _data_key, _data_elem)
-            return doc
-        
+            return doc        
         except Exception as e:
             logging.error(self.__class__.__name__ + "handle_data: Exception instantiating builder:  error: " + str(e))
         return doc
-    
-    def build_document(self, _ingest_document):
-        _statement = ""
+
+    def build_document(self, file_name):
+        """
+        This is the entry point for the NetcfBuilders from the ingestManager.
+        These documents are id'd by fcstValidEpoch. The data section is an array 
+        each element of which contains variable data and a station name. To process this
+        file we need to itterate the document by recNum and process the station name along
+        with all the other variables in the variableList.
+        """
         # noinspection PyBroadException
         try:
-            # process the document
-            _statement = _ingest_document['statement']
-            # replace any statement params - replacement params are like {param}=replacement
-            for _k in self.statement_replacement_params.keys():
-                _statement = _statement.replace(_k, str(self.statement_replacement_params[_k]))
-            _statements = _statement.split(';')
-            for s in _statements:
-                if s.strip().upper().startswith('SET'):
-                    _value = re.split("=", s)[1].strip()
-                    _m = re.findall(r'[@]\w+', s)[0]
-                    _statement = _statement.replace(s + ';', '')
-                    _statement = _statement.replace(_m, _value)
-            _query_start_time = int(time.time())
-            logging.info(self.__class__.__name__ + "executing query: start time: " + str(_query_start_time))
-            self.cursor.execute(_statement)
-            _query_stop_time = int(time.time())
-            logging.info(self.__class__.__name__ + "executing query: stop time: " + str(_query_stop_time))
-            logging.info(self.__class__.__name__ + "executing query: elapsed seconds: " + str(
-                _query_stop_time - _query_start_time))
-        except Exception as e:
-            logging.error(
-                self.__class__.__name__ + ": Exception processing the statement: error: " + str(e))
-        # noinspection PyBroadException
-        try:
-            while True:
-                row = self.cursor.fetchone()
-                if not row:
-                    break
-                self.handle_row(row)
-            # The document_map could potentially have a lot of documents in it
-            # depending on how the builder collated the rows into documents
-            # i.e. by time like for obs, or by time and fcst_len like for models,
-            # or all in one like for stations
+            self.ncdf_data_set = nc.Dataset(file_name)
+            self.handle_document()
             _document_map = self.get_document_map()
             return _document_map
             self.close()
@@ -346,41 +267,17 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
         :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
         :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
         """
-        NetcdfBuilder.__init__(self, load_spec, statement_replacement_params, ingest_document, cluster, collection)
+        NetcdfBuilder.__init__(self, load_spec, ingest_document, cluster, collection)
         self.cluster = cluster
+        self.collection = collection
         self.same_time_rows = []
         self.time = 0
         self.interpolated_time = 0
         self.delta = ingest_document['validTimeDelta']
         self.cadence = ingest_document['validTimeInterval']
+        self.variableList = ingest_document['variableList']
+        self.template = ingest_document['template']
 
-    def interpolate_time(self, a_time):
-        _remainder_time = a_time % self.cadence
-        _cadence_time = a_time / self.cadence * self.cadence
-        if _remainder_time < self.delta:
-            _t = a_time - _remainder_time
-        else:
-            _t = a_time - _remainder_time + self.cadence
-        return _t
-    
-    def handle_row(self, row):
-        """
-        This is the entry point from the IngestManager.
-        This method is responsible to collate rows into a set that is to be given to the handle_document.
-        Rows are collated according to interpolated time. Each set of rows that have the same interpolated time
-        are passed to the handle_document to be processed into a single document.
-        :param row: A result set row
-        :return:
-        """
-        self.interpolated_time = self.interpolate_time(int(row['time']))
-        if self.time == 0:
-            self.time = self.interpolated_time
-        if self.interpolated_time != self.time:
-            # we have a new interpolated time so build a document
-            self.handle_document(self.interpolated_time, self.same_time_rows)
-            self.time = 0
-            self.same_time_rows = []
-        self.same_time_rows.append(row)
     
     def get_document_map(self):
         """
@@ -390,33 +287,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
         if len(self.same_time_rows) != 0:
             self.handle_document(self.interpolated_time, self.same_time_rows)
         return self.document_map
-    
-    def get_name(self, params_dict):
-        """
-         This method uses the lat and lon that are in the params_dict
-         to find a station at that geopoint using math.isclose().
-         :param params_dict:
-         :return:
-         """
-        _lat = params_dict['lat']
-        _lon = params_dict['lon']
-        # noinspection PyBroadException
-        try:
-            for elem in self.stations:
-                if not isinstance(elem, dict):
-                    continue
-                if math.isclose(elem['lat'], _lat, abs_tol=0.05) and math.isclose(elem['lon'], _lon, abs_tol=0.05):
-                    return elem['name']
-        except Exception as e:
-            logging.error(
-                self.__class__.__name__ + "SqlObsBuilderV02.get_name: Exception finding station to match lat and lon  "
-                                          "error: " + str(e) + " params: " + str(params_dict))
-        # if we got here then there is an error - should have returned above
-        logging.error(
-            self.__class__.__name__ + "SqlObsBuilderV02.get_name: No station found to match lat and lon for " + str(
-                params_dict))
-        return None
-    
+
     def load_data(self, doc, key, element):
         """
         This method appends an observation to the data array
@@ -429,6 +300,109 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
             doc['data'] = []
         doc['data'].append(element)
         return doc
+    
+    # named functions
+    def meterspersecond_to_milesperhour(self, params_dict):
+        #Meters/second to miles/hour
+        _ws_mps = params_dict['windSpeed']
+        _ws_mph = _ws_mps * 2.237
+        return _ws_mph
+
+    def ceiling_transform(self, params_dict):
+        ceiling = None
+        _skyCover = params_dict['skyCover']
+        _skyLayerBase = params_dict['skyLayerBase']
+        # code clear as 60,000 ft 
+        ceil_dft = 6000
+        mBKN = re.compile('BKN/(\d+)')
+        mOVC = re.compile('OVC/(\d+)')
+        mVV = re.compile('VV/(\d+)')
+        if mBKN.match(_skyCover) or mOVC.match(_skyCover) or mVV.match(_skyCover):
+            ceiling = _skyLayerBase * 10  # put in tens of ft
+        return ceiling
+
+    def kelvin_to_farenheight(self, params_dict):
+        temperature = params_dict['temperature']
+        _temp_f = (temperature-273.15)*1.8 + 32
+        return _temp_f
+
+    def dewpoint_transform(self, params_dict):
+        # Probably need more here....
+        dewpoint = params_dict['dewpoint']
+        _dp_f = (dewpoint-273.15)*1.8 + 32
+        return _dp_f
+
+    def interpolate_time(self, params_dict):
+        """
+        Rounds to nearest hour by adding a timedelta hour if minute >= 30
+        """
+        time = None
+        recNum = params_dict['recNum']
+        timeObs = params_dict['timeObs']
+        time = datetime.fromtimestamp(timeObs)
+        time.replace(second=0, microsecond=0, minute=0, hour=time.hour) + timedelta(hours=time.minute//30)
+        return time
+
+    def handle_station(self, params_dict):
+        """
+         This method uses the station name in the params_dict
+         to find a station with that name.
+         If the station does not exist it will be created with data from the 
+         netcdf file. If it does exist data from the netcdf file will be compared to what is in the database.
+         If the data does not match the database will be updated.
+         :param params_dict: {station_name:a_station_name}
+         :return: 
+         """
+        _recNum = params_dict['recNum']
+        _station_name = params_dict['station_name']
+        id = None
+        # noinspection PyBroadException
+        try:
+            result = self.cluster.search_query("station_geo", QueryStringQuery(_station_name))
+            if result.rows == 0:
+                #got to add a station
+                logging.info("netcdfObsBuilderV01.handle_station - adding station " + _station_name)
+                # FIX THIS - ADD A STATION
+                latitude = self.ncdf_data_set[_recNum]['latitude']
+                longitude = self.ncdf_data_set[_recNum]['longitude']
+                elevation = self.ncdf_data_set[_recNum]['elevation']
+                locationName = self.ncdf_data_set[_recNum]['locationName']
+                stationName = self.ncdf_data_set[_recNum]['stationName']
+                if stationName is not _station_name:
+                    raise Exception ("netcdfObsBuilderV01.handle_station: The given station name: " + _station_name + 
+                    " does not match the station name: " + stationName + " from the record: " + _recNum)
+                _new_station = {
+                    "id": "MD:V01:METAR:station:" + stationName,
+                    "description": locationName,
+                    "docType": "station",
+                    "firstTime": 0,
+                    "geo": {
+                        "elev": elevation,
+                        "lat": latitude,
+                        "lon": longitude
+                    },
+                    "lastTime": 0,
+                    "name": _station_name,
+                    "subset": "METAR",
+                    "type": "MD",
+                    "updateTime": int(time.time()),
+                    "version": "V01"
+                }
+                #FIX THIS!!! QUESTION - should we upsert or just add it to the document??????
+                # for the first time around we'll have a zillion upserts!
+                self.collection.upsert_multi(_new_station)
+                #self.document_map[id] = _new_station
+                return id
+            if result.rows() > 1:
+                raise Exception("netcdfObsBuilderV01.handle_station: There are more than one station with the name " + _station_name + "! FIX THAT!")
+            if result.rows == 1:
+                return result.rows()[0]['id']
+        except Exception as e:
+            logging.error(
+                self.__class__.__name__ + "netcdfObsBuilderV01.handle_station: Exception finding or creating station to match station_name  "
+                                          "error: " + str(e) + " params: " + str(params_dict))
+        return None
+    
 
 
 class NetcdfModelBuilderV01(NetcdfBuilder):

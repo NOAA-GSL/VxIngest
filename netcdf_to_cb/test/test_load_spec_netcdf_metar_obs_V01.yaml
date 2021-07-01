@@ -1,10 +1,10 @@
 load_spec:
   email: "randy.pierce@noaa.gov"
-  ingest_document_id: 'MD-TEST:V01:METAR:obs:ingest:netcdf'
+  ingest_document_id: "MD-TEST:V01:METAR:obs:ingest:netcdf"
   cb_connection:
-    management_system: cb
-    host: "cb_host"   - should come from defaults file
-    user: "cb_user"   - should come from defaults file
-    password: "cb_pwd" - should come from defaults file
-  path: ./
+    management_system: "cb"
+    host: "cb_host"
+    user: "cb_user"
+    password: "cb_pwd"
+  path: "./"
   file_name_mask: "%Y%m%d_%H%M"

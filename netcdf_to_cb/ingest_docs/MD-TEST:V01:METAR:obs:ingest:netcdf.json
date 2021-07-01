@@ -13,7 +13,7 @@
     "correctedTime": "",
     "data": {
       "*name": {
-        "Ceiling": "&ceiling_transform:*skyCover:*skyLayerBase",
+        "Ceiling": "&ceiling_transform:*skyCover,*skyLayerBase",
         "DewPoint": "&dewpoint_transform:*dewpoint",
         "Reported Time": "*timeObs",
         "Surface Pressure": "*altimeter",

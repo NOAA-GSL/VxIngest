@@ -11,8 +11,6 @@ import datetime as dt
 import logging
 import sys
 import re
-import pymysql
-import math
 import time
 import netCDF4 as nc
 import re
@@ -24,10 +22,12 @@ from datetime import datetime, timedelta
 
 TS_OUT_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
+
 def convert_to_iso(an_epoch):
     if not isinstance(an_epoch, int):
         an_epoch = int(an_epoch)
-    _valid_time_str = dt.datetime.utcfromtimestamp(an_epoch).strftime(TS_OUT_FORMAT)
+    _valid_time_str = dt.datetime.utcfromtimestamp(
+        an_epoch).strftime(TS_OUT_FORMAT)
     return _valid_time_str
 
 
@@ -68,13 +68,13 @@ class NetcdfBuilder:
         self.id = None
         self.document_map = {}
         self.ncdf_data_set = None
-        
+
     def load_data(self, doc, key, element):
         pass
-        
+
     def get_document_map(self):
         pass
-    
+
     def handle_recNum(self, row):
         pass
 
@@ -94,28 +94,49 @@ class NetcdfBuilder:
             # skip the first replacement, its never
             # really a replacement. It is either '' or not a
             # replacement
+
             _make_str = False
             value = variable
+            Smatch = re.compile(".*S.*")
+            Umatch = re.compile(".*U.*")
             if len(_replacements) > 0:
                 for _ri in _replacements:
-                    vtype = self.ncdf_data_set.variables[variable].dtype
-                    if _ri.startswith('{ISO}') or vtype is '|S1':
+                    vtype = str(self.ncdf_data_set.variables[_ri].dtype)
+                    if Smatch.match(vtype) or Umatch.match(vtype):
                         _make_str = True
+                        _chartostring = True
                         break
                 for _ri in _replacements:
                     if _ri.startswith("{ISO}"):
-                        value = value.replace("*" + _ri, convert_to_iso(self.ncdf_data_set[_ri][recNum]))
-                    else:
-                        if _make_str:
-                            value = value.replace('*' + _ri, str(self.ncdf_data_set[_ri][recNum]))
+                        variable = value.replace("*{ISO}", "")
+                        if _chartostring:
+                            # for these we have to convert the character array AND convert to ISO (it is probably a string date)
+                            value = convert_to_iso(
+                                "*{ISO}" + nc.chartostring(self.ncdf_data_set[variable][recNum]))
                         else:
-                            value = self.ncdf_data_set[_ri][recNum]
+                            # for these we have to convert convert to ISO (it is probably an epoch)
+                            value = convert_to_iso(
+                                "*{ISO}" + self.ncdf_data_set[variable][recNum])
+                    else:
+                        variable = value.replace("*", "")
+                        if _make_str:
+                            if _chartostring:
+                                # it is a char array of something
+                                value = value.replace(
+                                    '*' + _ri, str(nc.chartostring(self.ncdf_data_set[variable][recNum])))
+                            else:
+                                # it is probably a number
+                                value = value.replace(
+                                    '*' + _ri, str(self.ncdf_data_set[variable][recNum]))
+                        else:
+                            # it's a number and desn't need to be a string
+                            value = self.ncdf_data_set[variable][recNum]
             return value
         except Exception as e:
-            logging.error("NetcdfBuilder.translate_template_item: Exception  error: " + str(e))
+            logging.error(
+                "NetcdfBuilder.translate_template_item: Exception  error: " + str(e))
         return value
-    
-    
+
     def handle_document(self):
         """
         :return: The modified document_map
@@ -142,7 +163,7 @@ class NetcdfBuilder:
             logging.error(self.__class__.__name__ + "NetcdfBuilder.handle_document: Exception instantiating "
                                                     "builder: " + self.__class__.__name__ + " error: " + str(e))
             raise e
-        
+
     def handle_key(self, doc, _recNum, _key):
         """
         This routine handles keys by substituting 
@@ -162,7 +183,8 @@ class NetcdfBuilder:
                 # process an embedded dictionary
                 _tmp_doc = copy.deepcopy(self.template[_key])
                 for _sub_key in _tmp_doc.keys():
-                    _tmp_doc = self.handle_key(_tmp_doc, _recNum, _sub_key)  # recursion
+                    _tmp_doc = self.handle_key(
+                        _tmp_doc, _recNum, _sub_key)  # recursion
                 doc[_key] = _tmp_doc
             if not isinstance(doc[_key], dict) and isinstance(doc[_key], str) and doc[_key].startswith('&'):
                 doc[_key] = self.handle_named_function(doc[_key], _recNum)
@@ -173,13 +195,15 @@ class NetcdfBuilder:
             logging.error(
                 self.__class__.__name__ + "NetcdfBuilder.handle_key: Exception in builder:  error: " + str(e))
         return doc
-    
+
     def handle_named_function(self, _named_function_def, _recNum):
         """
         This routine processes a named function entry from a template.
         :param _named_function_def - this can be either a template key or a template value.
-        The _named_function_def looks like "&named_function:*field1:*field2:*field3..."
+        The _named_function_def looks like "&named_function:*field1,*field2,*field3..."
         where named_function is the literal function name of a defined function.
+        The name of the function and the function parameters are seperated by a ":" and
+        the parameters are seperated vy a ','.
         It is expected that field1, field2, and field3 etc are all valid variable names.
         Each field will be translated from the netcdf file into value1, value2 etc. 
         The method "named_function" will be called like...
@@ -191,10 +215,11 @@ class NetcdfBuilder:
         try:
             _func = _named_function_def.split(':')[0].replace('&', '')
             _params = _named_function_def.split(':')[1].split(',')
-            _dict_params = {"recNum":_recNum}
+            _dict_params = {"recNum": _recNum}
             for _p in _params:
                 # be sure to slice the * off of the front of the param
-                _dict_params[_p[1:]] = self.translate_template_item(_p, _recNum)
+                _dict_params[_p[1:]] = self.translate_template_item(
+                    _p, _recNum)
             # call the named function using getattr
             _replace_with = getattr(self, _func)(_dict_params)
             if _replace_with is None:
@@ -206,7 +231,7 @@ class NetcdfBuilder:
             logging.error(
                 self.__class__.__name__ + "handle_named_function: Exception instantiating builder:  error: " + str(e))
         return _replace_with
-    
+
     def handle_data(self, doc, recNum):
         # noinspection PyBroadException
         try:
@@ -226,11 +251,13 @@ class NetcdfBuilder:
             else:
                 _data_key = self.translate_template_item(_data_key, recNum)
             if _data_key is None:
-                logging.warning(self.__class__.__name__ + "NetcdfBuilder.handle_data - _data_key is None")
+                logging.warning(self.__class__.__name__ +
+                                "NetcdfBuilder.handle_data - _data_key is None")
             doc = self.load_data(doc, _data_key, _data_elem)
-            return doc        
+            return doc
         except Exception as e:
-            logging.error(self.__class__.__name__ + "handle_data: Exception instantiating builder:  error: " + str(e))
+            logging.error(self.__class__.__name__ +
+                          "handle_data: Exception instantiating builder:  error: " + str(e))
         return doc
 
     def build_document(self, file_name):
@@ -249,14 +276,15 @@ class NetcdfBuilder:
             return _document_map
             self.close()
         except Exception as e:
-            logging.error(self.__class__.__name__ + ": Exception with builder handle_row: error: " + str(e))
+            logging.error(self.__class__.__name__ +
+                          ": Exception with builder handle_row: error: " + str(e))
             self.close()
             return {}
 
 
 # Concrete builders
 class NetcdfObsBuilderV01(NetcdfBuilder):
-    def __init__(self, load_spec, statement_replacement_params, ingest_document, cluster, collection):
+    def __init__(self, load_spec, ingest_document, cluster, collection):
         """
         This builder creates a set of V01 obs documents using the V01 station documents.
         This builder loads V01 station data into memory, and uses them to associate a station with an observation
@@ -267,7 +295,8 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
         :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
         :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
         """
-        NetcdfBuilder.__init__(self, load_spec, ingest_document, cluster, collection)
+        NetcdfBuilder.__init__(
+            self, load_spec, ingest_document, cluster, collection)
         self.cluster = cluster
         self.collection = collection
         self.same_time_rows = []
@@ -278,7 +307,6 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
         self.variableList = ingest_document['variableList']
         self.template = ingest_document['template']
 
-    
     def get_document_map(self):
         """
         In case there are leftovers we have to process them first.
@@ -300,24 +328,23 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
             doc['data'] = []
         doc['data'].append(element)
         return doc
-    
+
     # named functions
     def meterspersecond_to_milesperhour(self, params_dict):
-        #Meters/second to miles/hour
+        # Meters/second to miles/hour
         _ws_mps = params_dict['windSpeed']
         _ws_mph = _ws_mps * 2.237
         return _ws_mph
 
     def ceiling_transform(self, params_dict):
-        ceiling = None
         _skyCover = params_dict['skyCover']
         _skyLayerBase = params_dict['skyLayerBase']
         # code clear as 60,000 ft 
-        ceil_dft = 6000
-        mBKN = re.compile('BKN/(\d+)')
-        mOVC = re.compile('OVC/(\d+)')
-        mVV = re.compile('VV/(\d+)')
-        if mBKN.match(_skyCover) or mOVC.match(_skyCover) or mVV.match(_skyCover):
+        ceiling = 6000
+        mBKN = re.compile('BKN/(\d+)')  # Broken
+        mOVC = re.compile('OVC/(\d+)')  # Overcast
+        mVV = re.compile('VV/(\d+)')  # Vertical Visibility
+        if mBKN.match(_skyCover[0]) or mOVC.match(_skyCover[0]) or mVV.match(_skyCover[0]):
             ceiling = _skyLayerBase * 10  # put in tens of ft
         return ceiling
 
@@ -340,7 +367,8 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
         recNum = params_dict['recNum']
         timeObs = params_dict['timeObs']
         time = datetime.fromtimestamp(timeObs)
-        time.replace(second=0, microsecond=0, minute=0, hour=time.hour) + timedelta(hours=time.minute//30)
+        time.replace(second=0, microsecond=0, minute=0,
+                     hour=time.hour) + timedelta(hours=time.minute//30)
         return time
 
     def handle_station(self, params_dict):
@@ -358,10 +386,12 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
         id = None
         # noinspection PyBroadException
         try:
-            result = self.cluster.search_query("station_geo", QueryStringQuery(_station_name))
+            result = self.cluster.search_query(
+                "station_geo", QueryStringQuery(_station_name))
             if result.rows == 0:
-                #got to add a station
-                logging.info("netcdfObsBuilderV01.handle_station - adding station " + _station_name)
+                # got to add a station
+                logging.info(
+                    "netcdfObsBuilderV01.handle_station - adding station " + _station_name)
                 # FIX THIS - ADD A STATION
                 latitude = self.ncdf_data_set[_recNum]['latitude']
                 longitude = self.ncdf_data_set[_recNum]['longitude']
@@ -369,8 +399,8 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
                 locationName = self.ncdf_data_set[_recNum]['locationName']
                 stationName = self.ncdf_data_set[_recNum]['stationName']
                 if stationName is not _station_name:
-                    raise Exception ("netcdfObsBuilderV01.handle_station: The given station name: " + _station_name + 
-                    " does not match the station name: " + stationName + " from the record: " + _recNum)
+                    raise Exception("netcdfObsBuilderV01.handle_station: The given station name: " + _station_name +
+                                    " does not match the station name: " + stationName + " from the record: " + _recNum)
                 _new_station = {
                     "id": "MD:V01:METAR:station:" + stationName,
                     "description": locationName,
@@ -388,63 +418,19 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
                     "updateTime": int(time.time()),
                     "version": "V01"
                 }
-                #FIX THIS!!! QUESTION - should we upsert or just add it to the document??????
+                # FIX THIS!!! QUESTION - should we upsert or just add it to the document??????
                 # for the first time around we'll have a zillion upserts!
                 self.collection.upsert_multi(_new_station)
                 #self.document_map[id] = _new_station
                 return id
             if result.rows() > 1:
-                raise Exception("netcdfObsBuilderV01.handle_station: There are more than one station with the name " + _station_name + "! FIX THAT!")
+                raise Exception(
+                    "netcdfObsBuilderV01.handle_station: There are more than one station with the name " + _station_name + "! FIX THAT!")
             if result.rows == 1:
                 return result.rows()[0]['id']
         except Exception as e:
             logging.error(
-                self.__class__.__name__ + "netcdfObsBuilderV01.handle_station: Exception finding or creating station to match station_name  "
-                                          "error: " + str(e) + " params: " + str(params_dict))
+                self.__class__.__name__ +
+                "netcdfObsBuilderV01.handle_station: Exception finding or creating station to match station_name  "
+                "error: " + str(e) + " params: " + str(params_dict))
         return None
-    
-
-
-class NetcdfModelBuilderV01(NetcdfBuilder):
-    def __init__(self, load_spec, statement_replacement_params, ingest_document, cluster, collection):
-        """
-        This builder creates a set of V03 model documents using the V01 station documents
-        This builder is very much like the SqlObsBuilderV04 except that it builds model documents.
-        In each document the specific model data is an array of objects each of which is the model data
-        for a specific station. The particular model name is supplied in the template.
-        :param ingest_document: the document from the ingest document like MD:V04:METAR:HRRR:ingest
-        :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
-        :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
-        """
-        NetcdfBuilder.__init__(self, load_spec, statement_replacement_params, ingest_document, cluster, collection)
-        self.template = ingest_document['template']
-        self.load_spec = load_spec
-        self.cluster = cluster
-        self.collection = collection
-        self.id = None
-        self.document_map = {}
-        self.ncdf_data_set = None
-
-class NetcdfCtcBuilderV01(NetcdfModelBuilderV01):
-    def __init__(self, load_spec, statement_replacement_params, ingest_document, cluster, collection):
-        """
-        This builder creates a set of V01 ctc documents using the V01 ingest ctc documents.
-        This builder is very much like the SqlModelBuilderV01 (the parent) except that it builds ctc documents.
-        The difference is the load_data method is overridden in order to put data into a map instead of a list.
-        In each document the specific ctc data is a map of objects each of which is the ctc data
-        for a specific threshold indexed by the threshold.
-        :param ingest_document: the document from the ingest document like MD:V01:METAR:HRRR:ALL_HRRR:CTC:ingest
-        :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
-        :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
-        """
-        self.template = ingest_document['template']
-        self.load_spec = load_spec
-        self.cluster = cluster
-        self.collection = collection
-        self.id = None
-        self.document_map = {}
-        self.ncdf_data_set = None
-
-
-        
-

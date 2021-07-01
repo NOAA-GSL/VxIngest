@@ -340,12 +340,14 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
         _skyCover = params_dict['skyCover']
         _skyLayerBase = params_dict['skyLayerBase']
         # code clear as 60,000 ft 
-        ceiling = 6000
-        mBKN = re.compile('BKN/(\d+)')  # Broken
-        mOVC = re.compile('OVC/(\d+)')  # Overcast
-        mVV = re.compile('VV/(\d+)')  # Vertical Visibility
-        if mBKN.match(_skyCover[0]) or mOVC.match(_skyCover[0]) or mVV.match(_skyCover[0]):
-            ceiling = _skyLayerBase * 10  # put in tens of ft
+        ceiling = 60000
+        for index in range(len(_skyCover)):
+            mBKN = re.compile('BKN/(\d+)')  # Broken
+            mOVC = re.compile('OVC/(\d+)')  # Overcast
+            mVV = re.compile('VV/(\d+)')  # Vertical Visibility
+            if mBKN.match(_skyCover[index]) or mOVC.match(_skyCover[index]) or mVV.match(_skyCover[index]):
+                ceiling = _skyLayerBase[index]
+                break
         return ceiling
 
     def kelvin_to_farenheight(self, params_dict):
@@ -369,6 +371,19 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
         time = datetime.fromtimestamp(timeObs)
         time.replace(second=0, microsecond=0, minute=0,
                      hour=time.hour) + timedelta(hours=time.minute//30)
+        return time
+
+    def interpolate_time_iso(self, params_dict):
+        """
+        Rounds to nearest hour by adding a timedelta hour if minute >= 30
+        """
+        time = None
+        recNum = params_dict['recNum']
+        timeObs = params_dict['timeObs']
+        time = datetime.fromtimestamp(timeObs)
+        time.replace(second=0, microsecond=0, minute=0,
+                     hour=time.hour) + timedelta(hours=time.minute//30)
+        # convert this iso
         return time
 
     def handle_station(self, params_dict):
@@ -427,7 +442,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
                 raise Exception(
                     "netcdfObsBuilderV01.handle_station: There are more than one station with the name " + _station_name + "! FIX THAT!")
             if result.rows == 1:
-                return result.rows()[0]['id']
+                return _station_name
         except Exception as e:
             logging.error(
                 self.__class__.__name__ +

@@ -10,12 +10,12 @@ run_netcdf_ingest_threads -s spec_file -c credentials_file [ -t thread_count -f 
 This script processes arguments which define a a yaml load_spec file,
 a defaults file (for credentials),
 and a thread count.
-The script maintains a thread pool of NetcdfIngestManagers and a queue of
+The script maintains a thread pool of VxIngestManagers and a queue of
 filenames that are derived from the path, mask, first_epoch, and last_epoch.
 that are defined in the load_spec file.
 The number of threads in the thread pool is set to the -t n (or --threads n)
 argument, where n is the number of threads to start. The default is one thread. 
-Each thread will run a NetcdfIngestManager which will pull filenames, one at a time, 
+Each thread will run a VxIngestManager which will pull filenames, one at a time, 
 from the filename queue and fully process that netcdf file. 
 When the queue is empty each NetcdfIngestManager will gracefully die.
 
@@ -102,7 +102,7 @@ class VXIngest(object):
 
     def runit(self, args):
         """
-        This is the entry point for run_netcdf_ingest_threads.py
+        This is the entry point for run_ingest_threads.py
         """
         self.spec_file = args['spec_file'].strip()
         self.credentials_file = args['credentials_file'].strip()

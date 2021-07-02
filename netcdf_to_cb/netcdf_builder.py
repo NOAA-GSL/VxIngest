@@ -14,6 +14,7 @@ import re
 import time
 import netCDF4 as nc
 import re
+import calendar
 from decimal import Decimal
 from couchbase.cluster import QueryOptions
 from couchbase.search import QueryStringQuery
@@ -143,22 +144,24 @@ class NetcdfBuilder:
         """
         # noinspection PyBroadException
         try:
-            doc = copy.deepcopy(self.template)
+            new_document = copy.deepcopy(self.template)
             _recNum_data_size = self.ncdf_data_set.dimensions['recNum'].size
             if _recNum_data_size == 0:
                 return
-            doc = initialize_data(doc)
+            # make a copy of the template, which will become the new document
+            # once all the translations have occured
+            new_document = initialize_data(new_document)
             for _recNum in range(_recNum_data_size):
                 for _key in self.template.keys():
                     if _key == "data":
-                        doc = self.handle_data(doc, _recNum)
+                        new_document = self.handle_data(new_document, _recNum)
                         continue
-                    doc = self.handle_key(doc, _recNum, _key)
+                    new_document = self.handle_key(new_document, _recNum, _key)
             # remove id (it isn't needed inside the doc, we needed it in the template
             # to tell us how to format the id)
-            del doc['id']
+            del new_document['id']
             # put document into document map
-            self.document_map[self.id] = doc
+            self.document_map[self.id] = new_document
         except Exception as e:
             logging.error(self.__class__.__name__ + "NetcdfBuilder.handle_document: Exception instantiating "
                                                     "builder: " + self.__class__.__name__ + " error: " + str(e))
@@ -291,6 +294,9 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
         lat, lon point.
         In each document the observation data is an array of objects each of which is the obs data
         for a specific station.
+        If a station from a metar file does not exist in the couchbase database
+        a station document will be created from the metar record data and
+        the station document will be added to the document map.
         :param ingest_document: the document from the ingest document
         :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
         :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
@@ -330,6 +336,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
         return doc
 
     # named functions
+    # TODO - may not need this - checking
     def meterspersecond_to_milesperhour(self, params_dict):
         # Meters/second to miles/hour
         _ws_mps = params_dict['windSpeed']
@@ -347,7 +354,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
             mVV = re.compile('VV/(\d+)')  # Vertical Visibility
             if mBKN.match(_skyCover[index]) or mOVC.match(_skyCover[index]) or mVV.match(_skyCover[index]):
                 ceiling = _skyLayerBase[index]
-                break
+                break   
         return ceiling
 
     def kelvin_to_farenheight(self, params_dict):
@@ -371,7 +378,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
         time = datetime.fromtimestamp(timeObs)
         time.replace(second=0, microsecond=0, minute=0,
                      hour=time.hour) + timedelta(hours=time.minute//30)
-        return time
+        return calendar.timegm(time.timetuple())
 
     def interpolate_time_iso(self, params_dict):
         """
@@ -384,7 +391,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
         time.replace(second=0, microsecond=0, minute=0,
                      hour=time.hour) + timedelta(hours=time.minute//30)
         # convert this iso
-        return time
+        return time.isoformat()
 
     def handle_station(self, params_dict):
         """
@@ -392,30 +399,52 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
          to find a station with that name.
          If the station does not exist it will be created with data from the 
          netcdf file. If it does exist data from the netcdf file will be compared to what is in the database.
-         If the data does not match the database will be updated.
+         If the data does not match, the database will be updated.
          :param params_dict: {station_name:a_station_name}
          :return: 
          """
         _recNum = params_dict['recNum']
         _station_name = params_dict['station_name']
-        id = None
+        _id = None
+        _add_station = False
+        latitude = None
+        longitude = None
+        elevation = None
+        locationName = None
+        stationName = None
+
         # noinspection PyBroadException
         try:
             result = self.cluster.search_query(
                 "station_geo", QueryStringQuery(_station_name))
             if result.rows == 0:
-                # got to add a station
-                logging.info(
-                    "netcdfObsBuilderV01.handle_station - adding station " + _station_name)
-                # FIX THIS - ADD A STATION
+                _add_station = True
+            if result.rows() > 1:
+                raise Exception(
+                    "netcdfObsBuilderV01.handle_station: There are more than one station with the name " + _station_name + "! FIX THAT!")
+            if result.rows == 1:
                 latitude = self.ncdf_data_set[_recNum]['latitude']
                 longitude = self.ncdf_data_set[_recNum]['longitude']
                 elevation = self.ncdf_data_set[_recNum]['elevation']
                 locationName = self.ncdf_data_set[_recNum]['locationName']
                 stationName = self.ncdf_data_set[_recNum]['stationName']
-                if stationName is not _station_name:
-                    raise Exception("netcdfObsBuilderV01.handle_station: The given station name: " + _station_name +
-                                    " does not match the station name: " + stationName + " from the record: " + _recNum)
+                # compare database station to metar data
+                old_station = result.rows[1].content
+                match = True # assume that it matches
+                for _key in ['latitude','longitude','elevation','locationName','stationName']:
+                    if old_station[_key] != getattr(sys.modules[__name__],_key):
+                        match = False # it doesn't
+                        _add_station = True
+                if match: # it still matches so check the geo fields
+                    for _key in ["elev", "lat","lon"]:
+                        if old_station['geo'][_key] != getattr(sys.modules[__name__]['geo'],_key):
+                            match = False # it doesn't
+                            _add_station = True
+            if _add_station:
+                # got to add a station
+                logging.info(
+                    "netcdfObsBuilderV01.handle_station - adding station " + _station_name)
+                _id = "MD:V01:METAR:station:" + stationName
                 _new_station = {
                     "id": "MD:V01:METAR:station:" + stationName,
                     "description": locationName,
@@ -433,19 +462,12 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
                     "updateTime": int(time.time()),
                     "version": "V01"
                 }
-                # FIX THIS!!! QUESTION - should we upsert or just add it to the document??????
-                # for the first time around we'll have a zillion upserts!
-                self.collection.upsert_multi(_new_station)
-                #self.document_map[id] = _new_station
-                return id
-            if result.rows() > 1:
-                raise Exception(
-                    "netcdfObsBuilderV01.handle_station: There are more than one station with the name " + _station_name + "! FIX THAT!")
-            if result.rows == 1:
-                return _station_name
+                # add the station to the document map
+                self.document_map[_id] = _new_station
+            return stationName        
         except Exception as e:
             logging.error(
                 self.__class__.__name__ +
                 "netcdfObsBuilderV01.handle_station: Exception finding or creating station to match station_name  "
                 "error: " + str(e) + " params: " + str(params_dict))
-        return None
+            return None

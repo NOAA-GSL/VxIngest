@@ -15,6 +15,7 @@ import time
 import netCDF4 as nc
 import re
 import calendar
+import numpy.ma as ma
 from decimal import Decimal
 from couchbase.cluster import QueryOptions
 from couchbase.search import QueryStringQuery
@@ -348,11 +349,12 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
         _skyLayerBase = params_dict['skyLayerBase']
         # code clear as 60,000 ft 
         ceiling = 60000
+        mBKN = re.compile('BKN/(\d+)')  # Broken
+        mOVC = re.compile('OVC/(\d+)')  # Overcast
+        mVV = re.compile('VV/(\d+)')  # Vertical Visibility
+        mask_array = ma.getmask(_skyLayerBase)
         for index in range(len(_skyCover)):
-            mBKN = re.compile('BKN/(\d+)')  # Broken
-            mOVC = re.compile('OVC/(\d+)')  # Overcast
-            mVV = re.compile('VV/(\d+)')  # Vertical Visibility
-            if mBKN.match(_skyCover[index]) or mOVC.match(_skyCover[index]) or mVV.match(_skyCover[index]):
+            if (not mask_array[index]) and (mBKN.match(_skyCover) or mOVC.match(_skyCover) or mVV.match(_skyCover)):
                 ceiling = _skyLayerBase[index]
                 break   
         return ceiling

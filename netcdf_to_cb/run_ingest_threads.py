@@ -30,10 +30,13 @@ load_spec:
     user: "cb_user"   - should come from defaults file
     password: "cb_pwd" - should come from defaults file
   path: /public/data/madis/point/metar/netcdf
-  file_name_mask: "%Y%m%d_%H%M"  
+  file_name_mask: "%Y%m%d_%H%M"
+  [output_dir: /tmp]   - this is optional  
   
 (For the mask - python time.strftime format e.g. 20210619_1300)
-
+The optional output_dir specifies the directory where output files will be written instead
+of writing them directly to couchbase. If the output_dir is not specified data will be written
+to couchbase cluster specified in the cb_connection.
 Files in the path will be enqueued if the file name mask falls between the first_epoch
 and the last_epoch. These values may be omitted in which case all the files in the path
 will be processed.
@@ -80,11 +83,17 @@ def parse_args(args):
                         help="Please provide required credentials_file")
     parser.add_argument("-t", "--threads", type=int, default=1,
                         help="Number of threads to use")
+    parser.add_argument("-p", "--path", type=str, default="./", 
+                        help="Specify the input directory that contains the netcdf files")
+    parser.add_argument("-m", "--file_name_mask", type=str, default="%Y%m%d_%H%M", 
+                        help="Specify the file name mask for the netcdf files ()")
+    parser.add_argument("-o", "--output_dir", type=str, default="/tmp", 
+                        help="Specify the output directory to put the json output files")
     parser.add_argument("-f", "--{first_epoch}", type=int, default=0,
                         help="The first epoch to use, inclusive")
     parser.add_argument("-l", "--{last_epoch}", type=int, default=0,
                         help="The last epoch to use, exclusive")
-    # get the command line arguments
+      # get the command line arguments
     args = parser.parse_args(args)
     return args
 
@@ -99,6 +108,9 @@ class VXIngest(object):
         # If these are present only the files in the path with filename masks
         # that fall between these epochs will be processed.
         self.first_last_params = None
+        self.path = None
+        self.fmask = None
+        self.output_dir = None
 
     def runit(self, args):
         """
@@ -106,7 +118,10 @@ class VXIngest(object):
         """
         self.spec_file = args['spec_file'].strip()
         self.credentials_file = args['credentials_file'].strip()
+        self.path = args['path']
+        self.fmask = args['file_name_mask']
         self.thread_count = args['threads']
+        self.output_dir = args['output_dir']
         self.first_last_params = {key: val for key,
                                   val in args.items() if key.startswith('{')}
 
@@ -132,23 +147,27 @@ class VXIngest(object):
         # load the my_queue with filenames that match the mask and are between first and last epoch (if they are in the args)
         # Constructor for an infinite size  FIFO my_queue
         q = JoinableQueue()
-        path = load_spec.path
-        fmask = load_spec.mask
         file_names = []
-        if path.exists(path) and path.isdir(path):
-            with os.scandir(path) as entries:
+        if self.path.exists(self.path) and self.path.isdir(self.path):
+            with os.scandir(self.path) as entries:
                 for entry in entries:
                     # check to see if it is within first and last epoch
                     if self.first_last_params is not None:
                         # convert the file name to an epoch using the mask
                         try:
-                            utc_time = datetime.strptime(entry, fmask)
-                            file_time = (
-                                utc_time - datetime(1970, 1, 1)).total_seconds()
-                            if self.first_last_params['{first_epoch}'] <= file_time and file_time <= self.first_last_params['{last_epoch}']:
+                            _file_utc_time = datetime.strptime(entry, self.fmask)
+                            _file_time = (_file_utc_time - datetime(1970, 1, 1)).total_seconds()
+                            if self.first_last_params['{first_epoch}'] <= _file_time and _file_time <= self.first_last_params['{last_epoch}']:
                                 file_names.append(entry.name)
                         except:
-                            # don't care, it just means it wasn't the properly formatted file per the mask
+                            # don't care, it just means it wasn't a properly formatted file per the mask
+                            continue
+                    else:
+                        try:
+                            _file_utc_time = datetime.strptime(entry, self.fmask)
+                            file_names.append(entry.name)
+                        except:
+                            # don't care, it just means it wasn't a properly formatted file per the mask
                             continue
 
         if len(file_names) == 0:

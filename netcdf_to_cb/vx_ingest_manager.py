@@ -56,7 +56,9 @@ Colorado, NOAA/OAR/ESRL/GSD
 import logging
 import queue
 import sys
+import os
 import time
+import json
 from multiprocessing import Process
 from couchbase.cluster import Cluster, ClusterOptions
 from couchbase.exceptions import TimeoutException
@@ -101,7 +103,7 @@ class VxIngestManager(Process):
     and dies.
     """
 
-    def __init__(self, name, load_spec, file_name_queue):
+    def __init__(self, name, load_spec, file_name_queue, output_dir):
         """
         :param name: (str) the thread name for this IngestManager
         :param load_spec: (Object) contains Couchbase credentials
@@ -119,6 +121,8 @@ class VxIngestManager(Process):
         self.builder_map = {}
         self.cluster = None
         self.collection = None
+        self.output_dir = output_dir
+
 
     # entry point of the thread. Is invoked automatically when the thread is
     # started.
@@ -205,6 +209,9 @@ class VxIngestManager(Process):
         _document_map = {}
         # noinspection PyBroadException
         try:
+            logging.info(
+                "process_file - : start time: " + str(_start_process_time))
+
             if self.ingest_type_builder_name in self.builder_map.keys():
                 builder = self.builder_map[self.ingest_type_builder_name]
             else:
@@ -214,11 +221,25 @@ class VxIngestManager(Process):
                                         self.cluster, self.collection)
                 self.builder_map[self.ingest_type_builder_name] = builder
             _document_map = builder.build_document(file_name)
+
+            if self.output_dir:
+                self.write_document_to_files(file_name, _document_map)
+            else: 
+                self.write_document_to_cb(file_name, _document_map)
+
         except Exception as e:
-            logging.error(self.threadName + ": Exception instantiating builder: " +
+            logging.error(self.threadName + ": Exception in builder: " +
                           str(self.ingest_type_builder_name) + " error: " + str(e))
             raise e
 
+        finally:
+            # reset the document map and record stop time
+            _stop_process_time = int(time.time())
+            _document_map = {}
+            logging.info("NetcdfIngestManager.process_file: "
+                            "elapsed time: " + str(_stop_process_time - _start_process_time))
+
+    def write_document_to_cb(self, file_name, _document_map):
         # The document_map is all built now so write all the
         # documents in the document_map into couchbase
         # noinspection PyBroadException
@@ -265,8 +286,44 @@ class VxIngestManager(Process):
             logging.error(self.threadName + ": *** %s Error writing to Couchbase: in "
                                             "process_file writing document ***" + str(e))
             raise e
-        finally:
-            # reset the document map
-            _stop_process_time = int(time.time())
-            logging.info("NetcdfIngestManager.process_file: "
-                         "elapsed time: " + str(_stop_process_time - _start_process_time))
+
+    def write_document_to_files(self, file_name, _document_map):
+        # The document_map is all built now so write all the
+        # documents in the document_map into files in the output_dir
+        # noinspection PyBroadException
+        try:
+            logging.info(self.threadName + ': process_file writing documents into ' + self.output_dir + ' for '
+                                           'ingest_document :  ' + str(file_name) + "threadName: " + self.threadName)
+            _write_start_time = int(time.time())
+            logging.info(
+                "process_file - executing upsert: stop time: " + str(_write_start_time))
+            if not _document_map:
+                logging.info(
+                    self.threadName + ": process_file: would upsert documents but DOCUMENT_MAP IS "
+                                      "EMPTY")
+            else:
+                from pathlib import Path
+                Path(self.output_dir).mkdir(parents=True, exist_ok=True)
+                #TODO - verify that the _item is a full document each time
+                _sequence_num = 0
+                for _item in document_map_chunks(_document_map):
+                    try:
+                        _file_name = os.path.basename(file_name) + "_" + str(_sequence_num)
+                        _complete_file_name = os.path.join(self.output_dir, _file_name)
+                        f = open(_complete_file_name, "w") 
+                        f.write(json.dumps(_item))
+                        f.close()
+                        _sequence_num += 1
+                    except Exception as e:
+                        logging.info(
+                            "process_file - trying write: Got Exception - " + str(e))
+            _write_stop_time = int(time.time())
+            logging.info(
+                "process_file - executing file write: stop time: " + str(_write_stop_time))
+            logging.info("process_file - executing file write: elapsed time: " + str(
+                _write_stop_time - _write_start_time))
+        except Exception as e:
+            logging.error(self.threadName + ": *** %s Error writing to files: in "
+                                            "process_file writing document ***" + str(e))
+            raise e
+

@@ -14,7 +14,6 @@ class TestNetcdfObsBuilderV01(TestCase):
             cwd = os.getcwd()
             self.spec_file = cwd + '/netcdf_to_cb/test/test_load_spec_netcdf_metar_obs_V01.yaml'
             self.thread_count = 1
-            self.cert_path = None
             load_spec_file = LoadYamlSpecFile(
                 {'spec_file': self.spec_file})
             # read in the load_spec file
@@ -27,10 +26,10 @@ class TestNetcdfObsBuilderV01(TestCase):
             load_spec['cb_connection']['password'] = _yaml_data['cb_password']
             _f.close()
             q = JoinableQueue()
+            _output_dir = "/tmp"
             q.put(cwd + '/netcdf_to_cb/test/20210624_1200')
-            vxIngestManager = VxIngestManager("test-ingest-manager", load_spec, q)
+            vxIngestManager = VxIngestManager("test-ingest-manager", load_spec, q, _output_dir)
             vxIngestManager.start()
-
         except:
             self.fail("TestGsdIngestManager Exception failure: " +
                       str(sys.exc_info()[0]))

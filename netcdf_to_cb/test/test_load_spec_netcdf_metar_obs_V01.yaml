@@ -6,5 +6,3 @@ load_spec:
     host: "cb_host"
     user: "cb_user"
     password: "cb_pwd"
-  path: "./"
-  file_name_mask: "%Y%m%d_%H%M"

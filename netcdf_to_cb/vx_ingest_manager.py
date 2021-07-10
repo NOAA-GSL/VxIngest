@@ -308,7 +308,7 @@ class VxIngestManager(Process):
                 _sequence_num = 0
                 for _item in document_map_chunks(_document_map):
                     try:
-                        _file_name = os.path.basename(file_name) + "_" + str(_sequence_num)
+                        _file_name = os.path.basename(file_name) + "_" + str(_sequence_num) + ".json"
                         _complete_file_name = os.path.join(self.output_dir, _file_name)
                         f = open(_complete_file_name, "w") 
                         f.write(json.dumps(_item))

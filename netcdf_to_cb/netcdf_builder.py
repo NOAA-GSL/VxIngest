@@ -363,7 +363,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
             mBKN = re.compile('.*BKN.*')  # Broken
             mOVC = re.compile('.*OVC.*')  # Overcast
             mVV = re.compile('.*VV.*')  # Vertical Visibility
-            mask_array = ma.getmask(_skyLayerBase)
+            mask_array = ma.getmaskarray(_skyLayerBase)
             _skyCover_array = _skyCover[1:-1].replace("'","").split(" ")
             for index in range(len(_skyLayerBase)):
                 if (not mask_array[index]) and (mBKN.match(_skyCover_array[index]) or mOVC.match(_skyCover_array[index]) or mVV.match(_skyCover_array[index])):

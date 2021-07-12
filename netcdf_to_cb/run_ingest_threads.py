@@ -91,7 +91,7 @@ def parse_args(args):
                         help="Specify the output directory to put the json output files")
     parser.add_argument("-f", "--{first_epoch}", type=int, default=0,
                         help="The first epoch to use, inclusive")
-    parser.add_argument("-l", "--{last_epoch}", type=int, default=0,
+    parser.add_argument("-l", "--{last_epoch}", type=int, default=sys.maxsize,
                         help="The last epoch to use, exclusive")
       # get the command line arguments
     args = parser.parse_args(args)
@@ -118,10 +118,10 @@ class VXIngest(object):
         """
         self.spec_file = args['spec_file'].strip()
         self.credentials_file = args['credentials_file'].strip()
-        self.path = args['path']
-        self.fmask = args['file_name_mask']
+        self.path = args['path'].strip()
+        self.fmask = args['file_name_mask'].strip()
         self.thread_count = args['threads']
-        self.output_dir = args['output_dir']
+        self.output_dir = args['output_dir'].strip()
         self.first_last_params = {key: val for key,
                                   val in args.items() if key.startswith('{')}
 
@@ -148,27 +148,19 @@ class VXIngest(object):
         # Constructor for an infinite size  FIFO my_queue
         q = JoinableQueue()
         file_names = []
-        if self.path.exists(self.path) and self.path.isdir(self.path):
+        if os.path.exists(self.path) and os.path.isdir(self.path):
             with os.scandir(self.path) as entries:
                 for entry in entries:
-                    # check to see if it is within first and last epoch
-                    if self.first_last_params is not None:
-                        # convert the file name to an epoch using the mask
-                        try:
-                            _file_utc_time = datetime.strptime(entry, self.fmask)
-                            _file_time = (_file_utc_time - datetime(1970, 1, 1)).total_seconds()
-                            if self.first_last_params['{first_epoch}'] <= _file_time and _file_time <= self.first_last_params['{last_epoch}']:
-                                file_names.append(entry.name)
-                        except:
-                            # don't care, it just means it wasn't a properly formatted file per the mask
-                            continue
-                    else:
-                        try:
-                            _file_utc_time = datetime.strptime(entry, self.fmask)
-                            file_names.append(entry.name)
-                        except:
-                            # don't care, it just means it wasn't a properly formatted file per the mask
-                            continue
+                    # convert the file name to an epoch using the mask
+                    try:
+                        _file_utc_time = datetime.strptime(entry.name, self.fmask)
+                        _file_time = (_file_utc_time - datetime(1970, 1, 1)).total_seconds()
+                        # check to see if it is within first and last epoch (default is 0 and maxsize)
+                        if self.first_last_params['{first_epoch}'] <= _file_time and _file_time <= self.first_last_params['{last_epoch}']:
+                            file_names.append(os.path.join(self.path,entry.name))
+                    except:
+                        # don't care, it just means it wasn't a properly formatted file per the mask
+                        continue
 
         if len(file_names) == 0:
             raise Exception("No files to Process!")
@@ -183,7 +175,7 @@ class VXIngest(object):
             # noinspection PyBroadException
             try:
                 ingest_manager_thread = VxIngestManager(
-                    "VxIngestManager-" + str(self.thread_count), load_spec, q)
+                    "VxIngestManager-" + str(self.thread_count), load_spec, q, self.output_dir)
                 _ingest_manager_list.append(ingest_manager_thread)
                 ingest_manager_thread.start()
             except:

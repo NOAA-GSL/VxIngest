@@ -532,10 +532,9 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
                 _existing['latitude'] = rows[0].fields['geo'][1]
                 _existing['longitude'] = rows[0].fields['geo'][0]
                           
-                #TODO UNCOMMENT THIS!
-                # for _key in ['latitude','longitude','description','name']:
-                #     if existing[_key] != netcdf[_key]:
-                #         _add_station =True
+                for _key in ['latitude','longitude','description','name']:
+                    if _existing[_key] != _netcdf[_key]:
+                        _add_station =True
 
             if _add_station:
                 # got to add a station either because it didn't exist in the database, or it didn't match

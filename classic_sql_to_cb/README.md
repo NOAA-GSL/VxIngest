@@ -1,7 +1,6 @@
-# GSD database ingest to couchbase
+# GSL database ingest to couchbase
 ## purpose
-These programs are intended to import GSD 
-(currently the organization is GSL but the data came from GSD) 
+These programs are intended to import GSL 
 database tables into Couchbase taking advantage of the GSL Couchbase data schema
 that has been developed by the GSL AVID model verification team.
 ##Environment
@@ -21,7 +20,7 @@ load_spec:
     management_system: cb
     host: "cb_host"
     user: avid
-    password: gsd_pwd
+    password: gsl_pwd
   mysql_connection:
     management_system: mysql
     host: "mysql_host"
@@ -49,7 +48,7 @@ are all pretty much like this.
   "docType": "ingest",
   "subset": "METAR",
   "version": "V01",
-  "builder_type": "GsdStationsBuilderV01",
+  "builder_type": "SqlStationsBuilderV01",
   "statement": "select UNIX_TIMESTAMP() as updateTime, m.name, m.madis_id, m.lat, m.lon, m.elev, s.disc as description, s.first, s.last, l.last_time from madis3.metars_mats_global as m, madis3.stations as s, madis3.locations as l where 1=1 and m.name = s.name and m.lat = l.lat and m.lon = l.lon and m.elev = l.elev;",
   "template": {
     "id": "MD:V01:METAR:stations",
@@ -75,13 +74,13 @@ are all pretty much like this.
 }
 ```
 The line
-```"builder_type": "GsdStationsBuilderV01"```
+```"builder_type": "SqlStationsBuilderV01"```
 defines a python class. These builder classes are defined 
 in the gsd_builder.py file. This class will interpret the
 load_spec and ingest data that is returned by the mysql statement
 in the "statement" field. Whether the entire result set is combined
 into one document or multiple documents depends on the "builder_type".
-In this example the "GsdStationsBuilderV01" combines all 
+In this example the "SqlStationsBuilderV01" combines all 
 the data into one document with the data fields ingested as top level
 entries.
 Notice 
@@ -111,7 +110,7 @@ The ingest document "MD:V01:METAR:stations:ingest "
   "docType": "ingest",
   "subset": "METAR",
   "version": "V01",
-  "builder_type": "GsdStationsBuilderV01",
+  "builder_type": "SqlStationsBuilderV01",
   "singularData": true,
   "statement": "select UNIX_TIMESTAMP() as updateTime, m.name, m.madis_id, m.lat, m.lon, m.elev, s.disc as description, s.first, s.last, l.last_time from madis3.metars_mats_global as m, madis3.stations as s, madis3.locations as l where 1=1 and m.name = s.name and m.lat = l.lat and m.lon = l.lon and m.elev = l.elev;",
   "template": {
@@ -139,7 +138,7 @@ The ingest document "MD:V01:METAR:stations:ingest "
 }
 ```
 
-The ingest document defines a builder type GsdStationsBuilderV01 which will create 
+The ingest document defines a builder type SqlStationsBuilderV01 which will create 
 a metadata document that has all of the stations contained in a data list.
 
 ####field substitution by function in the template
@@ -250,6 +249,35 @@ The password has been obscured and the example assumes that you cloned this repo
 cbimport json --cluster couchbase://adb-cb4.gsd.esrl.noaa.gov --bucket mdata --username avid --password 'getyourselfapassword' --format list --generate-key %id% --dataset file:///${HOME}/VXingest/gsd_sql_to_cb/metadata_files/regions.json
 ```
 For more information on cbimport see [cbimport](https://docs.couchbase.com/server/current/tools/cbimport-json.html)
+#### Import data with cbimports
+In a similar manner to importing metadata, data files may be imported as well. This example
+would be for a datafile containing a document array i.e a data file that is constructed like this...
+```
+[
+{
+    id:"DD:V01:METAR:something:anepoch",
+    more stufff......
+},
+{
+    id:"DD:V01:METAR:something:anepoch",
+    more stufff......
+},
+more documents ,,,,
+
+]
+``` 
+The id's must conform to our data model and must be unique.
+The import command would be like this for importing to the cluster...
+```
+cbimport json --cluster couchbase://adb-cb4.gsd.esrl.noaa.gov --bucket mdata --username avid --password 'getyourselfapassword' --format list --generate-key %id% --dataset file:///path_to_the_file
+```
+and to use multiple threads and log any errors you can do this, you should not use more threads than you have cpu cores....
+```
+cbimport json --cluster couchbase://adb-cb4.gsd.esrl.noaa.gov --bucket mdata --username avid --password 'getyourselfapassword' --format list --generate-key %id% --dataset file:///path_to_the_file -t num_threads -e an_error_file
+```
+A strategy might be to seperate data into multiple files and run a different cbimport 
+instance on each file.
+
 ## Credentials files
 This is an example credentials file, the user and password are fake.
 ```
@@ -317,20 +345,33 @@ $HOME/VXingest/gsd_sql_to_cb/run_gsd_ingest_threads.py
 -l 1605312000
 ```
 ## Recomended indexes
-There are two index creation n1ql scripts in this directory.
-They can be loaded with the scripts/admin/index/index-import-all-indexes.sh
+There are a lot of administrative scripts for dealing with indexes in the 
+...scripts/admin/index directory. Full-text-search index utilities are in the 
+...scripts/admin/fts directory.
+This utility can be used to retrieve all the currently defined indexes from a cluster.
+This invocation filters for the mdata bucket.
+.../VXingest/scripts/admin/index/index-definitions.sh --cluster=adb-cb4.gsd.esrl.noaa.gov --username=avid --password='pwd' | grep mdata
+(the password is not actual)
+
+The create...n1ql files in the ...mats_metadata_and_indexes/index_creation_scripts folder were created with this utility. 
+
+There are index creation n1ql scripts in this directory. The scripts labeled ...-0-relicas.n1ql
+will not produce replicas, i.e. use them on a standalone server, and the scripts labeled
+...-2-replicas.n1ql should be used for the cluster.
+
+They can be loaded with the ....scripts/admin/index/index-import-all-indexes.sh
 script.
+e.g.
+.../VXingest/scripts/admin/index/index-import-all-indexes.sh --cluster=adb-cb4.gsd.esrl.noaa.gov --username=avid --password='pwd' --file=.../mats_metadata_and_indexes/index_creation_scripts/create_indexes-2-replicas.n1ql
+(the password is not actual)
 
 Alternatively you can load the indexes in the query console of the UI and then 
 use the command
 ```
-BUILD INDEX ON mdata (( 
-  SELECT RAW name 
-  FROM system:indexes
-  WHERE keyspace_id = "mdata"
-    AND state = 'deferred' ));
+BUILD INDEX ON mdata (( SELECT RAW name FROM system:indexes WHERE keyspace_id = "mdata" AND state = 'deferred' ));
 ```
 to actually build the indexes.
+
 ##Useful and interesting queries
 - This [page](https://docs.couchbase.com/server/current/fts/fts-geospatial-queries.html) talks about geospatial queries.
 - This [page](https://docs.couchbase.com/server/current/fts/fts-searching-from-the-ui.html) talks about full text searches from the UI. Note that UI FTS searches are pretty limited.

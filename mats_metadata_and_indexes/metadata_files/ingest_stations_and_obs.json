@@ -1,6 +1,6 @@
 [
   {
-    "builder_type": "GsdObsBuilderV01",
+    "builder_type": "SqlObsBuilderV01",
     "docType": "ingest",
     "type": "MD",
     "version": "V01",
@@ -38,7 +38,7 @@
     }
   },
   {
-    "builder_type": "GsdStationsBuilderV01",
+    "builder_type": "SqlStationsBuilderV01",
     "type": "MD",
     "version": "V01",
     "docType": "ingest",

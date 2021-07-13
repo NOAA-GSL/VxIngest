@@ -71,7 +71,8 @@ def parse_args(args):
     Parse command line arguments
     """
     begin_time = str(datetime.now())
-    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
     logging.info("--- *** --- Start --- *** ---")
     logging.info("Begin a_time: %s" + begin_time)
     # a_time execution

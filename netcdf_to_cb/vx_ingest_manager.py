@@ -257,26 +257,10 @@ class VxIngestManager(Process):
                     self.threadName + ": process_file: would upsert documents but DOCUMENT_MAP IS "
                                       "EMPTY")
             else:
-                for _item in document_map_chunks(_document_map):
-                    try:
-                        _ret = self.collection.upsert_multi(_item)
-                        time.sleep(1)
-                    except TimeoutException as t:
-                        logging.info(
-                            "process_file - trying upsert: Got TimeOutException - " +
-                            " Document may not be persisted. Retrying: " + str(t.result.errstr))
-                        _retry_items = {}
-                        for _key, _result in t.all_results.items():
-                            if not _result.success:
-                                _retry_items[_key] = _result
-                        # wait 2 seconds, be polite to the server
-                        time.sleep(2)
-                        try:
-                            _ret = self.collection.upsert_multi(_retry_items)
-                        except TimeoutException as t1:
-                            logging.info(
-                                "process_file - retrying upsert: Got TimeOutException - " +
-                                " Document may not be persisted.Giving up: " + str(t1.result.errstr))
+                try:
+                    _ret = self.collection.upsert_multi(_document_map)
+                except TimeoutException as t:
+                    logging.info("process_file - trying upsert: Got TimeOutException -  Document may not be persisted.")
             _upsert_stop_time = int(time.time())
             logging.info(
                 "process_file - executing upsert: stop time: " + str(_upsert_stop_time))
@@ -298,30 +282,21 @@ class VxIngestManager(Process):
             logging.info(
                 "process_file - executing upsert: stop time: " + str(_write_start_time))
             if not _document_map:
-                logging.info(
-                    self.threadName + ": process_file: would upsert documents but DOCUMENT_MAP IS "
-                                      "EMPTY")
+                logging.info(self.threadName + ": process_file: would upsert documents but DOCUMENT_MAP IS EMPTY")
             else:
                 from pathlib import Path
                 Path(self.output_dir).mkdir(parents=True, exist_ok=True)
-                #TODO - verify that the _item is a full document each time
-                _sequence_num = 0
-                for _item in document_map_chunks(_document_map):
-                    try:
-                        _file_name = os.path.basename(file_name) + "_" + str(_sequence_num) + ".json"
-                        _complete_file_name = os.path.join(self.output_dir, _file_name)
-                        f = open(_complete_file_name, "w") 
-                        f.write(json.dumps(_item))
-                        f.close()
-                        _sequence_num += 1
-                    except Exception as e:
-                        logging.info(
-                            "process_file - trying write: Got Exception - " + str(e))
+                try:
+                    _file_name = os.path.basename(file_name)  + ".json"
+                    _complete_file_name = os.path.join(self.output_dir, _file_name)
+                    f = open(_complete_file_name, "w") 
+                    f.write(json.dumps(_document_map))
+                    f.close()
+                except Exception as e:
+                    logging.info("process_file - trying write: Got Exception - " + str(e))
             _write_stop_time = int(time.time())
-            logging.info(
-                "process_file - executing file write: stop time: " + str(_write_stop_time))
-            logging.info("process_file - executing file write: elapsed time: " + str(
-                _write_stop_time - _write_start_time))
+            logging.info("process_file - executing file write: stop time: " + str(_write_stop_time))
+            logging.info("process_file - executing file write: elapsed time: " + str(_write_stop_time - _write_start_time))
         except Exception as e:
             logging.error(self.threadName + ": *** %s Error writing to files: in "
                                             "process_file writing document ***" + str(e))

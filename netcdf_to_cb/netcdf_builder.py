@@ -529,8 +529,12 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
                 # compare the existing record from the query to the netcdf record
                 _existing['name'] = rows[0].fields['name']
                 _existing['description'] = rows[0].fields['description']
-                _existing['latitude'] = rows[0].fields['geo'][1]
-                _existing['longitude'] = rows[0].fields['geo'][0]
+                if not rows[0].fields['geo']:
+                    _existing['latitude'] = None
+                    _existing['longitude'] = None
+                else:    
+                    _existing['latitude'] = rows[0].fields['geo'][1]
+                    _existing['longitude'] = rows[0].fields['geo'][0]
                           
                 for _key in ['latitude','longitude','description','name']:
                     if _existing[_key] != _netcdf[_key]:

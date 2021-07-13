@@ -153,26 +153,27 @@ class VxIngestManager(Process):
             while True:
                 try:
                     file_name = self.queue.get_nowait()
+                    logging.info( self.threadName + ': NetcdfIngestManager - processing file ' + file_name)
                     self.process_file(file_name)
+                    logging.info( self.threadName + ': NetcdfIngestManager - finished processing file ' + file_name)
                     self.queue.task_done()
-                    empty_count = 0
-                except (Exception):
-                    continue
-                except queue.Empty:
+                except Exception as e:
+                    # should probably just catch _queue.Empty but I think Python changed the name - so to be certain catching ANY exception
+                    # three strikes and your out! finished! kaput!
+                    logging.info( self.threadName + ': NetcdfIngestManager - After file processing Exception - type' + str(type(e)) + ' empty count is ' + str(empty_count))
                     if empty_count < 3:
                         empty_count += 1
                         time.sleep(1)
                         continue
                     else:
-                        logging.info(
-                            self.threadName + ': NetcdfIngestManager - Queue ' + 'empty - disconnecting ' + 'couchbase')
+                        logging.info( self.threadName + ': NetcdfIngestManager - Queue empty - disconnecting ' + 'couchbase')
                         break
         except Exception as e:
-            logging.error(self.threadName + ": *** %s Error in NetcdfIngestManager run "
-                                            "***" + str(e))
+            logging.error(self.threadName + ": *** %s Error in NetcdfIngestManager run ***" + str(e))
             raise e
         finally:
             self.close_cb()
+            logging.error(self.threadName + ": NetcdfIngestManager finished")
 
     def close_cb(self):
         if self.cluster:
@@ -218,18 +219,19 @@ class VxIngestManager(Process):
                 self.write_document_to_files(file_name, _document_map)
             else: 
                 self.write_document_to_cb(file_name, _document_map)
-
+            
         except Exception as e:
             logging.error(self.threadName + ": Exception in builder: " +
                           str(self.ingest_type_builder_name) + " error: " + str(e))
             raise e
 
-        finally:
+        #finally:
             # reset the document map and record stop time
             _stop_process_time = int(time.time())
             _document_map = {}
             logging.info("NetcdfIngestManager.process_file: "
                             "elapsed time: " + str(_stop_process_time - _start_process_time))
+            return
 
     def write_document_to_cb(self, file_name, _document_map):
         # The document_map is all built now so write all the
@@ -256,8 +258,7 @@ class VxIngestManager(Process):
             _upsert_stop_time = int(time.time())
             logging.info(
                 "process_file - executing upsert: stop time: " + str(_upsert_stop_time))
-            logging.info("process_file - executing upsert: elapsed time: " + str(
-                _upsert_stop_time - _upsert_start_time))
+            logging.info("process_file - executing upsert: elapsed time: " + str( _upsert_stop_time - _upsert_start_time))
         except Exception as e:
             logging.error(self.threadName + ": *** %s Error writing to Couchbase: in "
                                             "process_file writing document ***" + str(e))

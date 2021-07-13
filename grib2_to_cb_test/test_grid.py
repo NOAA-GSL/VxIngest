@@ -1,3 +1,11 @@
+"""
+Program Name: test_grid.py
+Contact(s): Jeff Hamilton
+History Log:  Initial version
+Copyright 2021 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of
+Colorado, NOAA/OAR/ESRL/GSL
+"""
+
 import sys
 import os
 import pyproj
@@ -18,43 +26,44 @@ def test():
         # Set the two projections to be used during the transformation (nearest neighbor method, what we use for everything with METARS)
         in_proj = pyproj.Proj(proj='latlon')
         out_proj = projection
-        #out_proj = pyproj.Proj({'a': 6371229, 'b': 6371229, 'proj': 'lcc', 'lon_0': 262.5, 'lat_0': 38.5, 'lat_1': 38.5, 'lat_2': 38.5, 'x_0': 2697569.358471548, 'y_0': 1587292.3188809326})
 
-
-        # Example station lat-lon (Denver International Airport in this case)
-        #lat, lon = 21.138123, 237.28
-        lat, lon = 40.65, 284.57
+        # Example METAR station lat-lon from Danbury, CT (name: KDXR, id:2556)
+        lat, lon = 41.37, 286.52
 
         # Find the x, y coordinate on the model grid, then round to nearest integer
         transformer = pyproj.Transformer.from_proj(proj_from=in_proj,proj_to=out_proj)
         x, y = transformer.transform(lon,lat, radians=False)
-        #x, y = pyproj.transform(in_proj,projection,lon,lat)
+        x_stat, y_stat = x/spacing, y/spacing
 
-        print(x/spacing,y/spacing)
+        print(x_stat,y_stat)
 
+        # Sanity check to make sure we can transform back to the lat-lon we started from
         transformer_reverse = pyproj.Transformer.from_proj(proj_from=out_proj,proj_to=in_proj)
         lont, latt = transformer_reverse.transform(x,y, radians=False)
 
         print(latt,lont)
 
-
+        # Grab the closest surface height and ceiling (MSL) data to the station lat-lon using the x,y coordinate found
         grbs = pygrib.open(grib2_file)
-        #grbs = [grb for grb in file]
-        #for grb in grbs:
-        #        print(n, grb.name, grb.typeOfLevel, grb.level, grb.parameterCategory, grb.parameterNumber)
-        #        n = n + 1
-        #grb = grbs.select(name='Geopotential Height', level=0, parameterCategory=3, parameterNumber=5, typeOfLevel='unknown')
-        grb = grbs.select(name='Geopotential Height', typeOfFirstFixedSurface='215')[0]
-        print(grb)
-        #for g in grb:
-        #        print(g)
-        #        print(g.typeOfFirstFixedSurface)
-        #for key in grb.keys():
-        #        #print(g.bitMapIndicator)
-        #        output = 
-        #        print(key)
-        grbs.close() 
-        
+
+        surface_hgt = grbs.select(name='Orography')[0]
+        surface_hgt_values = surface_hgt['values']
+        surface = surface_hgt_values[round(y_stat),round(x_stat)]
+
+        ceil = grbs.select(name='Geopotential Height', typeOfFirstFixedSurface='215')[0]
+        ceil_values = ceil['values']
+        ceil_msl = ceil_values[round(y_stat),round(x_stat)]
+
+        grbs.close()
+
+        print(surface,ceil_msl)
+
+        # Convert to ceiling AGL and convert to tens of feet
+        ceil_agl = (ceil_msl - surface) * 0.32808
+        print(ceil_agl)
+
+        # This value matches the rounded value inside the MySQL database, extracted with the following query:
+        ## select * from ceiling2.HRRR_OPS where madis_id = 2556 and time = 1626102000 and fcst_len = 3;        
          
 
 if __name__ == "__main__":

@@ -291,9 +291,8 @@ class VxIngestManager(Process):
                     _complete_file_name = os.path.join(
                         self.output_dir, _file_name)
                     f = open(_complete_file_name, "w")
-                    f.write('[')
-                    f.write(json.dumps(_document_map))
-                    f.write(']')
+                    # we need to write out a list of the values of the _document_map for cbimport
+                    f.write(json.dumps(list(_document_map.values())))
                     f.close()
                 except Exception as e:
                     logging.info(

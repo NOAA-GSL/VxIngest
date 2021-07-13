@@ -165,9 +165,6 @@ class NetcdfBuilder:
                         new_document = self.handle_data(new_document, _recNum)
                         continue
                     new_document = self.handle_key(new_document, _recNum, _key)
-            # remove id (it isn't needed inside the doc, we needed it in the template
-            # to tell us how to format the id)
-            del new_document['id']
             # put document into document map
             self.document_map[self.id] = new_document
         except Exception as e:

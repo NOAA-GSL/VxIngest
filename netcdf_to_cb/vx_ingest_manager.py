@@ -128,7 +128,7 @@ class VxIngestManager(Process):
         """
         # noinspection PyBroadException
         try:
-            logging.basicConfig(level=logging.INFO)
+            logging.getLogger().setLevel(logging.INFO)
             # establish connections to cb, collection
             self.connect_cb()
             # Read the ingest document

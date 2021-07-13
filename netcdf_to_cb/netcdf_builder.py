@@ -535,6 +535,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
                 for _key in ['latitude','longitude','description','name']:
                     if _existing[_key] != _netcdf[_key]:
                         _add_station =True
+                        break
 
             if _add_station:
                 # got to add a station either because it didn't exist in the database, or it didn't match

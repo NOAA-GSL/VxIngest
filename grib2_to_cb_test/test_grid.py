@@ -58,7 +58,7 @@ def test():
 
         print(surface,ceil_msl)
 
-        # Convert to ceiling AGL and convert to tens of feet
+        # Convert to ceiling AGL and from meters to tens of feet (what is currently inside SQL, we'll leave it as just feet in CB)
         ceil_agl = (ceil_msl - surface) * 0.32808
         print(ceil_agl)
 

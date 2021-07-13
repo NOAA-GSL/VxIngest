@@ -11,7 +11,7 @@ in the python_packages.md file in this directory.
 ##Approach
 These programs use a load_spec YAML file and a credentials file.
 ### load_spec example
-This is the test/load_spec_stations.yaml file from this distribution.
+This is the test/load_spec_netcdf_metar_obs.yaml file from this distribution.
 ```
 load_spec:
   email: "randy.pierce@noaa.gov"
@@ -20,11 +20,9 @@ load_spec:
     host: "cb_host"
     user: avid
     password: gsl_pwd
-  mysql_connection:
-    management_system: netcdf
-    path: "/public/data/metar/netcdf"
-    mask: "YYDOYmmssbiniT"
   ingest_document_ids: ['MD:V01:METAR:obs:ingest:netcdf']
+  path:/public/data/madis/point/metar/netcdf
+  mask:
 ```
 The email is optional - currently not used.
 The cb_connection block defines the connection values that will be used to authenticate a connection to the host.
@@ -37,45 +35,45 @@ one or a list of metadata documents. These documents define how the program will
 The 'MD:V01:METAR:obs:ingest:netcdf' value is the id of a couchbase metadata document.
 This document MUST exist on the couchbase cluster defined by cb_host
 and MUST be readable by the cb_user.
+
 ### metadata Example
-This is the contents of "MD:V01:METAR:stations_ingest". If
+
+This is the contents of "MD:V01:METAR:obs:ingest:netcdf". If
 you intend to use a metadata ingest document you must either
-be certain that it already exists or you must create it. 
-```
+be certain that it already exists or you must create it.
+
+```json
 {
-  "builder_type": "NetCDFObsBuilderV01",
+  "builder_type": "NetcdfObsBuilderV01",
   "validTimeInterval": 3600,
   "validTimeDelta": 1800,
   "docType": "ingest",
   "subDocType": "netcdf",
   "id": "MD:V01:METAR:obs:ingest:netcdf",
   "requires_time_interpolation": true,
-  "variableList": "stationName, locationName, latitude, longitude, elevation, timeObs, temperature, dewpoint, altimeter, windDir, windSpeed, skyCover, visibility",
-  "station_query": "SELECT raw {mdata.name, mdata.geo.lat, mdata.geo.lon} FROM mdata WHERE type='MD' AND docType='station' AND subset='METAR' AND version ='V01'",
-  "stationFunction": "stationChecker.py",
-  "dataFunction": "METARingest.py",
+  "variableList": "stationName, locationName, latitude, longitude, elevation, timeObs, temperature, dewpoint, altimeter, windDir, windSpeed, skyCover, skyLayerBase, visibility",
   "subType": "obs",
   "subset": "METAR",
   "template": {
     "correctedTime": "",
     "data": {
       "*name": {
-        "Ceiling": "&METARingest.ceilingTransform(skyCover)",
-        "DewPoint": "*dewpoint",
+        "Ceiling": "&ceiling_transform:*skyCover,*skyLayerBase",
+        "DewPoint": "&dewpoint_transform:*dewpoint",
         "Reported Time": "*timeObs",
         "Surface Pressure": "*altimeter",
-        "Temperature": "*temperature",
-        "Visibility": "*visibility",
+        "Temperature": "&kelvin_to_farenheight:*temperature",
+        "Visibility": "&meters_to_miles:*visibility",
         "WD": "*windDir",
-        "WS": "*windSpeed",
-        "name": "*stationName"
+        "WS": "&meterspersecond_to_milesperhour:*windSpeed",
+        "name": "&handle_station:*stationName"
       }
     },
     "dataSourceId": "MADIS",
     "docType": "obs",
     "fcstValidBeg": "*{ISO}time",
-    "fcstValidEpoch": "*time",
-    "id": "DD:V01:METAR:obs:*time",
+    "fcstValidEpoch": "&interpolate_time:*timeObs",
+    "id": "DD:V01:METAR:obs:&interpolate_time:*timeObs",
     "subset": "METAR",
     "type": "DD",
     "version": "V01"
@@ -83,103 +81,77 @@ be certain that it already exists or you must create it.
   "type": "MD",
   "version": "V01"
 }
-}
 ```
+
 The line
-```"builder_type": "NetCDFObsBuilderV01"```
-defines a python class. These builder classes are defined 
+```"builder_type": "NetcdfObsBuilderV01"```
+defines a python class. These builder classes are defined
 in the netcdf_builder.py file. This class will interpret the
-load_spec and ingest data from a set of netcdf files retrieved from the path. 
+load_spec and ingest data from a set of netcdf files retrieved from the path.
 Whether the entire result set is combined
 into one document or multiple documents depends on the "builder_type".
-In this example the "NetCDFObsBuilderV01" combines all 
+In this example the "NetcdfObsBuilderV01" combines all
 the data into one document with the data fields ingested as top level
 entries.
-Notice 
-```
+Notice
+
+```code
     "type": "MD",
     "version": "V01",
     "docType": "ingest",
     "subset": "METAR",
 ```
-####field substitution by value in the template
+
+#### field substitution by value in the template
+
 These fields describe a metadata document that is used by a program to ingest data.
 Data documents will be created according to the template defined in the "template" field.
 Template strings that start with an '*' will be replaced with data returned
 from the sql query. For example the key "\*name" might be replaced
 with "KDEN"  returned on one row of the result set in the "name"
-field. In like manner 
-the value "*description" will be replaced with the actual description text that
-was returned in the description field of the row. This example does not illustrate combinations of 
+field. In like manner the value "*description" will be replaced with the actual description text that
+was returned in the description field of the row. This example does not illustrate combinations of
 replacement fields, but you could have a replacement field like "\*field1\*field2"
 which would result in the values represented by field1 and field2 being
 concatenated together in the result.
 
-The ingest document "MD:V01:METAR:stations:ingest "
-```
-{
-  "type": "MD",
-  "docType": "ingest",
-  "subset": "METAR",
-  "version": "V01",
-  "builder_type": "SqlStationsBuilderV01",
-  "singularData": true,
-  "statement": "select UNIX_TIMESTAMP() as updateTime, m.name, m.madis_id, m.lat, m.lon, m.elev, s.disc as description, s.first, s.last, l.last_time from madis3.metars_mats_global as m, madis3.stations as s, madis3.locations as l where 1=1 and m.name = s.name and m.lat = l.lat and m.lon = l.lon and m.elev = l.elev;",
-  "template": {
-    "id": "DD:V01:METAR:station:*name",
-    "type": "DD",
-    "docType": "station",
-    "subset": "METAR",
-    "dataFileId": "DF_id",
-    "dataSourceId": "DS_id",
-    "version": "V01",
-    "updateTime": "*updateTime",
-    "description": "*description",
-    "firstTime": "*first",
-    "lastTime": "*last",
-    "station": "*name",
-    "name": "*name",
-    "notlat": "*lat",
-    "notlon": "*lon",
-    "geo": {
-      "lat": "*lat",
-      "lon": "*lon",
-      "elev": "*elev"
-    }
-  }
-}
-```
+#### field substitution by function in the template
 
-The ingest document defines a builder type SqlStationsBuilderV01 which will create 
-a metadata document that has all of the stations contained in a data list.
+If in the template above the line ```"Ceiling": "&ceiling_transform:*skyCover,*skyLayerBase"```
+defines a field substitution by named function. A named function must
+exist in the specified builder class. These functions have a signature like
 
-####field substitution by function in the template
-If in this template the line ```"lat": "*lat"``` were replaced with 
-```"&conv_latlon:*lat"``` it would define a field substitution by defined function. A defined function must 
-exist in the specified builder class. These functions have a signature like 
-```    
+```code
 @staticmethod
-def conv_latlon(meta_data, params_dict):
+def ceiling_transform(meta_data, params_dict):
 ...
  ```
-The template line is divided into two parts that are separated by
-a ":". The first part specifies a function name ```conv_latlon``` and
-the second part specifies a parameter list that will be converted
-into a dict structure and passed into the named function.
-The parameter dict will have a key, in this case the parameter will be
-something like {'lat': latitude} where latitude will be the real
-lat value from the current data set.
+
+The named function routine processes a named function entry from a template.
+The '_named_function_def' looks like "&named_function:*field1,*field2,*field3..."
+where named_function is the literal function name of a defined function.
+The name of the function and the function parameters are seperated by a ":" and
+the parameters are seperated vy a ','.
+It is expected that field1, field2, and field3 etc are all valid variable names.
+Each field will be translated from the netcdf file into value1, value2 etc.
+The method "named_function" will be called like...
+named_function({field1:value1, field2:value2, ... fieldn:valuen}) and the return value from named_function
+will be substituted into the generated document.
 
 #### Where to place substitutions
+
 Substitutions can be for keys or values in the template, in top level documents or in sub documents.
+
 ## Structure of templates
+
 Templates are given document identifiers like
 ```MD:V01:METAR:stations:ingest```
 This identifier is constrained to match specific fields within the 
 document. "type:version:subset:product:docType
 
 and MUST contain these keywords...
- ```
+
+ ```code
   "type": "MD",  - required to be 'MD'
   "docType": "ingest",  - required to be 'ingest'
   "subset": "METAR",  - required set to whatever is appropriate
@@ -188,8 +160,11 @@ and MUST contain these keywords...
   "builder_type": "some builder class",
   "singularData": true,   - true if only one document is to be produced
   "statement": "some statemnet",
+
 ```
-## Backup ingest documents!!!
+
+## Backup ingest documents
+
 Ingest documents can be backed up with a utility in the scripts/VX_ingest_utilities
 directory... save_ingest_docs_to_csv.sh
 This utility requires a backup directory which is nominally
@@ -197,10 +172,13 @@ VXingest/gsd_sql_to_cb/ingest_backup, and a server name. The utility will backup
 based on the id pattern "MD.*:ingest".
 
 ##### Example
-```
+
+``` javascript
 ${HOME}/VXingest/scripts/VXingest_utilities/save_ingest_docs_to_csv.sh ${HOME}/VXingest/gsd_sql_to_cb/ingest_backup adb-cb1.gsd.esrl.noaa.gov
 ```
-##### Alternatively for personal backups:
+
+##### Alternatively for personal backups
+
 you can use the document export and import utility on the couchbase UI IF THE COUCHBASE
 SERVER VERSION IS GREATER THAN 6.5.
 
@@ -209,7 +187,8 @@ To use the UI navigate to the UI Query page
 https://adb-cb4.gsd.esrl.noaa.gov:18091/ui/index.html#!/query
 
 Enter this query into the query editor and execute the query.
-```
+
+```code
 select meta().id, ingest_docs.*
 from mdata as ingest_docs
 WHERE type="MD"
@@ -217,6 +196,7 @@ and docType = "ingest"
 and subset = "METAR"
 and version is not missing
 ```
+
 This will retrieve all the ingest documents for the subset 'METAR' and
 associate an id field with each document.
 
@@ -227,6 +207,7 @@ the path will get munged into the filename. The save button will save all the in
 the file that you specified IN THE DOWNLOADS DIRECTORY.
 
 ##### Restore ingest documents on local server
+
 Ingest documents can be restored from the documents page IF YOU HAVE ADMINISTRATOR privileges
 and the server VERSION IS 6.6 OR GREATER. 
 This is useful to restore ingest documents to your laptop.
@@ -244,40 +225,53 @@ From the 'Value of Field:' selector choose 'id'.
 Click the 'Import Data' button.
 
 Your ingest documents should now be available.
+
 ### Restore ingest documents on local server using cbimports utility
+
 If the version is less than 6.6 or you want to script loading jason documents you can use the cbimports utility.
 The json documents must be in the form of a json list and each document must
 have an 'id' field with a unique value. The 'id' value should reflect the identifiers in our data model.
+
 #### Example restore ingest with cbimports
-```
+
+```code
 cbimport json --cluster couchbase://adb-cb4.gsd.esrl.noaa.gov --bucket mdata --username avid --password 'getapassword' --format list --generate-key %id% --dataset file:///${HOME}/VXingest/gsd_sql_to_cb/ingest_backup/ingest-20210313:083606
+
 ```
+
 #### Restore other metadata with cbimports
+
 Refer to the VXingest/gsd_sql_to_cb/metadata_files/regions.json for
 an example of a multi-document metadata file. The cbimport command for importing these region definitions
 into a server would look like this for the server adb-cb4.gsd.esrl.noaa.gov
 The password has been obscured and the example assumes that you cloned this repo into ${HOME}....
-```
+
+```code
 cbimport json --cluster couchbase://adb-cb4.gsd.esrl.noaa.gov --bucket mdata --username avid --password 'getyourselfapassword' --format list --generate-key %id% --dataset file:///${HOME}/VXingest/gsd_sql_to_cb/metadata_files/regions.json
 ```
+
 For more information on cbimport see [cbimport](https://docs.couchbase.com/server/current/tools/cbimport-json.html)
+
 #### Import data with cbimports
+
 In a similar manner to importing metadata, data files may be imported as well. This example
 would be for a datafile containing a document array i.e a data file that is constructed like this...
-```
+
+```json
 [
 {
     id:"DD:V01:METAR:something:anepoch",
-    more stufff......
+    more:"stuff"
 },
 {
     id:"DD:V01:METAR:something:anepoch",
-    more stufff......
+    more:stuff"
 },
 more documents ,,,,
 
 ]
-``` 
+```
+
 The id's must conform to our data model and must be unique.
 The import command would be like this for importing to the cluster...
 ```

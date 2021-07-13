@@ -567,5 +567,5 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
             logging.error(
                 self.__class__.__name__ +
                 "netcdfObsBuilderV01.handle_station: Exception finding or creating station to match station_name  "
-                "error: " ,e, " params: " + str(params_dict))
+                "error: ".format(e), " params: " + str(params_dict))
             return ""

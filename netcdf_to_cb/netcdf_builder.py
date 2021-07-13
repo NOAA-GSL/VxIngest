@@ -469,15 +469,15 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
         """
         _netcdf = {}
         if not ma.getmask(self.ncdf_data_set['latitude'][_recNum]):
-            _netcdf['latitude'] = str(ma.compressed(self.ncdf_data_set['latitude'][_recNum])[0])
+            _netcdf['latitude'] = ma.compressed(self.ncdf_data_set['latitude'][_recNum])[0]
         else:
             _netcdf['latitude'] = None
         if not ma.getmask(self.ncdf_data_set['longitude'][_recNum]):
-            _netcdf['longitude'] = str(ma.compressed(self.ncdf_data_set['longitude'][_recNum])[0])
+            _netcdf['longitude'] = ma.compressed(self.ncdf_data_set['longitude'][_recNum])[0]
         else:
             _netcdf['longitude'] = None
         if not ma.getmask(self.ncdf_data_set['elevation'][_recNum]):
-            _netcdf['elevation'] = str(ma.compressed(self.ncdf_data_set['elevation'][_recNum])[0])
+            _netcdf['elevation'] = ma.compressed(self.ncdf_data_set['elevation'][_recNum])[0]
         else:
             _netcdf['elevation'] = None
         _netcdf['description'] = str(nc.chartostring(self.ncdf_data_set['locationName'][_recNum]))
@@ -529,12 +529,12 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
                 # compare the existing record from the query to the netcdf record
                 _existing['name'] = rows[0].fields['name']
                 _existing['description'] = rows[0].fields['description']
-                if not rows[0].fields['geo']:
-                    _existing['latitude'] = None
-                    _existing['longitude'] = None
-                else:    
+                if rows[0].fields['geo']:
                     _existing['latitude'] = rows[0].fields['geo'][1]
                     _existing['longitude'] = rows[0].fields['geo'][0]
+                else:    
+                    _existing['latitude'] = None
+                    _existing['longitude'] = None
                           
                 for _key in ['latitude','longitude','description','name']:
                     if _existing[_key] != _netcdf[_key]:

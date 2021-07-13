@@ -67,14 +67,6 @@ from itertools import islice
 from netcdf_to_cb import netcdf_builder as netcdf_builder
 
 
-def document_map_chunks(data, chunk_size=1000):
-    """
-    Simple utility for chunking document maps into reasonable upsert sizes
-    """
-    it = iter(data)
-    for i in range(0, len(data), chunk_size):
-        yield {k: data[k] for k in islice(it, chunk_size)}
-
 
 class VxIngestManager(Process):
     """

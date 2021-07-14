@@ -536,11 +536,11 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
                     _existing['longitude'] = None
                           
                 for _key in ['latitude','longitude']:
-                    if math.isclose(_existing[_key], _netcdf[_key],abs_tol=.001):
+                    if not math.isclose(_existing[_key], _netcdf[_key],abs_tol=.001):
                         _add_station =True
                         break
                 if not _add_station:    
-                    for _key in ['latitude','longitude','description','name']:
+                    for _key in ['description','name']:
                         if _existing[_key] != _netcdf[_key]:
                             _add_station =True
                             break

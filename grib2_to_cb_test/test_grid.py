@@ -18,7 +18,7 @@ def test():
         print("grib2 file being tested: %s" % grib2_file)
 
         projection = gg.getGrid(grib2_file)
-        spacing = gg.getSpacing(grib2_file)
+        spacing, max_x, max_y = gg.getAttributes(grib2_file)
 
         print("projection output (pyproj object): ") 
         print(projection)
@@ -43,13 +43,23 @@ def test():
 
         print(latt,lont)
 
+        # Grab the lat-lon of the max grid points
+        lon_max, lat_max = transformer_reverse.transform(max_x*spacing,max_y*spacing, radians=False)
+
+        print(lat_max,lon_max)
+
         # Grab the closest surface height and ceiling (MSL) data to the station lat-lon using the x,y coordinate found
         grbs = pygrib.open(grib2_file)
 
+        #&getCeilingAGL|Geopotential Height,{'typeOfFirstFixedSurface':215},Orography
+        #
+        #def getCeilingAGL(dict_params):
+        #    sname=dict_params['Orography']
+        #    cname=dict_params['Geopotential Height']
+        #    typeOfFirstFixedSurface=dict_params[{typeOfFirstFixedSurface:'215'}]
         surface_hgt = grbs.select(name='Orography')[0]
         surface_hgt_values = surface_hgt['values']
         surface = surface_hgt_values[round(y_stat),round(x_stat)]
-
         ceil = grbs.select(name='Geopotential Height', typeOfFirstFixedSurface='215')[0]
         ceil_values = ceil['values']
         ceil_msl = ceil_values[round(y_stat),round(x_stat)]

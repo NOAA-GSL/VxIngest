@@ -166,6 +166,7 @@ class NetcdfBuilder:
                         continue
                     new_document = self.handle_key(new_document, _recNum, _key)
             # put document into document map
+            logging.info("NetcdfBuilder.handle_document - adding document " + self.id)
             self.document_map[self.id] = new_document
         except Exception as e:
             logging.error(self.__class__.__name__ + "NetcdfBuilder.handle_document: Exception instantiating "

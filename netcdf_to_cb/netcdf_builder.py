@@ -185,7 +185,9 @@ class NetcdfBuilder:
         # noinspection PyBroadException
         try:
             if _key == 'id':
-                self.id = self.derive_id(self.template['id'], _recNum)
+                _id = self.derive_id(self.template['id'], _recNum)
+                if not _id in doc:
+                    doc['id'] = _id
                 return doc
             if isinstance(doc[_key], dict):
                 # process an embedded dictionary
@@ -562,7 +564,8 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
                     "version": "V01"
                 }
                 # add the station to the document map
-                self.document_map[_id] = _new_station
+                if not _id in self.document_map:
+                     self.document_map[_id] = _new_station
             return params_dict['stationName']        
         except Exception as e:
             logging.error(

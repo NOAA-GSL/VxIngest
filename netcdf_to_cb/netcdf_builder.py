@@ -529,16 +529,21 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
                 _existing['name'] = rows[0].fields['name']
                 _existing['description'] = rows[0].fields['description']
                 if 'geo' in rows[0].fields:
-                    _existing['latitude'] = round(rows[0].fields['geo'][1],4)
-                    _existing['longitude'] = round(rows[0].fields['geo'][0], 4)
+                    _existing['latitude'] = round(rows[0].fields['geo'][1],2)
+                    _existing['longitude'] = round(rows[0].fields['geo'][0], 2)
                 else:    
                     _existing['latitude'] = None
                     _existing['longitude'] = None
                           
-                for _key in ['latitude','longitude','description','name']:
-                    if _existing[_key] != _netcdf[_key]:
+                for _key in ['latitude','longitude']:
+                    if math.isclose(_existing[_key], _netcdf[_key],abs_tol=.001):
                         _add_station =True
                         break
+                if not _add_station:    
+                    for _key in ['latitude','longitude','description','name']:
+                        if _existing[_key] != _netcdf[_key]:
+                            _add_station =True
+                            break
 
             if _add_station:
                 # got to add a station either because it didn't exist in the database, or it didn't match

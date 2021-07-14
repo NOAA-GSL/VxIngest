@@ -529,8 +529,8 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
                 _existing['name'] = rows[0].fields['name']
                 _existing['description'] = rows[0].fields['description']
                 if 'geo' in rows[0].fields:
-                    _existing['latitude'] = rows[0].fields['geo'][1]
-                    _existing['longitude'] = rows[0].fields['geo'][0]
+                    _existing['latitude'] = round(rows[0].fields['geo'][1],4)
+                    _existing['longitude'] = round(rows[0].fields['geo'][0], 4)
                 else:    
                     _existing['latitude'] = None
                     _existing['longitude'] = None

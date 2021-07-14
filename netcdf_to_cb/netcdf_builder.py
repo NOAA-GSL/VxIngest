@@ -165,9 +165,6 @@ class NetcdfBuilder:
                         new_document = self.handle_data(new_document, _recNum)
                         continue
                     new_document = self.handle_key(new_document, _recNum, _key)
-            # remove id (it isn't needed inside the doc, we needed it in the template
-            # to tell us how to format the id)
-            del new_document['id']
             # put document into document map
             self.document_map[self.id] = new_document
         except Exception as e:
@@ -188,7 +185,9 @@ class NetcdfBuilder:
         # noinspection PyBroadException
         try:
             if _key == 'id':
-                self.id = self.derive_id(self.template['id'], _recNum)
+                _id = self.derive_id(self.template['id'], _recNum)
+                if not _id in doc:
+                    doc['id'] = _id
                 return doc
             if isinstance(doc[_key], dict):
                 # process an embedded dictionary
@@ -469,15 +468,15 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
         """
         _netcdf = {}
         if not ma.getmask(self.ncdf_data_set['latitude'][_recNum]):
-            _netcdf['latitude'] = str(ma.compressed(self.ncdf_data_set['latitude'][_recNum])[0])
+            _netcdf['latitude'] = ma.compressed(self.ncdf_data_set['latitude'][_recNum])[0]
         else:
             _netcdf['latitude'] = None
         if not ma.getmask(self.ncdf_data_set['longitude'][_recNum]):
-            _netcdf['longitude'] = str(ma.compressed(self.ncdf_data_set['longitude'][_recNum])[0])
+            _netcdf['longitude'] = ma.compressed(self.ncdf_data_set['longitude'][_recNum])[0]
         else:
             _netcdf['longitude'] = None
         if not ma.getmask(self.ncdf_data_set['elevation'][_recNum]):
-            _netcdf['elevation'] = str(ma.compressed(self.ncdf_data_set['elevation'][_recNum])[0])
+            _netcdf['elevation'] = ma.compressed(self.ncdf_data_set['elevation'][_recNum])[0]
         else:
             _netcdf['elevation'] = None
         _netcdf['description'] = str(nc.chartostring(self.ncdf_data_set['locationName'][_recNum]))
@@ -529,12 +528,22 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
                 # compare the existing record from the query to the netcdf record
                 _existing['name'] = rows[0].fields['name']
                 _existing['description'] = rows[0].fields['description']
-                _existing['latitude'] = rows[0].fields['geo'][1]
-                _existing['longitude'] = rows[0].fields['geo'][0]
+                if 'geo' in rows[0].fields:
+                    _existing['latitude'] = round(rows[0].fields['geo'][1],2)
+                    _existing['longitude'] = round(rows[0].fields['geo'][0], 2)
+                else:    
+                    _existing['latitude'] = None
+                    _existing['longitude'] = None
                           
-                for _key in ['latitude','longitude','description','name']:
-                    if _existing[_key] != _netcdf[_key]:
+                for _key in ['latitude','longitude']:
+                    if math.isclose(_existing[_key], _netcdf[_key],abs_tol=.001):
                         _add_station =True
+                        break
+                if not _add_station:    
+                    for _key in ['latitude','longitude','description','name']:
+                        if _existing[_key] != _netcdf[_key]:
+                            _add_station =True
+                            break
 
             if _add_station:
                 # got to add a station either because it didn't exist in the database, or it didn't match
@@ -548,9 +557,9 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
                     "docType": "station",
                     "firstTime": 0,
                     "geo": {
-                        "elev": _netcdf['elevation'],
-                        "lat": _netcdf['latitude'],
-                        "lon": _netcdf['longitude']
+                        "elev": round(float(_netcdf['elevation']), 4),
+                        "lat": round(float(_netcdf['latitude']), 4),
+                        "lon": round(float(_netcdf['longitude']), 4)
                     },
                     "lastTime": 0,
                     "name": _netcdf['name'],
@@ -560,11 +569,12 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
                     "version": "V01"
                 }
                 # add the station to the document map
-                self.document_map[_id] = _new_station
+                if not _id in self.document_map:
+                     self.document_map[_id] = _new_station
             return params_dict['stationName']        
         except Exception as e:
             logging.error(
                 self.__class__.__name__ +
                 "netcdfObsBuilderV01.handle_station: Exception finding or creating station to match station_name  "
-                "error: " + str(e) + " params: " + str(params_dict))
+                "error: ".format(e), " params: " + str(params_dict))
             return ""

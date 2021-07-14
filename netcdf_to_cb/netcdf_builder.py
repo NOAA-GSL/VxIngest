@@ -552,9 +552,9 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
                     "docType": "station",
                     "firstTime": 0,
                     "geo": {
-                        "elev": float(_netcdf['elevation']),
-                        "lat": float(_netcdf['latitude']),
-                        "lon": float(_netcdf['longitude'])
+                        "elev": _netcdf['elevation'],
+                        "lat": _netcdf['latitude'],
+                        "lon": _netcdf['longitude']
                     },
                     "lastTime": 0,
                     "name": _netcdf['name'],

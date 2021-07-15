@@ -213,7 +213,7 @@ class VxIngestManager(Process):
                 builder = self.builder_map[self.ingest_type_builder_name]
             else:
                 builder_class = getattr(
-                    netcdf_builder, self.ingest_type_builder_name)
+                    grib_builder, self.ingest_type_builder_name)
                 builder = builder_class(self.load_spec, self.ingest_document,
                                         self.cluster, self.collection)
                 self.builder_map[self.ingest_type_builder_name] = builder

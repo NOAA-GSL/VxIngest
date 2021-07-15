@@ -1,0 +1,38 @@
+{
+  "builder_type": "NetcdfObsBuilderV01",
+  "validTimeInterval": 3600,
+  "validTimeDelta": 1800,
+  "docType": "ingest",
+  "subDocType": "netcdf",
+  "id": "MD:V01:METAR:obs:ingest:netcdf",
+  "requires_time_interpolation": true,
+  "variableList": "stationName, locationName, latitude, longitude, elevation, timeObs, temperature, dewpoint, altimeter, windDir, windSpeed, skyCover, skyLayerBase, visibility",
+  "subType": "obs",
+  "subset": "METAR",
+  "template": {
+    "correctedTime": "",
+    "data": {
+      "*name": {
+        "Ceiling": "&ceiling_transform:*skyCover,*skyLayerBase",
+        "DewPoint": "&dewpoint_transform:*dewpoint",
+        "Reported Time": "*timeObs",
+        "Surface Pressure": "*altimeter",
+        "Temperature": "&kelvin_to_farenheight:*temperature",
+        "Visibility": "&meters_to_miles:*visibility",
+        "WD": "*windDir",
+        "WS": "&meterspersecond_to_milesperhour:*windSpeed",
+        "name": "&handle_station:*stationName"
+      }
+    },
+    "dataSourceId": "MADIS",
+    "docType": "obs",
+    "fcstValidBeg": "*{ISO}time",
+    "fcstValidEpoch": "&interpolate_time:*timeObs",
+    "id": "DD:V01:METAR:obs:&interpolate_time:*timeObs",
+    "subset": "METAR",
+    "type": "DD",
+    "version": "V01"
+  },
+  "type": "MD",
+  "version": "V01"
+}

@@ -17,6 +17,14 @@ class TestStationBoundingBoxQuery(unittest.TestCase):
 
     def test_main(self):
         # noinspection PyBroadException
+        """
+                # from test_grid.py
+                projection = gg.getGrid(grib2_file)
+                spacing, max_x, max_y = gg.getAttributes(grib2_file)
+                # Set the two projections to be used during the transformation (nearest neighbor method, what we use for everything with METARS)
+                in_proj = pyproj.Proj(proj='latlon')
+                out_proj = projection
+        """
         try:
             cwd = os.getcwd()
             self.credentials_file = os.environ['HOME'] + '/adb-cb1-credentials'

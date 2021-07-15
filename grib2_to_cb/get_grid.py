@@ -12,7 +12,10 @@ import pyproj
 def getGrid(grib2_file):
     grbs = pygrib.open(grib2_file)
     #grb = grbs[1]
-    grb = grbs.message(1).projparams
+    grbm = grbs.message(1)
+    grb = grbm.projparams
+    latlons = grbm.latlons()
+    
     # Find the false origin easting and northing for conversion to lat-lon domain
     #init_projection = pyproj.Proj(grb[1].projparams)
     init_projection = pyproj.Proj(grb)

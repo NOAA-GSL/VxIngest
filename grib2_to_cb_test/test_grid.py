@@ -154,6 +154,15 @@ def test():
         wd = (radians*57.2958) + theta + 180
         print(wd)   
 
+        ## VISIBILITY
+
+        vis = grbs.select(name='Visibility')[0]
+        print(vis)
+        vis_values = vis['values']
+        vis_m = vis_values[round(y_stat),round(x_stat)]
+
+        print(vis_m)
+
         grbs.close()             
 
 if __name__ == "__main__":

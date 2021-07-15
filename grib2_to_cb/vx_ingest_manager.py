@@ -64,7 +64,7 @@ from couchbase.cluster import Cluster, ClusterOptions
 from couchbase.exceptions import TimeoutException
 from couchbase_core.cluster import PasswordAuthenticator
 from itertools import islice
-from netcdf_to_cb import netcdf_builder as netcdf_builder
+from grib2_to_cb import grib_builder as grib_builder
 
 
 class VxIngestManager(Process):

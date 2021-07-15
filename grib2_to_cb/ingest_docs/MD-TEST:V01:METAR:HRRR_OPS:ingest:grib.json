@@ -1,0 +1,38 @@
+{
+  "builder_type": "GribModelBuilderV01",
+  "validTimeInterval": 3600,
+  "validTimeDelta": 1800,
+  "docType": "ingest",
+  "subDocType": "grib2",
+  "id": "MD-TEST:V01:METAR:HRRR_OPS:ingest:grib2",
+  "model": "HRRR_OPS",
+  "fcstLens": "0,1,3,6,9,12,15,18,21,24,27,30,33,36",
+  "variableList": "'PRES:surface:', 'DPT:2 m above ground:', 'UGRD:10 m above ground:', 'VGRD:10 m above ground:', 'TMP:2 m above ground', 'HGT:cloud ceiling:', 'VIS:surface:'",
+  "subType": "model",
+  "subset": "METAR",
+  "template": {
+    "correctedTime": "",
+    "data": {
+      "*name": {
+        "Ceiling": "*HGT",
+        "DewPoint": "&kelvin_to_farenheight:*DPT",
+        "Surface Pressure": "*PRES",
+        "Temperature": "&kelvin_to_farenheight:*TMP",
+        "Visibility": "*VIS",
+        "WD": "&winddir_transform:*UGRD, *VGRD",
+        "WS": "&windspeed_transform:*UGRD, *VGRD",
+        "name": "&getName"
+      }
+    },
+    "dataSourceId": "NCO",
+    "docType": "model",
+    "fcstValidBeg": "*{ISO}time",
+    "fcstValidEpoch": "*time",
+    "id": "DD-TEST:V01:METAR:HRRR_OPS:*time:*fcstLen",
+    "subset": "METAR",
+    "type": "DD-TEST",
+    "version": "V01"
+  },
+  "type": "MD-TEST",
+  "version": "V01"
+}

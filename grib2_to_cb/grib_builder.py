@@ -310,7 +310,7 @@ class GribModelBuilderV01(GribBuilder):
         :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
         :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
         """
-        NetcdfBuilder.__init__(
+        GribBuilder.__init__(
             self, load_spec, ingest_document, cluster, collection)
         self.cluster = cluster
         self.collection = collection

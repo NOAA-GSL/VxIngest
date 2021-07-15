@@ -65,7 +65,7 @@ def getWindTheta(grb,lon):
         if lon > 180: lon-=360
         if lon <-180: lon+=360
 
-        theta = -rotation*lon
+        theta = -rotation*dlon
 
     else:
         print('Projection %s not yet supported' % proj)

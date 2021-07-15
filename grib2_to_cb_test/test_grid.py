@@ -49,6 +49,11 @@ def test():
 
         print(lat_max,lon_max)
 
+        # Test to see if grid point is outside of the grid domain
+        if x_stat < 0 or x_stat > max_x or y_stat < 0 or y_stat > max_y:
+                print("ERROR: Station is outside the domain projection!!")
+
+
         # Grab the closest data to the station lat-lon using the x,y coordinate found
         grbs = pygrib.open(grib2_file)
 

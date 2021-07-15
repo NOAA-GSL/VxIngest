@@ -5,7 +5,6 @@ import yaml
 import time
 from pathlib import Path
 from couchbase.cluster import Cluster, ClusterOptions
-from couchbase.exceptions import TimeoutException
 from couchbase_core.cluster import PasswordAuthenticator
 from couchbase.search import GeoBoundingBoxQuery
 import pyproj
@@ -29,7 +28,7 @@ class TestStationBoundingBoxQuery(unittest.TestCase):
             cwd = os.getcwd()
             self.credentials_file = os.environ['HOME'] + '/adb-cb1-credentials'
             self.assertTrue (Path(self.credentials_file).is_file(),"credentials_file Does not exist")
-
+            
             _f = open(self.credentials_file)
             _yaml_data = yaml.load(_f, yaml.SafeLoader)
             host = _yaml_data['cb_host']
@@ -41,6 +40,7 @@ class TestStationBoundingBoxQuery(unittest.TestCase):
             result = self.cluster.query("SELECT RAW CLOCK_MILLIS()")
             current_clock = int(result.rows()[0] / 1000)
             current_time = int(time.time())
+
             self.assertTrue(current_clock == current_time, "SELECT RAW CLOCK_MILLIS() did not return current time")
             
             # Grab the projection information from the test file
@@ -51,16 +51,12 @@ class TestStationBoundingBoxQuery(unittest.TestCase):
             projection = gg.getGrid(grib2_file)
             spacing, max_x, max_y = gg.getAttributes(grib2_file)
 
-            self.assertEqual(projection, 100, "projection output (pyproj object): is Not ...")
-
-            print("projection output (pyproj object): ") 
-            print(projection)
-
+            self.assertEqual(projection.description, 'PROJ-based coordinate operation', "projection description: is Not corrrect")
             # Set the two projections to be used during the transformation (nearest neighbor method, what we use for everything with METARS)
-            in_proj = pyproj.Proj(proj='latlon')
-            out_proj = projection
+            out_proj = pyproj.Proj(proj='latlon')
+            in_proj = projection
 
-            transformer_reverse = pyproj.Transformer.from_proj(proj_from=out_proj,proj_to=in_proj)
+            transformer_reverse = pyproj.Transformer.from_proj(proj_from=in_proj,proj_to=out_proj)
 
             # Grab the lat-lon of the max grid points
             lon_min, lat_min = transformer_reverse.transform(0,0, radians=False)
@@ -71,5 +67,5 @@ class TestStationBoundingBoxQuery(unittest.TestCase):
             query = GeoBoundingBoxQuery(top_left, bottom_right)
             result = self.cluster.search_query("geo-station", query)
             self.assertEqual( result.metadata().metrics().total_rows(), 3000, "Reported total rows: is not 3000")
-        except:
-            self.fail("TestGsdIngestManager Exception failure: " + str(sys.exc_info()[0]))
+        except Exception as e:
+            self.fail("TestGsdIngestManager Exception failure: " + str(e))

@@ -9,6 +9,15 @@ Colorado, NOAA/OAR/ESRL/GSL
 import pygrib
 import pyproj
 
+"""
+   grbs = pygrib.open(grib2_file)
+    grb = grbs[1]
+    # Find the false origin easting and northing for conversion to lat-lon domain
+    init_projection = pyproj.Proj(grb[1].projparams)
+    latlon_proj = pyproj.Proj(proj='latlon')
+    lat_0 = grb[1].latitudeOfFirstGridPointInDegrees
+    lon_0=grb[1].longitudeOfFirstGridPointInDegrees
+"""
 
 def getGrid(grib2_file):
     grbs = pygrib.open(grib2_file)

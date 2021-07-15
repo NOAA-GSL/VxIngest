@@ -71,3 +71,22 @@ def getWindTheta(grb,lon):
         print('Projection %s not yet supported' % proj)
 
     return theta
+
+def interpGridBox(grb_values,x,y):
+    xmin, xmax = math.floor(x), math.ceil(x)
+    ymin, ymax = math.floor(y), math.ceil(y)
+
+    xmin_ymin_value = grb_values[ymin,xmin]
+    xmax_ymin_value = grb_values[ymin,xmax]
+    xmin_ymax_value = grb_values[ymax,xmin]
+    xmax_ymax_value = grb_values[ymax,xmax]
+
+    remainder_x = x - xmin
+    remainder_y = y - ymin
+
+    interpolated_value = (remainder_x*remainder_y*xmax_ymax_value) + \
+                         (remainder_x*(1-remainder_y)*xmin_ymax_value) + \
+                         ((1-remainder_x)*remainder_y*xmax_ymin_value) + \
+                         ((1-remainder_x)*(1-remainder_y)*xmin_ymin_value)
+
+    return interpolated_value

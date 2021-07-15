@@ -166,7 +166,11 @@ class NetcdfBuilder:
                         continue
                     new_document = self.handle_key(new_document, _recNum, _key)
             # put document into document map
-            self.document_map[self.id] = new_document
+            if new_document['id']:
+                logging.info("NetcdfBuilder.handle_document - adding document " + new_document['id'])
+                self.document_map[new_document['id']] = new_document
+            else:
+                logging.info("NetcdfBuilder.handle_document - cannot add document with key " + str(new_document['id']))
         except Exception as e:
             logging.error(self.__class__.__name__ + "NetcdfBuilder.handle_document: Exception instantiating "
                                                     "builder: " + self.__class__.__name__ + " error: " + str(e))
@@ -536,11 +540,11 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
                     _existing['longitude'] = None
                           
                 for _key in ['latitude','longitude']:
-                    if math.isclose(_existing[_key], _netcdf[_key],abs_tol=.001):
+                    if not math.isclose(_existing[_key], _netcdf[_key],abs_tol=.001):
                         _add_station =True
                         break
                 if not _add_station:    
-                    for _key in ['latitude','longitude','description','name']:
+                    for _key in ['description','name']:
                         if _existing[_key] != _netcdf[_key]:
                             _add_station =True
                             break

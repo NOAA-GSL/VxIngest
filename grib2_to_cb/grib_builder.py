@@ -40,13 +40,13 @@ def convert_to_iso(an_epoch):
     return _valid_time_str
 
 
-
 def initialize_data(doc):
     """ initialize the data by just making sure the template data element has been removed.
     All the data elements are going to be top level elements"""
     if 'data' in doc.keys():
         del doc['data']
     return doc
+
 
 class GribBuilder:
     def __init__(self, load_spec, ingest_document, cluster, collection):
@@ -87,7 +87,8 @@ class GribBuilder:
                     value = str(self.handle_named_function(_part, recNum))
                 else:
                     if _part.startswith("*"):
-                        value = str(self.translate_template_item(_part, recNum))
+                        value = str(
+                            self.translate_template_item(_part, recNum))
                     else:
                         value = str(_part)
                 new_parts.append(value)
@@ -96,7 +97,6 @@ class GribBuilder:
         except:
             e = sys.exc_info()
             logging.error("GribBuilder.derive_id: Exception  error: " + str(e))
-
 
     def translate_template_item(self, variable, station):
         """
@@ -114,17 +114,19 @@ class GribBuilder:
                 # really a replacement. It is either '' or not a
                 # replacement
                 _replacements = variable.split('*')[1:]
-            value = variable # in case it isn't a replacement - makes it easier
+            value = variable  # in case it isn't a replacement - makes it easier
             if len(_replacements) > 0:
                 for _ri in _replacements:
                     _gribVals = self.grbs.select(name=_ri)[0]
                     _values = _gribVals['values']
-                    _value = _values[round(station['y_gridpoint']),round(station['x_gridpoint'])]
+                    _value = _values[round(station['y_gridpoint']), round(
+                        station['x_gridpoint'])]
                     if _ri.startswith("{ISO}"):
-                        value = value.replace("*{ISO}", convert_to_iso("*{ISO}" + _value))
+                        value = value.replace(
+                            "*{ISO}", convert_to_iso("*{ISO}" + _value))
                     else:
                         value = value.replace("*", _value)
-                return value        
+                return value
         except Exception as e:
             logging.error(
                 "GribBuilder.translate_template_item: Exception  error: " + str(e))
@@ -151,10 +153,12 @@ class GribBuilder:
                     new_document = self.handle_key(new_document, station, _key)
             # put document into document map
             if new_document['id']:
-                logging.info("GribBuilder.handle_document - adding document " + new_document['id'])
+                logging.info(
+                    "GribBuilder.handle_document - adding document " + new_document['id'])
                 self.document_map[new_document['id']] = new_document
             else:
-                logging.info("GribBuilder.handle_document - cannot add document with key " + str(new_document['id']))
+                logging.info(
+                    "GribBuilder.handle_document - cannot add document with key " + str(new_document['id']))
         except Exception as e:
             logging.error(self.__class__.__name__ + "GribBuilder.handle_document: Exception instantiating "
                                                     "builder: " + self.__class__.__name__ + " error: " + str(e))
@@ -216,7 +220,8 @@ class GribBuilder:
             _dict_params = {"recNum": station}
             for _p in _params:
                 # be sure to slice the * off of the front of the param
-                _dict_params[_p[1:]] = self.translate_template_item(_p, station)
+                _dict_params[_p[1:]] = self.translate_template_item(
+                    _p, station)
             # call the named function using getattr
             _replace_with = getattr(self, _func)(_dict_params)
         except Exception as e:
@@ -241,7 +246,7 @@ class GribBuilder:
                 except Exception as e:
                     value = None
                     logging.warning(self.__class__.__name__ +
-                                "GribBuilder.handle_data - value is None")
+                                    "GribBuilder.handle_data - value is None")
                 _data_elem[key] = value
             if _data_key.startswith('&'):
                 _data_key = self.handle_named_function(_data_key, recNum)
@@ -276,13 +281,17 @@ class GribBuilder:
             # Set the two projections to be used during the transformation (nearest neighbor method, what we use for everything with METARS)
             self.in_proj = pyproj.Proj(proj='latlon')
             self.out_proj = self.projection
-            self.transformer = pyproj.Transformer.from_proj(proj_from=self.in_proj,proj_to=self.out_proj)
-            self.transformer_reverse = pyproj.Transformer.from_proj(proj_from=self.out_proj,proj_to=self.in_proj)
+            self.transformer = pyproj.Transformer.from_proj(
+                proj_from=self.in_proj, proj_to=self.out_proj)
+            self.transformer_reverse = pyproj.Transformer.from_proj(
+                proj_from=self.out_proj, proj_to=self.in_proj)
             # get stations from couchbase
             self.domain_stations = []
-            result = self.cluster.query("SELECT mdata.geo.lat, mdata.geo.lon, name from mdata where type='MD' and docType='station' and subset='METAR' and version='V01'")
+            result = self.cluster.query(
+                "SELECT mdata.geo.lat, mdata.geo.lon, name from mdata where type='MD' and docType='station' and subset='METAR' and version='V01'")
             for row in result:
-                x, y = self.transformer.transform(row['lon'],row['lat'], radians=False)
+                x, y = self.transformer.transform(
+                    row['lon'], row['lat'], radians=False)
                 x_gridpoint, y_gridpoint = x/self.spacing, y/self.spacing
                 if x_gridpoint < 0 or x_gridpoint > max_x or y_gridpoint < 0 or y_gridpoint > max_y:
                     continue
@@ -300,6 +309,8 @@ class GribBuilder:
             return {}
 
 # Concrete builders
+
+
 class GribModelBuilderV01(GribBuilder):
     def __init__(self, load_spec, ingest_document, cluster, collection):
         """
@@ -360,14 +371,15 @@ class GribModelBuilderV01(GribBuilder):
                 break
         # Convert from pascals to milibars
         type = params_dict[_key]
-        ceil = self.grbs.select(name='Geopotential Height', typeOfFirstFixedSurface=type)[0]
+        ceil = self.grbs.select(
+            name='Geopotential Height', typeOfFirstFixedSurface=type)[0]
         ceil_values = ceil['values']
-        ceil_msl = ceil_values[round(y_gridpoint),round(x_gridpoint)]
+        ceil_msl = ceil_values[round(y_gridpoint), round(x_gridpoint)]
         # Convert to ceiling AGL and from meters to tens of feet (what is currently inside SQL, we'll leave it as just feet in CB)
         ceil_agl = (ceil_msl - params_dict['Orography']) * 0.32808
         return ceil_agl
 
-        ## SURFACE PRESSURE
+        # SURFACE PRESSURE
     def handle_surface_pressure(self, params_dict):
         _key = None
         for _key in params_dict.keys():
@@ -392,17 +404,17 @@ class GribModelBuilderV01(GribBuilder):
         value = ((tempk-273.15)*9)/5 + 32
         return value
 
-        ## WIND SPEED AND DIRECTION
+        # WIND SPEED AND DIRECTION
     def handle_wind_speed(self, params_dict):
-        uwind_ms= params_dict['10 metre U wind component']
+        uwind_ms = params_dict['10 metre U wind component']
         vwind_ms = params_dict['10 metre V wind component']
         # Convert from U-V components to speed and direction (requires rotation if grid is not earth relative)
-        #wind speed then convert to mph
+        # wind speed then convert to mph
         ws_ms = math.sqrt((uwind_ms*uwind_ms)+(vwind_ms*vwind_ms))
         ws_mph = (ws_ms/0.447) + 0.5
         return ws_mph
 
-        #wind direction
+        # wind direction
     def handle_wind_direction(self, params_dict):
         station = params_dict['station']
         x_gridpoint = station['x_gridpoint']
@@ -410,12 +422,11 @@ class GribModelBuilderV01(GribBuilder):
         longitude = station['lon']
         uwind = self.grbs.select(name='10 metre U wind component')[0]
         uwind_values = uwind['values']
-        uwind_ms = gg.interpGridBox(uwind_values,x_gridpoint,y_gridpoint)
+        uwind_ms = gg.interpGridBox(uwind_values, x_gridpoint, y_gridpoint)
         vwind = self.grbs.select(name='10 metre V wind component')[0]
         vwind_values = vwind['values']
-        vwind_ms = gg.interpGridBox(vwind_values,x_gridpoint,y_gridpoint)
-        theta = gg.getWindTheta(vwind,longitude)
-        radians = math.atan2(uwind_ms,vwind_ms)
+        vwind_ms = gg.interpGridBox(vwind_values, x_gridpoint, y_gridpoint)
+        theta = gg.getWindTheta(vwind, longitude)
+        radians = math.atan2(uwind_ms, vwind_ms)
         wd = (radians*57.2958) + theta + 180
-        return wd   
-
+        return wd

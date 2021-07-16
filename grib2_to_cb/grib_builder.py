@@ -354,73 +354,48 @@ class GribModelBuilderV01(GribBuilder):
         station = params_dict['station']
         x_gridpoint = station['x_gridpoint']
         y_gridpoint = station['y_gridpoint']
-        surface_hgt = self.grbs.select(name='Orography')[0]
-        surface_hgt_values = surface_hgt['values']
-        surface = surface_hgt_values[round(y_gridpoint),round(x_gridpoint)]
-        ceil = self.grbs.select(name='Geopotential Height', typeOfFirstFixedSurface='215')[0]
+        _key = None
+        for _key in params_dict.keys():
+            if _key != "station":
+                break
+        # Convert from pascals to milibars
+        type = params_dict[_key]
+        ceil = self.grbs.select(name='Geopotential Height', typeOfFirstFixedSurface=type)[0]
         ceil_values = ceil['values']
         ceil_msl = ceil_values[round(y_gridpoint),round(x_gridpoint)]
         # Convert to ceiling AGL and from meters to tens of feet (what is currently inside SQL, we'll leave it as just feet in CB)
-        ceil_agl = (ceil_msl - surface) * 0.32808
+        ceil_agl = (ceil_msl - params_dict['Orography']) * 0.32808
         return ceil_agl
 
         ## SURFACE PRESSURE
     def handle_surface_pressure(self, params_dict):
-        station = params_dict['station']
-        x_gridpoint = station['x_gridpoint']
-        y_gridpoint = station['y_gridpoint']
-        sfc_pres = self.grbs.select(name='Surface pressure')[0]
-        sfc_pres_values = sfc_pres['values']
-        pres = gg.interpGridBox(sfc_pres_values,x_gridpoint,y_gridpoint)
+        _key = None
+        for _key in params_dict.keys():
+            if _key != "station":
+                break
         # Convert from pascals to milibars
+        pres = params_dict[_key]
         pres_mb = pres * 100
         return pres_mb
 
-        ## 2M TEMPERATURE
-    def handle_2m_temperature(self, params_dict):
-        station = params_dict['station']
-        x_gridpoint = station['x_gridpoint']
-        y_gridpoint = station['y_gridpoint']
-        temp = self.grbs.select(name='2 metre temperature')[0]
-        temp_values = temp['values']
-        tempk = gg.interpGridBox(temp_values,x_gridpoint,y_gridpoint)
+    def kelvin_to_farenheight(self, params_dict):
+        """
+            param:params_dict expects {'station':{},'*variable name':variable_value}
+            Used for temperature and dewpoint
+        """
+        _key = None
+        for _key in params_dict.keys():
+            if _key != "station":
+                break
         # Convert from Kelvin to Farenheit
-        tempf = ((tempk-273.15)*9)/5 + 32
-        return tempf
-
-        ## 2M DEWPOINT
-    def handle_2m_dewpoint(self, params_dict):
-        station = params_dict['station']
-        x_gridpoint = station['x_gridpoint']
-        y_gridpoint = station['y_gridpoint']
-        dp = self.grbs.select(name='2 metre dewpoint temperature')[0]
-        dp_values = dp['values']
-        dpk = gg.interpGridBox(dp_values,x_gridpoint,y_gridpoint)
-        # Convert from Kelvin to Farenheit
-        dpf = ((dpk-273.15)*9)/5 + 32
-        return dpf
-
-        ## 2M RELATIVE HUMIDITY
-    def handle_2m_rh(self, params_dict):
-        station = params_dict['station']
-        x_gridpoint = station['x_gridpoint']
-        y_gridpoint = station['y_gridpoint']
-        relhumid = self.grbs.select(name='2 metre relative humidity')[0]
-        relhumid_values = relhumid['values']
-        rh = gg.interpGridBox(relhumid_values,x_gridpoint,y_gridpoint)
-        return rh
+        tempk = params_dict[_key]
+        value = ((tempk-273.15)*9)/5 + 32
+        return value
 
         ## WIND SPEED AND DIRECTION
     def handle_wind_speed(self, params_dict):
-        station = params_dict['station']
-        x_gridpoint = station['x_gridpoint']
-        y_gridpoint = station['y_gridpoint']
-        uwind = self.grbs.select(name='10 metre U wind component')[0]
-        uwind_values = uwind['values']
-        uwind_ms = gg.interpGridBox(uwind_values,x_gridpoint,y_gridpoint)
-        vwind = self.grbs.select(name='10 metre V wind component')[0]
-        vwind_values = vwind['values']
-        vwind_ms = gg.interpGridBox(vwind_values,x_gridpoint,y_gridpoint)
+        uwind_ms= params_dict['10 metre U wind component']
+        vwind_ms = params_dict['10 metre V wind component']
         # Convert from U-V components to speed and direction (requires rotation if grid is not earth relative)
         #wind speed then convert to mph
         ws_ms = math.sqrt((uwind_ms*uwind_ms)+(vwind_ms*vwind_ms))
@@ -444,250 +419,3 @@ class GribModelBuilderV01(GribBuilder):
         wd = (radians*57.2958) + theta + 180
         return wd   
 
-        ## VISIBILITY
-
-        vis = grbs.select(name='Visibility')[0]
-        print(vis)
-        vis_values = vis['values']
-        vis_m = vis_values[round(y_gridpoint),round(x_gridpoint)]
-
-
-
-
-    # TODO - may not need this - checking
-    def meterspersecond_to_milesperhour(self, params_dict):
-        # Meters/second to miles/hour
-        try:
-            value = self.umask_value_transform(params_dict)
-            if value is not None and value != "":
-                value = str("{0:.4f}".format(float(value) * 2.237))
-            return value
-        except Exception as e:
-            logging.error(self.__class__.__name__ +
-                          "handle_data: Exception in named function meterspersecond_to_milesperhour:  error: " + str(e))
-
-    def ceiling_transform(self, params_dict):
-        try:
-            _skyCover = params_dict['skyCover']
-            _skyLayerBase = params_dict['skyLayerBase']
-            # code clear as 60,000 ft 
-            ceiling = 60000
-            mBKN = re.compile('.*BKN.*')  # Broken
-            mOVC = re.compile('.*OVC.*')  # Overcast
-            mVV = re.compile('.*VV.*')  # Vertical Visibility
-            mask_array = ma.getmaskarray(_skyLayerBase)
-            _skyCover_array = _skyCover[1:-1].replace("'","").split(" ")
-            for index in range(len(_skyLayerBase)):
-                if (not mask_array[index]) and (mBKN.match(_skyCover_array[index]) or mOVC.match(_skyCover_array[index]) or mVV.match(_skyCover_array[index])):
-                    ceiling = _skyLayerBase[index]
-                    break   
-            return str(math.floor(ceiling))
-        except Exception as e:
-            logging.error(self.__class__.__name__ +
-                            "handle_data: Exception in named function ceiling_transform:  error: " + str(e))
-
-    def kelvin_to_farenheight(self, params_dict):
-        try:
-            value = self.umask_value_transform(params_dict)
-            if value is not None and value != "":
-                value = "{0:.4f}".format((float(value) - 273.15) * 1.8 + 32) 
-            return str(value)
-        except Exception as e:
-            logging.error(self.__class__.__name__ +
-                            "handle_data: Exception in named function kelvin_to_farenheight:  error: " + str(e))
-
-    def umask_value_transform(self, params_dict):
-        # Probably need more here....
-        try:
-            _key = None
-            station = params_dict['recNum']
-            for _key in params_dict.keys():
-                if _key != "recNum":
-                    break
-            _ncValue = self.projection[_key][station]
-            if not ma.getmask(_ncValue):
-                value = ma.compressed(_ncValue)[0]
-                return str("{0:.4f}".format(value)) # trim to four digits for all our data
-            else:
-                return ""
-        except Exception as e:
-            logging.error(self.__class__.__name__ +
-                            "umask_value_transform: Exception in named function umask_value_transform for key " + _key + ":  error: " + str(e))
-
-    def handle_pressure(self, params_dict):
-        try:
-            value = self.umask_value_transform(params_dict)
-            if value is not None and value != "":
-                value = math.floor(float(value) / 100) # convert to millibars (from pascals) and round
-            return str(value)
-        except Exception as e:
-            logging.error(self.__class__.__name__ +
-                            "handle_pressure: Exception in named function:  error: " + str(e))
-
-    def handle_visibility(self, params_dict):
-        try:
-            value = self.umask_value_transform(params_dict)
-            if  value is not None and value != "":
-                value = math.floor(float(value)) # round
-            return str(value)
-        except Exception as e:
-            logging.error(self.__class__.__name__ +
-                            "handle_pressure: Exception in named function:  error: " + str(e))
-
-    def interpolate_time(self, params_dict):
-        """
-        Rounds to nearest hour by adding a timedelta hour if minute >= 30
-        """
-        try:
-            time = None
-            _timeObs = params_dict['timeObs']
-            if not ma.getmask(_timeObs):
-                _time = int(ma.compressed(_timeObs)[0])
-            else:
-                return ""
-            time = datetime.fromtimestamp(_time)
-            time = time.replace(second=0, microsecond=0, minute=0,
-                            hour=time.hour) + timedelta(hours=time.minute//30)
-            return str(calendar.timegm(time.timetuple()))
-        except Exception as e:
-            logging.error(self.__class__.__name__ +
-                            "handle_data: Exception in named function interpolate_time:  error: " + str(e))
-
-    def interpolate_time_iso(self, params_dict):
-        """
-        Rounds to nearest hour by adding a timedelta hour if minute >= 30
-        """
-        try:
-            time = None
-            _timeObs = params_dict['timeObs']
-            if not ma.getmask(_timeObs):
-                _time = int(ma.compressed(_timeObs)[0])
-            else:
-                return ""
-            time = datetime.fromtimestamp(_time)
-            time = time.replace(second=0, microsecond=0, minute=0,
-                            hour=time.hour) + timedelta(hours=time.minute//30)
-            # convert this iso
-            return str(time.isoformat())
-        except Exception as e:
-            logging.error(self.__class__.__name__ +
-                            "handle_data: Exception in named function interpolate_time_iso:  error: " + str(e))
-
-
-    def fill_from_netcdf(self, station, _netcdf):
-        """
-        Used by handle_station to get the records from netcdf for comparing with the 
-        records from the database.
-        """
-        _netcdf = {}
-        if not ma.getmask(self.projection['latitude'][station]):
-            _netcdf['latitude'] = ma.compressed(self.projection['latitude'][station])[0]
-        else:
-            _netcdf['latitude'] = None
-        if not ma.getmask(self.projection['longitude'][station]):
-            _netcdf['longitude'] = ma.compressed(self.projection['longitude'][station])[0]
-        else:
-            _netcdf['longitude'] = None
-        if not ma.getmask(self.projection['elevation'][station]):
-            _netcdf['elevation'] = ma.compressed(self.projection['elevation'][station])[0]
-        else:
-            _netcdf['elevation'] = None
-        _netcdf['description'] = str(nc.chartostring(self.projection['locationName'][station]))
-        _netcdf['name'] = str(nc.chartostring(self.projection['stationName'][station]))
-        return _netcdf
-
-    def handle_station(self, params_dict):
-        """
-         This method uses the station name in the params_dict
-         and a full text search to find a station with that name.
-         If the station does not exist it will be created with data from the 
-         netcdf file. If it does exist, data from the netcdf file will be compared to what is in the database.
-         If the data does not match, the database will be updated.
-        For the moment I do not know how to retrieve the elevation from the 
-        full text search fields. It is probably possible by modifying the station_geo query.
-        I just know how to get the geopoint [lon,lat], the descripttion, and the name, and so that
-        is what this code is using to do the comparison. Not the elevation or any of the other fields. 
-        It is possible to retrive the document like this..
-        _db_station = self.collection.get(rows[0].id).content
-        and then all the data could be compared, but I don't think that is necessary at the moment
-        unless we decide that elevation is important to compare.
-         :param params_dict: {station_name:a_station_name}
-         :return: 
-         """
-        station = params_dict['recNum']
-        _station_name = params_dict['stationName']
-        _id = None
-        _add_station = False
-        _netcdf = {}
-        _existing = {}
-
-        # noinspection PyBroadException
-        try:
-            result = self.cluster.search_query(
-                "station_geo", QueryStringQuery(_station_name), fields=["*"])
-            rows = result.rows()
-
-            if len(rows) == 0: # too cold
-                _add_station = True
-
-            if len(rows) > 1: # too hot
-                raise Exception(
-                    "netcdfObsBuilderV01.handle_station: There are more than one station with the name " + _station_name + "! FIX THAT!")
-
-            # get the netcdf fields for comparing or adding new
-            _netcdf = self.fill_from_netcdf(station, _netcdf)
-
-            if len(rows) == 1: # just right
-                # compare the existing record from the query to the netcdf record
-                _existing['name'] = rows[0].fields['name']
-                _existing['description'] = rows[0].fields['description']
-                if 'geo' in rows[0].fields:
-                    _existing['latitude'] = round(rows[0].fields['geo'][1],2)
-                    _existing['longitude'] = round(rows[0].fields['geo'][0], 2)
-                else:    
-                    _existing['latitude'] = None
-                    _existing['longitude'] = None
-                          
-                for _key in ['latitude','longitude']:
-                    if not math.isclose(_existing[_key], _netcdf[_key],abs_tol=.001):
-                        _add_station =True
-                        break
-                if not _add_station:    
-                    for _key in ['description','name']:
-                        if _existing[_key] != _netcdf[_key]:
-                            _add_station =True
-                            break
-
-            if _add_station:
-                # got to add a station either because it didn't exist in the database, or it didn't match
-                # what was in the database
-                logging.info(
-                    "netcdfObsBuilderV01.handle_station - adding station " + _netcdf['name'])
-                _id = "MD:V01:METAR:station:" + _netcdf['name']
-                _new_station = {
-                    "id": "MD:V01:METAR:station:" + _netcdf['name'],
-                    "description": _netcdf['description'],
-                    "docType": "station",
-                    "firstTime": 0,
-                    "geo": {
-                        "elev": round(float(_netcdf['elevation']), 4),
-                        "lat": round(float(_netcdf['latitude']), 4),
-                        "lon": round(float(_netcdf['longitude']), 4)
-                    },
-                    "lastTime": 0,
-                    "name": _netcdf['name'],
-                    "subset": "METAR",
-                    "type": "MD",
-                    "updateTime": int(time.time()),
-                    "version": "V01"
-                }
-                # add the station to the document map
-                if not _id in self.document_map:
-                     self.document_map[_id] = _new_station
-            return params_dict['stationName']        
-        except Exception as e:
-            logging.error(
-                self.__class__.__name__ +
-                "netcdfObsBuilderV01.handle_station: Exception finding or creating station to match station_name  "
-                "error: ".format(e), " params: " + str(params_dict))
-            return ""

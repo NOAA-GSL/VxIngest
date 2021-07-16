@@ -14,13 +14,13 @@
     "correctedTime": "",
     "data": {
       "*name": {
-        "Ceiling": "*HGT",
-        "DewPoint": "&kelvin_to_farenheight:*DPT",
-        "Surface Pressure": "*PRES",
-        "Temperature": "&kelvin_to_farenheight:*TMP",
-        "Visibility": "*VIS",
-        "WD": "&winddir_transform:*UGRD, *VGRD",
-        "WS": "&windspeed_transform:*UGRD, *VGRD",
+        "Ceiling": "&handle_ceiling|'215'",
+        "DewPoint": "&kelvin_to_farenheight|*2 metre dewpoint temperature",
+        "Surface Pressure": "*Surface pressure",
+        "Temperature": "&kelvin_to_farenheight|*2 metre temperature",
+        "Visibility": "*Visibility",
+        "WD": "&winddir_transform|*10 metre U wind component,*10 metre V wind component",
+        "WS": "&windspeed_transform|*10 metre U wind component,*10 metre V wind component",
         "name": "&getName"
       }
     },

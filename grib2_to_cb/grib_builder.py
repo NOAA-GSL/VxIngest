@@ -25,6 +25,9 @@ from couchbase.search import QueryStringQuery, SearchQuery, SearchOptions, Prefi
 from couchbase.mutation_state import MutationState
 from pymysql.constants import CLIENT
 from datetime import datetime, timedelta
+import pyproj
+import pygrib
+import grib2_to_cb.get_grid as gg
 
 TS_OUT_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
@@ -53,7 +56,15 @@ class GribBuilder:
         self.collection = collection
         self.id = None
         self.document_map = {}
-        self.ncdf_data_set = None
+        self.projection = None
+        self.grbs = None
+        self.grbm = None
+        self.spacing, max_x, max_y = None
+        self.in_proj = None
+        self.out_proj = None
+        self.transformer = None
+        self.transformer_reverse = None
+        self.domain_stations = []
 
     def load_data(self, doc, key, element):
         pass
@@ -61,12 +72,12 @@ class GribBuilder:
     def get_document_map(self):
         pass
 
-    def handle_recNum(self, row):
+    def handlestation(self, row):
         pass
 
     def derive_id(self, template_id, recNum):
         # Private method to derive a document id from the current recNum,
-        # substituting *values from the corresponding netcdf fields as necessary.
+        # substituting *values from the corresponding grib fields as necessary.
         # noinspection PyBroadException
         try:
             _parts = template_id.split(':')
@@ -84,66 +95,39 @@ class GribBuilder:
             return _new_id
         except:
             e = sys.exc_info()
-            logging.error("NetcdfBuilder.derive_id: Exception  error: " + str(e))
+            logging.error("GribBuilder.derive_id: Exception  error: " + str(e))
 
 
-    def translate_template_item(self, variable, recNum):
+    def translate_template_item(self, variable, station):
         """
-        This method translates template replacements (*item).
+        This method translates template replacements (*item or *item1*item2).
         It can translate keys or values. 
-        :param variable: a value from the template - should be a netcdf variable
-        :param recNum: the current recNum
+        :param variable: a value from the template - should be a grib2 variable
+        :param station: the current station
         :return:
         """
         _replacements = []
         # noinspection PyBroadException
         try:
             if isinstance(variable, str):
+                # skip the first replacement, its never
+                # really a replacement. It is either '' or not a
+                # replacement
                 _replacements = variable.split('*')[1:]
-            # skip the first replacement, its never
-            # really a replacement. It is either '' or not a
-            # replacement
-
-            _make_str = False
-            value = variable
-            Smatch = re.compile(".*S.*")
-            Umatch = re.compile(".*U.*")
+            value = variable # in case it isn't a replacement - makes it easier
             if len(_replacements) > 0:
                 for _ri in _replacements:
-                    vtype = str(self.ncdf_data_set.variables[_ri].dtype)
-                    if Smatch.match(vtype) or Umatch.match(vtype):
-                        _make_str = True
-                        _chartostring = True
-                        break
-                for _ri in _replacements:
+                    _gribVals = self.grbs.select(name=_ri)[0]
+                    _values = _gribVals['values']
+                    _value = _values[round(station['y_gridpoint']),round(station['x_gridpoint'])]
                     if _ri.startswith("{ISO}"):
-                        variable = value.replace("*{ISO}", "")
-                        if _chartostring:
-                            # for these we have to convert the character array AND convert to ISO (it is probably a string date)
-                            value = convert_to_iso(
-                                "*{ISO}" + nc.chartostring(self.ncdf_data_set[variable][recNum]))
-                        else:
-                            # for these we have to convert convert to ISO (it is probably an epoch)
-                            value = convert_to_iso(
-                                "*{ISO}" + self.ncdf_data_set[variable][recNum])
+                        value = value.replace("*{ISO}", convert_to_iso("*{ISO}" + _value))
                     else:
-                        variable = value.replace("*", "")
-                        if _make_str:
-                            if _chartostring:
-                                # it is a char array of something
-                                value = value.replace(
-                                    '*' + _ri, str(nc.chartostring(self.ncdf_data_set[variable][recNum])))
-                                return value
-                            else:
-                                # it is probably a number
-                                value = str(self.ncdf_data_set[variable][recNum])
-                                return value
-                        else:
-                            # it desn't need to be a string
-                            return self.ncdf_data_set[variable][recNum]
+                        value = value.replace("*", _value)
+                return value        
         except Exception as e:
             logging.error(
-                "NetcdfBuilder.translate_template_item: Exception  error: " + str(e))
+                "GribBuilder.translate_template_item: Exception  error: " + str(e))
         return value
 
     def handle_document(self):
@@ -153,43 +137,43 @@ class GribBuilder:
         # noinspection PyBroadException
         try:
             new_document = copy.deepcopy(self.template)
-            _recNum_data_size = self.ncdf_data_set.dimensions['recNum'].size
-            if _recNum_data_size == 0:
+            station_data_size = self.projection.dimensions['recNum'].size
+            if station_data_size == 0:
                 return
             # make a copy of the template, which will become the new document
             # once all the translations have occured
             new_document = initialize_data(new_document)
-            for _recNum in range(_recNum_data_size):
+            for station in self.domain_stations:
                 for _key in self.template.keys():
                     if _key == "data":
-                        new_document = self.handle_data(new_document, _recNum)
+                        new_document = self.handle_data(new_document, station)
                         continue
-                    new_document = self.handle_key(new_document, _recNum, _key)
+                    new_document = self.handle_key(new_document, station, _key)
             # put document into document map
             if new_document['id']:
-                logging.info("NetcdfBuilder.handle_document - adding document " + new_document['id'])
+                logging.info("GribBuilder.handle_document - adding document " + new_document['id'])
                 self.document_map[new_document['id']] = new_document
             else:
-                logging.info("NetcdfBuilder.handle_document - cannot add document with key " + str(new_document['id']))
+                logging.info("GribBuilder.handle_document - cannot add document with key " + str(new_document['id']))
         except Exception as e:
-            logging.error(self.__class__.__name__ + "NetcdfBuilder.handle_document: Exception instantiating "
+            logging.error(self.__class__.__name__ + "GribBuilder.handle_document: Exception instantiating "
                                                     "builder: " + self.__class__.__name__ + " error: " + str(e))
             raise e
 
-    def handle_key(self, doc, _recNum, _key):
+    def handle_key(self, doc, station, _key):
         """
         This routine handles keys by substituting 
-        the netcdf variables that correspond to the key into the values
+        the grib variables that correspond to the key into the values
         in the template that begin with *
         :param doc: the current document
-        :param _recNum: The current recNum
+        :param station: The current station
         :param _key: A key to be processed, This can be a key to a primitive,
         or to another dictionary, or to a named function
         """
         # noinspection PyBroadException
         try:
             if _key == 'id':
-                _id = self.derive_id(self.template['id'], _recNum)
+                _id = self.derive_id(self.template['id'], station)
                 if not _id in doc:
                     doc['id'] = _id
                 return doc
@@ -198,41 +182,41 @@ class GribBuilder:
                 _tmp_doc = copy.deepcopy(self.template[_key])
                 for _sub_key in _tmp_doc.keys():
                     _tmp_doc = self.handle_key(
-                        _tmp_doc, _recNum, _sub_key)  # recursion
+                        _tmp_doc, station, _sub_key)  # recursion
                 doc[_key] = _tmp_doc
             if not isinstance(doc[_key], dict) and isinstance(doc[_key], str) and doc[_key].startswith('&'):
-                doc[_key] = self.handle_named_function(doc[_key], _recNum)
+                doc[_key] = self.handle_named_function(doc[_key], station)
             else:
-                doc[_key] = self.translate_template_item(doc[_key], _recNum)
+                doc[_key] = self.translate_template_item(doc[_key], station)
             return doc
         except Exception as e:
             logging.error(
-                self.__class__.__name__ + "NetcdfBuilder.handle_key: Exception in builder:  error: " + str(e))
+                self.__class__.__name__ + "GribBuilder.handle_key: Exception in builder:  error: " + str(e))
         return doc
 
-    def handle_named_function(self, _named_function_def, _recNum):
+    def handle_named_function(self, _named_function_def, station):
         """
         This routine processes a named function entry from a template.
         :param _named_function_def - this can be either a template key or a template value.
-        The _named_function_def looks like "&named_function:*field1,*field2,*field3..."
+        The _named_function_def looks like "&named_function|*field1,*field2,*field3..."
         where named_function is the literal function name of a defined function.
         The name of the function and the function parameters are seperated by a ":" and
-        the parameters are seperated vy a ','.
+        the parameters are seperated by a ','.
         It is expected that field1, field2, and field3 etc are all valid variable names.
         Each field will be translated from the netcdf file into value1, value2 etc. 
         The method "named_function" will be called like...
         named_function({field1:value1, field2:value2, ... fieldn:valuen}) and the return value from named_function
         will be substituted into the document.
-        :_recNum the recNum being processed.
+        :station the recNum being processed.
         """
         # noinspection PyBroadException
         try:
             _func = _named_function_def.split('|')[0].replace('&', '')
             _params = _named_function_def.split('|')[1].split(',')
-            _dict_params = {"recNum": _recNum}
+            _dict_params = {"recNum": station}
             for _p in _params:
                 # be sure to slice the * off of the front of the param
-                _dict_params[_p[1:]] = self.translate_template_item(_p, _recNum)
+                _dict_params[_p[1:]] = self.translate_template_item(_p, station)
             # call the named function using getattr
             _replace_with = getattr(self, _func)(_dict_params)
         except Exception as e:
@@ -257,7 +241,7 @@ class GribBuilder:
                 except Exception as e:
                     value = None
                     logging.warning(self.__class__.__name__ +
-                                "NetcdfBuilder.handle_data - value is None")
+                                "GribBuilder.handle_data - value is None")
                 _data_elem[key] = value
             if _data_key.startswith('&'):
                 _data_key = self.handle_named_function(_data_key, recNum)
@@ -265,7 +249,7 @@ class GribBuilder:
                 _data_key = self.translate_template_item(_data_key, recNum)
             if _data_key is None:
                 logging.warning(self.__class__.__name__ +
-                                "NetcdfBuilder.handle_data - _data_key is None")
+                                "GribBuilder.handle_data - _data_key is None")
             doc = self.load_data(doc, _data_key, _data_elem)
             return doc
         except Exception as e:
@@ -275,15 +259,37 @@ class GribBuilder:
 
     def build_document(self, file_name):
         """
-        This is the entry point for the NetcfBuilders from the ingestManager.
-        These documents are id'd by fcstValidEpoch. The data section is an array 
+        This is the entry point for the gribBuilders from the ingestManager.
+        These documents are id'd by time and fcstLen. The data section is an array 
         each element of which contains variable data and a station name. To process this
-        file we need to itterate the document by recNum and process the station name along
+        file we need to itterate the domain_stations list and process the station name along
         with all the other variables in the variableList.
         """
         # noinspection PyBroadException
         try:
-            self.ncdf_data_set = nc.Dataset(file_name)
+            # TODO determine if this projection stuff changes file to file
+            # If not, use lazy instantiation to just do it once for all the files
+            self.projection = gg.getGrid(file_name)
+            self.grbs = pygrib.open(file_name)
+            self.grbm = self.grbs.message(1)
+            self.spacing, max_x, max_y = gg.getAttributes(file_name)
+            # Set the two projections to be used during the transformation (nearest neighbor method, what we use for everything with METARS)
+            self.in_proj = pyproj.Proj(proj='latlon')
+            self.out_proj = self.projection
+            self.transformer = pyproj.Transformer.from_proj(proj_from=self.in_proj,proj_to=self.out_proj)
+            self.transformer_reverse = pyproj.Transformer.from_proj(proj_from=self.out_proj,proj_to=self.in_proj)
+            # get stations from couchbase
+            self.domain_stations = []
+            result = self.cluster.query("SELECT mdata.geo.lat, mdata.geo.lon, name from mdata where type='MD' and docType='station' and subset='METAR' and version='V01'")
+            for row in result:
+                x, y = self.transformer.transform(row['lon'],row['lat'], radians=False)
+                x_gridpoint, y_gridpoint = x/self.spacing, y/self.spacing
+                if x_gridpoint < 0 or x_gridpoint > max_x or y_gridpoint < 0 or y_gridpoint > max_y:
+                    continue
+                station = copy.deepcopy(row)
+                station['x_gridpoint'] = x_gridpoint
+                station['y_gridpoint'] = y_gridpoint
+                self.domain_stations.append(station)
             self.handle_document()
             _document_map = self.get_document_map()
             return _document_map
@@ -293,19 +299,17 @@ class GribBuilder:
             self.close()
             return {}
 
-
 # Concrete builders
 class GribModelBuilderV01(GribBuilder):
     def __init__(self, load_spec, ingest_document, cluster, collection):
         """
-        This builder creates a set of V01 obs documents using the V01 station documents.
-        This builder loads V01 station data into memory, and uses them to associate a station with an observation
-        lat, lon point.
-        In each document the observation data is an array of objects each of which is the obs data
-        for a specific station.
-        If a station from a metar file does not exist in the couchbase database
-        a station document will be created from the metar record data and
-        the station document will be added to the document map.
+        This builder creates a set of V01 model documents using the stations in the station list.
+        This builder loads domain qualified station data into memory, and uses the domain_station 
+        list to associate a station with a grid value at an x_lat, x_lon point.
+        In each document the data is an array of objects each of which is the model variable data
+        for specific variables at a point associated with a specific station at the time and fcstLen of
+        the document.
+        :param load spec used to init the parent
         :param ingest_document: the document from the ingest document
         :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
         :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
@@ -345,6 +349,111 @@ class GribModelBuilderV01(GribBuilder):
         return doc
 
     # named functions
+
+    def handle_ceiling(self, params_dict):
+        station = params_dict['station']
+        x_gridpoint = station['x_gridpoint']
+        y_gridpoint = station['y_gridpoint']
+        surface_hgt = self.grbs.select(name='Orography')[0]
+        surface_hgt_values = surface_hgt['values']
+        surface = surface_hgt_values[round(y_gridpoint),round(x_gridpoint)]
+        ceil = self.grbs.select(name='Geopotential Height', typeOfFirstFixedSurface='215')[0]
+        ceil_values = ceil['values']
+        ceil_msl = ceil_values[round(y_gridpoint),round(x_gridpoint)]
+        # Convert to ceiling AGL and from meters to tens of feet (what is currently inside SQL, we'll leave it as just feet in CB)
+        ceil_agl = (ceil_msl - surface) * 0.32808
+        return ceil_agl
+
+        ## SURFACE PRESSURE
+    def handle_surface_pressure(self, params_dict):
+        station = params_dict['station']
+        x_gridpoint = station['x_gridpoint']
+        y_gridpoint = station['y_gridpoint']
+        sfc_pres = self.grbs.select(name='Surface pressure')[0]
+        sfc_pres_values = sfc_pres['values']
+        pres = gg.interpGridBox(sfc_pres_values,x_gridpoint,y_gridpoint)
+        # Convert from pascals to milibars
+        pres_mb = pres * 100
+        return pres_mb
+
+        ## 2M TEMPERATURE
+    def handle_2m_temperature(self, params_dict):
+        station = params_dict['station']
+        x_gridpoint = station['x_gridpoint']
+        y_gridpoint = station['y_gridpoint']
+        temp = self.grbs.select(name='2 metre temperature')[0]
+        temp_values = temp['values']
+        tempk = gg.interpGridBox(temp_values,x_gridpoint,y_gridpoint)
+        # Convert from Kelvin to Farenheit
+        tempf = ((tempk-273.15)*9)/5 + 32
+        return tempf
+
+        ## 2M DEWPOINT
+    def handle_2m_dewpoint(self, params_dict):
+        station = params_dict['station']
+        x_gridpoint = station['x_gridpoint']
+        y_gridpoint = station['y_gridpoint']
+        dp = self.grbs.select(name='2 metre dewpoint temperature')[0]
+        dp_values = dp['values']
+        dpk = gg.interpGridBox(dp_values,x_gridpoint,y_gridpoint)
+        # Convert from Kelvin to Farenheit
+        dpf = ((dpk-273.15)*9)/5 + 32
+        return dpf
+
+        ## 2M RELATIVE HUMIDITY
+    def handle_2m_rh(self, params_dict):
+        station = params_dict['station']
+        x_gridpoint = station['x_gridpoint']
+        y_gridpoint = station['y_gridpoint']
+        relhumid = self.grbs.select(name='2 metre relative humidity')[0]
+        relhumid_values = relhumid['values']
+        rh = gg.interpGridBox(relhumid_values,x_gridpoint,y_gridpoint)
+        return rh
+
+        ## WIND SPEED AND DIRECTION
+    def handle_wind_speed(self, params_dict):
+        station = params_dict['station']
+        x_gridpoint = station['x_gridpoint']
+        y_gridpoint = station['y_gridpoint']
+        uwind = self.grbs.select(name='10 metre U wind component')[0]
+        uwind_values = uwind['values']
+        uwind_ms = gg.interpGridBox(uwind_values,x_gridpoint,y_gridpoint)
+        vwind = self.grbs.select(name='10 metre V wind component')[0]
+        vwind_values = vwind['values']
+        vwind_ms = gg.interpGridBox(vwind_values,x_gridpoint,y_gridpoint)
+        # Convert from U-V components to speed and direction (requires rotation if grid is not earth relative)
+        #wind speed then convert to mph
+        ws_ms = math.sqrt((uwind_ms*uwind_ms)+(vwind_ms*vwind_ms))
+        ws_mph = (ws_ms/0.447) + 0.5
+        return ws_mph
+
+        #wind direction
+    def handle_wind_direction(self, params_dict):
+        station = params_dict['station']
+        x_gridpoint = station['x_gridpoint']
+        y_gridpoint = station['y_gridpoint']
+        longitude = station['lon']
+        uwind = self.grbs.select(name='10 metre U wind component')[0]
+        uwind_values = uwind['values']
+        uwind_ms = gg.interpGridBox(uwind_values,x_gridpoint,y_gridpoint)
+        vwind = self.grbs.select(name='10 metre V wind component')[0]
+        vwind_values = vwind['values']
+        vwind_ms = gg.interpGridBox(vwind_values,x_gridpoint,y_gridpoint)
+        theta = gg.getWindTheta(vwind,longitude)
+        radians = math.atan2(uwind_ms,vwind_ms)
+        wd = (radians*57.2958) + theta + 180
+        return wd   
+
+        ## VISIBILITY
+
+        vis = grbs.select(name='Visibility')[0]
+        print(vis)
+        vis_values = vis['values']
+        vis_m = vis_values[round(y_gridpoint),round(x_gridpoint)]
+
+
+
+
     # TODO - may not need this - checking
     def meterspersecond_to_milesperhour(self, params_dict):
         # Meters/second to miles/hour
@@ -391,11 +500,11 @@ class GribModelBuilderV01(GribBuilder):
         # Probably need more here....
         try:
             _key = None
-            _recNum = params_dict['recNum']
+            station = params_dict['recNum']
             for _key in params_dict.keys():
                 if _key != "recNum":
                     break
-            _ncValue = self.ncdf_data_set[_key][_recNum]
+            _ncValue = self.projection[_key][station]
             if not ma.getmask(_ncValue):
                 value = ma.compressed(_ncValue)[0]
                 return str("{0:.4f}".format(value)) # trim to four digits for all our data
@@ -465,26 +574,26 @@ class GribModelBuilderV01(GribBuilder):
                             "handle_data: Exception in named function interpolate_time_iso:  error: " + str(e))
 
 
-    def fill_from_netcdf(self, _recNum, _netcdf):
+    def fill_from_netcdf(self, station, _netcdf):
         """
         Used by handle_station to get the records from netcdf for comparing with the 
         records from the database.
         """
         _netcdf = {}
-        if not ma.getmask(self.ncdf_data_set['latitude'][_recNum]):
-            _netcdf['latitude'] = ma.compressed(self.ncdf_data_set['latitude'][_recNum])[0]
+        if not ma.getmask(self.projection['latitude'][station]):
+            _netcdf['latitude'] = ma.compressed(self.projection['latitude'][station])[0]
         else:
             _netcdf['latitude'] = None
-        if not ma.getmask(self.ncdf_data_set['longitude'][_recNum]):
-            _netcdf['longitude'] = ma.compressed(self.ncdf_data_set['longitude'][_recNum])[0]
+        if not ma.getmask(self.projection['longitude'][station]):
+            _netcdf['longitude'] = ma.compressed(self.projection['longitude'][station])[0]
         else:
             _netcdf['longitude'] = None
-        if not ma.getmask(self.ncdf_data_set['elevation'][_recNum]):
-            _netcdf['elevation'] = ma.compressed(self.ncdf_data_set['elevation'][_recNum])[0]
+        if not ma.getmask(self.projection['elevation'][station]):
+            _netcdf['elevation'] = ma.compressed(self.projection['elevation'][station])[0]
         else:
             _netcdf['elevation'] = None
-        _netcdf['description'] = str(nc.chartostring(self.ncdf_data_set['locationName'][_recNum]))
-        _netcdf['name'] = str(nc.chartostring(self.ncdf_data_set['stationName'][_recNum]))
+        _netcdf['description'] = str(nc.chartostring(self.projection['locationName'][station]))
+        _netcdf['name'] = str(nc.chartostring(self.projection['stationName'][station]))
         return _netcdf
 
     def handle_station(self, params_dict):
@@ -505,7 +614,7 @@ class GribModelBuilderV01(GribBuilder):
          :param params_dict: {station_name:a_station_name}
          :return: 
          """
-        _recNum = params_dict['recNum']
+        station = params_dict['recNum']
         _station_name = params_dict['stationName']
         _id = None
         _add_station = False
@@ -526,7 +635,7 @@ class GribModelBuilderV01(GribBuilder):
                     "netcdfObsBuilderV01.handle_station: There are more than one station with the name " + _station_name + "! FIX THAT!")
 
             # get the netcdf fields for comparing or adding new
-            _netcdf = self.fill_from_netcdf(_recNum, _netcdf)
+            _netcdf = self.fill_from_netcdf(station, _netcdf)
 
             if len(rows) == 1: # just right
                 # compare the existing record from the query to the netcdf record

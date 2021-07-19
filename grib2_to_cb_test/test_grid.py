@@ -49,8 +49,20 @@ def test():
 
         print(lat_max,lon_max)
 
+        # Test to see if grid point is outside of the grid domain
+        if x_stat < 0 or x_stat > max_x or y_stat < 0 or y_stat > max_y:
+                print("ERROR: Station is outside the domain projection!!")
+
+
         # Grab the closest data to the station lat-lon using the x,y coordinate found
         grbs = pygrib.open(grib2_file)
+
+        # Get timing information
+        initDate = grbs[1].analDate
+        validTime = grbs[1].validDate
+        fcst = grbs[1].forecastTime
+
+        print(initDate, validTime, fcst)
 
         ## CEILING
 
@@ -82,7 +94,8 @@ def test():
         sfc_pres = grbs.select(name='Surface pressure')[0]
         print(sfc_pres)
         sfc_pres_values = sfc_pres['values']
-        pres = sfc_pres_values[round(y_stat),round(x_stat)]
+        pres = gg.interpGridBox(sfc_pres_values,x_stat,y_stat)
+        #pres = sfc_pres_values[round(y_stat),round(x_stat)]
 
         # Convert from pascals to milibars
         pres_mb = pres * 100
@@ -93,7 +106,8 @@ def test():
         temp = grbs.select(name='2 metre temperature')[0]
         print(temp)
         temp_values = temp['values']
-        tempk = temp_values[round(y_stat),round(x_stat)]
+        tempk = gg.interpGridBox(temp_values,x_stat,y_stat)
+        #tempk = temp_values[round(y_stat),round(x_stat)]
 
         # Convert from Kelvin to Farenheit
         tempf = ((tempk-273.15)*9)/5 + 32
@@ -104,7 +118,8 @@ def test():
         dp = grbs.select(name='2 metre dewpoint temperature')[0]
         print(dp)
         dp_values = dp['values']
-        dpk = dp_values[round(y_stat),round(x_stat)]
+        dpk = gg.interpGridBox(dp_values,x_stat,y_stat)
+        #dpk = dp_values[round(y_stat),round(x_stat)]
 
         # Convert from Kelvin to Farenheit
         dpf = ((dpk-273.15)*9)/5 + 32
@@ -115,7 +130,8 @@ def test():
         relhumid = grbs.select(name='2 metre relative humidity')[0]
         print(relhumid)
         relhumid_values = relhumid['values']
-        rh = relhumid_values[round(y_stat),round(x_stat)]
+        rh = gg.interpGridBox(relhumid_values,x_stat,y_stat)
+        #rh = relhumid_values[round(y_stat),round(x_stat)]
 
         print(rh)
 
@@ -124,12 +140,14 @@ def test():
         uwind = grbs.select(name='10 metre U wind component')[0]
         print(uwind)
         uwind_values = uwind['values']
-        uwind_ms = uwind_values[round(y_stat),round(x_stat)]
+        uwind_ms = gg.interpGridBox(uwind_values,x_stat,y_stat)
+        #uwind_ms = uwind_values[round(y_stat),round(x_stat)]
 
         vwind = grbs.select(name='10 metre V wind component')[0]
         print(vwind)
         vwind_values = vwind['values']
-        vwind_ms = vwind_values[round(y_stat),round(x_stat)]
+        vwind_ms = gg.interpGridBox(vwind_values,x_stat,y_stat)
+        #vwind_ms = vwind_values[round(y_stat),round(x_stat)]
 
         # Convert from U-V components to speed and direction (requires rotation if grid is not earth relative)
         #wind speed then convert to mph
@@ -137,11 +155,20 @@ def test():
         ws_mph = (ws_ms/0.447) + 0.5
         print(ws_mph)
 
-        #wind direction
+        #wind direction   - lon is the lon of the station
         theta = gg.getWindTheta(vwind,lon)
         radians = math.atan2(uwind_ms,vwind_ms)
         wd = (radians*57.2958) + theta + 180
         print(wd)   
+
+        ## VISIBILITY
+
+        vis = grbs.select(name='Visibility')[0]
+        print(vis)
+        vis_values = vis['values']
+        vis_m = vis_values[round(y_stat),round(x_stat)]
+
+        print(vis_m)
 
         grbs.close()             
 

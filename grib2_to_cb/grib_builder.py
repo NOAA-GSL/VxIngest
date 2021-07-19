@@ -10,20 +10,13 @@ import copy
 import datetime as dt
 import logging
 import sys
-import re
 import time
-import netCDF4 as nc
-import re
 import math
 import calendar
-from numpy.lib.nanfunctions import nanvar
-import numpy.ma as ma
-from decimal import Decimal
 from couchbase.cluster import Cluster, ClusterOptions, PasswordAuthenticator
 from couchbase.exceptions import CouchbaseException
 from couchbase.search import QueryStringQuery, SearchQuery, SearchOptions, PrefixQuery, HighlightStyle, SortField, SortScore, TermFacet
 from couchbase.mutation_state import MutationState
-from pymysql.constants import CLIENT
 from datetime import datetime, timedelta
 import pyproj
 import pygrib
@@ -59,7 +52,7 @@ class GribBuilder:
         self.projection = None
         self.grbs = None
         self.grbm = None
-        self.spacing, max_x, max_y = None
+        self.spacing = None
         self.in_proj = None
         self.out_proj = None
         self.transformer = None
@@ -75,8 +68,8 @@ class GribBuilder:
     def handlestation(self, row):
         pass
 
-    def derive_id(self, template_id, recNum):
-        # Private method to derive a document id from the current recNum,
+    def derive_id(self, template_id, station):
+        # Private method to derive a document id from the current station,
         # substituting *values from the corresponding grib fields as necessary.
         # noinspection PyBroadException
         try:
@@ -84,11 +77,11 @@ class GribBuilder:
             new_parts = []
             for _part in _parts:
                 if _part.startswith('&'):
-                    value = str(self.handle_named_function(_part, recNum))
+                    value = str(self.handle_named_function(_part, station))
                 else:
                     if _part.startswith("*"):
                         value = str(
-                            self.translate_template_item(_part, recNum))
+                            self.translate_template_item(_part, station))
                     else:
                         value = str(_part)
                 new_parts.append(value)
@@ -123,9 +116,9 @@ class GribBuilder:
                         station['x_gridpoint'])]
                     if _ri.startswith("{ISO}"):
                         value = value.replace(
-                            "*{ISO}", convert_to_iso("*{ISO}" + _value))
+                            "*" + _ri, convert_to_iso(_ri))
                     else:
-                        value = value.replace("*", _value)
+                        value = value.replace("*" + _ri, str(_value))
                 return value
         except Exception as e:
             logging.error(
@@ -139,7 +132,7 @@ class GribBuilder:
         # noinspection PyBroadException
         try:
             new_document = copy.deepcopy(self.template)
-            station_data_size = self.projection.dimensions['recNum'].size
+            station_data_size = len(self.domain_stations)
             if station_data_size == 0:
                 return
             # make a copy of the template, which will become the new document
@@ -211,13 +204,16 @@ class GribBuilder:
         The method "named_function" will be called like...
         named_function({field1:value1, field2:value2, ... fieldn:valuen}) and the return value from named_function
         will be substituted into the document.
-        :station the recNum being processed.
+        :station the station being processed.
         """
         # noinspection PyBroadException
         try:
-            _func = _named_function_def.split('|')[0].replace('&', '')
-            _params = _named_function_def.split('|')[1].split(',')
-            _dict_params = {"recNum": station}
+            _parts = _named_function_def.split('|') 
+            _func = _parts[0].replace('&', '')
+            _params = []
+            if len(_parts) > 1:
+                _params = _parts[1].split(',')
+            _dict_params = {"station": station}
             for _p in _params:
                 # be sure to slice the * off of the front of the param
                 _dict_params[_p[1:]] = self.translate_template_item(
@@ -229,7 +225,7 @@ class GribBuilder:
                 self.__class__.__name__ + "handle_named_function: Exception instantiating builder:  error: " + str(e))
         return _replace_with
 
-    def handle_data(self, doc, recNum):
+    def handle_data(self, doc, station):
         # noinspection PyBroadException
         try:
             _data_elem = {}
@@ -240,18 +236,18 @@ class GribBuilder:
                     value = _data_template[key]
                     # values can be null...
                     if value and value.startswith('&'):
-                        value = self.handle_named_function(value, recNum)
+                        value = self.handle_named_function(value, station)
                     else:
-                        value = self.translate_template_item(value, recNum)
+                        value = self.translate_template_item(value, station)
                 except Exception as e:
                     value = None
                     logging.warning(self.__class__.__name__ +
                                     "GribBuilder.handle_data - value is None")
                 _data_elem[key] = value
             if _data_key.startswith('&'):
-                _data_key = self.handle_named_function(_data_key, recNum)
+                _data_key = self.handle_named_function(_data_key, station)
             else:
-                _data_key = self.translate_template_item(_data_key, recNum)
+                _data_key = self.translate_template_item(_data_key, station)
             if _data_key is None:
                 logging.warning(self.__class__.__name__ +
                                 "GribBuilder.handle_data - _data_key is None")
@@ -325,8 +321,7 @@ class GribModelBuilderV01(GribBuilder):
         :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
         :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
         """
-        GribBuilder.__init__(
-            self, load_spec, ingest_document, cluster, collection)
+        GribBuilder.__init__(self, load_spec, ingest_document, cluster, collection)
         self.cluster = cluster
         self.collection = collection
         self.same_time_rows = []
@@ -365,18 +360,14 @@ class GribModelBuilderV01(GribBuilder):
         station = params_dict['station']
         x_gridpoint = station['x_gridpoint']
         y_gridpoint = station['y_gridpoint']
-        _key = None
-        for _key in params_dict.keys():
-            if _key != "station":
-                break
-        # Convert from pascals to milibars
-        type = params_dict[_key]
-        ceil = self.grbs.select(
-            name='Geopotential Height', typeOfFirstFixedSurface=type)[0]
+        surface_hgt = self.grbs.select(name='Orography')[0]
+        surface_hgt_values = surface_hgt['values']
+        surface = surface_hgt_values[round(y_gridpoint),round(x_gridpoint)]
+        ceil = self.grbs.select(name='Geopotential Height', typeOfFirstFixedSurface='215')[0]
         ceil_values = ceil['values']
-        ceil_msl = ceil_values[round(y_gridpoint), round(x_gridpoint)]
+        ceil_msl = ceil_values[round(y_gridpoint),round(x_gridpoint)]
         # Convert to ceiling AGL and from meters to tens of feet (what is currently inside SQL, we'll leave it as just feet in CB)
-        ceil_agl = (ceil_msl - params_dict['Orography']) * 0.32808
+        ceil_agl = (ceil_msl - surface) * 0.32808
         return ceil_agl
 
         # SURFACE PRESSURE
@@ -400,16 +391,24 @@ class GribModelBuilderV01(GribBuilder):
             if _key != "station":
                 break
         # Convert from Kelvin to Farenheit
-        tempk = params_dict[_key]
+        tempk = float(params_dict[_key])
         value = ((tempk-273.15)*9)/5 + 32
         return value
 
-        # WIND SPEED AND DIRECTION
+        # WIND SPEED
     def handle_wind_speed(self, params_dict):
-        uwind_ms = params_dict['10 metre U wind component']
-        vwind_ms = params_dict['10 metre V wind component']
+        station = params_dict['station']
+        x_gridpoint = station['x_gridpoint']
+        y_gridpoint = station['y_gridpoint']
+
+        uwind = self.grbs.select(name='10 metre U wind component')[0]
+        uwind_values = uwind['values']
+        uwind_ms = gg.interpGridBox(uwind_values,x_gridpoint,y_gridpoint)
+        vwind = self.grbs.select(name='10 metre V wind component')[0]
+        vwind_values = vwind['values']
+        vwind_ms = gg.interpGridBox(vwind_values,x_gridpoint,y_gridpoint)
         # Convert from U-V components to speed and direction (requires rotation if grid is not earth relative)
-        # wind speed then convert to mph
+        #wind speed then convert to mph
         ws_ms = math.sqrt((uwind_ms*uwind_ms)+(vwind_ms*vwind_ms))
         ws_mph = (ws_ms/0.447) + 0.5
         return ws_mph
@@ -420,13 +419,30 @@ class GribModelBuilderV01(GribBuilder):
         x_gridpoint = station['x_gridpoint']
         y_gridpoint = station['y_gridpoint']
         longitude = station['lon']
+
         uwind = self.grbs.select(name='10 metre U wind component')[0]
         uwind_values = uwind['values']
-        uwind_ms = gg.interpGridBox(uwind_values, x_gridpoint, y_gridpoint)
+        uwind_ms = gg.interpGridBox(uwind_values,x_gridpoint,y_gridpoint)
         vwind = self.grbs.select(name='10 metre V wind component')[0]
         vwind_values = vwind['values']
-        vwind_ms = gg.interpGridBox(vwind_values, x_gridpoint, y_gridpoint)
+        vwind_ms = gg.interpGridBox(vwind_values,x_gridpoint,y_gridpoint)
         theta = gg.getWindTheta(vwind, longitude)
         radians = math.atan2(uwind_ms, vwind_ms)
         wd = (radians*57.2958) + theta + 180
         return wd
+
+    def getName(self, params_dict):
+        return params_dict['station']['name']
+
+    def handle_time(self, params_dict):
+        # validTime = grbs[1].validate -> 2021-07-12 15:00:00
+        _valid_time = self.grbm.analDate
+        return round(_valid_time.timestamp())
+
+    def handle_iso_time(self, params_dict):
+        _valid_time = _valid_time = self.grbm.analDate
+        return _valid_time.isoformat()
+
+    def handle_fcst_len(self, params_dict):
+        _fcst_len = self.grbm.forecastTime
+        return _fcst_len

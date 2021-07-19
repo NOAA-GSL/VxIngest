@@ -19,13 +19,14 @@ def getGrid(grib2_file):
     init_projection = pyproj.Proj(grb.projparams)
     latlon_proj = pyproj.Proj(proj='latlon')
     lat_0 = grb.latitudeOfFirstGridPointInDegrees
-    lon_0=grb.longitudeOfFirstGridPointInDegrees
+    lon_0 = grb.longitudeOfFirstGridPointInDegrees
 
-    transformer = pyproj.Transformer.from_proj(proj_from=latlon_proj,proj_to=init_projection)
-    x, y = transformer.transform(lon_0,lat_0, radians=False)
+    transformer = pyproj.Transformer.from_proj(
+        proj_from=latlon_proj, proj_to=init_projection)
+    x, y = transformer.transform(lon_0, lat_0, radians=False)
 
     # Add the proper conversion to 'fool' Proj into setting 0,0 in the lower left corner of the domain
-    ## NOTE: It doesn't actually do this, but it will be necessary to find x,y coordinates relative to the lower left corner
+    # NOTE: It doesn't actually do this, but it will be necessary to find x,y coordinates relative to the lower left corner
     projection_params = grb.projparams
     projection_params['x_0'] = abs(x)
     projection_params['y_0'] = abs(y)
@@ -35,6 +36,7 @@ def getGrid(grib2_file):
 
     grbs.close()
     return grid_projection
+
 
 def getAttributes(grib2_file):
     grbs = pygrib.open(grib2_file)
@@ -50,7 +52,8 @@ def getAttributes(grib2_file):
     grbs.close()
     return spacing, max_x, max_y
 
-def getWindTheta(grb,lon):
+
+def getWindTheta(grb, lon):
     theta = 0
 
     proj = grb.projparams['proj']
@@ -62,8 +65,10 @@ def getWindTheta(grb,lon):
         dlon = elonv-lon
         rotation = math.sin(math.radians(alattan))
 
-        if lon > 180: lon-=360
-        if lon <-180: lon+=360
+        if lon > 180:
+            lon -= 360
+        if lon < -180:
+            lon += 360
 
         theta = -rotation*dlon
 
@@ -72,14 +77,15 @@ def getWindTheta(grb,lon):
 
     return theta
 
-def interpGridBox(grb_values,x,y):
+
+def interpGridBox(grb_values, x, y):
     xmin, xmax = math.floor(x), math.ceil(x)
     ymin, ymax = math.floor(y), math.ceil(y)
 
-    xmin_ymin_value = grb_values[ymin,xmin]
-    xmax_ymin_value = grb_values[ymin,xmax]
-    xmin_ymax_value = grb_values[ymax,xmin]
-    xmax_ymax_value = grb_values[ymax,xmax]
+    xmin_ymin_value = grb_values[ymin, xmin]
+    xmax_ymin_value = grb_values[ymin, xmax]
+    xmin_ymax_value = grb_values[ymax, xmin]
+    xmax_ymax_value = grb_values[ymax, xmax]
 
     remainder_x = x - xmin
     remainder_y = y - ymin

@@ -6,7 +6,7 @@ Abstract:
 History Log:  Initial version
 
 Usage:
-run_netcdf_ingest_threads -s spec_file -c credentials_file [ -t thread_count -f first_epoch -l last_epoch]
+run_ingest_threads -s spec_file -c credentials_file [ -t thread_count -f first_epoch -l last_epoch]
 This script processes arguments which define a a yaml load_spec file,
 a defaults file (for credentials),
 and a thread count.
@@ -16,7 +16,7 @@ that are defined in the load_spec file.
 The number of threads in the thread pool is set to the -t n (or --threads n)
 argument, where n is the number of threads to start. The default is one thread. 
 Each thread will run a VxIngestManager which will pull filenames, one at a time, 
-from the filename queue and fully process that netcdf file. 
+from the filename queue and fully process that input file. 
 When the queue is empty each NetcdfIngestManager will gracefully die.
 
 This is an example load_spec...
@@ -33,7 +33,8 @@ load_spec:
   file_name_mask: "%Y%m%d_%H%M"
   [output_dir: /tmp]   - this is optional  
   
-(For the mask - python time.strftime format e.g. 20210619_1300)
+(For the mask '|' is an ignored character - it will be removed - the remainder is a 
+python time.strftime format e.g. 20210619_1300)
 The optional output_dir specifies the directory where output files will be written instead
 of writing them directly to couchbase. If the output_dir is not specified data will be written
 to couchbase cluster specified in the cb_connection.
@@ -62,8 +63,8 @@ from pathlib import Path
 from datetime import datetime
 from datetime import timedelta
 from multiprocessing import JoinableQueue
-from netcdf_to_cb.vx_ingest_manager import VxIngestManager
-from netcdf_to_cb.load_spec_yaml import LoadYamlSpecFile
+from grib2_to_cb.vx_ingest_manager import VxIngestManager
+from grib2_to_cb.load_spec_yaml import LoadYamlSpecFile
 
 
 def parse_args(args):
@@ -84,9 +85,9 @@ def parse_args(args):
     parser.add_argument("-t", "--threads", type=int, default=1,
                         help="Number of threads to use")
     parser.add_argument("-p", "--path", type=str, default="./", 
-                        help="Specify the input directory that contains the netcdf files")
+                        help="Specify the input directory that contains the input files")
     parser.add_argument("-m", "--file_name_mask", type=str, default="%Y%m%d_%H%M", 
-                        help="Specify the file name mask for the netcdf files ()")
+                        help="Specify the file name mask for the input files ()")
     parser.add_argument("-o", "--output_dir", type=str, default="/tmp", 
                         help="Specify the output directory to put the json output files")
     parser.add_argument("-f", "--{first_epoch}", type=int, default=0,
@@ -122,9 +123,14 @@ class VXIngest(object):
         self.fmask = args['file_name_mask'].strip()
         self.thread_count = args['threads']
         self.output_dir = args['output_dir'].strip()
-        self.first_last_params = {key: val for key,
-                                  val in args.items() if key.startswith('{')}
-
+        _args_keys = args.keys()
+        if 'first_epoch' in _args_keys and 'second_epoch' in _args_keys:
+            self.first_last_params = {key: val for key,
+                                        val in args.items() if key.startswith('{')}
+        else:
+            self.first_last_params = {}
+            self.first_last_params['{first_epoch}'] = 0
+            self.first_last_params['{last_epoch}'] = sys.maxsize
         #
         #  Read the load_spec file
         #
@@ -152,8 +158,11 @@ class VXIngest(object):
             with os.scandir(self.path) as entries:
                 for entry in entries:
                     # convert the file name to an epoch using the mask
+                    # first remove any characters from the file_name that correpond
+                    # to "|" in the mask. Also remove the "|" characters from the mask itself
                     try:
-                        _file_utc_time = datetime.strptime(entry.name, self.fmask)
+                        _entry_name = entry.name
+                        _file_utc_time = datetime.strptime(_entry_name, self.fmask)
                         _file_time = (_file_utc_time - datetime(1970, 1, 1)).total_seconds()
                         # check to see if it is within first and last epoch (default is 0 and maxsize)
                         if self.first_last_params['{first_epoch}'] <= _file_time and _file_time <= self.first_last_params['{last_epoch}']:

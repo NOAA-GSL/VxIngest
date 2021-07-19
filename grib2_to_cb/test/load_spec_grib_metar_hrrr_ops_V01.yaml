@@ -1,6 +1,6 @@
 load_spec:
   email: "randy.pierce@noaa.gov"
-  ingest_document_id: "MD:V01:METAR:HRRR_OPS:ingest:grib"
+  ingest_document_id: "MD:V01:METAR:HRRR_OPS:ingest:grib2"
   cb_connection:
     management_system: "cb"
     host: "cb_host"

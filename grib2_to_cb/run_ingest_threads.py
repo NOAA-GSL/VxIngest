@@ -6,7 +6,7 @@ Abstract:
 History Log:  Initial version
 
 Usage:
-run_ingest_threads -s spec_file -c credentials_file [ -t thread_count -f first_epoch -l last_epoch]
+run_ingest_threads -s spec_file -c credentials_file -p path -m _file_mask[-o output_dir -t thread_count -f first_epoch -l last_epoch]
 This script processes arguments which define a a yaml load_spec file,
 a defaults file (for credentials),
 and a thread count.
@@ -29,17 +29,14 @@ load_spec:
     host: "cb_host"   - should come from defaults file
     user: "cb_user"   - should come from defaults file
     password: "cb_pwd" - should come from defaults file
-  path: /public/data/madis/point/metar/netcdf
-  file_name_mask: "%Y%m%d_%H%M"
-  [output_dir: /tmp]   - this is optional  
   
-(For the mask '|' is an ignored character - it will be removed - the remainder is a 
-python time.strftime format e.g. 20210619_1300)
+The mask  is a python time.strftime format e.g. '%y%j%H%f',
 The optional output_dir specifies the directory where output files will be written instead
 of writing them directly to couchbase. If the output_dir is not specified data will be written
 to couchbase cluster specified in the cb_connection.
-Files in the path will be enqueued if the file name mask falls between the first_epoch
-and the last_epoch. These values may be omitted in which case all the files in the path
+Files in the path will be enqueued if the file name mask renders a valid datetime that 
+falls between the first_epoch and the last_epoch. 
+The first_epoch and the last_epoch may be omitted in which case all the files in the path
 will be processed.
 
 This is an example defaults file. The keys should match
@@ -48,6 +45,11 @@ defaults:
   cb_host: my_cb_host.some_subdomain.some_domain
   cb_user: some_cb_user_name
   cb_password: password_for_some_cb_user_name
+
+This is an example invocation in bash. t=The python must be python3.
+export PYTHONPATH=${HOME}/VXingest
+python grib2_to_cb/run_ingest_threads.py -s /data/grib2_to_cb/load_specs/load_spec_grib_metar_hrrr_ops_V01.yaml -c ~/adb-cb1-credentials -p /data/grib2_to_cb/input_files -m %y%j%H%f -o /data/grib2_to_cb/output 
+
 
 Copyright 2019 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of
 Colorado, NOAA/OAR/ESRL/GSL

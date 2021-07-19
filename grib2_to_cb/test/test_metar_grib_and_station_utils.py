@@ -1,4 +1,3 @@
-import sys
 import os
 import unittest
 import yaml
@@ -12,7 +11,7 @@ import pygrib
 import grib2_to_cb.get_grid as gg
 
 
-class TestStationBoundingBoxQuery(unittest.TestCase):
+class TestGribStationUtils(unittest.TestCase):
 
     def test_main(self):
         # noinspection PyBroadException
@@ -38,34 +37,36 @@ class TestStationBoundingBoxQuery(unittest.TestCase):
             self.cluster = Cluster('couchbase://' + host, options)
             self.collection = self.cluster.bucket("mdata").default_collection()
             result = self.cluster.query("SELECT RAW CLOCK_MILLIS()")
-            current_clock = int(result.rows()[0] / 1000)
-            current_time = int(time.time())
+            current_clock = result.rows()[0] / 1000
+            current_time = time.time()
 
-            self.assertTrue(current_clock == current_time, "SELECT RAW CLOCK_MILLIS() did not return current time")
+            self.assertAlmostEqual(current_clock, current_time, places=None, delta=1, msg="SELECT RAW CLOCK_MILLIS() did not return current time")
             
             # Grab the projection information from the test file
             grib2_file = '/opt/public/data/grids/hrrr/conus/wrfprs/grib2/2119614000018'
 
             self.assertTrue (Path(grib2_file).is_file(), "/opt/public/data/grids/hrrr/conus/wrfprs/grib2/2119614000018 Does not exist" )
 
-            projection = gg.getGrid(grib2_file)
-            spacing, max_x, max_y = gg.getAttributes(grib2_file)
+            self.projection = gg.getGrid(grib2_file)
+            self.grbs = pygrib.open(grib2_file)
+            self.grbm = self.grbs.message(1)
+            self.spacing, max_x, max_y = gg.getAttributes(grib2_file)
 
-            self.assertEqual(projection.description, 'PROJ-based coordinate operation', "projection description: is Not corrrect")
+            self.assertEqual(self.projection.description, 'PROJ-based coordinate operation', "projection description: is Not corrrect")
             # Set the two projections to be used during the transformation (nearest neighbor method, what we use for everything with METARS)
-            out_proj = pyproj.Proj(proj='latlon')
-            in_proj = projection
-
-            transformer_reverse = pyproj.Transformer.from_proj(proj_from=in_proj,proj_to=out_proj)
-
-            # Grab the lat-lon of the max grid points
-            lon_min, lat_min = transformer_reverse.transform(0,0, radians=False)
-            lon_max, lat_max = transformer_reverse.transform(max_x*spacing,max_y*spacing, radians=False)
-            #Location objects are specified as a Tuple[SupportsFloat,SupportsFloat] of longitude and latitude respectively
-            top_left = (lon_max,lat_max)
-            bottom_right = (lon_min, lat_min)
-            query = GeoBoundingBoxQuery(top_left, bottom_right)
-            result = self.cluster.search_query("geo-station", query)
-            self.assertEqual( result.metadata().metrics().total_rows(), 3000, "Reported total rows: is not 3000")
+            self.in_proj = pyproj.Proj(proj='latlon')
+            self.out_proj = self.projection
+            self.transformer = pyproj.Transformer.from_proj(proj_from=self.in_proj,proj_to=self.out_proj)
+            self.transformer_reverse = pyproj.Transformer.from_proj(proj_from=self.out_proj,proj_to=self.in_proj)
+            # get stations from couchbase
+            self.domain_stations = []
+            result = self.cluster.query("SELECT mdata.geo.lat, mdata.geo.lon, name from mdata where type='MD' and docType='station' and subset='METAR' and version='V01'")
+            for row in result:
+                x, y = self.transformer.transform(row['lon'],row['lat'], radians=False)
+                x_stat, y_stat = x/self.spacing, y/self.spacing
+                if x_stat < 0 or x_stat > max_x or y_stat < 0 or y_stat > max_y:
+                    continue
+                self.domain_stations.append(row)
+            self.assertNotEqual(len(self.domain_stations), len(result.buffered_rows), "station query result and domain_station length are the same - no filtering?")    
         except Exception as e:
             self.fail("TestGsdIngestManager Exception failure: " + str(e))

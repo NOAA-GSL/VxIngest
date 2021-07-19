@@ -155,7 +155,7 @@ def test():
         ws_mph = (ws_ms/0.447) + 0.5
         print(ws_mph)
 
-        #wind direction
+        #wind direction   - lon is the lon of the station
         theta = gg.getWindTheta(vwind,lon)
         radians = math.atan2(uwind_ms,vwind_ms)
         wd = (radians*57.2958) + theta + 180

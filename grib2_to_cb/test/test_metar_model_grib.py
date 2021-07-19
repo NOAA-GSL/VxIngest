@@ -10,11 +10,7 @@ from pathlib import Path
 from couchbase.cluster import Cluster, ClusterOptions
 from couchbase.exceptions import TimeoutException
 from couchbase_core.cluster import PasswordAuthenticator
-from couchbase.search import GeoBoundingBoxQuery
-from run_ingest_threads import VXIngest
-
-
-
+from grib2_to_cb.run_ingest_threads import VXIngest
 class TestGribBuilderV01(unittest.TestCase):
 
     def test_main(self):

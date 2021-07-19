@@ -26,9 +26,10 @@
     },
     "dataSourceId": "NCO",
     "docType": "model",
-    "fcstValidBeg": "&handle__iso_time|*analDate",
-    "fcstValidEpoch": "&handle_time|*analDate",
-    "id": "DD-TEST:V01:METAR:HRRR_OPS:&handle_time|*analDate,&handle_fcst_len|*forecastTime",
+    "model": "HRRR_OPS",
+    "fcstValidBeg": "&handle_iso_time",
+    "fcstValidEpoch": "&handle_time",
+    "id": "DD-TEST:V01:METAR:HRRR_OPS:&handle_time:&handle_fcst_len",
     "subset": "METAR",
     "type": "DD-TEST",
     "version": "V01"

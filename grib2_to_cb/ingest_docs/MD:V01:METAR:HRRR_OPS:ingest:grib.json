@@ -13,22 +13,23 @@
   "template": {
     "correctedTime": "",
     "data": {
-      "*name": {
-        "Ceiling": "*HGT",
-        "DewPoint": "&kelvin_to_farenheight:*DPT",
-        "Surface Pressure": "*PRES",
-        "Temperature": "&kelvin_to_farenheight:*TMP",
-        "Visibility": "*VIS",
-        "WD": "&winddir_transform:*UGRD, *VGRD",
-        "WS": "&windspeed_transform:*UGRD, *VGRD",
+      "&getName": {
+        "Ceiling": "&handle_ceiling",
+        "DewPoint": "&kelvin_to_farenheight|*2 metre dewpoint temperature",
+        "Surface Pressure": "*Surface pressure",
+        "Temperature": "&kelvin_to_farenheight|*2 metre temperature",
+        "Visibility": "*Visibility",
+        "WD": "&handle_wind_direction",
+        "WS": "&handle_wind_speed|*10 metre U wind component,*10 metre V wind component",
         "name": "&getName"
       }
     },
     "dataSourceId": "NCO",
     "docType": "model",
-    "fcstValidBeg": "*{ISO}time",
-    "fcstValidEpoch": "*time",
-    "id": "DD:V01:METAR:HRRR_OPS:*time:*fcstLen",
+    "model": "HRRR_OPS",
+    "fcstValidBeg": "&handle_iso_time",
+    "fcstValidEpoch": "&handle_time",
+    "id": "DD:V01:METAR:HRRR_OPS:&handle_time:&handle_fcst_len",
     "subset": "METAR",
     "type": "DD",
     "version": "V01"

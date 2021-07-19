@@ -139,6 +139,7 @@ class GribBuilder:
             # once all the translations have occured
             new_document = initialize_data(new_document)
             for station in self.domain_stations:
+                logging.info("GribBuilder.handle_document - processing station " + station['name'])
                 for _key in self.template.keys():
                     if _key == "data":
                         new_document = self.handle_data(new_document, station)
@@ -207,6 +208,7 @@ class GribBuilder:
         :station the station being processed.
         """
         # noinspection PyBroadException
+        _func = None
         try:
             _parts = _named_function_def.split('|') 
             _func = _parts[0].replace('&', '')
@@ -222,7 +224,7 @@ class GribBuilder:
             _replace_with = getattr(self, _func)(_dict_params)
         except Exception as e:
             logging.error(
-                self.__class__.__name__ + "handle_named_function: Exception instantiating builder:  error: " + str(e))
+                self.__class__.__name__ + " handle_named_function: " + _func + " Exception instantiating builder:  error: " + str(e))
         return _replace_with
 
     def handle_data(self, doc, station):
@@ -270,6 +272,7 @@ class GribBuilder:
         try:
             # TODO determine if this projection stuff changes file to file
             # If not, use lazy instantiation to just do it once for all the files
+            logging.getLogger().setLevel(logging.INFO)
             self.projection = gg.getGrid(file_name)
             self.grbs = pygrib.open(file_name)
             self.grbm = self.grbs.message(1)

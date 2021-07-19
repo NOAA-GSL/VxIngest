@@ -1,5 +1,5 @@
 """
-Program Name: Class NetcdfIngestManager
+Program Name: Class IngestManager
 Contact(s): Randy Pierce
 Abstract:
 
@@ -26,7 +26,7 @@ a_time of the program significantly.
 More than that does not. I would have left out threading all-together but
 someday we may decide to port this to a truly thread capable language.
 
-Usage: The NetcdfIngestManager extends Process - python multiprocess thread -
+Usage: The IngestManager extends Process - python multiprocess thread -
 and runs as a Process and pulls from a queue of file names. It
 maintains its own connection to couchbase which it keeps open until it finishes.
 
@@ -39,9 +39,9 @@ the concrete builder type from the metadata document and uses a
 concrete builder to process the file.
 
 The builders are instantiated once and kept in a map of objects for the
-duration of the programs life. For NetcdfIngestManager it is likely that 
+duration of the programs life. For IngestManager it is likely that 
 each file will require only one builder type to be instantiated.
-When NetcdfIngestManager finishes a document specification  it  "upserts"
+When IngestManager finishes a document specification  it  "upserts"
 a document_map to the couchbase database.
 
         Attributes:
@@ -69,7 +69,7 @@ from grib2_to_cb import grib_builder as grib_builder
 
 class VxIngestManager(Process):
     """
-    NetcdfIngestManager is a Process Thread that manages an object pool of
+    IngestManager is a Process Thread that manages an object pool of
     NetcdfBuilders to ingest data from GSD netcdf files or grib files into documents that can be
     inserted into couchbase.
 
@@ -119,7 +119,7 @@ class VxIngestManager(Process):
 
     def run(self):
         """
-        This is the entry point for the NetcdfIngestManager thread. It runs an
+        This is the entry point for the IngestManager thread. It runs an
         infinite loop that only terminates when the  file_name_queue is 
         empty. For each enqueued file name it calls 
         process_file with the file_name and the couchbase 
@@ -153,15 +153,15 @@ class VxIngestManager(Process):
                 try:
                     file_name = self.queue.get_nowait()
                     logging.info(
-                        self.threadName + ': NetcdfIngestManager - processing file ' + file_name)
+                        self.threadName + ': IngestManager - processing file ' + file_name)
                     self.process_file(file_name)
                     logging.info(
-                        self.threadName + ': NetcdfIngestManager - finished processing file ' + file_name)
+                        self.threadName + ': IngestManager - finished processing file ' + file_name)
                     self.queue.task_done()
                 except Exception as e:
                     # should probably just catch _queue.Empty but I think Python changed the name - so to be certain catching ANY exception
                     # three strikes and your out! finished! kaput!
-                    logging.info(self.threadName + ': NetcdfIngestManager - After file processing Exception - type' + str(
+                    logging.info(self.threadName + ': IngestManager - After file processing Exception - type' + str(
                         type(e)) + ' empty count is ' + str(empty_count))
                     if empty_count < 3:
                         empty_count += 1
@@ -169,15 +169,15 @@ class VxIngestManager(Process):
                         continue
                     else:
                         logging.info(
-                            self.threadName + ': NetcdfIngestManager - Queue empty - disconnecting ' + 'couchbase')
+                            self.threadName + ': IngestManager - Queue empty - disconnecting ' + 'couchbase')
                         break
         except Exception as e:
             logging.error(
-                self.threadName + ": *** %s Error in NetcdfIngestManager run ***" + str(e))
+                self.threadName + ": *** %s Error in IngestManager run ***" + str(e))
             raise e
         finally:
             self.close_cb()
-            logging.error(self.threadName + ": NetcdfIngestManager finished")
+            logging.error(self.threadName + ": IngestManager finished")
 
     def close_cb(self):
         if self.cluster:
@@ -233,7 +233,7 @@ class VxIngestManager(Process):
             # reset the document map and record stop time
             _stop_process_time = int(time.time())
             _document_map = {}
-            logging.info("NetcdfIngestManager.process_file: "
+            logging.info("IngestManager.process_file: "
                          "elapsed time: " + str(_stop_process_time - _start_process_time))
             return
 

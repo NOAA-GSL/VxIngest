@@ -57,6 +57,13 @@ def test():
         # Grab the closest data to the station lat-lon using the x,y coordinate found
         grbs = pygrib.open(grib2_file)
 
+        # Get timing information
+        initDate = grbs[1].analDate
+        validTime = grbs[1].validDate
+        fcst = grbs[1].forecastTime
+
+        print(initDate, validTime, fcst)
+
         ## CEILING
 
         #&getCeilingAGL|Geopotential Height,{'typeOfFirstFixedSurface':215},Orography

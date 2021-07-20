@@ -21,6 +21,8 @@ from datetime import datetime, timedelta
 import pyproj
 import pygrib
 import grib2_to_cb.get_grid as gg
+import cProfile
+from pstats import Stats, SortKey
 
 TS_OUT_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
@@ -288,7 +290,12 @@ class GribBuilder:
             self.domain_stations = []
             result = self.cluster.query(
                 "SELECT mdata.geo.lat, mdata.geo.lon, name from mdata where type='MD' and docType='station' and subset='METAR' and version='V01'")
+            station_limit = len(result.buffered_rows) + 1
+            #station_limit = 3
+            count = 0
             for row in result:
+                if count > station_limit:
+                    break
                 x, y = self.transformer.transform(
                     row['lon'], row['lat'], radians=False)
                 x_gridpoint, y_gridpoint = x/self.spacing, y/self.spacing
@@ -298,7 +305,21 @@ class GribBuilder:
                 station['x_gridpoint'] = x_gridpoint
                 station['y_gridpoint'] = y_gridpoint
                 self.domain_stations.append(station)
-            self.handle_document()
+                count = count + 1
+            
+            #do_profiling = True
+            do_profiling = False
+            if do_profiling:
+                with cProfile.Profile() as pr:
+                    self.handle_document()
+                    with open('profiling_stats.txt', 'w') as stream:
+                        stats = Stats(pr, stream=stream)
+                        stats.strip_dirs()
+                        stats.sort_stats('time')
+                        stats.dump_stats('.prof_stats')
+                        stats.print_stats()
+            else:
+                self.handle_document()
             _document_map = self.get_document_map()
             return _document_map
         except Exception as e:

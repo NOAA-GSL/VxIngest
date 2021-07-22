@@ -94,7 +94,7 @@ class VxIngestManager(Process):
     and dies.
     """
 
-    def __init__(self, name, load_spec, file_name_queue, output_dir):
+    def __init__(self, name, load_spec, file_name_queue, output_dir, number_stations=sys.maxsize):
         """
         :param name: (str) the thread name for this IngestManager
         :param load_spec: (Object) contains Couchbase credentials
@@ -113,6 +113,7 @@ class VxIngestManager(Process):
         self.cluster = None
         self.collection = None
         self.output_dir = output_dir
+        self.number_stations = number_stations
 
     # entry point of the thread. Is invoked automatically when the thread is
     # started.
@@ -215,7 +216,7 @@ class VxIngestManager(Process):
                 builder_class = getattr(
                     grib_builder, self.ingest_type_builder_name)
                 builder = builder_class(self.load_spec, self.ingest_document,
-                                        self.cluster, self.collection)
+                                        self.cluster, self.collection, self.number_stations)
                 self.builder_map[self.ingest_type_builder_name] = builder
             _document_map = builder.build_document(file_name)
 

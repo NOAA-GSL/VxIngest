@@ -12,7 +12,6 @@ import logging
 import sys
 import time
 import math
-import calendar
 from couchbase.cluster import Cluster, ClusterOptions, PasswordAuthenticator
 from couchbase.exceptions import CouchbaseException
 from couchbase.search import QueryStringQuery, SearchQuery, SearchOptions, PrefixQuery, HighlightStyle, SortField, SortScore, TermFacet
@@ -22,7 +21,7 @@ import pyproj
 import pygrib
 import grib2_to_cb.get_grid as gg
 import cProfile
-from pstats import Stats, SortKey
+from pstats import Stats
 
 TS_OUT_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
@@ -44,11 +43,12 @@ def initialize_data(doc):
 
 
 class GribBuilder:
-    def __init__(self, load_spec, ingest_document, cluster, collection):
+    def __init__(self, load_spec, ingest_document, cluster, collection, number_stations=sys.maxsize):
         self.template = ingest_document['template']
         self.load_spec = load_spec
         self.cluster = cluster
         self.collection = collection
+        self.number_stations = number_stations
         self.id = None
         self.document_map = {}
         self.projection = None
@@ -82,8 +82,8 @@ class GribBuilder:
                     value = str(self.handle_named_function(_part, station))
                 else:
                     if _part.startswith("*"):
-                        value = str(
-                            self.translate_template_item(_part, station))
+                        _v, _interp_v = self.translate_template_item(_part, station)
+                        value = str(_v)
                     else:
                         value = str(_part)
                 new_parts.append(value)
@@ -112,20 +112,22 @@ class GribBuilder:
             value = variable  # in case it isn't a replacement - makes it easier
             if len(_replacements) > 0:
                 for _ri in _replacements:
-                    _gribVals = self.grbs.select(name=_ri)[0]
-                    _values = _gribVals['values']
-                    _value = _values[round(station['y_gridpoint']), round(
-                        station['x_gridpoint'])]
+                    _message = self.grbs.select(name=_ri)[0]
+                    _values = _message['values']
+                    _value = _values[round(station['y_gridpoint']), round(station['x_gridpoint'])]
+                    # interpolated gridpoints cannot be rounded
+                    _interpolated_value = gg.interpGridBox(_values, station['y_gridpoint'], station['x_gridpoint'])
+
                     if _ri.startswith("{ISO}"):
                         value = value.replace(
                             "*" + _ri, convert_to_iso(_ri))
                     else:
                         value = value.replace("*" + _ri, str(_value))
-                return value
+                return value, _interpolated_value
         except Exception as e:
             logging.error(
                 "GribBuilder.translate_template_item: Exception  error: " + str(e))
-        return value
+        return value, []
 
     def handle_document(self):
         """
@@ -187,7 +189,7 @@ class GribBuilder:
             if not isinstance(doc[_key], dict) and isinstance(doc[_key], str) and doc[_key].startswith('&'):
                 doc[_key] = self.handle_named_function(doc[_key], station)
             else:
-                doc[_key] = self.translate_template_item(doc[_key], station)
+                doc[_key], _interp_v = self.translate_template_item(doc[_key], station)
             return doc
         except Exception as e:
             logging.error(
@@ -220,8 +222,8 @@ class GribBuilder:
             _dict_params = {"station": station}
             for _p in _params:
                 # be sure to slice the * off of the front of the param
-                _dict_params[_p[1:]] = self.translate_template_item(
-                    _p, station)
+                # translate_template_item returns a tuple - value,interp_value
+                _dict_params[_p[1:]] = self.translate_template_item(_p, station)
             # call the named function using getattr
             _replace_with = getattr(self, _func)(_dict_params)
         except Exception as e:
@@ -242,7 +244,7 @@ class GribBuilder:
                     if value and value.startswith('&'):
                         value = self.handle_named_function(value, station)
                     else:
-                        value = self.translate_template_item(value, station)
+                        value, interp_value = self.translate_template_item(value, station)
                 except Exception as e:
                     value = None
                     logging.warning(self.__class__.__name__ +
@@ -251,7 +253,8 @@ class GribBuilder:
             if _data_key.startswith('&'):
                 _data_key = self.handle_named_function(_data_key, station)
             else:
-                _data_key = self.translate_template_item(_data_key, station)
+                # _ ignore the interp_value part of the returned tuple
+                _data_key, _interp_value = self.translate_template_item(_data_key, station)
             if _data_key is None:
                 logging.warning(self.__class__.__name__ +
                                 "GribBuilder.handle_data - _data_key is None")
@@ -290,9 +293,8 @@ class GribBuilder:
             self.domain_stations = []
             result = self.cluster.query(
                 "SELECT mdata.geo.lat, mdata.geo.lon, name from mdata where type='MD' and docType='station' and subset='METAR' and version='V01'")
-            station_limit = len(result.buffered_rows) + 1
-            #station_limit = 3
-            count = 0
+            station_limit = self.number_stations
+            count = 1
             for row in result:
                 if count > station_limit:
                     break
@@ -307,16 +309,14 @@ class GribBuilder:
                 self.domain_stations.append(station)
                 count = count + 1
             
-            #do_profiling = True
-            do_profiling = False
-            if do_profiling:
+            if self.do_profiling:
                 with cProfile.Profile() as pr:
                     self.handle_document()
                     with open('profiling_stats.txt', 'w') as stream:
                         stats = Stats(pr, stream=stream)
                         stats.strip_dirs()
                         stats.sort_stats('time')
-                        stats.dump_stats('.prof_stats')
+                        stats.dump_stats('profiling_stats.prof')
                         stats.print_stats()
             else:
                 self.handle_document()
@@ -325,14 +325,14 @@ class GribBuilder:
         except Exception as e:
             logging.error(self.__class__.__name__ +
                           ": Exception with builder build_document: error: " + str(e))
-            self.close()
             return {}
-
+        finally:
+            self.grbs.close()
 # Concrete builders
 
 
 class GribModelBuilderV01(GribBuilder):
-    def __init__(self, load_spec, ingest_document, cluster, collection):
+    def __init__(self, load_spec, ingest_document, cluster, collection, number_stations=sys.maxsize):
         """
         This builder creates a set of V01 model documents using the stations in the station list.
         This builder loads domain qualified station data into memory, and uses the domain_station 
@@ -344,10 +344,12 @@ class GribModelBuilderV01(GribBuilder):
         :param ingest_document: the document from the ingest document
         :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
         :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
+        :param number_stations - the maximum number of stations to process
         """
-        GribBuilder.__init__(self, load_spec, ingest_document, cluster, collection)
+        GribBuilder.__init__(self, load_spec, ingest_document, cluster, collection, number_stations=sys.maxsize)
         self.cluster = cluster
         self.collection = collection
+        self.number_stations = number_stations
         self.same_time_rows = []
         self.time = 0
         self.interpolated_time = 0
@@ -355,6 +357,8 @@ class GribModelBuilderV01(GribBuilder):
         self.cadence = ingest_document['validTimeInterval']
         self.variableList = ingest_document['variableList']
         self.template = ingest_document['template']
+        self.do_profiling = True  # set to True to enable build_document profiling
+        #self.do_profiling = False  # set to True to enable build_document profiling
 
     def get_document_map(self):
         """
@@ -382,14 +386,17 @@ class GribModelBuilderV01(GribBuilder):
 
     def handle_ceiling(self, params_dict):
         station = params_dict['station']
-        x_gridpoint = station['x_gridpoint']
-        y_gridpoint = station['y_gridpoint']
-        surface_hgt = self.grbs.select(name='Orography')[0]
-        surface_hgt_values = surface_hgt['values']
-        surface = surface_hgt_values[round(y_gridpoint),round(x_gridpoint)]
-        ceil = self.grbs.select(name='Geopotential Height', typeOfFirstFixedSurface='215')[0]
-        ceil_values = ceil['values']
-        ceil_msl = ceil_values[round(y_gridpoint),round(x_gridpoint)]
+        x_gridpoint = round(station['x_gridpoint'])
+        y_gridpoint = round(station['y_gridpoint'])
+
+        _message = self.grbs.select(name='Orography')[0]
+        _values = _message['values']
+        surface = _values[y_gridpoint,x_gridpoint]
+
+        _message = self.grbs.select(name='Geopotential Height', typeOfFirstFixedSurface='215')[0]
+        _values = _message['values']
+        ceil_msl = _values[y_gridpoint,x_gridpoint]
+
         # Convert to ceiling AGL and from meters to tens of feet (what is currently inside SQL, we'll leave it as just feet in CB)
         ceil_agl = (ceil_msl - surface) * 0.32808
         return ceil_agl
@@ -400,10 +407,29 @@ class GribModelBuilderV01(GribBuilder):
         for _key in params_dict.keys():
             if _key != "station":
                 break
+        _v, _v_interpolated = params_dict[_key]
         # Convert from pascals to milibars
-        pres = params_dict[_key]
+        pres = _v_interpolated
         pres_mb = pres * 100
         return pres_mb
+
+        # Visibility - convert to float
+    def handle_visibility(self, params_dict):
+        _key = None
+        for _key in params_dict.keys():
+            if _key != "station":
+                break
+        _v, _v_interpolated = params_dict[_key]
+        return float(_v)
+
+        # relative humidity - convert to float
+    def handle_RH(self, params_dict):
+        _key = None
+        for _key in params_dict.keys():
+            if _key != "station":
+                break
+        _v, _v_interpolated = params_dict[_key]
+        return float(_v_interpolated)
 
     def kelvin_to_farenheight(self, params_dict):
         """
@@ -415,22 +441,25 @@ class GribModelBuilderV01(GribBuilder):
             if _key != "station":
                 break
         # Convert from Kelvin to Farenheit
-        tempk = float(params_dict[_key])
+        _v, _v_interpolated = params_dict[_key]
+        tempk = float(_v_interpolated)
         value = ((tempk-273.15)*9)/5 + 32
         return value
 
         # WIND SPEED
     def handle_wind_speed(self, params_dict):
         station = params_dict['station']
+        # interpolated value cannot use rounded gridpoints
         x_gridpoint = station['x_gridpoint']
         y_gridpoint = station['y_gridpoint']
 
-        uwind = self.grbs.select(name='10 metre U wind component')[0]
-        uwind_values = uwind['values']
-        uwind_ms = gg.interpGridBox(uwind_values,x_gridpoint,y_gridpoint)
-        vwind = self.grbs.select(name='10 metre V wind component')[0]
-        vwind_values = vwind['values']
-        vwind_ms = gg.interpGridBox(vwind_values,x_gridpoint,y_gridpoint)
+        _message = self.grbs.select(name='10 metre U wind component')[0]
+        _values = _message['values']
+        uwind_ms = gg.interpGridBox(_values,y_gridpoint,x_gridpoint)
+        
+        _message = self.grbs.select(name='10 metre V wind component')[0]
+        _values = _message['values']
+        vwind_ms = gg.interpGridBox(_values,y_gridpoint,x_gridpoint)
         # Convert from U-V components to speed and direction (requires rotation if grid is not earth relative)
         #wind speed then convert to mph
         ws_ms = math.sqrt((uwind_ms*uwind_ms)+(vwind_ms*vwind_ms))
@@ -440,17 +469,19 @@ class GribModelBuilderV01(GribBuilder):
         # wind direction
     def handle_wind_direction(self, params_dict):
         station = params_dict['station']
+        # interpolated value cannot use rounded gridpoints
         x_gridpoint = station['x_gridpoint']
         y_gridpoint = station['y_gridpoint']
         longitude = station['lon']
 
-        uwind = self.grbs.select(name='10 metre U wind component')[0]
-        uwind_values = uwind['values']
-        uwind_ms = gg.interpGridBox(uwind_values,x_gridpoint,y_gridpoint)
-        vwind = self.grbs.select(name='10 metre V wind component')[0]
-        vwind_values = vwind['values']
-        vwind_ms = gg.interpGridBox(vwind_values,x_gridpoint,y_gridpoint)
-        theta = gg.getWindTheta(vwind, longitude)
+        message = self.grbs.select(name='10 metre U wind component')[0]
+        _values = message['values']
+        uwind_ms = gg.interpGridBox(_values,y_gridpoint,x_gridpoint)
+        
+        message = self.grbs.select(name='10 metre V wind component')[0]
+        _values = message['values']
+        vwind_ms = gg.interpGridBox(_values,y_gridpoint,x_gridpoint)
+        theta = gg.getWindTheta(message, longitude)
         radians = math.atan2(uwind_ms, vwind_ms)
         wd = (radians*57.2958) + theta + 180
         return wd

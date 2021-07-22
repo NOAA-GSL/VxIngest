@@ -6,7 +6,7 @@ Abstract:
 History Log:  Initial version
 
 Usage:
-run_ingest_threads -s spec_file -c credentials_file -p path -m _file_mask[-o output_dir -t thread_count -f first_epoch -l last_epoch]
+run_ingest_threads -s spec_file -c credentials_file -p path -m _file_mask[-o output_dir -t thread_count -f first_epoch -l last_epoch -n number_stations]
 This script processes arguments which define a a yaml load_spec file,
 a defaults file (for credentials),
 and a thread count.
@@ -15,6 +15,7 @@ filenames that are derived from the path, mask, first_epoch, and last_epoch.
 that are defined in the load_spec file.
 The number of threads in the thread pool is set to the -t n (or --threads n)
 argument, where n is the number of threads to start. The default is one thread. 
+The optional -n number_stations will restrict the processing to n number of stations to limit run time.
 Each thread will run a VxIngestManager which will pull filenames, one at a time, 
 from the filename queue and fully process that input file. 
 When the queue is empty each NetcdfIngestManager will gracefully die.
@@ -92,10 +93,12 @@ def parse_args(args):
                         help="Specify the file name mask for the input files ()")
     parser.add_argument("-o", "--output_dir", type=str, default="/tmp", 
                         help="Specify the output directory to put the json output files")
-    parser.add_argument("-f", "--{first_epoch}", type=int, default=0,
+    parser.add_argument("-f", "--first_epoc", type=int, default=0,
                         help="The first epoch to use, inclusive")
-    parser.add_argument("-l", "--{last_epoch}", type=int, default=sys.maxsize,
+    parser.add_argument("-l", "--last_epoch", type=int, default=sys.maxsize,
                         help="The last epoch to use, exclusive")
+    parser.add_argument("-n", "--number_stations", type=int, default=sys.maxsize,
+                        help="The maximum number of stations to process")
       # get the command line arguments
     args = parser.parse_args(args)
     return args
@@ -107,13 +110,14 @@ class VXIngest(object):
         self.spec_file = ""
         self.credentials_file = ""
         self.thread_count = ""
-        # -f {first_epoch} and -l {last_epoch} are optional time params.
+        # -f first_epoch and -l last_epoch are optional time params.
         # If these are present only the files in the path with filename masks
         # that fall between these epochs will be processed.
         self.first_last_params = None
         self.path = None
         self.fmask = None
         self.output_dir = None
+        self.number_stations = sys.maxsize  # optional: used to limit the number of stations processed
 
     def runit(self, args):
         """
@@ -127,12 +131,14 @@ class VXIngest(object):
         self.output_dir = args['output_dir'].strip()
         _args_keys = args.keys()
         if 'first_epoch' in _args_keys and 'second_epoch' in _args_keys:
-            self.first_last_params = {key: val for key,
-                                        val in args.items() if key.startswith('{')}
+            self.first_last_params = {'first_epoch': args['first_epoch'],
+                                    'last_epoch': args['last_epoch']}
         else:
             self.first_last_params = {}
-            self.first_last_params['{first_epoch}'] = 0
-            self.first_last_params['{last_epoch}'] = sys.maxsize
+            self.first_last_params['first_epoch'] = 0
+            self.first_last_params['last_epoch'] = sys.maxsize
+        if 'number_stations' in _args_keys:
+            self.number_stations = args['number_stations']
         #
         #  Read the load_spec file
         #
@@ -167,7 +173,7 @@ class VXIngest(object):
                         _file_utc_time = datetime.strptime(_entry_name, self.fmask)
                         _file_time = (_file_utc_time - datetime(1970, 1, 1)).total_seconds()
                         # check to see if it is within first and last epoch (default is 0 and maxsize)
-                        if self.first_last_params['{first_epoch}'] <= _file_time and _file_time <= self.first_last_params['{last_epoch}']:
+                        if self.first_last_params['first_epoch'] <= _file_time and _file_time <= self.first_last_params['last_epoch']:
                             file_names.append(os.path.join(self.path,entry.name))
                     except:
                         # don't care, it just means it wasn't a properly formatted file per the mask
@@ -186,7 +192,7 @@ class VXIngest(object):
             # noinspection PyBroadException
             try:
                 ingest_manager_thread = VxIngestManager(
-                    "VxIngestManager-" + str(self.thread_count), load_spec, q, self.output_dir)
+                    "VxIngestManager-" + str(self.thread_count), load_spec, q, self.output_dir, self.number_stations)
                 _ingest_manager_list.append(ingest_manager_thread)
                 ingest_manager_thread.start()
             except:

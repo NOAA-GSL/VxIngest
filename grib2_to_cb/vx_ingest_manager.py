@@ -246,7 +246,7 @@ class VxIngestManager(Process):
         # noinspection PyBroadException
         try:
             logging.info(self.threadName + ': process_file writing documents for '
-                                           'ingest_document :  ' + str(file_name) + "threadName: " + self.threadName)
+                                           'ingest_document :  ' + str(file_name) + "  with threadName: " + self.threadName)
             # this call is volatile i.e. it might change syntax in
             # the future.
             # if it does, please just fix it.
@@ -282,10 +282,10 @@ class VxIngestManager(Process):
                                            'ingest_document :  ' + str(file_name) + "threadName: " + self.threadName)
             write_start_time = int(time.time())
             logging.info(
-                "process_file - executing upsert: stop time: " + str(write_start_time))
+                "process_file - executing write: start time: " + str(write_start_time))
             if not document_map:
                 logging.info(
-                    self.threadName + ": process_file: would upsert documents but DOCUMENT_MAP IS EMPTY")
+                    self.threadName + ": process_file: would write documents but DOCUMENT_MAP IS EMPTY")
             else:
                 from pathlib import Path
                 Path(self.output_dir).mkdir(parents=True, exist_ok=True)
@@ -293,6 +293,7 @@ class VxIngestManager(Process):
                     file_name = os.path.basename(file_name) + ".json"
                     complete_file_name = os.path.join(
                         self.output_dir, file_name)
+                    logging.info(self.threadName + ': process_file writing documents into ' + complete_file_name)
                     f = open(complete_file_name, "w")
                     # we need to write out a list of the values of the _document_map for cbimport
                     f.write(json.dumps(list(document_map.values())))

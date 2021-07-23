@@ -141,6 +141,8 @@ class VXIngest(object):
             self.first_last_params['last_epoch'] = sys.maxsize
         if 'number_stations' in _args_keys:
             self.number_stations = args['number_stations']
+        else:
+            self.number_stations = sys.maxsize
         #
         #  Read the load_spec file
         #

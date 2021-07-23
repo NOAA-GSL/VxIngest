@@ -12,7 +12,7 @@ import datetime as dt
 import logging
 import math
 import sys
-from datetime import datetime, timedelta
+import numpy
 from pstats import Stats
 
 import pygrib
@@ -116,25 +116,30 @@ class GribBuilder:
                 # really a replacement. It is either '' or not a
                 # replacement
                 replacements = variable.split('*')[1:]
-            station_value = variable  # in case it isn't a replacement - makes it easier
+            station_value = variable  # pre assign these in case it isn't a replacement - makes it easier
+            interpolated_value = variable
             if len(replacements) > 0:
                 station_values = []
                 for ri in replacements:
                     message = self.grbs.select(name=ri)[0]
                     values = message['values']
                     for station in self.domain_stations:
+                        #get the individual station value and interpolated value
                         station_value = values[round(station['y_gridpoint']), round(station['x_gridpoint'])]
                         # interpolated gridpoints cannot be rounded
-                        interpolated_value = gg.interpGridBox(
-                            values, station['y_gridpoint'], station['x_gridpoint'])
+                        interpolated_value = gg.interpGridBox(values, station['y_gridpoint'], station['x_gridpoint'])
+                        # convert each station value to iso if necessary
                         if ri.startswith("{ISO}"):
                             station_value = variable.replace("*" + ri, convert_to_iso(station_value))
+                            interpolated_value = variable.replace("*" + ri, convert_to_iso(station_value))
                         else:
                             station_value = variable.replace("*" + ri, str(station_value))
+                            interpolated_value = variable.replace("*" + ri, str(station_value))
+                        # add it onto the list of tupples
                         station_values.append((station_value, interpolated_value))
                 return station_values
-            # it is a constant, no replacements but we still need one for each station
-            return [(station_value, station_value) for i in range(len(self.domain_stations))]
+            # it is a constant, no replacements but we still need a tuple for each station
+            return [(station_value, interpolated_value) for i in range(len(self.domain_stations))]
         except Exception as e:
             logging.error(
                 "GribBuilder.translate_template_item: Exception  error: " + str(e))
@@ -233,7 +238,7 @@ class GribBuilder:
             dict_params = {}
             for p in params:
                 # be sure to slice the * off of the front of the param
-                # translate_template_item returns an array of tuples - value,interp_value, one ofr each station
+                # translate_template_item returns an array of tuples - value,interp_value, one for each station
                 # ordered by domain_stations.
                 dict_params[p[1:]] = self.translate_template_item(p)
             # call the named function using getattr
@@ -256,17 +261,17 @@ class GribBuilder:
                     if value and value.startswith('&'):
                         value = self.handle_named_function(value)
                     else:
-                        value, interp_value = self.translate_template_item(value)
+                        value = self.translate_template_item(value)
                 except Exception as e:
-                    value = None
+                    value = [(None,None)]
                     logging.warning(self.__class__.__name__ +
-                                    "GribBuilder.handle_data - value is None")
+                                    "GribBuilder.handle_data Exception: " + str(e) + " - setting value to (None,None)")
                 data_elem[key] = value
             if data_key.startswith('&'):
                 data_key = self.handle_named_function(data_key)
             else:
                 # _ ignore the interp_value part of the returned tuple
-                data_key, _interp_value = self.translate_template_item(data_key)
+                data_key, _interp_ignore_value = self.translate_template_item(data_key)
             if data_key is None:
                 logging.warning(self.__class__.__name__ +
                                 "GribBuilder.handle_data - _data_key is None")
@@ -312,10 +317,17 @@ class GribBuilder:
             for row in result:
                 if count > station_limit:
                     break
+                if row['lat'] == -90 and row['lon'] == 180:
+                    #TODO need to fix this
+                    continue # don't know how to transform that station
                 x, y = self.transformer.transform(
                     row['lon'], row['lat'], radians=False)
                 x_gridpoint, y_gridpoint = x/self.spacing, y/self.spacing
-                if x_gridpoint < 0 or x_gridpoint > max_x or y_gridpoint < 0 or y_gridpoint > max_y:
+                try:
+                   if math.floor(x_gridpoint) < 0 or math.ceil(x_gridpoint) >= max_x or math.floor(y_gridpoint) < 0 or math.ceil(y_gridpoint) >= max_y:
+                    continue
+                except Exception as e:
+                    logging.error(self.__class__.__name__ + ": Exception with builder build_document: error: " + str(e))
                     continue
                 station = copy.deepcopy(row)
                 station['x_gridpoint'] = x_gridpoint
@@ -420,7 +432,10 @@ class GribModelBuilderV01(GribBuilder):
         for station in self.domain_stations:
             x_gridpoint = round(station['x_gridpoint'])
             y_gridpoint = round(station['y_gridpoint'])
-            surface_values.append(values[y_gridpoint, x_gridpoint])
+            if not numpy.ma.is_masked(values[y_gridpoint, x_gridpoint]):
+                surface_values.append(values[y_gridpoint, x_gridpoint])
+            else:    
+                surface_values.append(None)    
 
         message = self.grbs.select(
             name='Geopotential Height', typeOfFirstFixedSurface='215')[0]
@@ -430,12 +445,18 @@ class GribModelBuilderV01(GribBuilder):
         for station in self.domain_stations:
             x_gridpoint = round(station['x_gridpoint'])
             y_gridpoint = round(station['y_gridpoint'])
-            ceil_msl_values.append(values[y_gridpoint, x_gridpoint])
-
+            # what do we do with a masked ceiling value?
+            if not numpy.ma.is_masked(values[y_gridpoint, x_gridpoint]):
+                ceil_msl_values.append(values[y_gridpoint, x_gridpoint])
+            else:    
+                ceil_msl_values.append(None)    
         # Convert to ceiling AGL and from meters to tens of feet (what is currently inside SQL, we'll leave it as just feet in CB)
         ceil_agl = []
         for i in range(len(self.domain_stations)):
-            ceil_agl.append((ceil_msl_values[i] - surface_values[i]) * 0.32808)
+            if ceil_msl_values[i] == None or surface_values[i] == None:
+                ceil_agl.append(None)
+            else:        
+                ceil_agl.append((ceil_msl_values[i] - surface_values[i]) * 0.32808)
         return ceil_agl
 
         # SURFACE PRESSURE
@@ -446,7 +467,7 @@ class GribModelBuilderV01(GribBuilder):
         pressures = []
         for v, v_intrp_pressure in list(params_dict.values())[0]:
             # Convert from pascals to milibars
-            pressures.append(v_intrp_pressure * 100)
+            pressures.append(float(v_intrp_pressure) * 100)
         return pressures
 
         # Visibility - convert to float
@@ -454,7 +475,7 @@ class GribModelBuilderV01(GribBuilder):
         # convert all the values to a float
         vis_values = []
         for v, v_intrp_ignore in list(params_dict.values())[0]:
-            vis_values.append(float(v))
+            vis_values.append(float(v) if v is not None else None)
         return vis_values
 
         # relative humidity - convert to float
@@ -462,19 +483,18 @@ class GribModelBuilderV01(GribBuilder):
         # convert all the values to a float
         rh_interpolated_values = []
         for v, v_intrp_pressure in list(params_dict.values())[0]:
-            rh_interpolated_values.append(float(v_intrp_pressure))
+            rh_interpolated_values.append(float(v_intrp_pressure) if v_intrp_pressure is not None else None)
         return rh_interpolated_values
 
     def kelvin_to_farenheight(self, params_dict):
         """
             param:params_dict expects {'station':{},'*variable name':variable_value}
             Used for temperature and dewpoint
-        """
-        key = None
+        """        
         # Convert each station value from Kelvin to Farenheit
         tempf_values = []
         for v, v_intrp_tempf in list(params_dict.values())[0]:
-            tempf_values.append(((v_intrp_tempf-273.15)*9)/5 + 32)
+            tempf_values.append(((float(v_intrp_tempf)-273.15)*9)/5 + 32 if v_intrp_tempf is not None else None)
         return tempf_values
 
         # WIND SPEED
@@ -503,7 +523,8 @@ class GribModelBuilderV01(GribBuilder):
         for station in self.domain_stations:
             x_gridpoint = station['x_gridpoint']
             y_gridpoint = station['y_gridpoint']
-            vwind_ms_values.append(gg.interpGridBox(values, y_gridpoint, x_gridpoint))
+            vwind_ms_values.append(gg.interpGridBox(
+                values, y_gridpoint, x_gridpoint))
         # Convert from U-V components to speed and direction (requires rotation if grid is not earth relative)
         # wind speed then convert to mph
         ws_mph = []

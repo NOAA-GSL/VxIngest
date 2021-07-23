@@ -78,20 +78,23 @@ def getWindTheta(grb,lon):
     return theta
 
 def interpGridBox(grb_values,y,x):
-    xmin, xmax = math.floor(x), math.ceil(x)
-    ymin, ymax = math.floor(y), math.ceil(y)
+    try: 
+        xmin, xmax = math.floor(x), math.ceil(x)
+        ymin, ymax = math.floor(y), math.ceil(y)
 
-    xmin_ymin_value = grb_values[ymin,xmin]
-    xmax_ymin_value = grb_values[ymin,xmax]
-    xmin_ymax_value = grb_values[ymax,xmin]
-    xmax_ymax_value = grb_values[ymax,xmax]
+        xmin_ymin_value = grb_values[ymin,xmin]
+        xmax_ymin_value = grb_values[ymin,xmax]
+        xmin_ymax_value = grb_values[ymax,xmin]
+        xmax_ymax_value = grb_values[ymax,xmax]
 
-    remainder_x = x - xmin
-    remainder_y = y - ymin
+        remainder_x = x - xmin
+        remainder_y = y - ymin
 
-    interpolated_value = (remainder_x*remainder_y*xmax_ymax_value) + \
-                        (remainder_x*(1-remainder_y)*xmin_ymax_value) + \
-                        ((1-remainder_x)*remainder_y*xmax_ymin_value) + \
-                        ((1-remainder_x)*(1-remainder_y)*xmin_ymin_value)
-
-    return interpolated_value
+        interpolated_value = (remainder_x*remainder_y*xmax_ymax_value) + \
+                            (remainder_x*(1-remainder_y)*xmin_ymax_value) + \
+                            ((1-remainder_x)*remainder_y*xmax_ymin_value) + \
+                            ((1-remainder_x)*(1-remainder_y)*xmin_ymin_value)
+        return interpolated_value
+    except Exception as e:
+        raise Exception ("Erroro in get_grid.interpGridBox - " + str(e))
+        return -1

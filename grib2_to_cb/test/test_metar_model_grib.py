@@ -40,13 +40,13 @@ class TestGribBuilderV01(unittest.TestCase):
                             'credentials_file': self.credentials_file,
                             'path': '/opt/public/data/grids/hrrr/conus/wrfprs/grib2',
                             'file_name_mask': '%y%j%H%f',
-                            'output_dir': '/opt/data/grib_to_cb/output',
+                            'output_dir': '/opt/data/grib2_to_cb/output',
                             'threads': 1,
                             'number_stations': 3,  # only process 3 stations
                             'first_epoch': first_epoch,
                             'last_epoch': last_epoch
                             })
-            list_of_output_files = glob.glob('/opt/data/grib_to_cb/output/*')
+            list_of_output_files = glob.glob('/opt/data/grib2_to_cb/output/*')
             latest_output_file = max(
                 list_of_output_files, key=os.path.getctime)
             # Opening JSON file

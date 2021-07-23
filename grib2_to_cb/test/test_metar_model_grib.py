@@ -16,9 +16,14 @@ from grib2_to_cb.run_ingest_threads import VXIngest
 
 
 class TestGribBuilderV01(unittest.TestCase):
+    """
+    This test expects to find a valid grib file in the local directory /opt/public/data/grids/hrrr/conus/wrfprs/grib2.
+    This test expects to write to the local output directory /opt/data/grib_to_cb/output so that directory should exist.
+    """
     # 21 196 14 000018 %y %j %H %f  treating the last 6 decimals as microseconds even though they are not.
     # these files are two digit year, day of year, hour, and forecast lead time (6 digit ??)
-    def test_main(self):
+
+    def test_gribBuilder_verses_script(self):
         # noinspection PyBroadException
         try:
             list_of_input_files = glob.glob(
@@ -41,24 +46,24 @@ class TestGribBuilderV01(unittest.TestCase):
                             'first_epoch': first_epoch,
                             'last_epoch': last_epoch
                             })
-            _list_of_output_files = glob.glob('/opt/data/grib_to_cb/output/*')
-            _latest_output_file = max(
-                _list_of_output_files, key=os.path.getctime)
+            list_of_output_files = glob.glob('/opt/data/grib_to_cb/output/*')
+            latest_output_file = max(
+                list_of_output_files, key=os.path.getctime)
             # Opening JSON file
-            _f = open(_latest_output_file)
+            f = open(latest_output_file)
             # returns JSON object as
             # a dictionary
-            vxIngest_output_data = json.load(_f)
+            vxIngest_output_data = json.load(f)
             # Closing file
-            _f.close()
-            _output_station_data = {}
-            _expected_station_data = {}
+            f.close()
+            output_station_data = {}
+            expected_station_data = {}
 
-            _f = open(self.credentials_file)
-            _yaml_data = yaml.load(_f, yaml.SafeLoader)
-            host = _yaml_data['cb_host']
-            user = _yaml_data['cb_user']
-            password = _yaml_data['cb_password']
+            f = open(self.credentials_file)
+            yaml_data = yaml.load(f, yaml.SafeLoader)
+            host = yaml_data['cb_host']
+            user = yaml_data['cb_user']
+            password = yaml_data['cb_password']
             options = ClusterOptions(PasswordAuthenticator(user, password))
             self.cluster = Cluster('couchbase://' + host, options)
             self.collection = self.cluster.bucket("mdata").default_collection()
@@ -81,10 +86,10 @@ class TestGribBuilderV01(unittest.TestCase):
                 proj_from=self.out_proj, proj_to=self.in_proj)
             self.domain_stations = []
             for i in vxIngest_output_data[0]['data']:
-                _station_name = i['name']
+                station_name = i['name']
                 result = self.cluster.query(
                     "SELECT mdata.geo.lat, mdata.geo.lon from mdata where type='MD' and docType='station' and subset='METAR' and version='V01' and mdata.name = $name",
-                    name=_station_name)
+                    name=station_name)
                 row = result.get_single_result()
                 i['lat'] = row['lat']
                 i['lon'] = row['lon']
@@ -96,139 +101,152 @@ class TestGribBuilderV01(unittest.TestCase):
                 station = copy.deepcopy(row)
                 station['x_gridpoint'] = x_gridpoint
                 station['y_gridpoint'] = y_gridpoint
-                station['name'] = _station_name
+                station['name'] = station_name
                 self.domain_stations.append(station)
 
-            _expected_station_data['fcstValidEpoch'] = round(
+            expected_station_data['fcstValidEpoch'] = round(
                 self.grbm.analDate.timestamp())
-            self.assertEqual(_expected_station_data['fcstValidEpoch'], vxIngest_output_data[0]['fcstValidEpoch'],
+            self.assertEqual(expected_station_data['fcstValidEpoch'], vxIngest_output_data[0]['fcstValidEpoch'],
                              "expected fcstValidEpoch and derived fcstValidEpoch are not the same")
-            _expected_station_data['fcstValidBeg'] = self.grbm.analDate.isoformat(
+            expected_station_data['fcstValidBeg'] = self.grbm.analDate.isoformat(
             )
-            self.assertEqual(_expected_station_data['fcstValidBeg'], vxIngest_output_data[0]['fcstValidBeg'],
+            self.assertEqual(expected_station_data['fcstValidBeg'], vxIngest_output_data[0]['fcstValidBeg'],
                              "expected fcstValidBeg and derived fcstValidBeg are not the same")
-            _expected_station_data['id'] = "DD-TEST:V01:METAR:HRRR_OPS:1626379200:" + str(
+            expected_station_data['id'] = "DD-TEST:V01:METAR:HRRR_OPS:1626379200:" + str(
                 self.grbm.forecastTime)
-            self.assertEqual(_expected_station_data['id'], vxIngest_output_data[0]['id'],
+            self.assertEqual(expected_station_data['id'], vxIngest_output_data[0]['id'],
                              "expected id and derived id are not the same")
 
             # Ceiling
-            _message = self.grbs.select(name='Orography')[0]
-            surface_hgt_values = _message['values']
+            message = self.grbs.select(name='Orography')[0]
+            surface_hgt_values = message['values']
 
-            _message = self.grbs.select(name='Geopotential Height', typeOfFirstFixedSurface='215')[0]
-            ceil_values = _message['values']
+            message = self.grbs.select(
+                name='Geopotential Height', typeOfFirstFixedSurface='215')[0]
+            ceil_values = message['values']
 
             for i in range(len(self.domain_stations)):
                 station = self.domain_stations[i]
-                surface = surface_hgt_values[round(station['y_gridpoint']), round(station['x_gridpoint'])]
-                ceil_msl = ceil_values[round(station['y_gridpoint']), round(station['x_gridpoint'])]
+                surface = surface_hgt_values[round(
+                    station['y_gridpoint']), round(station['x_gridpoint'])]
+                ceil_msl = ceil_values[round(
+                    station['y_gridpoint']), round(station['x_gridpoint'])]
                 # Convert to ceiling AGL and from meters to tens of feet (what is currently inside SQL, we'll leave it as just feet in CB)
                 ceil_agl = (ceil_msl - surface) * 0.32808
 
-                # lazy initialization of _expected_station_data 
-                if 'data' not in _expected_station_data.keys():
-                    _expected_station_data['data'] = []
-                if len(_expected_station_data['data']) <= i:
-                    _expected_station_data['data'].append({})
+                # lazy initialization of _expected_station_data
+                if 'data' not in expected_station_data.keys():
+                    expected_station_data['data'] = []
+                if len(expected_station_data['data']) <= i:
+                    expected_station_data['data'].append({})
 
-                _expected_station_data['data'][i]['Ceiling'] = ceil_agl
+                expected_station_data['data'][i]['Ceiling'] = ceil_agl
 
             # Surface Pressure
-            _message = self.grbs.select(name='Surface pressure')[0]
-            _values = _message['values']
+            message = self.grbs.select(name='Surface pressure')[0]
+            values = message['values']
             for i in range(len(self.domain_stations)):
                 station = self.domain_stations[i]
-                _value = _values[round(station['y_gridpoint']), round(station['x_gridpoint'])]
+                value = values[round(station['y_gridpoint']), round(
+                    station['x_gridpoint'])]
                 # interpolated gridpoints cannot be rounded
-                _interpolated_value = gg.interpGridBox(_values, station['y_gridpoint'], station['x_gridpoint'])
-                pres_mb = _interpolated_value * 100
-                _expected_station_data['data'][i]['Surface Pressure'] = pres_mb
+                interpolated_value = gg.interpGridBox(
+                    values, station['y_gridpoint'], station['x_gridpoint'])
+                pres_mb = interpolated_value * 100
+                expected_station_data['data'][i]['Surface Pressure'] = pres_mb
 
             # Temperature
-            _message = self.grbs.select(name='2 metre temperature')[0]
-            _values = _message['values']
+            message = self.grbs.select(name='2 metre temperature')[0]
+            values = message['values']
             for i in range(len(self.domain_stations)):
                 station = self.domain_stations[i]
-                tempk = gg.interpGridBox(_values, station['y_gridpoint'], station['x_gridpoint'])
+                tempk = gg.interpGridBox(
+                    values, station['y_gridpoint'], station['x_gridpoint'])
                 tempf = ((tempk-273.15)*9)/5 + 32
-                _expected_station_data['data'][i]['Temperature'] = tempf
+                expected_station_data['data'][i]['Temperature'] = tempf
 
             # Dewpoint
-            _message = self.grbs.select(name='2 metre dewpoint temperature')[0]
-            _values = _message['values']
+            message = self.grbs.select(name='2 metre dewpoint temperature')[0]
+            values = message['values']
             for i in range(len(self.domain_stations)):
                 station = self.domain_stations[i]
-                dpk = gg.interpGridBox(_values, station['y_gridpoint'], station['x_gridpoint'])
+                dpk = gg.interpGridBox(
+                    values, station['y_gridpoint'], station['x_gridpoint'])
                 dpf = ((dpk-273.15)*9)/5 + 32
-                _expected_station_data['data'][i]['DewPoint'] = dpf
+                expected_station_data['data'][i]['DewPoint'] = dpf
 
             # Relative Humidity
-            _message = self.grbs.select(name='2 metre relative humidity')[0]
-            _values = _message['values']
+            message = self.grbs.select(name='2 metre relative humidity')[0]
+            values = message['values']
             for i in range(len(self.domain_stations)):
                 station = self.domain_stations[i]
-                rh = gg.interpGridBox(_values, station['y_gridpoint'], station['x_gridpoint'])
-                _expected_station_data['data'][i]['RH'] = rh
+                rh = gg.interpGridBox(
+                    values, station['y_gridpoint'], station['x_gridpoint'])
+                expected_station_data['data'][i]['RH'] = rh
 
             # Wind Speed
-            _message = self.grbs.select(name='10 metre U wind component')[0]
-            _uwind_values = _message['values']
+            message = self.grbs.select(name='10 metre U wind component')[0]
+            uwind_values = message['values']
 
-            _vwind_message = self.grbs.select(name='10 metre V wind component')[0]
-            _vwind_values = _vwind_message['values']
+            vwind_message = self.grbs.select(
+                name='10 metre V wind component')[0]
+            vwind_values = vwind_message['values']
 
             for i in range(len(self.domain_stations)):
                 station = self.domain_stations[i]
-                uwind_ms = gg.interpGridBox(_uwind_values, station['y_gridpoint'], station['x_gridpoint'])
-                vwind_ms = gg.interpGridBox(_vwind_values, station['y_gridpoint'], station['x_gridpoint'])
+                uwind_ms = gg.interpGridBox(
+                    uwind_values, station['y_gridpoint'], station['x_gridpoint'])
+                vwind_ms = gg.interpGridBox(
+                    vwind_values, station['y_gridpoint'], station['x_gridpoint'])
                 # Convert from U-V components to speed and direction (requires rotation if grid is not earth relative)
                 # wind speed then convert to mph
                 ws_ms = math.sqrt((uwind_ms*uwind_ms)+(vwind_ms*vwind_ms))
                 ws_mph = (ws_ms/0.447) + 0.5
-                _expected_station_data['data'][i]['WS'] = ws_mph
+                expected_station_data['data'][i]['WS'] = ws_mph
 
                 # wind direction   - lon is the lon of the station
                 station = self.domain_stations[i]
-                theta = gg.getWindTheta(_vwind_message, station['lon'])
+                theta = gg.getWindTheta(vwind_message, station['lon'])
                 radians = math.atan2(uwind_ms, vwind_ms)
                 wd = (radians*57.2958) + theta + 180
-                _expected_station_data['data'][i]['WD'] = wd
+                expected_station_data['data'][i]['WD'] = wd
 
             # Visibility
-            _message = self.grbs.select(name='Visibility')[0]
-            _values = _message['values']
+            message = self.grbs.select(name='Visibility')[0]
+            values = message['values']
             for i in range(len(self.domain_stations)):
                 station = self.domain_stations[i]
-                _value = _values[round(station['y_gridpoint']), round(station['x_gridpoint'])]
-                _expected_station_data['data'][i]['Visibility'] = _value
+                value = values[round(station['y_gridpoint']), round(
+                    station['x_gridpoint'])]
+                expected_station_data['data'][i]['Visibility'] = value
             self.grbs.close()
 
             for i in range(len(self.domain_stations)):
-                self.assertAlmostEqual(_expected_station_data['data'][i]['Ceiling'],
+                self.assertAlmostEqual(expected_station_data['data'][i]['Ceiling'],
                                        vxIngest_output_data[0]['data'][i]['Ceiling'], msg="Expected Ceiling and derived Ceiling are not equal")
 
-                self.assertAlmostEqual(_expected_station_data['data'][i]['Surface Pressure'],
+                self.assertAlmostEqual(expected_station_data['data'][i]['Surface Pressure'],
                                        vxIngest_output_data[0]['data'][i]['Surface Pressure'], msg="Expected Surface Pressure and derived Surface Pressure are not equal")
 
-                self.assertAlmostEqual(_expected_station_data['data'][i]['Temperature'],
+                self.assertAlmostEqual(expected_station_data['data'][i]['Temperature'],
                                        vxIngest_output_data[0]['data'][i]['Temperature'], msg="Expected Temperature and derived Temperature are not equal")
 
-                self.assertAlmostEqual(_expected_station_data['data'][i]['DewPoint'],
+                self.assertAlmostEqual(expected_station_data['data'][i]['DewPoint'],
                                        vxIngest_output_data[0]['data'][i]['DewPoint'], msg="Expected DewPoint and derived DewPoint are not equal")
 
-                self.assertAlmostEqual(_expected_station_data['data'][i]['RH'],
+                self.assertAlmostEqual(expected_station_data['data'][i]['RH'],
                                        vxIngest_output_data[0]['data'][i]['RH'], msg="Expected RH and derived RH are not equal")
 
-                self.assertAlmostEqual(_expected_station_data['data'][i]['WS'],
+                self.assertAlmostEqual(expected_station_data['data'][i]['WS'],
                                        vxIngest_output_data[0]['data'][i]['WS'], msg="Expected WS and derived WS are not equal")
 
-                self.assertAlmostEqual(_expected_station_data['data'][i]['WD'],
+                self.assertAlmostEqual(expected_station_data['data'][i]['WD'],
                                        vxIngest_output_data[0]['data'][i]['WD'], msg="Expected WD and derived WD are not equal")
 
-                self.assertAlmostEqual(_expected_station_data['data'][i]['Visibility'],
+                self.assertAlmostEqual(expected_station_data['data'][i]['Visibility'],
                                        vxIngest_output_data[0]['data'][i]['Visibility'], msg="Expected Visibility and derived Visibility are not equal")
 
         except:
             self.fail("TestGribBuilderV01 Exception failure: " +
                       str(sys.exc_info()[0]))
+        return

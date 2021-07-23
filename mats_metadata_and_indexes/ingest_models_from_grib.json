@@ -1,0 +1,82 @@
+[
+    {
+        "builder_type": "GribModelBuilderV01",
+        "validTimeInterval": 3600,
+        "validTimeDelta": 1800,
+        "docType": "ingest",
+        "subDocType": "grib2",
+        "id": "MD:V01:METAR:HRRR_OPS:ingest:grib2",
+        "model": "HRRR_OPS",
+        "fcstLens": "0,1,3,6,9,12,15,18,21,24,27,30,33,36",
+        "variableList": "'PRES:surface:', 'DPT:2 m above ground:', 'UGRD:10 m above ground:', 'VGRD:10 m above ground:', 'TMP:2 m above ground', 'HGT:cloud ceiling:', 'VIS:surface:'",
+        "subType": "model",
+        "subset": "METAR",
+        "template": {
+          "correctedTime": "",
+          "data": {
+            "&getName": {
+              "Ceiling": "&handle_ceiling",
+              "DewPoint": "&kelvin_to_farenheight|*2 metre dewpoint temperature",
+              "Surface Pressure": "&handle_surface_pressure|*Surface pressure",
+              "Temperature": "&kelvin_to_farenheight|*2 metre temperature",
+              "Visibility": "&handle_visibility|*Visibility",
+              "RH": "&handle_RH|*2 metre relative humidity",
+              "WD": "&handle_wind_direction",
+              "WS": "&handle_wind_speed|*10 metre U wind component,*10 metre V wind component",
+              "name": "&getName"
+            }
+          },
+          "dataSourceId": "NCO",
+          "docType": "model",
+          "model": "HRRR_OPS",
+          "fcstValidBeg": "&handle_iso_time",
+          "fcstValidEpoch": "&handle_time",
+          "id": "DD:V01:METAR:HRRR_OPS:&handle_time:&handle_fcst_len",
+          "subset": "METAR",
+          "type": "DD",
+          "version": "V01"
+        },
+        "type": "MD",
+        "version": "V01"
+      },
+      {
+        "builder_type": "GribModelBuilderV01",
+        "validTimeInterval": 3600,
+        "validTimeDelta": 1800,
+        "docType": "ingest",
+        "subDocType": "grib2",
+        "id": "MD-TEST:V01:METAR:HRRR_OPS:ingest:grib2",
+        "model": "HRRR_OPS",
+        "fcstLens": "0,1,3,6,9,12,15,18,21,24,27,30,33,36",
+        "variableList": "'PRES:surface:', 'DPT:2 m above ground:', 'UGRD:10 m above ground:', 'VGRD:10 m above ground:', 'TMP:2 m above ground', 'HGT:cloud ceiling:', 'VIS:surface:'",
+        "subType": "model",
+        "subset": "METAR",
+        "template": {
+          "correctedTime": "",
+          "data": {
+            "&getName": {
+              "Ceiling": "&handle_ceiling",
+              "DewPoint": "&kelvin_to_farenheight|*2 metre dewpoint temperature",
+              "Surface Pressure": "&handle_surface_pressure|*Surface pressure",
+              "Temperature": "&kelvin_to_farenheight|*2 metre temperature",
+              "Visibility": "&handle_visibility|*Visibility",
+              "RH": "&handle_RH|*2 metre relative humidity",
+              "WD": "&handle_wind_direction",
+              "WS": "&handle_wind_speed|*10 metre U wind component,*10 metre V wind component",
+              "name": "&getName"
+            }
+          },
+          "dataSourceId": "NCO",
+          "docType": "model",
+          "model": "HRRR_OPS",
+          "fcstValidBeg": "&handle_iso_time",
+          "fcstValidEpoch": "&handle_time",
+          "id": "DD-TEST:V01:METAR:HRRR_OPS:&handle_time:&handle_fcst_len",
+          "subset": "METAR",
+          "type": "DD-TEST",
+          "version": "V01"
+        },
+        "type": "MD-TEST",
+        "version": "V01"
+      }
+]

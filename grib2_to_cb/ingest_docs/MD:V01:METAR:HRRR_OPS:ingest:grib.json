@@ -16,9 +16,10 @@
       "&getName": {
         "Ceiling": "&handle_ceiling",
         "DewPoint": "&kelvin_to_farenheight|*2 metre dewpoint temperature",
-        "Surface Pressure": "*Surface pressure",
+        "Surface Pressure": "&handle_surface_pressure|*Surface pressure",
         "Temperature": "&kelvin_to_farenheight|*2 metre temperature",
-        "Visibility": "*Visibility",
+        "Visibility": "&handle_visibility|*Visibility",
+        "RH": "&handle_RH|*2 metre relative humidity",
         "WD": "&handle_wind_direction",
         "WS": "&handle_wind_speed|*10 metre U wind component,*10 metre V wind component",
         "name": "&getName"

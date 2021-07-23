@@ -7,19 +7,23 @@ Colorado, NOAA/OAR/ESRL/GSL
 """
 
 import copy
+import cProfile
 import datetime as dt
 import logging
-import sys
-import time
 import math
-import calendar
+import sys
+from datetime import datetime, timedelta
+from pstats import Stats
+
+import pygrib
+import pyproj
 from couchbase.cluster import Cluster, ClusterOptions, PasswordAuthenticator
 from couchbase.exceptions import CouchbaseException
-from couchbase.search import QueryStringQuery, SearchQuery, SearchOptions, PrefixQuery, HighlightStyle, SortField, SortScore, TermFacet
 from couchbase.mutation_state import MutationState
-from datetime import datetime, timedelta
-import pyproj
-import pygrib
+from couchbase.search import (HighlightStyle, PrefixQuery, QueryStringQuery,
+                              SearchOptions, SearchQuery, SortField, SortScore,
+                              TermFacet)
+
 import grib2_to_cb.get_grid as gg
 
 TS_OUT_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
@@ -28,9 +32,9 @@ TS_OUT_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 def convert_to_iso(an_epoch):
     if not isinstance(an_epoch, int):
         an_epoch = int(an_epoch)
-    _valid_time_str = dt.datetime.utcfromtimestamp(
+    valid_time_str = dt.datetime.utcfromtimestamp(
         an_epoch).strftime(TS_OUT_FORMAT)
-    return _valid_time_str
+    return valid_time_str
 
 
 def initialize_data(doc):
@@ -42,11 +46,12 @@ def initialize_data(doc):
 
 
 class GribBuilder:
-    def __init__(self, load_spec, ingest_document, cluster, collection):
+    def __init__(self, load_spec, ingest_document, cluster, collection, number_stations=sys.maxsize):
         self.template = ingest_document['template']
         self.load_spec = load_spec
         self.cluster = cluster
         self.collection = collection
+        self.number_stations = number_stations
         self.id = None
         self.document_map = {}
         self.projection = None
@@ -68,65 +73,78 @@ class GribBuilder:
     def handlestation(self, row):
         pass
 
-    def derive_id(self, template_id, station):
+    def derive_id(self, template_id):
         # Private method to derive a document id from the current station,
         # substituting *values from the corresponding grib fields as necessary.
         # noinspection PyBroadException
         try:
-            _parts = template_id.split(':')
+            parts = template_id.split(':')
             new_parts = []
-            for _part in _parts:
-                if _part.startswith('&'):
-                    value = str(self.handle_named_function(_part, station))
+            for part in parts:
+                if part.startswith('&'):
+                    value = str(self.handle_named_function(part))
                 else:
-                    if _part.startswith("*"):
-                        value = str(
-                            self.translate_template_item(_part, station))
+                    if part.startswith("*"):
+                        v, _interp_v = self.translate_template_item(part)
+                        value = str(v)
                     else:
-                        value = str(_part)
+                        value = str(part)
                 new_parts.append(value)
-            _new_id = ":".join(new_parts)
-            return _new_id
+            new_id = ":".join(new_parts)
+            return new_id
         except:
             e = sys.exc_info()
             logging.error("GribBuilder.derive_id: Exception  error: " + str(e))
 
-    def translate_template_item(self, variable, station):
+    def translate_template_item(self, variable, single_return = False):
         """
         This method translates template replacements (*item or *item1*item2).
         It can translate keys or values. 
-        :param variable: a value from the template - should be a grib2 variable
-        :param station: the current station
-        :return:
+        :param variable: a value from the template - should be a grib2 variable or a constant
+        :param single_return: if this is True on one value is returned, otherwise an array.
+        single_returns are always constants (no replacement).
+        :return: It returns an array of values, ordered by domain_stations, or a single value
+        depending on the single_return parameter.
         """
-        _replacements = []
+        replacements = []
         # noinspection PyBroadException
         try:
+            if single_return:
+                return (variable, variable)
             if isinstance(variable, str):
                 # skip the first replacement, its never
                 # really a replacement. It is either '' or not a
                 # replacement
-                _replacements = variable.split('*')[1:]
-            value = variable  # in case it isn't a replacement - makes it easier
-            if len(_replacements) > 0:
-                for _ri in _replacements:
-                    _gribVals = self.grbs.select(name=_ri)[0]
-                    _values = _gribVals['values']
-                    _value = _values[round(station['y_gridpoint']), round(
-                        station['x_gridpoint'])]
-                    if _ri.startswith("{ISO}"):
-                        value = value.replace(
-                            "*" + _ri, convert_to_iso(_ri))
-                    else:
-                        value = value.replace("*" + _ri, str(_value))
-                return value
+                replacements = variable.split('*')[1:]
+            station_value = variable  # in case it isn't a replacement - makes it easier
+            if len(replacements) > 0:
+                station_values = []
+                for ri in replacements:
+                    message = self.grbs.select(name=ri)[0]
+                    values = message['values']
+                    for station in self.domain_stations:
+                        station_value = values[round(station['y_gridpoint']), round(station['x_gridpoint'])]
+                        # interpolated gridpoints cannot be rounded
+                        interpolated_value = gg.interpGridBox(
+                            values, station['y_gridpoint'], station['x_gridpoint'])
+                        if ri.startswith("{ISO}"):
+                            station_value = variable.replace("*" + ri, convert_to_iso(station_value))
+                        else:
+                            station_value = variable.replace("*" + ri, str(station_value))
+                        station_values.append((station_value, interpolated_value))
+                return station_values
+            # it is a constant, no replacements but we still need one for each station
+            return [(station_value, station_value) for i in range(len(self.domain_stations))]
         except Exception as e:
             logging.error(
                 "GribBuilder.translate_template_item: Exception  error: " + str(e))
-        return value
 
     def handle_document(self):
         """
+        This routine processes the complete document (essentially a complete grib file)
+        Each template key or value that corresponds to a variable will be selected from
+        the grib file into a pygrib message and then
+        each station will get values from the grib message.
         :return: The modified document_map
         """
         # noinspection PyBroadException
@@ -138,13 +156,11 @@ class GribBuilder:
             # make a copy of the template, which will become the new document
             # once all the translations have occured
             new_document = initialize_data(new_document)
-            for station in self.domain_stations:
-                logging.info("GribBuilder.handle_document - processing station " + station['name'])
-                for _key in self.template.keys():
-                    if _key == "data":
-                        new_document = self.handle_data(new_document, station)
-                        continue
-                    new_document = self.handle_key(new_document, station, _key)
+            for key in self.template.keys():
+                if key == "data":
+                    new_document = self.handle_data(new_document)
+                    continue
+                new_document = self.handle_key(new_document, key)
             # put document into document map
             if new_document['id']:
                 logging.info(
@@ -158,7 +174,7 @@ class GribBuilder:
                                                     "builder: " + self.__class__.__name__ + " error: " + str(e))
             raise e
 
-    def handle_key(self, doc, station, _key):
+    def handle_key(self, doc, key):
         """
         This routine handles keys by substituting 
         the grib variables that correspond to the key into the values
@@ -170,29 +186,28 @@ class GribBuilder:
         """
         # noinspection PyBroadException
         try:
-            if _key == 'id':
-                _id = self.derive_id(self.template['id'], station)
-                if not _id in doc:
-                    doc['id'] = _id
+            if key == 'id':
+                id = self.derive_id(self.template['id'])
+                if not id in doc:
+                    doc['id'] = id
                 return doc
-            if isinstance(doc[_key], dict):
+            if isinstance(doc[key], dict):
                 # process an embedded dictionary
-                _tmp_doc = copy.deepcopy(self.template[_key])
-                for _sub_key in _tmp_doc.keys():
-                    _tmp_doc = self.handle_key(
-                        _tmp_doc, station, _sub_key)  # recursion
-                doc[_key] = _tmp_doc
-            if not isinstance(doc[_key], dict) and isinstance(doc[_key], str) and doc[_key].startswith('&'):
-                doc[_key] = self.handle_named_function(doc[_key], station)
+                tmp_doc = copy.deepcopy(self.template[key])
+                for sub_key in tmp_doc.keys():
+                    tmp_doc = self.handle_key(tmp_doc, sub_key)  # recursion
+                doc[key] = tmp_doc
+            if not isinstance(doc[key], dict) and isinstance(doc[key], str) and doc[key].startswith('&'):
+                doc[key] = self.handle_named_function(doc[key])
             else:
-                doc[_key] = self.translate_template_item(doc[_key], station)
+                doc[key], _interp_v = self.translate_template_item(doc[key], True)
             return doc
         except Exception as e:
             logging.error(
                 self.__class__.__name__ + "GribBuilder.handle_key: Exception in builder:  error: " + str(e))
         return doc
 
-    def handle_named_function(self, _named_function_def, station):
+    def handle_named_function(self, _named_function_def):
         """
         This routine processes a named function entry from a template.
         :param _named_function_def - this can be either a template key or a template value.
@@ -208,52 +223,55 @@ class GribBuilder:
         :station the station being processed.
         """
         # noinspection PyBroadException
-        _func = None
+        func = None
         try:
-            _parts = _named_function_def.split('|') 
-            _func = _parts[0].replace('&', '')
-            _params = []
-            if len(_parts) > 1:
-                _params = _parts[1].split(',')
-            _dict_params = {"station": station}
-            for _p in _params:
+            parts = _named_function_def.split('|')
+            func = parts[0].replace('&', '')
+            params = []
+            if len(parts) > 1:
+                params = parts[1].split(',')
+            dict_params = {}
+            for p in params:
                 # be sure to slice the * off of the front of the param
-                _dict_params[_p[1:]] = self.translate_template_item(
-                    _p, station)
+                # translate_template_item returns an array of tuples - value,interp_value, one ofr each station
+                # ordered by domain_stations.
+                dict_params[p[1:]] = self.translate_template_item(p)
             # call the named function using getattr
-            _replace_with = getattr(self, _func)(_dict_params)
+            replace_with = getattr(self, func)(dict_params)
         except Exception as e:
             logging.error(
-                self.__class__.__name__ + " handle_named_function: " + _func + " Exception instantiating builder:  error: " + str(e))
-        return _replace_with
+                self.__class__.__name__ + " handle_named_function: " + func + " Exception instantiating builder:  error: " + str(e))
+        return replace_with
 
-    def handle_data(self, doc, station):
+    def handle_data(self, doc):
         # noinspection PyBroadException
         try:
-            _data_elem = {}
-            _data_key = next(iter(self.template['data']))
-            _data_template = self.template['data'][_data_key]
-            for key in _data_template.keys():
+            data_elem = {}
+            data_key = next(iter(self.template['data']))
+            data_template = self.template['data'][data_key]
+            for key in data_template.keys():
                 try:
-                    value = _data_template[key]
+                    value = data_template[key]
                     # values can be null...
                     if value and value.startswith('&'):
-                        value = self.handle_named_function(value, station)
+                        value = self.handle_named_function(value)
                     else:
-                        value = self.translate_template_item(value, station)
+                        value, interp_value = self.translate_template_item(value)
                 except Exception as e:
                     value = None
                     logging.warning(self.__class__.__name__ +
                                     "GribBuilder.handle_data - value is None")
-                _data_elem[key] = value
-            if _data_key.startswith('&'):
-                _data_key = self.handle_named_function(_data_key, station)
+                data_elem[key] = value
+            if data_key.startswith('&'):
+                data_key = self.handle_named_function(data_key)
             else:
-                _data_key = self.translate_template_item(_data_key, station)
-            if _data_key is None:
+                # _ ignore the interp_value part of the returned tuple
+                data_key, _interp_value = self.translate_template_item(data_key)
+            if data_key is None:
                 logging.warning(self.__class__.__name__ +
                                 "GribBuilder.handle_data - _data_key is None")
-            doc = self.load_data(doc, _data_key, _data_elem)
+            
+            doc = self.load_data(doc, data_key, data_elem)
             return doc
         except Exception as e:
             logging.error(self.__class__.__name__ +
@@ -266,7 +284,7 @@ class GribBuilder:
         These documents are id'd by time and fcstLen. The data section is an array 
         each element of which contains variable data and a station name. To process this
         file we need to itterate the domain_stations list and process the station name along
-        with all the other variables in the variableList.
+        with all the required variables.
         """
         # noinspection PyBroadException
         try:
@@ -284,11 +302,16 @@ class GribBuilder:
                 proj_from=self.in_proj, proj_to=self.out_proj)
             self.transformer_reverse = pyproj.Transformer.from_proj(
                 proj_from=self.out_proj, proj_to=self.in_proj)
-            # get stations from couchbase
+            # get stations from couchbase and filter them so
+            # that we retain only the ones for this models domain which is derived from the projection
             self.domain_stations = []
             result = self.cluster.query(
                 "SELECT mdata.geo.lat, mdata.geo.lon, name from mdata where type='MD' and docType='station' and subset='METAR' and version='V01'")
+            station_limit = self.number_stations
+            count = 1
             for row in result:
+                if count > station_limit:
+                    break
                 x, y = self.transformer.transform(
                     row['lon'], row['lat'], radians=False)
                 x_gridpoint, y_gridpoint = x/self.spacing, y/self.spacing
@@ -298,20 +321,33 @@ class GribBuilder:
                 station['x_gridpoint'] = x_gridpoint
                 station['y_gridpoint'] = y_gridpoint
                 self.domain_stations.append(station)
-            self.handle_document()
-            _document_map = self.get_document_map()
-            return _document_map
+                count = count + 1
+
+            # if we have asked for profiling go ahead and do it
+            if self.do_profiling:
+                with cProfile.Profile() as pr:
+                    self.handle_document()
+                    with open('profiling_stats.txt', 'w') as stream:
+                        stats = Stats(pr, stream=stream)
+                        stats.strip_dirs()
+                        stats.sort_stats('time')
+                        stats.dump_stats('profiling_stats.prof')
+                        stats.print_stats()
+            else:
+                self.handle_document()
+            document_map = self.get_document_map()
+            return document_map
         except Exception as e:
             logging.error(self.__class__.__name__ +
                           ": Exception with builder build_document: error: " + str(e))
-            self.close()
             return {}
-
+        finally:
+            self.grbs.close()
 # Concrete builders
 
 
 class GribModelBuilderV01(GribBuilder):
-    def __init__(self, load_spec, ingest_document, cluster, collection):
+    def __init__(self, load_spec, ingest_document, cluster, collection, number_stations=sys.maxsize):
         """
         This builder creates a set of V01 model documents using the stations in the station list.
         This builder loads domain qualified station data into memory, and uses the domain_station 
@@ -323,17 +359,21 @@ class GribModelBuilderV01(GribBuilder):
         :param ingest_document: the document from the ingest document
         :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
         :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
+        :param number_stations - the maximum number of stations to process
         """
-        GribBuilder.__init__(self, load_spec, ingest_document, cluster, collection)
+        GribBuilder.__init__(self, load_spec, ingest_document,
+                             cluster, collection, number_stations=sys.maxsize)
         self.cluster = cluster
         self.collection = collection
+        self.number_stations = number_stations
         self.same_time_rows = []
         self.time = 0
         self.interpolated_time = 0
         self.delta = ingest_document['validTimeDelta']
         self.cadence = ingest_document['validTimeInterval']
-        self.variableList = ingest_document['variableList']
         self.template = ingest_document['template']
+        # self.do_profiling = True  # set to True to enable build_document profiling
+        self.do_profiling = False  # set to True to enable build_document profiling
 
     def get_document_map(self):
         """
@@ -346,106 +386,187 @@ class GribModelBuilderV01(GribBuilder):
 
     def load_data(self, doc, key, element):
         """
-        This method appends an observation to the data array
+        This method builds the data array. It gets the data key ('data') and the data element
+        which in this case is a set of arrays. This routine has to create the data array from these
+        arrays which are lists of values ordered by domain_station.
         :param doc: The document being created
         :param key: Not used
         :param element: the observation data
         :return: the document being created
         """
         if 'data' not in doc.keys() or doc['data'] is None:
+            keys = list(element.keys())
             doc['data'] = []
-        doc['data'].append(element)
+            for i in range(len(self.domain_stations)):
+                elem = {}
+                for key in keys:
+                    elem[key] = element[key][i]    
+                doc['data'].append(elem)
         return doc
 
     # named functions
 
     def handle_ceiling(self, params_dict):
-        station = params_dict['station']
-        x_gridpoint = station['x_gridpoint']
-        y_gridpoint = station['y_gridpoint']
-        surface_hgt = self.grbs.select(name='Orography')[0]
-        surface_hgt_values = surface_hgt['values']
-        surface = surface_hgt_values[round(y_gridpoint),round(x_gridpoint)]
-        ceil = self.grbs.select(name='Geopotential Height', typeOfFirstFixedSurface='215')[0]
-        ceil_values = ceil['values']
-        ceil_msl = ceil_values[round(y_gridpoint),round(x_gridpoint)]
+        """
+        the dict_params aren't used here since we need to 
+        select two messages (self.grbs.select is expensive since it scans the whole grib file).
+        Each message is selected once and the station location data saved in an array,
+        then all the domain_stations are iterated (in memory operation)
+        to make the ceiling calculations for each station location.
+        """
+        message = self.grbs.select(name='Orography')[0]
+        values = message['values']
+        surface_values = []
+        for station in self.domain_stations:
+            x_gridpoint = round(station['x_gridpoint'])
+            y_gridpoint = round(station['y_gridpoint'])
+            surface_values.append(values[y_gridpoint, x_gridpoint])
+
+        message = self.grbs.select(
+            name='Geopotential Height', typeOfFirstFixedSurface='215')[0]
+        values = message['values']
+
+        ceil_msl_values = []
+        for station in self.domain_stations:
+            x_gridpoint = round(station['x_gridpoint'])
+            y_gridpoint = round(station['y_gridpoint'])
+            ceil_msl_values.append(values[y_gridpoint, x_gridpoint])
+
         # Convert to ceiling AGL and from meters to tens of feet (what is currently inside SQL, we'll leave it as just feet in CB)
-        ceil_agl = (ceil_msl - surface) * 0.32808
+        ceil_agl = []
+        for i in range(len(self.domain_stations)):
+            ceil_agl.append((ceil_msl_values[i] - surface_values[i]) * 0.32808)
         return ceil_agl
 
         # SURFACE PRESSURE
     def handle_surface_pressure(self, params_dict):
-        _key = None
-        for _key in params_dict.keys():
-            if _key != "station":
-                break
-        # Convert from pascals to milibars
-        pres = params_dict[_key]
-        pres_mb = pres * 100
-        return pres_mb
+        """
+        translate all the pressures(one per station location) to milibars
+        """
+        pressures = []
+        for v, v_intrp_pressure in list(params_dict.values())[0]:
+            # Convert from pascals to milibars
+            pressures.append(v_intrp_pressure * 100)
+        return pressures
+
+        # Visibility - convert to float
+    def handle_visibility(self, params_dict):
+        # convert all the values to a float
+        vis_values = []
+        for v, v_intrp_ignore in list(params_dict.values())[0]:
+            vis_values.append(float(v))
+        return vis_values
+
+        # relative humidity - convert to float
+    def handle_RH(self, params_dict):
+        # convert all the values to a float
+        rh_interpolated_values = []
+        for v, v_intrp_pressure in list(params_dict.values())[0]:
+            rh_interpolated_values.append(float(v_intrp_pressure))
+        return rh_interpolated_values
 
     def kelvin_to_farenheight(self, params_dict):
         """
             param:params_dict expects {'station':{},'*variable name':variable_value}
             Used for temperature and dewpoint
         """
-        _key = None
-        for _key in params_dict.keys():
-            if _key != "station":
-                break
-        # Convert from Kelvin to Farenheit
-        tempk = float(params_dict[_key])
-        value = ((tempk-273.15)*9)/5 + 32
-        return value
+        key = None
+        # Convert each station value from Kelvin to Farenheit
+        tempf_values = []
+        for v, v_intrp_tempf in list(params_dict.values())[0]:
+            tempf_values.append(((v_intrp_tempf-273.15)*9)/5 + 32)
+        return tempf_values
 
         # WIND SPEED
     def handle_wind_speed(self, params_dict):
-        station = params_dict['station']
-        x_gridpoint = station['x_gridpoint']
-        y_gridpoint = station['y_gridpoint']
+        """
+        the params_dict aren't used here since we need to 
+        select two messages (self.grbs.select is expensive since it scans the whole grib file).
+        Each message is selected once and the station location data saved in an array,
+        then all the domain_stations are iterated (in memory operation)
+        to make the wind speed calculations for each station location.
+        """
+        # interpolated value cannot use rounded gridpoints
 
-        uwind = self.grbs.select(name='10 metre U wind component')[0]
-        uwind_values = uwind['values']
-        uwind_ms = gg.interpGridBox(uwind_values,x_gridpoint,y_gridpoint)
-        vwind = self.grbs.select(name='10 metre V wind component')[0]
-        vwind_values = vwind['values']
-        vwind_ms = gg.interpGridBox(vwind_values,x_gridpoint,y_gridpoint)
+        message = self.grbs.select(name='10 metre U wind component')[0]
+        values = message['values']
+        uwind_ms_values = []
+        for station in self.domain_stations:
+            x_gridpoint = station['x_gridpoint']
+            y_gridpoint = station['y_gridpoint']
+            uwind_ms_values.append(gg.interpGridBox(
+                values, y_gridpoint, x_gridpoint))
+
+        message = self.grbs.select(name='10 metre V wind component')[0]
+        values = message['values']
+        vwind_ms_values = []
+        for station in self.domain_stations:
+            x_gridpoint = station['x_gridpoint']
+            y_gridpoint = station['y_gridpoint']
+            vwind_ms_values.append(gg.interpGridBox(values, y_gridpoint, x_gridpoint))
         # Convert from U-V components to speed and direction (requires rotation if grid is not earth relative)
-        #wind speed then convert to mph
-        ws_ms = math.sqrt((uwind_ms*uwind_ms)+(vwind_ms*vwind_ms))
-        ws_mph = (ws_ms/0.447) + 0.5
+        # wind speed then convert to mph
+        ws_mph = []
+        for i in range(len(uwind_ms_values)):
+            uwind_ms = uwind_ms_values[i]
+            vwind_ms = vwind_ms_values[i]
+            ws_ms = math.sqrt((uwind_ms*uwind_ms)+(vwind_ms*vwind_ms))
+            ws_mph.append((ws_ms/0.447) + 0.5)
         return ws_mph
 
         # wind direction
     def handle_wind_direction(self, params_dict):
-        station = params_dict['station']
-        x_gridpoint = station['x_gridpoint']
-        y_gridpoint = station['y_gridpoint']
-        longitude = station['lon']
+        """
+        the params_dict aren't used here since we need to 
+        select two messages (self.grbs.select is expensive since it scans the whole grib file).
+        Each message is selected once and the station location data saved in an array,
+        then all the domain_stations are iterated (in memory operation)
+        to make the wind direction calculations for each station location.
+        Each individual station longitude is used to rotate the wind direction.
+        """
 
-        uwind = self.grbs.select(name='10 metre U wind component')[0]
-        uwind_values = uwind['values']
-        uwind_ms = gg.interpGridBox(uwind_values,x_gridpoint,y_gridpoint)
-        vwind = self.grbs.select(name='10 metre V wind component')[0]
-        vwind_values = vwind['values']
-        vwind_ms = gg.interpGridBox(vwind_values,x_gridpoint,y_gridpoint)
-        theta = gg.getWindTheta(vwind, longitude)
-        radians = math.atan2(uwind_ms, vwind_ms)
-        wd = (radians*57.2958) + theta + 180
+        message = self.grbs.select(name='10 metre U wind component')[0]
+        values = message['values']
+        uwind_ms = []
+        for station in self.domain_stations:
+            x_gridpoint = station['x_gridpoint']
+            y_gridpoint = station['y_gridpoint']
+            longitude = station['lon']
+            # interpolated value cannot use rounded gridpoints
+            uwind_ms.append(gg.interpGridBox(values, y_gridpoint, x_gridpoint))
+
+        message = self.grbs.select(name='10 metre V wind component')[0]
+        values = message['values']
+        vwind_ms = []
+        theta = []
+        wd = []
+        for station in self.domain_stations:
+            x_gridpoint = station['x_gridpoint']
+            y_gridpoint = station['y_gridpoint']
+            longitude = station['lon']
+            vwind_ms.append(gg.interpGridBox(values, y_gridpoint, x_gridpoint))
+            theta.append(gg.getWindTheta(message, longitude))
+
+        for i in range(len(uwind_ms)):
+            radians = math.atan2(uwind_ms[i], vwind_ms[i])
+            wd.append((radians*57.2958) + theta[i] + 180)
         return wd
 
     def getName(self, params_dict):
-        return params_dict['station']['name']
+        station_names = []
+        for station in self.domain_stations:
+            station_names.append(station['name'])
+        return station_names
 
     def handle_time(self, params_dict):
         # validTime = grbs[1].validate -> 2021-07-12 15:00:00
-        _valid_time = self.grbm.analDate
-        return round(_valid_time.timestamp())
+        valid_time = self.grbm.analDate
+        return round(valid_time.timestamp())
 
     def handle_iso_time(self, params_dict):
-        _valid_time = _valid_time = self.grbm.analDate
-        return _valid_time.isoformat()
+        valid_time = valid_time = self.grbm.analDate
+        return valid_time.isoformat()
 
     def handle_fcst_len(self, params_dict):
-        _fcst_len = self.grbm.forecastTime
-        return _fcst_len
+        fcst_len = self.grbm.forecastTime
+        return fcst_len

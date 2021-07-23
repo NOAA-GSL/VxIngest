@@ -77,7 +77,7 @@ def getWindTheta(grb,lon):
 
     return theta
 
-def interpGridBox(grb_values,x,y):
+def interpGridBox(grb_values,y,x):
     xmin, xmax = math.floor(x), math.ceil(x)
     ymin, ymax = math.floor(y), math.ceil(y)
 

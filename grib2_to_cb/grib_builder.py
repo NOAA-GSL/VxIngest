@@ -296,6 +296,7 @@ class GribBuilder:
             # TODO determine if this projection stuff changes file to file
             # If not, use lazy instantiation to just do it once for all the files
             logging.getLogger().setLevel(logging.INFO)
+            document_map = {} # start new
             self.projection = gg.getGrid(file_name)
             self.grbs = pygrib.open(file_name)
             self.grbm = self.grbs.message(1)

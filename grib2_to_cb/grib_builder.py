@@ -64,6 +64,9 @@ class GribBuilder:
         self.transformer_reverse = None
         self.domain_stations = []
 
+    def initialize_document_map(self):
+        pass
+
     def load_data(self, doc, key, element):
         pass
 
@@ -296,7 +299,6 @@ class GribBuilder:
             # TODO determine if this projection stuff changes file to file
             # If not, use lazy instantiation to just do it once for all the files
             logging.getLogger().setLevel(logging.INFO)
-            document_map = {} # start new
             self.projection = gg.getGrid(file_name)
             self.grbs = pygrib.open(file_name)
             self.grbm = self.grbs.message(1)
@@ -308,6 +310,9 @@ class GribBuilder:
                 proj_from=self.in_proj, proj_to=self.out_proj)
             self.transformer_reverse = pyproj.Transformer.from_proj(
                 proj_from=self.out_proj, proj_to=self.in_proj)
+             
+            # reset the builders document_map for a new file
+            self.initialize_document_map()
             # get stations from couchbase and filter them so
             # that we retain only the ones for this models domain which is derived from the projection
             self.domain_stations = []
@@ -387,6 +392,12 @@ class GribModelBuilderV01(GribBuilder):
         self.template = ingest_document['template']
         # self.do_profiling = True  # set to True to enable build_document profiling
         self.do_profiling = False  # set to True to enable build_document profiling
+    
+    def initialize_document_map(self):
+        """
+        reset the document_map for a new file
+        """
+        self.document_map = {}
 
     def get_document_map(self):
         """

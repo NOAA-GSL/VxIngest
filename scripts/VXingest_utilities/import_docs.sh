@@ -90,7 +90,6 @@ function do_import () {
   file_list=$1
   echo $file_list | while read f
   do
-    [ -f "$credentials_file" ] || echo "$f does not exist"; return
     echo cbimport json --cluster couchbase://${host} --bucket mdata --username ${user} --password ${pwd} --format list --generate-key %id% --dataset file:///${f} > $log_dir/
   done
 }

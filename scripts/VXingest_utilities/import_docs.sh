@@ -86,11 +86,10 @@ if [ -z "$pwd" ];then
   usage
 fi
 
-function do_import () {
+function do_import() {
   file_list=$1
-  echo $file_list | while read f
+  cat $file_list | while read f
   do
-    echo "processing $f"
     echo 'cbimport json --cluster couchbase://${host} --bucket mdata --username ${user} --password ${pwd} --format list --generate-key %id% --dataset file:///${f} >> $log_dir/$file_list 2>&1'
   done
 }
@@ -105,3 +104,4 @@ do
   do_import $f
 done
 cd $curdir
+rm -rf $tmp_dir

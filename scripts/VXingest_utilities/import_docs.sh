@@ -109,8 +109,10 @@ do
 done
 echo 'cbimport commands submitted, now waiting...'
 for p in "${pids[@]}"
-echo "waiting for ${p}"
-wait ${p}
+do
+  echo "waiting for ${p}"
+  wait ${p}
+done
 
 cd ${curdir}
 rm -rf ${tmp_dir}

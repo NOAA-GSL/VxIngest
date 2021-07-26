@@ -2,8 +2,7 @@
 function usage () {
   echo "Usage $0 -c credentials-file -p full_path_to_json_files_directory, -l log_dir [-n number_of_processes (default 1)]"
   echo "(The number_of_processes must be less than or equal to nproc)."
-  echo "The credentials-file specifies cb_hos
-  t, cb_user, and cb_password."
+  echo "The credentials-file specifies cb_host, cb_user, and cb_password."
   echo "This script assumes that you have cloned VXingest into ${HOME}/VXingest"
   echo "If you cloned it elsewhere, make a link."
   echo "This script uses cbimport with '_num_instances' cbimport processes simultaneously."

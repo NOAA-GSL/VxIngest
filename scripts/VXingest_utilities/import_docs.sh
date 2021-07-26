@@ -25,7 +25,7 @@ do
             fi
             ;;
         p)
-            export input_file=${OPTARG}
+            export input_file_path=${OPTARG}
             if [ ! -d "$input_file_path" ]; then 
               echo "$input_file_path does not exist"; 
               usage

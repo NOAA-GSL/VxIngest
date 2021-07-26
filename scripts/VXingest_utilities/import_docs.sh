@@ -1,19 +1,21 @@
 #!/bin/sh
+
 function usage () {
   echo "Usage $0 -c credentials-file -p full_path_to_json_files_directory, -l log_dir [-n number_of_processes (default 1)]"
   echo "(The number_of_processes must be less than or equal to nproc)."
   echo "The credentials-file specifies cb_host, cb_user, and cb_password."
   echo "This script assumes that you have cloned VXingest into ${HOME}/VXingest"
   echo "If you cloned it elsewhere, make a link."
-  echo "This script uses cbimport with '_num_instances' cbimport processes simultaneously."
+  echo "This script uses cbimport with 'number_of_processes' cbimport processes running simultaneously."
   echo "The jason files in 'full_path_to_json_files_directory' will be seperated into (number_of_files / num_processes)"
   echo "groups and imported simultaneously. Output is written to 'logdir/cbimport_n.log' where n is the instance number."
+  
   exit 1
 }
 number_of_processes=1
 number_of_cpus=$(nproc)
-while getopts ":c:p:n:l:" _arg; do
-    case "${_arg}" in
+while getopts 'c:p:n:l:' param
+    case "${param}" in
         c)
             export credentials_file=${OPTARG}
             [ -f "$credentials_file" ] || echo "$credentials_file does not exist"; usage
@@ -31,7 +33,7 @@ while getopts ":c:p:n:l:" _arg; do
             [ -d "$log_dir" ] || echo "$log_dir does not exist"; usage
             ;;
         *)
-            echo "what??? " usage
+            echo "wrong parameter, I don't do $param"; usage 
             ;;
     esac
 done
@@ -62,6 +64,6 @@ tmp_dir=$(mktemp -d -t cbimport_files-XXXXXXXXXX)
 cd $tmp_dir
 groups=$(find ${input_file_path}/*.json | split -l $(( $(ls -1 ../*.json | wc -l) / $number_of_processes + 1 )))
 ls -1 | while read f do 
-  cbimport $f
+  do_import $f
 done
 cd $curdir

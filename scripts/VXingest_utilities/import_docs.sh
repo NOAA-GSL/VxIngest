@@ -6,7 +6,7 @@ function usage () {
   echo "This script assumes that you have cloned VXingest into ${HOME}/VXingest"
   echo "If you cloned it elsewhere, make a link."
   echo "This script uses cbimport with '_num_instances' cbimport processes simultaneously."
-  echo "The jason files in 'full_path_to_json_files_directory' will be seperated into (number_of_files / _num_instances)"
+  echo "The jason files in 'full_path_to_json_files_directory' will be seperated into (number_of_files / num_processes)"
   echo "groups and imported simultaneously. Output is written to 'logdir/cbimport_n.log' where n is the instance number."
   exit 1
 }

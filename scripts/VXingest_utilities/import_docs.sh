@@ -9,7 +9,8 @@ function usage () {
   echo "This script uses cbimport with 'number_of_processes' cbimport processes running simultaneously."
   echo "The jason files in 'full_path_to_json_files_directory' will be seperated into (number_of_files / num_processes)"
   echo "groups and imported simultaneously. Output is written to 'logdir/cbimport_n.log' where n is the instance number."
-  
+  echo "sample invocation...."
+  echo './scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p /data/grib2_to_cb/output -n 8 -l ${PWD}/logs'
   exit 1
 }
 number_of_processes=1

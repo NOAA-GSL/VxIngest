@@ -91,7 +91,7 @@ function do_import() {
   file_list=$1
   cat ${file_list} | while read f
   do
-    cbimport json --cluster couchbase://${host} --bucket mdata --username ${user} --password ${pwd} --format list --generate-key %id% --dataset file:///${f} >> ${log_dir}/${file_list} 2>&1
+    cbimport json --cluster couchbase://${host} --bucket mdata --username ${user} --password ${pwd} --format list --generate-key %id% --dataset file:///${f} >> ${log_dir}/${file_list} 
   done
 }
 
@@ -104,6 +104,7 @@ ls -1 | while read f
 do 
   do_import ${f} &
 done
+echo 'cbimport commands submitted, now waiting...'
+wait
 cd ${curdir}
 rm -rf ${tmp_dir}
-wait

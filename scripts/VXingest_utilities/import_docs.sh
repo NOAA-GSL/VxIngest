@@ -101,11 +101,16 @@ tmp_dir=$(mktemp -d -t cbimport_files-XXXXXXXXXX)
 cd ${tmp_dir}
 find ${input_file_path} -name "*.json" | split -d -l $(( $(find ${input_file_path} -name "*.json" | wc -l) / ${number_of_processes} + 1 ))
 # each file is a list of files
+pids=()
 ls -1 | while read f
 do 
   do_import ${f} > ${log_dir}/${f} 2>&1 &
+  pids+=($!)
 done
 echo 'cbimport commands submitted, now waiting...'
-wait
+for p in "${pids[@]}"
+echo "waiting for ${p}"
+wait ${p}
+
 cd ${curdir}
 rm -rf ${tmp_dir}

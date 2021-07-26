@@ -73,9 +73,18 @@ fi
 export host=$(grep cb_host ${credentials_file} | awk '{print $2}')
 export user=$(grep cb_user ${credentials_file} | awk '{print $2}')
 export pwd=$(grep cb_password ${credentials_file} | awk '{print $2}')
-[ -z "$host" ] &&  echo "credentials do not specify cb_host"; usage
-[ -z "$user" ] &&  echo "credentials do not specify cb_user"; usage
-[ -z "$pwd" ] &&  echo "credentials do not specify cb_password"; usage
+if [ -z "$host" ]; then
+  echo "credentials do not specify cb_host"
+  usage
+fi
+if [ -z "$user" ];then
+  echo "credentials do not specify cb_user"
+  usage
+fi
+if [ -z "$pwd" ];then 
+  echo "credentials do not specify cb_password"
+  usage
+fi
 
 function do_import () {
   file_list=$1

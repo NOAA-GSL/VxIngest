@@ -99,7 +99,8 @@ curdir=$(pwd)
 tmp_dir=$(mktemp -d -t cbimport_files-XXXXXXXXXX)
 cd $tmp_dir
 groups=$(find ${input_file_path}/*.json | split -l $(( $(ls -1 ../*.json | wc -l) / $number_of_processes + 1 )))
-ls -1 | while read f do 
+ls -1 | while read f
+do 
   do_import $f
 done
 cd $curdir

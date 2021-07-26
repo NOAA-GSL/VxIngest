@@ -90,14 +90,15 @@ function do_import () {
   file_list=$1
   echo $file_list | while read f
   do
-    echo cbimport json --cluster couchbase://${host} --bucket mdata --username ${user} --password ${pwd} --format list --generate-key %id% --dataset file:///${f} > $log_dir/$file_list 2>&1 &
+    echo "processing $f"
+    echo 'cbimport json --cluster couchbase://${host} --bucket mdata --username ${user} --password ${pwd} --format list --generate-key %id% --dataset file:///${f} >> $log_dir/$file_list 2>&1'
   done
 }
 
 curdir=$(pwd)
 tmp_dir=$(mktemp -d -t cbimport_files-XXXXXXXXXX)
 cd $tmp_dir
-groups=$(find ${input_file_path}/*.json | split -d -l $(( $(ls -1 ../*.json | wc -l) / $number_of_processes + 1 )))
+find ${input_file_path} -name "*.json" | split -d -l $(( $(find ${input_file_path} -name "*.json" | wc -l) / ${number_of_processes} + 1 ))
 # each file is a list of files
 ls -1 | while read f
 do 

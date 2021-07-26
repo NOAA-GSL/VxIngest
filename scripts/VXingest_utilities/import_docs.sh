@@ -102,7 +102,8 @@ find ${input_file_path} -name "*.json" | split -d -l $(( $(find ${input_file_pat
 # each file is a list of files
 ls -1 | while read f
 do 
-  do_import ${f}
+  do_import ${f} &
 done
 cd ${curdir}
 rm -rf ${tmp_dir}
+wait

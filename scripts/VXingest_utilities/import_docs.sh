@@ -20,42 +20,56 @@ do
         c)
             export credentials_file=${OPTARG}
             if [ ! -f "$credentials_file" ]; then
-              echo "$credentials_file does not exist"; 
+              echo "$credentials_file does not exist" 
               usage
             fi
             ;;
         p)
             export input_file_path=${OPTARG}
             if [ ! -d "$input_file_path" ]; then 
-              echo "$input_file_path does not exist"; 
+              echo "$input_file_path does not exist"
               usage
             fi
             ;;
         n)
             number_of_processes=${OPTARG}
             if [ ! "$number_of_processes" -le "$number_of_cpus" ]; then
-              echo "$number_of_processes exceeds $number_of_cpus";
+              echo "$number_of_processes exceeds $number_of_cpus"
               usage
             fi
             ;;
         l)
             export log_dir=${OPTARG}
             if [ ! -d "$log_dir" ]; then
-              echo "$log_dir does not exist"; 
+              echo "$log_dir does not exist"
               usage
             fi
             ;;
         *)
-            echo "wrong parameter, I don't do $param"; 
+            echo "wrong parameter, I don't do $param"
             usage 
             ;;
     esac
 done
 
-[ -f "$credentials_file" ] || echo "no credentials_file specified"; usage
-[ -d "$input_file_path" ] || echo "no input_file_path specified"; usage
-[ -d "$log_dir" ] || echo "no log_dir specified"
-[ "$number_of_processes" -le "$number_of_cpus" ] || echo "$number_of_processes exceeds $number_of_cpus"; usage
+if [ ! -f "$credentials_file" ]; then
+  echo "no credentials_file specified"
+  usage
+fi
+if [i ! -d "$input_file_path" ]; then 
+  echo "no input_file_path specified"
+  usage
+fi
+if [ ! -d "$log_dir" ]; then
+  echo "no log_dir specified"
+  usage
+fi
+
+if [ "$number_of_processes" -gt "$number_of_cpus" ];
+  echo "$number_of_processes exceeds $number_of_cpus"
+  usage
+fi
+
 export host=$(grep cb_host ${credentials} | awk '{print $2}')
 export user=$(grep cb_user ${credentials} | awk '{print $2}')
 export pwd=$(grep cb_password ${credentials} | awk '{print $2}')

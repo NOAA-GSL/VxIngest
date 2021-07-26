@@ -1,6 +1,6 @@
 #!/bin/sh
 function usage () {
-  echo "Usage $0 -c credentials-file -p full_path_to_json_files_directory, -n number_of_processes -l log_dir"
+  echo "Usage $0 -c credentials-file -p full_path_to_json_files_directory, -l log_dir [-n number_of_processes (default 1)]"
   echo "(The number_of_processes must be less than or equal to nproc)."
   echo "The credentials-file specifies cb_hosrt, cb_user, and cb_password."
   echo "This script assumes that you have cloned VXingest into ${HOME}/VXingest"
@@ -10,7 +10,7 @@ function usage () {
   echo "groups and imported simultaneously. Output is written to 'logdir/cbimport_n.log' where n is the instance number."
   exit 1
 }
-
+number_of_processes=1
 while getopts ":c:p:n:l:" _arg; do
     case "${_arg}" in
         c)
@@ -36,6 +36,10 @@ while getopts ":c:p:n:l:" _arg; do
     esac
 done
 shift $((OPTIND-1))
+
+[ -f "$credentials_file" ] || echo "no credentials_file specified"; usage
+[ -d "$input_file_path" ] || echo "no input_file_path specified"; usage
+[ -d "$log_dir" ] || echo "no log_dir specified"
 
 export host=$(grep cb_host ${credentials} | awk '{print $2}')
 export user=$(grep cb_user ${credentials} | awk '{print $2}')

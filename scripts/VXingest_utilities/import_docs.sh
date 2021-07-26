@@ -2,7 +2,8 @@
 function usage () {
   echo "Usage $0 -c credentials-file -p full_path_to_json_files_directory, -l log_dir [-n number_of_processes (default 1)]"
   echo "(The number_of_processes must be less than or equal to nproc)."
-  echo "The credentials-file specifies cb_hosrt, cb_user, and cb_password."
+  echo "The credentials-file specifies cb_hos
+  t, cb_user, and cb_password."
   echo "This script assumes that you have cloned VXingest into ${HOME}/VXingest"
   echo "If you cloned it elsewhere, make a link."
   echo "This script uses cbimport with '_num_instances' cbimport processes simultaneously."
@@ -11,6 +12,7 @@ function usage () {
   exit 1
 }
 number_of_processes=1
+number_of_cpus=$(nproc)
 while getopts ":c:p:n:l:" _arg; do
     case "${_arg}" in
         c)
@@ -23,7 +25,6 @@ while getopts ":c:p:n:l:" _arg; do
             ;;
         n)
             number_of_processes=${OPTARG}
-            number_of_cpus=$(nproc)
             [ "$number_of_processes" -le "$number_of_cpus" ] || echo "$number_of_processes exceeds $number_of_cpus"; usage
             ;;
         l)
@@ -40,7 +41,7 @@ shift $((OPTIND-1))
 [ -f "$credentials_file" ] || echo "no credentials_file specified"; usage
 [ -d "$input_file_path" ] || echo "no input_file_path specified"; usage
 [ -d "$log_dir" ] || echo "no log_dir specified"
-
+[ "$number_of_processes" -le "$number_of_cpus" ] || echo "$number_of_processes exceeds $number_of_cpus"; usage
 export host=$(grep cb_host ${credentials} | awk '{print $2}')
 export user=$(grep cb_user ${credentials} | awk '{print $2}')
 export pwd=$(grep cb_password ${credentials} | awk '{print $2}')

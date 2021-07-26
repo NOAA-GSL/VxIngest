@@ -70,9 +70,9 @@ if [ "$number_of_processes" -gt "$number_of_cpus" ]; then
   usage
 fi
 
-export host=$(grep cb_host ${credentials} | awk '{print $2}')
-export user=$(grep cb_user ${credentials} | awk '{print $2}')
-export pwd=$(grep cb_password ${credentials} | awk '{print $2}')
+export host=$(grep cb_host ${credentials_file} | awk '{print $2}')
+export user=$(grep cb_user ${credentials_file} | awk '{print $2}')
+export pwd=$(grep cb_password ${credentials_file} | awk '{print $2}')
 [ -z "$host" ] &&  echo "credentials do not specify cb_host"; usage
 [ -z "$user" ] &&  echo "credentials do not specify cb_user"; usage
 [ -z "$pwd" ] &&  echo "credentials do not specify cb_password"; usage

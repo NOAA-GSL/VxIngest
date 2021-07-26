@@ -34,7 +34,7 @@ do
         n)
             number_of_processes=${OPTARG}
             if [ ! "$number_of_processes" -le "$number_of_cpus" ]; then
-              echo "$number_of_processes exceeds $number_of_cpus";i
+              echo "$number_of_processes exceeds $number_of_cpus";
               usage
             fi
             ;;
@@ -51,7 +51,6 @@ do
             ;;
     esac
 done
-shift $((OPTIND-1))
 
 [ -f "$credentials_file" ] || echo "no credentials_file specified"; usage
 [ -d "$input_file_path" ] || echo "no input_file_path specified"; usage

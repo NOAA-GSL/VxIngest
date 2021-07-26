@@ -15,25 +15,39 @@ function usage () {
 number_of_processes=1
 number_of_cpus=$(nproc)
 while getopts 'c:p:n:l:' param
+do
     case "${param}" in
         c)
             export credentials_file=${OPTARG}
-            [ -f "$credentials_file" ] || echo "$credentials_file does not exist"; usage
+            if [ ! -f "$credentials_file" ]; then
+              echo "$credentials_file does not exist"; 
+              usage
+            fi
             ;;
         p)
             export input_file=${OPTARG}
-            [ -d "$input_file_path" ] || echo "$input_file_path does not exist"; usage
+            if [ ! -d "$input_file_path" ]; then 
+              echo "$input_file_path does not exist"; 
+              usage
+            fi
             ;;
         n)
             number_of_processes=${OPTARG}
-            [ "$number_of_processes" -le "$number_of_cpus" ] || echo "$number_of_processes exceeds $number_of_cpus"; usage
+            if [ ! "$number_of_processes" -le "$number_of_cpus" ]; then
+              echo "$number_of_processes exceeds $number_of_cpus";i
+              usage
+            fi
             ;;
         l)
             export log_dir=${OPTARG}
-            [ -d "$log_dir" ] || echo "$log_dir does not exist"; usage
+            if [ ! -d "$log_dir" ]; then
+              echo "$log_dir does not exist"; 
+              usage
+            fi
             ;;
         *)
-            echo "wrong parameter, I don't do $param"; usage 
+            echo "wrong parameter, I don't do $param"; 
+            usage 
             ;;
     esac
 done

@@ -31,7 +31,7 @@ while getopts ":c:p:n:l:" _arg; do
             [ -d "$log_dir" ] || echo "$log_dir does not exist"; usage
             ;;
         *)
-            usage
+            echo "what??? " usage
             ;;
     esac
 done

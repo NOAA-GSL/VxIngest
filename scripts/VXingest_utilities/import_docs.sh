@@ -56,7 +56,7 @@ if [ ! -f "$credentials_file" ]; then
   echo "no credentials_file specified"
   usage
 fi
-if [i ! -d "$input_file_path" ]; then 
+if [ ! -d "$input_file_path" ]; then 
   echo "no input_file_path specified"
   usage
 fi
@@ -65,7 +65,7 @@ if [ ! -d "$log_dir" ]; then
   usage
 fi
 
-if [ "$number_of_processes" -gt "$number_of_cpus" ];
+if [ "$number_of_processes" -gt "$number_of_cpus" ]; then
   echo "$number_of_processes exceeds $number_of_cpus"
   usage
 fi

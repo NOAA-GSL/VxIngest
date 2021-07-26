@@ -91,7 +91,8 @@ function do_import() {
   file_list=$1
   cat ${file_list} | while read f
   do
-    cbimport json --cluster couchbase://${host} --bucket mdata --username ${user} --password ${pwd} --format list --generate-key %id% --dataset file:///${f} >> ${log_dir}/${file_list} 
+    echo 'cbimport json --cluster couchbase://${host} --bucket mdata --username ${user} --password ${pwd} --format list --generate-key %id% --dataset file:///${f} >> ${log_dir}/${file_list}'
+    cbimport json --cluster couchbase://${host} --bucket mdata --username ${user} --password ${pwd} --format list --generate-key %id% --dataset file:///${f}
   done
 }
 
@@ -102,7 +103,7 @@ find ${input_file_path} -name "*.json" | split -d -l $(( $(find ${input_file_pat
 # each file is a list of files
 ls -1 | while read f
 do 
-  do_import ${f} &
+  do_import ${f} > ${log_dir}/${f} 2>&1 &
 done
 echo 'cbimport commands submitted, now waiting...'
 wait

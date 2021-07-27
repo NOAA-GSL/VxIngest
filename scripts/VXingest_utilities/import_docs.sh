@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-function usage () {
+function usage() {
   echo "Usage $0 -c credentials-file -p full_path_to_json_files_directory, -l log_dir [-n number_of_processes (default 1)]"
   echo "(The number_of_processes must be less than or equal to nproc)."
   echo "The credentials-file specifies cb_host, cb_user, and cb_password."
@@ -10,60 +10,58 @@ function usage () {
   echo "The jason files in 'full_path_to_json_files_directory' will be seperated into (number_of_files / num_processes)"
   echo "groups and imported simultaneously. Output is written to 'logdir/cbimport_n.log' where n is the instance number."
   echo "sample invocation...."
-  echo './scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p /data/grib2_to_cb/output -n 8 -l ${PWD}/logs'
+  echo '/home/pierce/VXingest/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p /data/grib2_to_cb/output -n 8 -l /home/pierce/VXingest/logs'
   exit 1
 }
 number_of_processes=1
 number_of_cpus=$(nproc)
-while getopts 'c:p:n:l:' param
-do
-    case "${param}" in
-        c)
-            export credentials_file=${OPTARG}
-            if [ ! -f "${credentials_file}" ]; then
-              echo "${credentials_file} does not exist" 
-              usage
-            fi
-            ;;
-        p)
-            export input_file_path=${OPTARG}
-            if [ ! -d "${input_file_path}" ]; then 
-              echo "${input_file_path} does not exist"
-              usage
-            fi
-            ;;
-        n)
-            number_of_processes=${OPTARG}
-            if [ ! "${number_of_processes}" -le "${number_of_cpus}" ]; then
-              echo "${number_of_processes} exceeds ${number_of_cpus}"
-              usage
-            fi
-            ;;
-        l)
-            export log_dir=${OPTARG}
-            if [ ! -d "${log_dir}" ]; then
-              echo "${log_dir} does not exist"
-              usage
-            fi
-            ;;
-        *)
-            echo "wrong parameter, I don't do ${param}"
-            usage 
-            ;;
-    esac
+while getopts 'c:p:n:l:' param; do
+  case "${param}" in
+  c)
+    credentials_file=${OPTARG}
+    if [ ! -f "${credentials_file}" ]; then
+      echo "${credentials_file} does not exist"
+      usage
+    fi
+    ;;
+  p)
+    input_file_path=${OPTARG}
+    if [ ! -d "${input_file_path}" ]; then
+      echo "${input_file_path} does not exist"
+      usage
+    fi
+    ;;
+  n)
+    number_of_processes=${OPTARG}
+    if [ ! "${number_of_processes}" -le "${number_of_cpus}" ]; then
+      echo "${number_of_processes} exceeds ${number_of_cpus}"
+      usage
+    fi
+    ;;
+  l)
+    log_dir=${OPTARG}
+    if [ ! -d "${log_dir}" ]; then
+      echo "${log_dir} does not exist"
+      usage
+    fi
+    ;;
+  *)
+    echo "wrong parameter, I don't do ${param}"
+    usage
+    ;;
+  esac
 done
 
 if [ ! -f "${credentials_file}" ]; then
   echo "no credentials_file specified"
   usage
 fi
-if [ ! -d "${input_file_path}" ]; then 
+if [ ! -d "${input_file_path}" ]; then
   echo "no input_file_path specified"
   usage
 fi
 if [ ! -d "${log_dir}" ]; then
-  echo "no log_dir specified"
-  usage
+  echo "no log_dir specified - using stdout"
 fi
 
 if [ "${number_of_processes}" -gt "$number_of_cpus" ]; then
@@ -71,27 +69,27 @@ if [ "${number_of_processes}" -gt "$number_of_cpus" ]; then
   usage
 fi
 
-export host=$(grep cb_host ${credentials_file} | awk '{print $2}')
-export user=$(grep cb_user ${credentials_file} | awk '{print $2}')
-export pwd=$(grep cb_password ${credentials_file} | awk '{print $2}')
+host=$(grep cb_host ${credentials_file} | awk '{print $2}')
+user=$(grep cb_user ${credentials_file} | awk '{print $2}')
+pwd=$(grep cb_password ${credentials_file} | awk '{print $2}')
 if [ -z "${host}" ]; then
   echo "credentials do not specify cb_host"
   usage
 fi
-if [ -z "${user}" ];then
+if [ -z "${user}" ]; then
   echo "credentials do not specify cb_user"
   usage
 fi
-if [ -z "${pwd}" ];then 
+if [ -z "${pwd}" ]; then
   echo "credentials do not specify cb_password"
   usage
 fi
 
-function do_import() {
+do_import() {
   file_list=$1
-  cat ${file_list} | while read f
-  do
-    echo 'cbimport json --cluster couchbase://${host} --bucket mdata --username ${user} --password ${pwd} --format list --generate-key %id% --dataset file:///${f} >> ${log_dir}/${file_list}'
+  sleep 10
+  cat ${file_list} | while read f; do
+    #echo 'cbimport json --cluster couchbase://${host} --bucket mdata --username ${user} --password ${pwd} --format list --generate-key %id% --dataset file:///${f}'
     cbimport json --cluster couchbase://${host} --bucket mdata --username ${user} --password ${pwd} --format list --generate-key %id% --dataset file:///${f}
   done
 }
@@ -99,20 +97,18 @@ function do_import() {
 curdir=$(pwd)
 tmp_dir=$(mktemp -d -t cbimport_files-XXXXXXXXXX)
 cd ${tmp_dir}
-find ${input_file_path} -name "*.json" | split -d -l $(( $(find ${input_file_path} -name "*.json" | wc -l) / ${number_of_processes} + 1 ))
+find ${input_file_path} -name "*.json" | split -d -l $(($(find ${input_file_path} -name "*.json" | wc -l) / ${number_of_processes} + 1))
 # each file is a list of files
-pids=()
-ls -1 | while read f
-do 
-  do_import ${f} > ${log_dir}/${f} 2>&1 &
-  pids+=($!)
+for f in ${tmp_dir}/*; do
+  if [ -z "$log_dir" ]; then
+    do_import ${f} &
+  else
+    fname=$(basename $f)
+    do_import ${f} >${log_dir}/${fname} 2>&1 &
+  fi
 done
-echo 'cbimport commands submitted, now waiting...'
-for p in "${pids[@]}"
-do
-  echo "waiting for ${p}"
-  wait ${p}
-done
-
+echo "cbimport commands submitted, now waiting"
+wait
+echo "cbimport commands submitted, done waiting"
 cd ${curdir}
 rm -rf ${tmp_dir}

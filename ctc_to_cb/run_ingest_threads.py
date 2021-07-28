@@ -6,7 +6,7 @@ Abstract:
 History Log:  Initial version
 
 Usage:
-run_netcdf_ingest_threads -s spec_file -c credentials_file [ -t thread_count -f first_epoch -l last_epoch]
+run_ingest_threads -s spec_file -c credentials_file -p path -m _file_mask[-o output_dir -t thread_count -f first_epoch -l last_epoch -n number_stations]
 This script processes arguments which define a a yaml load_spec file,
 a defaults file (for credentials),
 and a thread count.
@@ -15,8 +15,9 @@ filenames that are derived from the path, mask, first_epoch, and last_epoch.
 that are defined in the load_spec file.
 The number of threads in the thread pool is set to the -t n (or --threads n)
 argument, where n is the number of threads to start. The default is one thread. 
+The optional -n number_stations will restrict the processing to n number of stations to limit run time.
 Each thread will run a VxIngestManager which will pull filenames, one at a time, 
-from the filename queue and fully process that netcdf file. 
+from the filename queue and fully process that input file. 
 When the queue is empty each NetcdfIngestManager will gracefully die.
 
 This is an example load_spec...
@@ -29,16 +30,14 @@ load_spec:
     host: "cb_host"   - should come from defaults file
     user: "cb_user"   - should come from defaults file
     password: "cb_pwd" - should come from defaults file
-  path: /public/data/madis/point/metar/netcdf
-  file_name_mask: "%Y%m%d_%H%M"
-  [output_dir: /tmp]   - this is optional  
   
-(For the mask - python time.strftime format e.g. 20210619_1300)
+The mask  is a python time.strftime format e.g. '%y%j%H%f',
 The optional output_dir specifies the directory where output files will be written instead
 of writing them directly to couchbase. If the output_dir is not specified data will be written
 to couchbase cluster specified in the cb_connection.
-Files in the path will be enqueued if the file name mask falls between the first_epoch
-and the last_epoch. These values may be omitted in which case all the files in the path
+Files in the path will be enqueued if the file name mask renders a valid datetime that 
+falls between the first_epoch and the last_epoch. 
+The first_epoch and the last_epoch may be omitted in which case all the files in the path
 will be processed.
 
 This is an example defaults file. The keys should match
@@ -48,22 +47,28 @@ defaults:
   cb_user: some_cb_user_name
   cb_password: password_for_some_cb_user_name
 
+This is an example invocation in bash. t=The python must be python3.
+export PYTHONPATH=${HOME}/VXingest
+python grib2_to_cb/run_ingest_threads.py -s /data/grib2_to_cb/load_specs/load_spec_grib_metar_hrrr_ops_V01.yaml -c ~/adb-cb1-credentials -p /data/grib2_to_cb/input_files -m %y%j%H%f -o /data/grib2_to_cb/output 
+
+
 Copyright 2019 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of
 Colorado, NOAA/OAR/ESRL/GSL
 """
 import argparse
+import json
 import logging
 import os
 import sys
 import time
-import yaml
-import json
-from pathlib import Path
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta
 from multiprocessing import JoinableQueue
-from netcdf_to_cb.vx_ingest_manager import VxIngestManager
-from netcdf_to_cb.load_spec_yaml import LoadYamlSpecFile
+from pathlib import Path
+
+import yaml
+
+from ctc_to_cb.load_spec_yaml import LoadYamlSpecFile
+from ctc_to_cb.vx_ingest_manager import VxIngestManager
 
 
 def parse_args(args):
@@ -83,17 +88,13 @@ def parse_args(args):
                         help="Please provide required credentials_file")
     parser.add_argument("-t", "--threads", type=int, default=1,
                         help="Number of threads to use")
-    parser.add_argument("-p", "--path", type=str, default="./", 
-                        help="Specify the input directory that contains the netcdf files")
-    parser.add_argument("-m", "--file_name_mask", type=str, default="%Y%m%d_%H%M", 
-                        help="Specify the file name mask for the netcdf files ()")
-    parser.add_argument("-o", "--output_dir", type=str, default="/tmp", 
+    parser.add_argument("-o", "--output_dir", type=str, default="/tmp",
                         help="Specify the output directory to put the json output files")
-    parser.add_argument("-f", "--{first_epoch}", type=int, default=0,
+    parser.add_argument("-f", "--first_epoc", type=int, default=0,
                         help="The first epoch to use, inclusive")
-    parser.add_argument("-l", "--{last_epoch}", type=int, default=sys.maxsize,
+    parser.add_argument("-l", "--last_epoch", type=int, default=sys.maxsize,
                         help="The last epoch to use, exclusive")
-      # get the command line arguments
+    # get the command line arguments
     args = parser.parse_args(args)
     return args
 
@@ -104,12 +105,10 @@ class VXIngest(object):
         self.spec_file = ""
         self.credentials_file = ""
         self.thread_count = ""
-        # -f {first_epoch} and -l {last_epoch} are optional time params.
+        # -f first_epoch and -l last_epoch are optional time params.
         # If these are present only the files in the path with filename masks
         # that fall between these epochs will be processed.
         self.first_last_params = None
-        self.path = None
-        self.fmask = None
         self.output_dir = None
 
     def runit(self, args):
@@ -118,8 +117,6 @@ class VXIngest(object):
         """
         self.spec_file = args['spec_file'].strip()
         self.credentials_file = args['credentials_file'].strip()
-        self.path = args['path'].strip()
-        self.fmask = args['file_name_mask'].strip()
         self.thread_count = args['threads']
         self.output_dir = args['output_dir'].strip()
         _args_keys = args.keys()
@@ -130,7 +127,6 @@ class VXIngest(object):
             self.first_last_params = {}
             self.first_last_params['first_epoch'] = 0
             self.first_last_params['last_epoch'] = sys.maxsize
-
         #
         #  Read the load_spec file
         #
@@ -149,46 +145,29 @@ class VXIngest(object):
                 sys.exc_info())
             sys.exit("*** Error reading load_spec: " + self.spec_file)
 
+        
         # get all the ingest_document_ids and put them into a my_queue
-        # load the my_queue with filenames that match the mask and are between first and last epoch (if they are in the args)
+        # load the my_queue with
         # Constructor for an infinite size  FIFO my_queue
         q = JoinableQueue()
-        file_names = []
-        if os.path.exists(self.path) and os.path.isdir(self.path):
-            with os.scandir(self.path) as entries:
-                for entry in entries:
-                    # convert the file name to an epoch using the mask
-                    try:
-                        _file_utc_time = datetime.strptime(entry.name, self.fmask)
-                        _file_time = (_file_utc_time - datetime(1970, 1, 1)).total_seconds()
-                        # check to see if it is within first and last epoch (default is 0 and maxsize)
-                        if self.first_last_params['first_epoch'] <= _file_time and _file_time <= self.first_last_params['last_epoch']:
-                            file_names.append(os.path.join(self.path,entry.name))
-                    except:
-                        # don't care, it just means it wasn't a properly formatted file per the mask
-                        continue
-
-        if len(file_names) == 0:
-            raise Exception("No files to Process!")
-        for f in file_names:
+        for f in load_spec['ingest_document_ids']:
             q.put(f)
-
-        # instantiate ingest_manager pool - each ingest_manager is a process
-        # thread that uses builders to process one file at a time from the queue
-        # Make the Pool of ingest_managers
-        _ingest_manager_list = []
+        # instantiate data_type_manager pool - each data_type_manager is a
+        # thread that uses builders to process a file
+        # Make the Pool of data_type_managers
+        _dtm_list = []
         for _threadCount in range(int(self.thread_count)):
             # noinspection PyBroadException
             try:
-                ingest_manager_thread = VxIngestManager(
-                    "VxIngestManager-" + str(self.thread_count), load_spec, q, self.output_dir)
-                _ingest_manager_list.append(ingest_manager_thread)
-                ingest_manager_thread.start()
+                dtm_thread = VxIngestManager(
+                    "VXIngestManager-" + str(self.thread_count), load_spec, q)
+                _dtm_list.append(dtm_thread)
+                dtm_thread.start()
             except:
                 logging.error(
-                    "*** Error in  VxIngestManager ***" + str(sys.exc_info()))
+                    "*** Error in  VXIngestGSL ***" + str(sys.exc_info()))
         # be sure to join all the threads to wait on them
-        [proc.join() for proc in _ingest_manager_list]
+        [proc.join() for proc in _dtm_list]
         logging.info("finished starting threads")
         load_time_end = time.perf_counter()
         load_time = timedelta(seconds=load_time_end - self.load_time_start)
@@ -206,12 +185,12 @@ class VXIngest(object):
             if not Path(self.credentials_file).is_file():
                 sys.exit("*** credentials_file file " +
                          self.credentials_file + " can not be found!")
-            _f = open(self.credentials_file)
-            _yaml_data = yaml.load(_f, yaml.SafeLoader)
-            load_spec['cb_connection']['host'] = _yaml_data['cb_host']
-            load_spec['cb_connection']['user'] = _yaml_data['cb_user']
-            load_spec['cb_connection']['password'] = _yaml_data['cb_password']
-            _f.close()
+            f = open(self.credentials_file)
+            yaml_data = yaml.load(f, yaml.SafeLoader)
+            load_spec['cb_connection']['host'] = yaml_data['cb_host']
+            load_spec['cb_connection']['user'] = yaml_data['cb_user']
+            load_spec['cb_connection']['password'] = yaml_data['cb_password']
+            f.close()
             return load_spec
         except (RuntimeError, TypeError, NameError, KeyError):
             logging.error("*** %s in read ***", sys.exc_info()[0])

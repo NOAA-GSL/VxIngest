@@ -30,6 +30,7 @@
     "model": "HRRR_OPS",
     "fcstValidBeg": "&handle_iso_time",
     "fcstValidEpoch": "&handle_time",
+    "fcstLen": "&handle_fcst_len",
     "id": "DD:V01:METAR:HRRR_OPS:&handle_time:&handle_fcst_len",
     "subset": "METAR",
     "type": "DD",

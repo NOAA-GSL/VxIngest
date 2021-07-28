@@ -1,0 +1,33 @@
+{
+  "id": "MD:V01:METAR:HRRR_OPS:ALL_HRRR:CTC:ingest",
+  "builder_type": "CTCModelObsBuilderV01",
+  "docType": "ingest",
+  "type": "MD",
+  "version": "V01",
+  "subset": "METAR",
+  "subType": "CTC",
+  "model": "HRRR_OPS",
+  "region": "ALL_HRRR",
+  "template": {
+    "dataFileId": "DF_id",
+    "dataSourceId": "DS_id",
+    "id": "DD:V01:METAR:HRRR_OPS:ALL_HRRR:CTC:&handle_time:&handle_fcst_len",
+    "type": "DD",
+    "docType": "CTC",
+    "model": "HRRR_OPS",
+    "region": "ALL_HRRR",
+    "version": "V01",
+    "subset": "METAR",
+    "fcstValidBeg": "&handle_iso_time",
+    "fcstValidEpoch": "&handle_time",
+    "fcstLen": "&handle_fcst_len",
+    "data": {
+      "&handle_threshold": {
+        "hits": "&handle_hits",
+        "false_alarms": "&handle_false_alarms",
+        "misses": "&handle_misses",
+        "correct_negatives": "&handle_correct_negatives"
+      }
+    }
+  }
+}

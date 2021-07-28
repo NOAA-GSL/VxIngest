@@ -1,0 +1,8 @@
+load_spec:
+  email: "randy.pierce@noaa.gov"
+  ingest_document_id: "MD-TEST:V01:METAR:HRRR_OPS:ALL_HRRR_CTC_ingest"
+  cb_connection:
+    management_system: "cb"
+    host: "cb_host"
+    user: "cb_user"
+    password: "cb_pwd"

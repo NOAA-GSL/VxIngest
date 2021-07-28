@@ -351,7 +351,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
         try:
             value = self.umask_value_transform(params_dict)
             if value is not None and value != "":
-                value = str("{0:.4f}".format(float(value) * 2.237))
+                value = value * 2.237
             return value
         except Exception as e:
             logging.error(self.__class__.__name__ +
@@ -372,7 +372,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
                 if (not mask_array[index]) and (mBKN.match(_skyCover_array[index]) or mOVC.match(_skyCover_array[index]) or mVV.match(_skyCover_array[index])):
                     ceiling = _skyLayerBase[index]
                     break   
-            return str(math.floor(ceiling))
+            return math.floor(ceiling)
         except Exception as e:
             logging.error(self.__class__.__name__ +
                             "handle_data: Exception in named function ceiling_transform:  error: " + str(e))
@@ -381,8 +381,8 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
         try:
             value = self.umask_value_transform(params_dict)
             if value is not None and value != "":
-                value = "{0:.4f}".format((float(value) - 273.15) * 1.8 + 32) 
-            return str(value)
+                value = (float(value) - 273.15) * 1.8 + 32
+            return value
         except Exception as e:
             logging.error(self.__class__.__name__ +
                             "handle_data: Exception in named function kelvin_to_farenheight:  error: " + str(e))
@@ -398,7 +398,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
             _ncValue = self.ncdf_data_set[_key][_recNum]
             if not ma.getmask(_ncValue):
                 value = ma.compressed(_ncValue)[0]
-                return str("{0:.4f}".format(value)) # trim to four digits for all our data
+                return value # trim to four digits for all our data
             else:
                 return ""
         except Exception as e:
@@ -410,7 +410,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
             value = self.umask_value_transform(params_dict)
             if value is not None and value != "":
                 value = math.floor(float(value) / 100) # convert to millibars (from pascals) and round
-            return str(value)
+            return value
         except Exception as e:
             logging.error(self.__class__.__name__ +
                             "handle_pressure: Exception in named function:  error: " + str(e))
@@ -420,7 +420,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
             value = self.umask_value_transform(params_dict)
             if  value is not None and value != "":
                 value = math.floor(float(value)) # round
-            return str(value)
+            return value
         except Exception as e:
             logging.error(self.__class__.__name__ +
                             "handle_pressure: Exception in named function:  error: " + str(e))
@@ -439,7 +439,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
             time = datetime.fromtimestamp(_time)
             time = time.replace(second=0, microsecond=0, minute=0,
                             hour=time.hour) + timedelta(hours=time.minute//30)
-            return str(calendar.timegm(time.timetuple()))
+            return calendar.timegm(time.timetuple())
         except Exception as e:
             logging.error(self.__class__.__name__ +
                             "handle_data: Exception in named function interpolate_time:  error: " + str(e))

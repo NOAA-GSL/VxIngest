@@ -352,7 +352,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
             value = self.umask_value_transform(params_dict)
             if value is not None and value != "":
                 value = value * 2.237
-            return float(value)
+            return value
         except Exception as e:
             logging.error(self.__class__.__name__ +
                           "handle_data: Exception in named function meterspersecond_to_milesperhour:  error: " + str(e))
@@ -398,9 +398,9 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
             _ncValue = self.ncdf_data_set[_key][_recNum]
             if not ma.getmask(_ncValue):
                 value = ma.compressed(_ncValue)[0]
-                return float(value) 
+                return value
             else:
-                return ""
+                return None
         except Exception as e:
             logging.error(self.__class__.__name__ +
                             "umask_value_transform: Exception in named function umask_value_transform for key " + _key + ":  error: " + str(e))
@@ -410,7 +410,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
             value = self.umask_value_transform(params_dict)
             if value is not None and value != "":
                 value = math.floor(float(value) / 100) # convert to millibars (from pascals) and round
-            return float(value)
+            return value
         except Exception as e:
             logging.error(self.__class__.__name__ +
                             "handle_pressure: Exception in named function:  error: " + str(e))
@@ -420,7 +420,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
             value = self.umask_value_transform(params_dict)
             if  value is not None and value != "":
                 value = math.floor(float(value)) # round
-            return float(value)
+            return value
         except Exception as e:
             logging.error(self.__class__.__name__ +
                             "handle_pressure: Exception in named function:  error: " + str(e))

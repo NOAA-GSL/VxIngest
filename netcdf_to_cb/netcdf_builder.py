@@ -398,7 +398,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
             _ncValue = self.ncdf_data_set[_key][_recNum]
             if not ma.getmask(_ncValue):
                 value = ma.compressed(_ncValue)[0]
-                return value
+                return float(value)
             else:
                 return None
         except Exception as e:
@@ -420,7 +420,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
             value = self.umask_value_transform(params_dict)
             if  value is not None and value != "":
                 value = math.floor(float(value)) # round
-            return value
+            return float(value)
         except Exception as e:
             logging.error(self.__class__.__name__ +
                             "handle_pressure: Exception in named function:  error: " + str(e))

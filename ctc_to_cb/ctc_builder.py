@@ -104,6 +104,7 @@ class CTCBuilder:
 
     5) iterate that batch of data by valid time and fcstLen creating corresponding CTC documents.
     """
+
     def __init__(self, load_spec, ingest_document, cluster, collection, number_stations=sys.maxsize):
         self.template = ingest_document['template']
         self.load_spec = load_spec
@@ -112,6 +113,8 @@ class CTCBuilder:
         self.id = None
         self.document_map = {}
         self.domain_stations = []
+        self.model= self.template['model']
+        self.region= self.template['region']
 
     def initialize_document_map(self):
         pass
@@ -148,7 +151,7 @@ class CTCBuilder:
             e = sys.exc_info()
             logging.error("GribBuilder.derive_id: Exception  error: " + str(e))
 
-    def translate_template_item(self, variable, single_return = False):
+    def translate_template_item(self, variable, single_return=False):
         """
         This method translates template replacements (*item or *item1*item2).
         It can translate keys or values. 
@@ -168,7 +171,8 @@ class CTCBuilder:
                 # really a replacement. It is either '' or not a
                 # replacement
                 replacements = variable.split('*')[1:]
-            station_value = variable  # pre assign these in case it isn't a replacement - makes it easier
+            # pre assign these in case it isn't a replacement - makes it easier
+            station_value = variable
             interpolated_value = variable
             if len(replacements) > 0:
                 station_values = []
@@ -176,19 +180,26 @@ class CTCBuilder:
                     message = self.grbs.select(name=ri)[0]
                     values = message['values']
                     for station in self.domain_stations:
-                        #get the individual station value and interpolated value
-                        station_value = values[round(station['y_gridpoint']), round(station['x_gridpoint'])]
+                        # get the individual station value and interpolated value
+                        station_value = values[round(
+                            station['y_gridpoint']), round(station['x_gridpoint'])]
                         # interpolated gridpoints cannot be rounded
-                        interpolated_value = gg.interpGridBox(values, station['y_gridpoint'], station['x_gridpoint'])
+                        interpolated_value = gg.interpGridBox(
+                            values, station['y_gridpoint'], station['x_gridpoint'])
                         # convert each station value to iso if necessary
                         if ri.startswith("{ISO}"):
-                            station_value = variable.replace("*" + ri, convert_to_iso(station_value))
-                            interpolated_value = variable.replace("*" + ri, convert_to_iso(station_value))
+                            station_value = variable.replace(
+                                "*" + ri, convert_to_iso(station_value))
+                            interpolated_value = variable.replace(
+                                "*" + ri, convert_to_iso(station_value))
                         else:
-                            station_value = variable.replace("*" + ri, str(station_value))
-                            interpolated_value = variable.replace("*" + ri, str(station_value))
+                            station_value = variable.replace(
+                                "*" + ri, str(station_value))
+                            interpolated_value = variable.replace(
+                                "*" + ri, str(station_value))
                         # add it onto the list of tupples
-                        station_values.append((station_value, interpolated_value))
+                        station_values.append(
+                            (station_value, interpolated_value))
                 return station_values
             # it is a constant, no replacements but we still need a tuple for each station
             return [(station_value, interpolated_value) for i in range(len(self.domain_stations))]
@@ -254,7 +265,8 @@ class CTCBuilder:
             if not isinstance(doc[key], dict) and isinstance(doc[key], str) and doc[key].startswith('&'):
                 doc[key] = self.handle_named_function(doc[key])
             else:
-                doc[key], _interp_v = self.translate_template_item(doc[key], True)
+                doc[key], _interp_v = self.translate_template_item(
+                    doc[key], True)
             return doc
         except Exception as e:
             logging.error(
@@ -312,7 +324,7 @@ class CTCBuilder:
                     else:
                         value = self.translate_template_item(value)
                 except Exception as e:
-                    value = [(None,None)]
+                    value = [(None, None)]
                     logging.warning(self.__class__.__name__ +
                                     "GribBuilder.handle_data Exception: " + str(e) + " - setting value to (None,None)")
                 data_elem[key] = value
@@ -320,11 +332,12 @@ class CTCBuilder:
                 data_key = self.handle_named_function(data_key)
             else:
                 # _ ignore the interp_value part of the returned tuple
-                data_key, _interp_ignore_value = self.translate_template_item(data_key)
+                data_key, _interp_ignore_value = self.translate_template_item(
+                    data_key)
             if data_key is None:
                 logging.warning(self.__class__.__name__ +
                                 "GribBuilder.handle_data - _data_key is None")
-            
+
             doc = self.load_data(doc, data_key, data_elem)
             return doc
         except Exception as e:
@@ -345,22 +358,43 @@ class CTCBuilder:
             logging.getLogger().setLevel(logging.INFO)
             # reset the builders document_map for a new file
             self.initialize_document_map()
+
             # get stations from couchbase and filter them so
             # that we retain only the ones for this models domain which is defined by the region boundingbox
             try:
-                result = self.cluster.query("SELECT  geo.bottom_right.lat as br_lat, geo.bottom_right.lon as br_lon, geo.top_left.lat as tl_lat, geo.top_left.lon as tl_lon FROM mdata  WHERE type='MD' and docType='region' and subset='COMMON' and version='V01' and name='ALL_HRRR'")
-                boundingbox = result.rows()[0]        
-                self.domain_stations = []
                 result = self.cluster.query(
+                    "SELECT  geo.bottom_right.lat as br_lat, geo.bottom_right.lon as br_lon, geo.top_left.lat as tl_lat, geo.top_left.lon as tl_lon FROM mdata  WHERE type='MD' and docType='region' and subset='COMMON' and version='V01' and name=$region", region=self.region)
+                boundingbox = list(result)[0]
+                self.domain_stations = []
+                result = self.cluster .query(
                     "SELECT mdata.geo.lat, mdata.geo.lon, name from mdata where type='MD' and docType='station' and subset='METAR' and version='V01'")
                 for row in result:
                     if row['lat'] >= boundingbox.br_lat and \
-                    row['lat'] <= boundingbox.tl_lat and \
-                    row['lon'] >= boundingbox.br_lon and \
-                    row['lon'] <= boundingbox.tl_lon:
+                            row['lat'] <= boundingbox.tl_lat and \
+                            row['lon'] >= boundingbox.br_lon and \
+                            row['lon'] <= boundingbox.tl_lon:
                         self.domain_stations.append(row['name'])
             except Exception as e:
-                    logging.error(self.__class__.__name__ + ": Exception with builder build_document: error: " + str(e))
+                logging.error(self.__class__.__name__ +
+                              ": Exception with builder build_document: error: " + str(e))
+
+            # Get the valid list of fcstValidEpochs for this operation.
+            # First get the latest fcstValidEpoch for the ctc's for this model and region.
+            # Second get the intersection of the fcstValidEpochs that correspond for this
+            # model and the obs for all fcstValidEpochs greater than the first ctc.
+            
+            result = self.cluster.query(
+                "SELECT MAX(mdata.fcstValidEpoch) FROM mdata WHERE type='DD' AND docType='CTC' AND model=$model AND region=$region AND version='V01' AND subset='METAR'", model=self.model, region=self.region, read_only=True)
+            max_ctc_fcstValidEpochs = list(result)[0]
+
+            result = self.cluster.query(
+                "SELECT raw mdata.fcstValidEpoch FROM mdata WHERE type='DD' AND docType='model' AND model=$model AND region=$region AND version='V01' AND subset='METAR' and fcstValidEpoch > $max_fcst_epoch", model=self.model, region=self.region, max_fcst_epoch=max_ctc_fcstValidEpochs, read_only=True)
+            model_fcstValidEpochs = list(result)
+
+            result = self.cluster.query(
+                "SELECT raw mdata.fcstValidEpoch FROM mdata WHERE type='DD' AND docType='obs' AND version='V01' AND subset='METAR' and fcstValidEpoch > $max_fcst_epoch", model=self.model, region=self.region, max_fcst_epoch=max_ctc_fcstValidEpochs, read_only=True)
+            obs_fcstValidEpochs = list(result)
+            self.fcstValidEpochs = set(model_fcstValidEpochs).intersection(obs_fcstValidEpochs)
 
             # if we have asked for profiling go ahead and do it
             if self.do_profiling:
@@ -399,13 +433,14 @@ class CTCModelObsBuilderV01(CTCBuilder):
         :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
         :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
         """
-        CTCModelObsBuilderV01.__init__(self, load_spec, ingest_document, cluster, collection)
+        CTCModelObsBuilderV01.__init__(
+            self, load_spec, ingest_document, cluster, collection)
         self.cluster = cluster
         self.collection = collection
         self.template = ingest_document['template']
         # self.do_profiling = True  # set to True to enable build_document profiling
         self.do_profiling = False  # set to True to enable build_document profiling
-    
+
     def initialize_document_map(self):
         """
         reset the document_map for a new file
@@ -437,7 +472,7 @@ class CTCModelObsBuilderV01(CTCBuilder):
             for i in range(len(self.domain_stations)):
                 elem = {}
                 for key in keys:
-                    elem[key] = element[key][i]    
+                    elem[key] = element[key][i]
                 doc['data'].append(elem)
         return doc
 
@@ -447,11 +482,12 @@ class CTCModelObsBuilderV01(CTCBuilder):
         """
             param:params_dict expects {'station':{},'*variable name':variable_value}
             Used for temperature and dewpoint
-        """        
+        """
         # Convert each station value from Kelvin to Farenheit
         tempf_values = []
         for v, v_intrp_tempf in list(params_dict.values())[0]:
-            tempf_values.append(((float(v_intrp_tempf)-273.15)*9)/5 + 32 if v_intrp_tempf is not None else None)
+            tempf_values.append(((float(v_intrp_tempf)-273.15)*9) /
+                                5 + 32 if v_intrp_tempf is not None else None)
         return tempf_values
 
     def handle_time(self, params_dict):

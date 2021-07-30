@@ -105,7 +105,7 @@ class CTCBuilder:
     5) iterate that batch of data by valid time and fcstLen creating corresponding CTC documents.
     """
 
-    def __init__(self, load_spec, ingest_document, cluster, collection, number_stations=sys.maxsize):
+    def __init__(self, load_spec, ingest_document, cluster, collection):
         self.template = ingest_document['template']
         self.load_spec = load_spec
         self.cluster = cluster
@@ -345,7 +345,7 @@ class CTCBuilder:
                           "handle_data: Exception instantiating builder:  error: " + str(e))
         return doc
 
-    def build_document(self, file_name):
+    def build_document(self):
         """
         This is the entry point for the gribBuilders from the ingestManager.
         These documents are id'd by time and fcstLen. The data section is an array 
@@ -369,10 +369,13 @@ class CTCBuilder:
                 result = self.cluster .query(
                     "SELECT mdata.geo.lat, mdata.geo.lon, name from mdata where type='MD' and docType='station' and subset='METAR' and version='V01'")
                 for row in result:
-                    if row['lat'] >= boundingbox.br_lat and \
-                            row['lat'] <= boundingbox.tl_lat and \
-                            row['lon'] >= boundingbox.br_lon and \
-                            row['lon'] <= boundingbox.tl_lon:
+                    rlat = row['lat'] if row['lat'] >= 0 else 90 - row['lat']
+                    rlon = row['lon'] if row['lon'] >= 0 else 180 - row['lon']
+                    bb_br_lat = boundingbox['br_lat'] if boundingbox['br_lat'] >= 0 else 90 - boundingbox['br_lat']
+                    bb_br_lon = boundingbox['br_lon'] if boundingbox['br_lon'] >= 0 else 180 - boundingbox['br_lon']
+                    bb_tl_lat = boundingbox['tl_lat'] if boundingbox['tl_lat'] >= 0 else 90 - boundingbox['tl_lat'] 
+                    bb_tl_lon = boundingbox['tl_lon'] if boundingbox['tl_lon'] >= 0 else 180 - boundingbox['tl_lon']
+                    if rlat >= bb_br_lat and rlat <= bb_tl_lat and rlon >= bb_br_lon and rlon <= bb_tl_lon:
                         self.domain_stations.append(row['name'])
             except Exception as e:
                 logging.error(self.__class__.__name__ +
@@ -384,11 +387,13 @@ class CTCBuilder:
             # model and the obs for all fcstValidEpochs greater than the first ctc.
             
             result = self.cluster.query(
-                "SELECT MAX(mdata.fcstValidEpoch) FROM mdata WHERE type='DD' AND docType='CTC' AND model=$model AND region=$region AND version='V01' AND subset='METAR'", model=self.model, region=self.region, read_only=True)
-            max_ctc_fcstValidEpochs = list(result)[0]
+                "SELECT RAW MAX(mdata.fcstValidEpoch) FROM mdata WHERE type='DD' AND docType='CTC' AND model=$model AND region=$region AND version='V01' AND subset='METAR'", model=self.model, region=self.region, read_only=True)
+            max_ctc_fcstValidEpochs = 0
+            if list(result)[0] is not None:
+                max_ctc_fcstValidEpochs = list(result)[0]
 
             result = self.cluster.query(
-                "SELECT raw mdata.fcstValidEpoch FROM mdata WHERE type='DD' AND docType='model' AND model=$model AND region=$region AND version='V01' AND subset='METAR' and fcstValidEpoch > $max_fcst_epoch", model=self.model, region=self.region, max_fcst_epoch=max_ctc_fcstValidEpochs, read_only=True)
+                "SELECT raw mdata.fcstValidEpoch FROM mdata WHERE type='DD' AND docType='model' AND model=$model AND version='V01' AND subset='METAR' and fcstValidEpoch > $max_fcst_epoch", model=self.model, max_fcst_epoch=max_ctc_fcstValidEpochs, read_only=True)
             model_fcstValidEpochs = list(result)
 
             result = self.cluster.query(
@@ -433,7 +438,7 @@ class CTCModelObsBuilderV01(CTCBuilder):
         :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
         :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
         """
-        CTCModelObsBuilderV01.__init__(
+        CTCBuilder.__init__(
             self, load_spec, ingest_document, cluster, collection)
         self.cluster = cluster
         self.collection = collection

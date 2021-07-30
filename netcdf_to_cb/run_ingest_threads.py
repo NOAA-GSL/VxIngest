@@ -47,6 +47,23 @@ defaults:
   cb_host: my_cb_host.some_subdomain.some_domain
   cb_user: some_cb_user_name
   cb_password: password_for_some_cb_user_name
+This is an example invocation from the command line. It first queries the system to find the max epoch 
+in the database for the specific model (HRRR_OPS). It then invokes the run_ingest_threads program with 8 threads
+specifying that epoch as the first_epoch for the program.
+Finally it imports the documents again using 8 threads.
+
+# find the latest epoch in the database (password is not correct here)
+first_epoch=$(/opt/couchbase/bin/cbq  -q -e couchbase://adb-cb1.gsd.esrl.noaa.gov/mdata -u avid -p 'pwd' --script="SELECT raw max(mdata.fcstValidEpoch) FROM mdata WHERE type='DD' AND docType='model' AND model='HRRR_OPS' AND version='V01' AND subset='METAR';" | jq -r '.results[0]')
+# clean the output directory
+rm -rf -o /data/netcdf_to_cb/output
+# export PYTHONPATH
+export PYTHONPATH=/home/pierce/VXingest
+# create output json documents
+nohup python netcdf_to_cb/run_ingest_threads.py -s /data/netcdf_to_cb/load_specs/load_spec_netcdf_metar_obs_V01.yaml -c ~/adb-cb1-credentials -p /public/data/madis/point/metar/netcdf/ -m %Y%m%d_%H%M -o /data/netcdf_to_cb/output -t 8 -f $first_epoch > logs/netcdf-20210729-13:32 2>&1 &
+# import the output json documents
+time /home/pierce/VXingest/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p /data/netcdf_to_cb/output -n 8 -l /home/pierce/VXingest/logs
+
+
 
 Copyright 2019 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of
 Colorado, NOAA/OAR/ESRL/GSL
@@ -89,9 +106,9 @@ def parse_args(args):
                         help="Specify the file name mask for the netcdf files ()")
     parser.add_argument("-o", "--output_dir", type=str, default="/tmp", 
                         help="Specify the output directory to put the json output files")
-    parser.add_argument("-f", "--{first_epoch}", type=int, default=0,
+    parser.add_argument("-f", "--first_epoch", type=int, default=0,
                         help="The first epoch to use, inclusive")
-    parser.add_argument("-l", "--{last_epoch}", type=int, default=sys.maxsize,
+    parser.add_argument("-l", "--last_epoch", type=int, default=sys.maxsize,
                         help="The last epoch to use, exclusive")
       # get the command line arguments
     args = parser.parse_args(args)
@@ -104,7 +121,7 @@ class VXIngest(object):
         self.spec_file = ""
         self.credentials_file = ""
         self.thread_count = ""
-        # -f {first_epoch} and -l {last_epoch} are optional time params.
+        # -f first_epoch and -l last_epoch are optional time params.
         # If these are present only the files in the path with filename masks
         # that fall between these epochs will be processed.
         self.first_last_params = None

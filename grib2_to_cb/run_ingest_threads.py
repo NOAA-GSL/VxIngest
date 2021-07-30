@@ -153,7 +153,7 @@ class VXIngest(object):
             # read in the load_spec file
             load_spec = dict(load_spec_file.read())
             # put the real credentials into the load_spec
-            load_spec = self.get_credentials(load_spec)
+            load_spec['cb_connection'] = self.get_credentials(load_spec)
         except (RuntimeError, TypeError, NameError, KeyError):
             logging.error(
                 "*** %s occurred in Main reading load_spec " +

@@ -55,11 +55,11 @@ Finally it imports the documents again using 8 threads.
 # find the latest epoch in the database (password is not correct here)
 first_epoch=$(/opt/couchbase/bin/cbq  -q -e couchbase://adb-cb1.gsd.esrl.noaa.gov/mdata -u avid -p 'pwd' --script="SELECT raw max(mdata.fcstValidEpoch) FROM mdata WHERE type='DD' AND docType='model' AND model='HRRR_OPS' AND version='V01' AND subset='METAR';" | jq -r '.results[0]')
 # clean the output directory
-rm -rf -o /data/netcdf_to_cb/output
+rm -rf /data/netcdf_to_cb/output
 # export PYTHONPATH
 export PYTHONPATH=/home/pierce/VXingest
 # create output json documents
-nohup python netcdf_to_cb/run_ingest_threads.py -s /data/netcdf_to_cb/load_specs/load_spec_netcdf_metar_obs_V01.yaml -c ~/adb-cb1-credentials -p /public/data/madis/point/metar/netcdf/ -m %Y%m%d_%H%M -o /data/netcdf_to_cb/output -t 8 -f $first_epoch > logs/netcdf-20210729-13:32 2>&1 &
+nohup python netcdf_to_cb/run_ingest_threads.py -s /data/netcdf_to_cb/load_specs/load_spec_netcdf_metar_obs_V01.yaml -c ~/adb-cb1-credentials -p /public/data/madis/point/metar/netcdf/ -m %Y%m%d_%H%M -o /data/netcdf_to_cb/output -t 8 -f $first_epoch > logs/netcdf 2>&1 &
 # import the output json documents
 time /home/pierce/VXingest/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p /data/netcdf_to_cb/output -n 8 -l /home/pierce/VXingest/logs
 
@@ -124,7 +124,7 @@ class VXIngest(object):
         # -f first_epoch and -l last_epoch are optional time params.
         # If these are present only the files in the path with filename masks
         # that fall between these epochs will be processed.
-        self.first_last_params = None
+        self.first_last_params = {'first_epoch': 0,'last_epoch': sys.maxsize}
         self.path = None
         self.fmask = None
         self.output_dir = None
@@ -140,13 +140,10 @@ class VXIngest(object):
         self.thread_count = args['threads']
         self.output_dir = args['output_dir'].strip()
         _args_keys = args.keys()
-        if 'first_epoch' in _args_keys and 'second_epoch' in _args_keys:
-            self.first_last_params = {'first_epoch': args['first_epoch'],
-                                      'last_epoch': args['last_epoch']}
-        else:
-            self.first_last_params = {}
-            self.first_last_params['first_epoch'] = 0
-            self.first_last_params['last_epoch'] = sys.maxsize
+        if 'first_epoch' in _args_keys:
+            self.first_last_params['first_epoch'] = args['first_epoch']
+        if 'last_epoch' in _args_keys:
+            self.first_last_params['last_epoch'] = args['last_epoch']
 
         #
         #  Read the load_spec file

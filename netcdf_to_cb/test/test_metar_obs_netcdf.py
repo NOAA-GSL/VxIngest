@@ -16,7 +16,8 @@ class TestNetcdfObsBuilderV01(TestCase):
                             'path': '/opt/data/netcdf_to_cb/input_files',
                             'file_name_mask': "%Y%m%d_%H%M",
                             'output_dir': '/opt/data/netcdf_to_cb/output',
-                            'threads': 1
+                            'threads': 1,
+                            'first_epoch': 1625936400
                             })
         except:
             self.fail("TestGsdIngestManager Exception failure: " +

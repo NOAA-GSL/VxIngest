@@ -10,6 +10,7 @@ import copy
 import datetime as dt
 import logging
 import sys
+import os.path
 import re
 import time
 import netCDF4 as nc
@@ -284,7 +285,17 @@ class NetcdfBuilder:
         # noinspection PyBroadException
         try:
             self.ncdf_data_set = nc.Dataset(file_name)
-            self.handle_document()
+            if self.load_spec['first_last_params']['first_epoch'] == 0:
+                # need to find first_epoch from the database - only do this once for all the files 
+                result = self.cluster.query("SELECT raw max(mdata.fcstValidEpoch) FROM mdata WHERE type='DD' AND docType='obs' AND version='V01' AND subset='METAR';")
+                _epoch = list(result)[0]
+                if _epoch is not None:
+                    self.load_spec['first_last_params']['first_epoch'] = _epoch                    
+            _file_utc_time = datetime.strptime(os.path.basename(file_name), self.load_spec['fmask'])
+            _file_time = (_file_utc_time - datetime(1970, 1, 1)).total_seconds()
+            # check to see if it is within first and last epoch (default is 0 and maxsize)
+            if _file_time >= self.load_spec['first_last_params']['first_epoch']:
+                self.handle_document()
             _document_map = self.get_document_map()
             return _document_map
         except Exception as e:

@@ -183,9 +183,6 @@ class CTCBuilder:
                         # get the individual station value and interpolated value
                         station_value = values[round(
                             station['y_gridpoint']), round(station['x_gridpoint'])]
-                        # interpolated gridpoints cannot be rounded
-                        interpolated_value = gg.interpGridBox(
-                            values, station['y_gridpoint'], station['x_gridpoint'])
                         # convert each station value to iso if necessary
                         if ri.startswith("{ISO}"):
                             station_value = variable.replace(

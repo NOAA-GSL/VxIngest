@@ -156,6 +156,9 @@ class VXIngest(object):
             load_spec = dict(load_spec_file.read())
             # put the real credentials into the load_spec
             load_spec = self.get_credentials(load_spec)
+            # stash the first_last_params because the builder will need to detrmine
+            # if it needs to check for the latest validEpoch from the database (first_epoch == 0)
+            load_spec['first_last_params'] = self.first_last_params
         except (RuntimeError, TypeError, NameError, KeyError):
             logging.error(
                 "*** %s occurred in Main reading load_spec " +
@@ -163,7 +166,7 @@ class VXIngest(object):
                 sys.exc_info())
             sys.exit("*** Error reading load_spec: " + self.spec_file)
 
-        # get all the ingest_document_ids and put them into a my_queue
+        # get all the file names and put them into a my_queue
         # load the my_queue with filenames that match the mask and are between first and last epoch (if they are in the args)
         # Constructor for an infinite size  FIFO my_queue
         q = JoinableQueue()
@@ -194,6 +197,7 @@ class VXIngest(object):
         for _threadCount in range(int(self.thread_count)):
             # noinspection PyBroadException
             try:
+                load_spec['fmask'] = self.fmask
                 ingest_manager_thread = VxIngestManager(
                     "VxIngestManager-" + str(self.thread_count), load_spec, q, self.output_dir)
                 _ingest_manager_list.append(ingest_manager_thread)

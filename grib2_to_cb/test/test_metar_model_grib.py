@@ -4,12 +4,14 @@ import json
 import math
 import os
 import sys
+import datetime
 import unittest
 
 import grib2_to_cb.get_grid as gg
 import pygrib
 import pyproj
 import yaml
+import numpy
 from couchbase.cluster import Cluster, ClusterOptions
 from couchbase_core.cluster import PasswordAuthenticator
 from grib2_to_cb.run_ingest_threads import VXIngest
@@ -26,12 +28,16 @@ class TestGribBuilderV01(unittest.TestCase):
     def test_gribBuilder_verses_script(self):
         # noinspection PyBroadException
         try:
+            outfilelist = glob.glob('/opt/data/grib2_to_cb/output/*')
+            for f in outfilelist:
+                os.remove(f)
             list_of_input_files = glob.glob(
                 '/opt/public/data/grids/hrrr/conus/wrfprs/grib2/*')
             latest_input_file = max(list_of_input_files, key=os.path.getctime)
-            latest_input_file_time = os.path.getmtime(latest_input_file)
-            first_epoch = round(latest_input_file_time) - 60
-            last_epoch = round(latest_input_file_time) + 60
+            file_utc_time = datetime.datetime.strptime(os.path.basename(latest_input_file), '%y%j%H%f')
+            latest_input_file_time = int((file_utc_time - datetime.datetime(1970, 1, 1)).total_seconds())
+            first_epoch = round(latest_input_file_time) - 100
+            last_epoch = round(latest_input_file_time) + 100
             cwd = os.getcwd()
             self.credentials_file = os.environ['HOME'] + '/adb-cb1-credentials'
             self.spec_file = cwd + '/grib2_to_cb/test/test_load_spec_grib_metar_hrrr_ops_V01.yaml'
@@ -140,7 +146,7 @@ class TestGribBuilderV01(unittest.TestCase):
                 if len(expected_station_data['data']) <= i:
                     expected_station_data['data'].append({})
 
-                expected_station_data['data'][i]['Ceiling'] = ceil_agl
+                expected_station_data['data'][i]['Ceiling'] = ceil_agl if not numpy.ma.is_masked(ceil_agl) else None
 
             # Surface Pressure
             message = self.grbs.select(name='Surface pressure')[0]
@@ -153,7 +159,7 @@ class TestGribBuilderV01(unittest.TestCase):
                 interpolated_value = gg.interpGridBox(
                     values, station['y_gridpoint'], station['x_gridpoint'])
                 pres_mb = interpolated_value * 100
-                expected_station_data['data'][i]['Surface Pressure'] = pres_mb
+                expected_station_data['data'][i]['Surface Pressure'] = pres_mb if not numpy.ma.is_masked(pres_mb) else None
 
             # Temperature
             message = self.grbs.select(name='2 metre temperature')[0]
@@ -163,7 +169,7 @@ class TestGribBuilderV01(unittest.TestCase):
                 tempk = gg.interpGridBox(
                     values, station['y_gridpoint'], station['x_gridpoint'])
                 tempf = ((tempk-273.15)*9)/5 + 32
-                expected_station_data['data'][i]['Temperature'] = tempf
+                expected_station_data['data'][i]['Temperature'] = tempf if not numpy.ma.is_masked(tempf) else None
 
             # Dewpoint
             message = self.grbs.select(name='2 metre dewpoint temperature')[0]
@@ -173,7 +179,7 @@ class TestGribBuilderV01(unittest.TestCase):
                 dpk = gg.interpGridBox(
                     values, station['y_gridpoint'], station['x_gridpoint'])
                 dpf = ((dpk-273.15)*9)/5 + 32
-                expected_station_data['data'][i]['DewPoint'] = dpf
+                expected_station_data['data'][i]['DewPoint'] = dpf if not numpy.ma.is_masked(dpf) else None
 
             # Relative Humidity
             message = self.grbs.select(name='2 metre relative humidity')[0]
@@ -182,7 +188,7 @@ class TestGribBuilderV01(unittest.TestCase):
                 station = self.domain_stations[i]
                 rh = gg.interpGridBox(
                     values, station['y_gridpoint'], station['x_gridpoint'])
-                expected_station_data['data'][i]['RH'] = rh
+                expected_station_data['data'][i]['RH'] = rh if not numpy.ma.is_masked(rh) else None
 
             # Wind Speed
             message = self.grbs.select(name='10 metre U wind component')[0]
@@ -202,14 +208,14 @@ class TestGribBuilderV01(unittest.TestCase):
                 # wind speed then convert to mph
                 ws_ms = math.sqrt((uwind_ms*uwind_ms)+(vwind_ms*vwind_ms))
                 ws_mph = (ws_ms/0.447) + 0.5
-                expected_station_data['data'][i]['WS'] = ws_mph
+                expected_station_data['data'][i]['WS'] = ws_mph if not numpy.ma.is_masked(ws_mph) else None
 
                 # wind direction   - lon is the lon of the station
                 station = self.domain_stations[i]
                 theta = gg.getWindTheta(vwind_message, station['lon'])
                 radians = math.atan2(uwind_ms, vwind_ms)
                 wd = (radians*57.2958) + theta + 180
-                expected_station_data['data'][i]['WD'] = wd
+                expected_station_data['data'][i]['WD'] = wd if not numpy.ma.is_masked(wd) else None
 
             # Visibility
             message = self.grbs.select(name='Visibility')[0]
@@ -218,7 +224,7 @@ class TestGribBuilderV01(unittest.TestCase):
                 station = self.domain_stations[i]
                 value = values[round(station['y_gridpoint']), round(
                     station['x_gridpoint'])]
-                expected_station_data['data'][i]['Visibility'] = value
+                expected_station_data['data'][i]['Visibility'] = value if not numpy.ma.is_masked(value) else None
             self.grbs.close()
 
             for i in range(len(self.domain_stations)):

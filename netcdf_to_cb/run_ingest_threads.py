@@ -6,7 +6,7 @@ Abstract:
 History Log:  Initial version
 
 Usage:
-run_netcdf_ingest_threads -s spec_file -c credentials_file [ -t thread_count -f first_epoch -l last_epoch]
+run_ingest_threads -s spec_file -c credentials_file -p path -m _file_mask[-o output_dir -t thread_count -f first_epoch -l last_epoch -n number_stations]
 This script processes arguments which define a a yaml load_spec file,
 a defaults file (for credentials),
 and a thread count.
@@ -16,7 +16,7 @@ that are defined in the load_spec file.
 The number of threads in the thread pool is set to the -t n (or --threads n)
 argument, where n is the number of threads to start. The default is one thread. 
 Each thread will run a VxIngestManager which will pull filenames, one at a time, 
-from the filename queue and fully process that netcdf file. 
+from the filename queue and fully process that input file. 
 When the queue is empty each NetcdfIngestManager will gracefully die.
 
 This is an example load_spec...
@@ -38,7 +38,7 @@ The optional output_dir specifies the directory where output files will be writt
 of writing them directly to couchbase. If the output_dir is not specified data will be written
 to couchbase cluster specified in the cb_connection.
 Files in the path will be enqueued if the file name mask falls between the first_epoch
-and the last_epoch. These values may be omitted in which case all the files in the path
+and the last_epoch. The first_epoch and the last_epoch may be omitted in which case all the non processed files in the path
 will be processed.
 
 This is an example defaults file. The keys should match

@@ -6,26 +6,27 @@ Copyright 2019 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of
 Colorado, NOAA/OAR/ESRL/GSL
 """
 
+import calendar
 import copy
 import datetime as dt
 import logging
-import sys
+import math
 import os.path
 import re
+import sys
 import time
-import netCDF4 as nc
-import re
-import math
-import calendar
-from numpy.lib.nanfunctions import nanvar
-import numpy.ma as ma
+from datetime import datetime, timedelta
 from decimal import Decimal
+
+import netCDF4 as nc
+import numpy.ma as ma
 from couchbase.cluster import Cluster, ClusterOptions, PasswordAuthenticator
 from couchbase.exceptions import CouchbaseException
-from couchbase.search import QueryStringQuery, SearchQuery, SearchOptions, PrefixQuery, HighlightStyle, SortField, SortScore, TermFacet
 from couchbase.mutation_state import MutationState
-from pymysql.constants import CLIENT
-from datetime import datetime, timedelta
+from couchbase.search import (HighlightStyle, PrefixQuery, QueryStringQuery,
+                              SearchOptions, SearchQuery, SortField, SortScore,
+                              TermFacet)
+from numpy.lib.nanfunctions import nanvar
 
 TS_OUT_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
@@ -33,10 +34,9 @@ TS_OUT_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 def convert_to_iso(an_epoch):
     if not isinstance(an_epoch, int):
         an_epoch = int(an_epoch)
-    _valid_time_str = dt.datetime.utcfromtimestamp(
+    valid_time_str = dt.datetime.utcfromtimestamp(
         an_epoch).strftime(TS_OUT_FORMAT)
-    return _valid_time_str
-
+    return valid_time_str
 
 
 def initialize_data(doc):
@@ -45,6 +45,7 @@ def initialize_data(doc):
     if 'data' in doc.keys():
         del doc['data']
     return doc
+
 
 class NetcdfBuilder:
     def __init__(self, load_spec, ingest_document, cluster, collection):
@@ -70,23 +71,23 @@ class NetcdfBuilder:
         # substituting *values from the corresponding netcdf fields as necessary.
         # noinspection PyBroadException
         try:
-            _parts = template_id.split(':')
+            parts = template_id.split(':')
             new_parts = []
-            for _part in _parts:
-                if _part.startswith('&'):
-                    value = str(self.handle_named_function(_part, recNum))
+            for part in parts:
+                if part.startswith('&'):
+                    value = str(self.handle_named_function(part, recNum))
                 else:
-                    if _part.startswith("*"):
-                        value = str(self.translate_template_item(_part, recNum))
+                    if part.startswith("*"):
+                        value = str(self.translate_template_item(part, recNum))
                     else:
-                        value = str(_part)
+                        value = str(part)
                 new_parts.append(value)
-            _new_id = ":".join(new_parts)
-            return _new_id
+            new_id = ":".join(new_parts)
+            return new_id
         except:
             e = sys.exc_info()
-            logging.error("NetcdfBuilder.derive_id: Exception  error: " + str(e))
-
+            logging.error(
+                "NetcdfBuilder.derive_id: Exception  error: " + str(e))
 
     def translate_template_item(self, variable, recNum):
         """
@@ -96,30 +97,30 @@ class NetcdfBuilder:
         :param recNum: the current recNum
         :return:
         """
-        _replacements = []
+        replacements = []
         # noinspection PyBroadException
         try:
             if isinstance(variable, str):
-                _replacements = variable.split('*')[1:]
+                replacements = variable.split('*')[1:]
             # skip the first replacement, its never
             # really a replacement. It is either '' or not a
             # replacement
 
-            _make_str = False
+            make_str = False
             value = variable
             Smatch = re.compile(".*S.*")
             Umatch = re.compile(".*U.*")
-            if len(_replacements) > 0:
-                for _ri in _replacements:
-                    vtype = str(self.ncdf_data_set.variables[_ri].dtype)
+            if len(replacements) > 0:
+                for ri in replacements:
+                    vtype = str(self.ncdf_data_set.variables[ri].dtype)
                     if Smatch.match(vtype) or Umatch.match(vtype):
-                        _make_str = True
-                        _chartostring = True
+                        make_str = True
+                        chartostring = True
                         break
-                for _ri in _replacements:
-                    if _ri.startswith("{ISO}"):
+                for ri in replacements:
+                    if ri.startswith("{ISO}"):
                         variable = value.replace("*{ISO}", "")
-                        if _chartostring:
+                        if chartostring:
                             # for these we have to convert the character array AND convert to ISO (it is probably a string date)
                             value = convert_to_iso(
                                 "*{ISO}" + nc.chartostring(self.ncdf_data_set[variable][recNum]))
@@ -129,15 +130,16 @@ class NetcdfBuilder:
                                 "*{ISO}" + self.ncdf_data_set[variable][recNum])
                     else:
                         variable = value.replace("*", "")
-                        if _make_str:
-                            if _chartostring:
+                        if make_str:
+                            if chartostring:
                                 # it is a char array of something
                                 value = value.replace(
-                                    '*' + _ri, str(nc.chartostring(self.ncdf_data_set[variable][recNum])))
+                                    '*' + ri, str(nc.chartostring(self.ncdf_data_set[variable][recNum])))
                                 return value
                             else:
                                 # it is probably a number
-                                value = str(self.ncdf_data_set[variable][recNum])
+                                value = str(
+                                    self.ncdf_data_set[variable][recNum])
                                 return value
                         else:
                             # it desn't need to be a string
@@ -154,30 +156,32 @@ class NetcdfBuilder:
         # noinspection PyBroadException
         try:
             new_document = copy.deepcopy(self.template)
-            _recNum_data_size = self.ncdf_data_set.dimensions['recNum'].size
-            if _recNum_data_size == 0:
+            recNum_data_size = self.ncdf_data_set.dimensions['recNum'].size
+            if recNum_data_size == 0:
                 return
             # make a copy of the template, which will become the new document
             # once all the translations have occured
             new_document = initialize_data(new_document)
-            for _recNum in range(_recNum_data_size):
-                for _key in self.template.keys():
-                    if _key == "data":
-                        new_document = self.handle_data(new_document, _recNum)
+            for recNum in range(recNum_data_size):
+                for key in self.template.keys():
+                    if key == "data":
+                        new_document = self.handle_data(new_document, recNum)
                         continue
-                    new_document = self.handle_key(new_document, _recNum, _key)
+                    new_document = self.handle_key(new_document, recNum, key)
             # put document into document map
             if new_document['id']:
-                logging.info("NetcdfBuilder.handle_document - adding document " + new_document['id'])
+                logging.info(
+                    "NetcdfBuilder.handle_document - adding document " + new_document['id'])
                 self.document_map[new_document['id']] = new_document
             else:
-                logging.info("NetcdfBuilder.handle_document - cannot add document with key " + str(new_document['id']))
+                logging.info(
+                    "NetcdfBuilder.handle_document - cannot add document with key " + str(new_document['id']))
         except Exception as e:
             logging.error(self.__class__.__name__ + "NetcdfBuilder.handle_document: Exception instantiating "
                                                     "builder: " + self.__class__.__name__ + " error: " + str(e))
             raise e
 
-    def handle_key(self, doc, _recNum, _key):
+    def handle_key(self, doc, _recNum, key):
         """
         This routine handles keys by substituting 
         the netcdf variables that correspond to the key into the values
@@ -189,29 +193,29 @@ class NetcdfBuilder:
         """
         # noinspection PyBroadException
         try:
-            if _key == 'id':
-                _id = self.derive_id(self.template['id'], _recNum)
-                if not _id in doc:
-                    doc['id'] = _id
+            if key == 'id':
+                id = self.derive_id(self.template['id'], _recNum)
+                if not id in doc:
+                    doc['id'] = id
                 return doc
-            if isinstance(doc[_key], dict):
+            if isinstance(doc[key], dict):
                 # process an embedded dictionary
-                _tmp_doc = copy.deepcopy(self.template[_key])
-                for _sub_key in _tmp_doc.keys():
-                    _tmp_doc = self.handle_key(
-                        _tmp_doc, _recNum, _sub_key)  # recursion
-                doc[_key] = _tmp_doc
-            if not isinstance(doc[_key], dict) and isinstance(doc[_key], str) and doc[_key].startswith('&'):
-                doc[_key] = self.handle_named_function(doc[_key], _recNum)
+                tmp_doc = copy.deepcopy(self.template[key])
+                for _sub_key in tmp_doc.keys():
+                    tmp_doc = self.handle_key(
+                        tmp_doc, _recNum, _sub_key)  # recursion
+                doc[key] = tmp_doc
+            if not isinstance(doc[key], dict) and isinstance(doc[key], str) and doc[key].startswith('&'):
+                doc[key] = self.handle_named_function(doc[key], _recNum)
             else:
-                doc[_key] = self.translate_template_item(doc[_key], _recNum)
+                doc[key] = self.translate_template_item(doc[key], _recNum)
             return doc
         except Exception as e:
             logging.error(
                 self.__class__.__name__ + "NetcdfBuilder.handle_key: Exception in builder:  error: " + str(e))
         return doc
 
-    def handle_named_function(self, _named_function_def, _recNum):
+    def handle_named_function(self, named_function_def, _recNum):
         """
         This routine processes a named function entry from a template.
         :param _named_function_def - this can be either a template key or a template value.
@@ -228,28 +232,28 @@ class NetcdfBuilder:
         """
         # noinspection PyBroadException
         try:
-            _func = _named_function_def.split('|')[0].replace('&', '')
-            _params = _named_function_def.split('|')[1].split(',')
-            _dict_params = {"recNum": _recNum}
-            for _p in _params:
+            func = named_function_def.split('|')[0].replace('&', '')
+            params = named_function_def.split('|')[1].split(',')
+            dict_params = {"recNum": _recNum}
+            for _p in params:
                 # be sure to slice the * off of the front of the param
-                _dict_params[_p[1:]] = self.translate_template_item(_p, _recNum)
+                dict_params[_p[1:]] = self.translate_template_item(_p, _recNum)
             # call the named function using getattr
-            _replace_with = getattr(self, _func)(_dict_params)
+            replace_with = getattr(self, func)(dict_params)
         except Exception as e:
             logging.error(
                 self.__class__.__name__ + "handle_named_function: Exception instantiating builder:  error: " + str(e))
-        return _replace_with
+        return replace_with
 
     def handle_data(self, doc, recNum):
         # noinspection PyBroadException
         try:
-            _data_elem = {}
-            _data_key = next(iter(self.template['data']))
-            _data_template = self.template['data'][_data_key]
-            for key in _data_template.keys():
+            data_elem = {}
+            data_key = next(iter(self.template['data']))
+            data_template = self.template['data'][data_key]
+            for key in data_template.keys():
                 try:
-                    value = _data_template[key]
+                    value = data_template[key]
                     # values can be null...
                     if value and value.startswith('&'):
                         value = self.handle_named_function(value, recNum)
@@ -258,16 +262,16 @@ class NetcdfBuilder:
                 except Exception as e:
                     value = None
                     logging.warning(self.__class__.__name__ +
-                                "NetcdfBuilder.handle_data - value is None")
-                _data_elem[key] = value
-            if _data_key.startswith('&'):
-                _data_key = self.handle_named_function(_data_key, recNum)
+                                    "NetcdfBuilder.handle_data - value is None")
+                data_elem[key] = value
+            if data_key.startswith('&'):
+                data_key = self.handle_named_function(data_key, recNum)
             else:
-                _data_key = self.translate_template_item(_data_key, recNum)
-            if _data_key is None:
+                data_key = self.translate_template_item(data_key, recNum)
+            if data_key is None:
                 logging.warning(self.__class__.__name__ +
                                 "NetcdfBuilder.handle_data - _data_key is None")
-            doc = self.load_data(doc, _data_key, _data_elem)
+            doc = self.load_data(doc, data_key, data_elem)
             return doc
         except Exception as e:
             logging.error(self.__class__.__name__ +
@@ -286,23 +290,26 @@ class NetcdfBuilder:
         try:
             self.ncdf_data_set = nc.Dataset(file_name)
             if self.load_spec['first_last_params']['first_epoch'] == 0:
-                # need to find first_epoch from the database - only do this once for all the files 
-                result = self.cluster.query("SELECT raw max(mdata.fcstValidEpoch) FROM mdata WHERE type='DD' AND docType='obs' AND version='V01' AND subset='METAR';")
-                _epoch = list(result)[0]
-                if _epoch is not None:
-                    self.load_spec['first_last_params']['first_epoch'] = _epoch                    
-            _file_utc_time = datetime.strptime(os.path.basename(file_name), self.load_spec['fmask'])
-            _file_time = (_file_utc_time - datetime(1970, 1, 1)).total_seconds()
+                # need to find first_epoch from the database - only do this once for all the files
+                result = self.cluster.query(
+                    "SELECT raw max(mdata.fcstValidEpoch) FROM mdata WHERE type='DD' AND docType='obs' AND version='V01' AND subset='METAR';")
+                epoch = list(result)[0]
+                if epoch is not None:
+                    self.load_spec['first_last_params']['first_epoch'] = epoch
+            file_utc_time = datetime.strptime(
+                os.path.basename(file_name), self.load_spec['fmask'])
+            file_time = (file_utc_time - datetime(1970, 1, 1)).total_seconds()
             # check to see if it is within first and last epoch (default is 0 and maxsize)
-            if _file_time >= self.load_spec['first_last_params']['first_epoch']:
+            if file_time >= self.load_spec['first_last_params']['first_epoch']:
                 self.handle_document()
-            _document_map = self.get_document_map()
-            return _document_map
+            document_map = self.get_document_map()
+            return document_map
         except Exception as e:
             logging.error(self.__class__.__name__ +
                           ": Exception with builder build_document: error: " + str(e))
-            self.close()
             return {}
+        finally:
+            self.close()
 
 
 # Concrete builders
@@ -370,23 +377,23 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
 
     def ceiling_transform(self, params_dict):
         try:
-            _skyCover = params_dict['skyCover']
-            _skyLayerBase = params_dict['skyLayerBase']
+            skyCover = params_dict['skyCover']
+            skyLayerBase = params_dict['skyLayerBase']
             # code clear as 60,000 ft 
             ceiling = 60000
             mBKN = re.compile('.*BKN.*')  # Broken
             mOVC = re.compile('.*OVC.*')  # Overcast
             mVV = re.compile('.*VV.*')  # Vertical Visibility
-            mask_array = ma.getmaskarray(_skyLayerBase)
-            _skyCover_array = _skyCover[1:-1].replace("'","").split(" ")
-            for index in range(len(_skyLayerBase)):
-                if (not mask_array[index]) and (mBKN.match(_skyCover_array[index]) or mOVC.match(_skyCover_array[index]) or mVV.match(_skyCover_array[index])):
-                    ceiling = _skyLayerBase[index]
-                    break   
+            mask_array = ma.getmaskarray(skyLayerBase)
+            skyCover_array = skyCover[1:-1].replace("'", "").split(" ")
+            for index in range(len(skyLayerBase)):
+                if (not mask_array[index]) and (mBKN.match(skyCover_array[index]) or mOVC.match(skyCover_array[index]) or mVV.match(skyCover_array[index])):
+                    ceiling = skyLayerBase[index]
+                    break
             return math.floor(ceiling)
         except Exception as e:
             logging.error(self.__class__.__name__ +
-                            "handle_data: Exception in named function ceiling_transform:  error: " + str(e))
+                          "handle_data: Exception in named function ceiling_transform:  error: " + str(e))
 
     def kelvin_to_farenheight(self, params_dict):
         try:
@@ -396,45 +403,46 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
             return value
         except Exception as e:
             logging.error(self.__class__.__name__ +
-                            "handle_data: Exception in named function kelvin_to_farenheight:  error: " + str(e))
+                          "handle_data: Exception in named function kelvin_to_farenheight:  error: " + str(e))
 
     def umask_value_transform(self, params_dict):
         # Probably need more here....
         try:
-            _key = None
-            _recNum = params_dict['recNum']
-            for _key in params_dict.keys():
-                if _key != "recNum":
+            key = None
+            recNum = params_dict['recNum']
+            for key in params_dict.keys():
+                if key != "recNum":
                     break
-            _ncValue = self.ncdf_data_set[_key][_recNum]
-            if not ma.getmask(_ncValue):
-                value = ma.compressed(_ncValue)[0]
+            ncValue = self.ncdf_data_set[key][recNum]
+            if not ma.getmask(ncValue):
+                value = ma.compressed(ncValue)[0]
                 return float(value)
             else:
                 return None
         except Exception as e:
             logging.error(self.__class__.__name__ +
-                            "umask_value_transform: Exception in named function umask_value_transform for key " + _key + ":  error: " + str(e))
+                          "umask_value_transform: Exception in named function umask_value_transform for key " + key + ":  error: " + str(e))
 
     def handle_pressure(self, params_dict):
         try:
             value = self.umask_value_transform(params_dict)
             if value is not None and value != "":
-                value = math.floor(float(value) / 100) # convert to millibars (from pascals) and round
+                # convert to millibars (from pascals) and round
+                value = math.floor(float(value) / 100)
             return value
         except Exception as e:
             logging.error(self.__class__.__name__ +
-                            "handle_pressure: Exception in named function:  error: " + str(e))
+                          "handle_pressure: Exception in named function:  error: " + str(e))
 
     def handle_visibility(self, params_dict):
         try:
             value = self.umask_value_transform(params_dict)
-            if  value is not None and value != "":
-                value = math.floor(float(value)) # round
+            if value is not None and value != "":
+                value = math.floor(float(value))  # round
             return float(value)
         except Exception as e:
             logging.error(self.__class__.__name__ +
-                            "handle_pressure: Exception in named function:  error: " + str(e))
+                          "handle_pressure: Exception in named function:  error: " + str(e))
 
     def interpolate_time(self, params_dict):
         """
@@ -442,18 +450,18 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
         """
         try:
             time = None
-            _timeObs = params_dict['timeObs']
-            if not ma.getmask(_timeObs):
-                _time = int(ma.compressed(_timeObs)[0])
+            timeObs = params_dict['timeObs']
+            if not ma.getmask(timeObs):
+                time = int(ma.compressed(timeObs)[0])
             else:
                 return ""
-            time = datetime.fromtimestamp(_time)
+            time = datetime.fromtimestamp(time)
             time = time.replace(second=0, microsecond=0, minute=0,
-                            hour=time.hour) + timedelta(hours=time.minute//30)
+                                hour=time.hour) + timedelta(hours=time.minute//30)
             return calendar.timegm(time.timetuple())
         except Exception as e:
             logging.error(self.__class__.__name__ +
-                            "handle_data: Exception in named function interpolate_time:  error: " + str(e))
+                          "handle_data: Exception in named function interpolate_time:  error: " + str(e))
 
     def interpolate_time_iso(self, params_dict):
         """
@@ -461,42 +469,46 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
         """
         try:
             time = None
-            _timeObs = params_dict['timeObs']
-            if not ma.getmask(_timeObs):
-                _time = int(ma.compressed(_timeObs)[0])
+            timeObs = params_dict['timeObs']
+            if not ma.getmask(timeObs):
+                time = int(ma.compressed(timeObs)[0])
             else:
                 return ""
-            time = datetime.fromtimestamp(_time)
+            time = datetime.fromtimestamp(time)
             time = time.replace(second=0, microsecond=0, minute=0,
-                            hour=time.hour) + timedelta(hours=time.minute//30)
+                                hour=time.hour) + timedelta(hours=time.minute//30)
             # convert this iso
             return str(time.isoformat())
         except Exception as e:
             logging.error(self.__class__.__name__ +
-                            "handle_data: Exception in named function interpolate_time_iso:  error: " + str(e))
+                          "handle_data: Exception in named function interpolate_time_iso:  error: " + str(e))
 
-
-    def fill_from_netcdf(self, _recNum, _netcdf):
+    def fill_from_netcdf(self, _recNum, netcdf):
         """
         Used by handle_station to get the records from netcdf for comparing with the 
         records from the database.
         """
-        _netcdf = {}
+        netcdf = {}
         if not ma.getmask(self.ncdf_data_set['latitude'][_recNum]):
-            _netcdf['latitude'] = ma.compressed(self.ncdf_data_set['latitude'][_recNum])[0]
+            netcdf['latitude'] = ma.compressed(
+                self.ncdf_data_set['latitude'][_recNum])[0]
         else:
-            _netcdf['latitude'] = None
+            netcdf['latitude'] = None
         if not ma.getmask(self.ncdf_data_set['longitude'][_recNum]):
-            _netcdf['longitude'] = ma.compressed(self.ncdf_data_set['longitude'][_recNum])[0]
+            netcdf['longitude'] = ma.compressed(
+                self.ncdf_data_set['longitude'][_recNum])[0]
         else:
-            _netcdf['longitude'] = None
+            netcdf['longitude'] = None
         if not ma.getmask(self.ncdf_data_set['elevation'][_recNum]):
-            _netcdf['elevation'] = ma.compressed(self.ncdf_data_set['elevation'][_recNum])[0]
+            netcdf['elevation'] = ma.compressed(
+                self.ncdf_data_set['elevation'][_recNum])[0]
         else:
-            _netcdf['elevation'] = None
-        _netcdf['description'] = str(nc.chartostring(self.ncdf_data_set['locationName'][_recNum]))
-        _netcdf['name'] = str(nc.chartostring(self.ncdf_data_set['stationName'][_recNum]))
-        return _netcdf
+            netcdf['elevation'] = None
+        netcdf['description'] = str(nc.chartostring(
+            self.ncdf_data_set['locationName'][_recNum]))
+        netcdf['name'] = str(nc.chartostring(
+            self.ncdf_data_set['stationName'][_recNum]))
+        return netcdf
 
     def handle_station(self, params_dict):
         """
@@ -516,77 +528,77 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
          :param params_dict: {station_name:a_station_name}
          :return: 
          """
-        _recNum = params_dict['recNum']
-        _station_name = params_dict['stationName']
-        _id = None
-        _add_station = False
-        _netcdf = {}
-        _existing = {}
+        recNum = params_dict['recNum']
+        station_name = params_dict['stationName']
+        id = None
+        add_station = False
+        netcdf = {}
+        existing = {}
 
         # noinspection PyBroadException
         try:
             result = self.cluster.search_query(
-                "station_geo", QueryStringQuery(_station_name), fields=["*"])
+                "station_geo", QueryStringQuery(station_name), fields=["*"])
             rows = result.rows()
 
-            if len(rows) == 0: # too cold
-                _add_station = True
+            if len(rows) == 0:  # too cold
+                add_station = True
 
-            if len(rows) > 1: # too hot
+            if len(rows) > 1:  # too hot
                 raise Exception(
-                    "netcdfObsBuilderV01.handle_station: There are more than one station with the name " + _station_name + "! FIX THAT!")
+                    "netcdfObsBuilderV01.handle_station: There are more than one station with the name " + station_name + "! FIX THAT!")
 
             # get the netcdf fields for comparing or adding new
-            _netcdf = self.fill_from_netcdf(_recNum, _netcdf)
+            netcdf = self.fill_from_netcdf(recNum, netcdf)
 
-            if len(rows) == 1: # just right
+            if len(rows) == 1:  # just right
                 # compare the existing record from the query to the netcdf record
-                _existing['name'] = rows[0].fields['name']
-                _existing['description'] = rows[0].fields['description']
+                existing['name'] = rows[0].fields['name']
+                existing['description'] = rows[0].fields['description']
                 if 'geo' in rows[0].fields:
-                    _existing['latitude'] = round(rows[0].fields['geo'][1],2)
-                    _existing['longitude'] = round(rows[0].fields['geo'][0], 2)
-                else:    
-                    _existing['latitude'] = None
-                    _existing['longitude'] = None
-                          
-                for _key in ['latitude','longitude']:
-                    if not math.isclose(_existing[_key], _netcdf[_key],abs_tol=.001):
-                        _add_station =True
+                    existing['latitude'] = round(rows[0].fields['geo'][1], 2)
+                    existing['longitude'] = round(rows[0].fields['geo'][0], 2)
+                else:
+                    existing['latitude'] = None
+                    existing['longitude'] = None
+
+                for key in ['latitude', 'longitude']:
+                    if not math.isclose(existing[key], netcdf[key], abs_tol=.001):
+                        add_station = True
                         break
-                if not _add_station:    
-                    for _key in ['description','name']:
-                        if _existing[_key] != _netcdf[_key]:
-                            _add_station =True
+                if not add_station:
+                    for key in ['description', 'name']:
+                        if existing[key] != netcdf[key]:
+                            add_station = True
                             break
 
-            if _add_station:
+            if add_station:
                 # got to add a station either because it didn't exist in the database, or it didn't match
                 # what was in the database
                 logging.info(
-                    "netcdfObsBuilderV01.handle_station - adding station " + _netcdf['name'])
-                _id = "MD:V01:METAR:station:" + _netcdf['name']
-                _new_station = {
-                    "id": "MD:V01:METAR:station:" + _netcdf['name'],
-                    "description": _netcdf['description'],
+                    "netcdfObsBuilderV01.handle_station - adding station " + netcdf['name'])
+                id = "MD:V01:METAR:station:" + netcdf['name']
+                new_station = {
+                    "id": "MD:V01:METAR:station:" + netcdf['name'],
+                    "description": netcdf['description'],
                     "docType": "station",
                     "firstTime": 0,
                     "geo": {
-                        "elev": round(float(_netcdf['elevation']), 4),
-                        "lat": round(float(_netcdf['latitude']), 4),
-                        "lon": round(float(_netcdf['longitude']), 4)
+                        "elev": round(float(netcdf['elevation']), 4),
+                        "lat": round(float(netcdf['latitude']), 4),
+                        "lon": round(float(netcdf['longitude']), 4)
                     },
                     "lastTime": 0,
-                    "name": _netcdf['name'],
+                    "name": netcdf['name'],
                     "subset": "METAR",
                     "type": "MD",
                     "updateTime": int(time.time()),
                     "version": "V01"
                 }
                 # add the station to the document map
-                if not _id in self.document_map:
-                     self.document_map[_id] = _new_station
-            return params_dict['stationName']        
+                if not id in self.document_map:
+                    self.document_map[id] = new_station
+            return params_dict['stationName']
         except Exception as e:
             logging.error(
                 self.__class__.__name__ +

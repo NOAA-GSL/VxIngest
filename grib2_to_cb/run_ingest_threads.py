@@ -37,7 +37,7 @@ of writing them directly to couchbase. If the output_dir is not specified data w
 to couchbase cluster specified in the cb_connection.
 Files in the path will be enqueued if the file name mask renders a valid datetime that 
 falls between the first_epoch and the last_epoch. 
-The first_epoch and the last_epoch may be omitted in which case all the files in the path
+The first_epoch and the last_epoch may be omitted in which case all the non processed files in the path
 will be processed.
 
 This is an example defaults file. The keys should match
@@ -114,7 +114,7 @@ class VXIngest(object):
         # -f first_epoch and -l last_epoch are optional time params.
         # If these are present only the files in the path with filename masks
         # that fall between these epochs will be processed.
-        self.first_last_params = None
+        self.first_last_params = {'first_epoch': 0,'last_epoch': sys.maxsize}
         self.path = None
         self.fmask = None
         self.output_dir = None
@@ -132,13 +132,10 @@ class VXIngest(object):
         self.thread_count = args['threads']
         self.output_dir = args['output_dir'].strip()
         _args_keys = args.keys()
-        if 'first_epoch' in _args_keys and 'second_epoch' in _args_keys:
-            self.first_last_params = {'first_epoch': args['first_epoch'],
-                                      'last_epoch': args['last_epoch']}
-        else:
-            self.first_last_params = {}
-            self.first_last_params['first_epoch'] = 0
-            self.first_last_params['last_epoch'] = sys.maxsize
+        if 'first_epoch' in _args_keys:
+            self.first_last_params['first_epoch'] = args['first_epoch']
+        if 'last_epoch' in _args_keys:
+            self.first_last_params['last_epoch'] = args['last_epoch']
         if 'number_stations' in _args_keys:
             self.number_stations = args['number_stations']
         else:
@@ -153,7 +150,10 @@ class VXIngest(object):
             # read in the load_spec file
             load_spec = dict(load_spec_file.read())
             # put the real credentials into the load_spec
-            load_spec['cb_connection'] = self.get_credentials(load_spec)
+            load_spec = self.get_credentials(load_spec)
+            # stash the first_last_params because the builder will need to detrmine
+            # if it needs to check for the latest validEpoch from the database (first_epoch == 0)
+            load_spec['first_last_params'] = self.first_last_params
         except (RuntimeError, TypeError, NameError, KeyError):
             logging.error(
                 "*** %s occurred in Main reading load_spec " +
@@ -174,14 +174,11 @@ class VXIngest(object):
                     # to "|" in the mask. Also remove the "|" characters from the mask itself
                     try:
                         entry_name = entry.name
-                        file_utc_time = datetime.strptime(
-                            entry_name, self.fmask)
-                        file_time = (file_utc_time -
-                                     datetime(1970, 1, 1)).total_seconds()
+                        file_utc_time = datetime.strptime(entry_name, self.fmask)
+                        file_time = int((file_utc_time - datetime(1970, 1, 1)).total_seconds())
                         # check to see if it is within first and last epoch (default is 0 and maxsize)
                         if self.first_last_params['first_epoch'] <= file_time and file_time <= self.first_last_params['last_epoch']:
-                            file_names.append(
-                                os.path.join(self.path, entry.name))
+                            file_names.append(os.path.join(self.path, entry.name))
                     except:
                         # don't care, it just means it wasn't a properly formatted file per the mask
                         continue
@@ -198,6 +195,7 @@ class VXIngest(object):
         for _threadCount in range(int(self.thread_count)):
             # noinspection PyBroadException
             try:
+                load_spec['fmask'] = self.fmask
                 ingest_manager_thread = VxIngestManager(
                     "VxIngestManager-" + str(self.thread_count), load_spec, q, self.output_dir, self.number_stations)
                 ingest_manager_list.append(ingest_manager_thread)

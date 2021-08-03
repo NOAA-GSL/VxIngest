@@ -8,13 +8,14 @@ Colorado, NOAA/OAR/ESRL/GSL
 
 import copy
 import cProfile
-import datetime as dt
+import datetime
 import logging
 import math
+import os.path
 import sys
-import numpy
 from pstats import Stats
 
+import numpy
 import pygrib
 import pyproj
 from couchbase.cluster import Cluster, ClusterOptions, PasswordAuthenticator
@@ -32,7 +33,7 @@ TS_OUT_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 def convert_to_iso(an_epoch):
     if not isinstance(an_epoch, int):
         an_epoch = int(an_epoch)
-    valid_time_str = dt.datetime.utcfromtimestamp(
+    valid_time_str = datetime.datetime.utcfromtimestamp(
         an_epoch).strftime(TS_OUT_FORMAT)
     return valid_time_str
 
@@ -99,7 +100,7 @@ class GribBuilder:
             e = sys.exc_info()
             logging.error("GribBuilder.derive_id: Exception  error: " + str(e))
 
-    def translate_template_item(self, variable, single_return = False):
+    def translate_template_item(self, variable, single_return=False):
         """
         This method translates template replacements (*item or *item1*item2).
         It can translate keys or values. 
@@ -119,7 +120,8 @@ class GribBuilder:
                 # really a replacement. It is either '' or not a
                 # replacement
                 replacements = variable.split('*')[1:]
-            station_value = variable  # pre assign these in case it isn't a replacement - makes it easier
+            # pre assign these in case it isn't a replacement - makes it easier
+            station_value = variable
             interpolated_value = variable
             if len(replacements) > 0:
                 station_values = []
@@ -127,19 +129,26 @@ class GribBuilder:
                     message = self.grbs.select(name=ri)[0]
                     values = message['values']
                     for station in self.domain_stations:
-                        #get the individual station value and interpolated value
-                        station_value = values[round(station['y_gridpoint']), round(station['x_gridpoint'])]
+                        # get the individual station value and interpolated value
+                        station_value = values[round(
+                            station['y_gridpoint']), round(station['x_gridpoint'])]
                         # interpolated gridpoints cannot be rounded
-                        interpolated_value = gg.interpGridBox(values, station['y_gridpoint'], station['x_gridpoint'])
+                        interpolated_value = gg.interpGridBox(
+                            values, station['y_gridpoint'], station['x_gridpoint'])
                         # convert each station value to iso if necessary
                         if ri.startswith("{ISO}"):
-                            station_value = variable.replace("*" + ri, convert_to_iso(station_value))
-                            interpolated_value = variable.replace("*" + ri, convert_to_iso(station_value))
+                            station_value = variable.replace(
+                                "*" + ri, convert_to_iso(station_value))
+                            interpolated_value = variable.replace(
+                                "*" + ri, convert_to_iso(station_value))
                         else:
-                            station_value = variable.replace("*" + ri, str(station_value))
-                            interpolated_value = variable.replace("*" + ri, str(station_value))
+                            station_value = variable.replace(
+                                "*" + ri, str(station_value))
+                            interpolated_value = variable.replace(
+                                "*" + ri, str(interpolated_value))
                         # add it onto the list of tupples
-                        station_values.append((station_value, interpolated_value))
+                        station_values.append(
+                            (station_value, interpolated_value))
                 return station_values
             # it is a constant, no replacements but we still need a tuple for each station
             return [(station_value, interpolated_value) for i in range(len(self.domain_stations))]
@@ -208,7 +217,8 @@ class GribBuilder:
             if not isinstance(doc[key], dict) and isinstance(doc[key], str) and doc[key].startswith('&'):
                 doc[key] = self.handle_named_function(doc[key])
             else:
-                doc[key], _interp_v = self.translate_template_item(doc[key], True)
+                doc[key], _interp_v = self.translate_template_item(
+                    doc[key], True)
             return doc
         except Exception as e:
             logging.error(
@@ -266,7 +276,7 @@ class GribBuilder:
                     else:
                         value = self.translate_template_item(value)
                 except Exception as e:
-                    value = [(None,None)]
+                    value = [(None, None)]
                     logging.warning(self.__class__.__name__ +
                                     "GribBuilder.handle_data Exception: " + str(e) + " - setting value to (None,None)")
                 data_elem[key] = value
@@ -274,11 +284,12 @@ class GribBuilder:
                 data_key = self.handle_named_function(data_key)
             else:
                 # _ ignore the interp_value part of the returned tuple
-                data_key, _interp_ignore_value = self.translate_template_item(data_key)
+                data_key, _interp_ignore_value = self.translate_template_item(
+                    data_key)
             if data_key is None:
                 logging.warning(self.__class__.__name__ +
                                 "GribBuilder.handle_data - _data_key is None")
-            
+
             doc = self.load_data(doc, data_key, data_elem)
             return doc
         except Exception as e:
@@ -296,8 +307,16 @@ class GribBuilder:
         """
         # noinspection PyBroadException
         try:
-            # TODO determine if this projection stuff changes file to file
-            # If not, use lazy instantiation to just do it once for all the files
+            if self.load_spec['first_last_params']['first_epoch'] == 0:
+                # need to find first_epoch from the database - only do this once for all the files
+                result = self.cluster.query(
+                    "SELECT raw max(mdata.fcstValidEpoch) FROM mdata WHERE type='DD' AND docType='model' AND model=$model AND version='V01' AND subset='METAR';", self.template.model)
+                epoch = list(result)[0]
+                if epoch is not None:
+                    self.load_spec['first_last_params']['first_epoch'] = epoch
+            file_utc_time = datetime.datetime.strptime(
+                os.path.basename(file_name), self.load_spec['fmask'])
+            file_time = (file_utc_time - datetime.datetime(1970, 1, 1)).total_seconds()
             logging.getLogger().setLevel(logging.INFO)
             self.projection = gg.getGrid(file_name)
             self.grbs = pygrib.open(file_name)
@@ -310,7 +329,7 @@ class GribBuilder:
                 proj_from=self.in_proj, proj_to=self.out_proj)
             self.transformer_reverse = pyproj.Transformer.from_proj(
                 proj_from=self.out_proj, proj_to=self.in_proj)
-             
+
             # reset the builders document_map for a new file
             self.initialize_document_map()
             # get stations from couchbase and filter them so
@@ -324,16 +343,17 @@ class GribBuilder:
                 if count > station_limit:
                     break
                 if row['lat'] == -90 and row['lon'] == 180:
-                    #TODO need to fix this
-                    continue # don't know how to transform that station
+                    # TODO need to fix this
+                    continue  # don't know how to transform that station
                 x, y = self.transformer.transform(
                     row['lon'], row['lat'], radians=False)
                 x_gridpoint, y_gridpoint = x/self.spacing, y/self.spacing
                 try:
-                   if math.floor(x_gridpoint) < 0 or math.ceil(x_gridpoint) >= max_x or math.floor(y_gridpoint) < 0 or math.ceil(y_gridpoint) >= max_y:
-                    continue
+                    if math.floor(x_gridpoint) < 0 or math.ceil(x_gridpoint) >= max_x or math.floor(y_gridpoint) < 0 or math.ceil(y_gridpoint) >= max_y:
+                        continue
                 except Exception as e:
-                    logging.error(self.__class__.__name__ + ": Exception with builder build_document: error: " + str(e))
+                    logging.error(
+                        self.__class__.__name__ + ": Exception with builder build_document: error: " + str(e))
                     continue
                 station = copy.deepcopy(row)
                 station['x_gridpoint'] = x_gridpoint
@@ -344,7 +364,9 @@ class GribBuilder:
             # if we have asked for profiling go ahead and do it
             if self.do_profiling:
                 with cProfile.Profile() as pr:
-                    self.handle_document()
+            # check to see if it is within first and last epoch (default is 0 and maxsize)
+                    if file_time >= self.load_spec['first_last_params']['first_epoch']:
+                        self.handle_document()
                     with open('profiling_stats.txt', 'w') as stream:
                         stats = Stats(pr, stream=stream)
                         stats.strip_dirs()
@@ -352,7 +374,9 @@ class GribBuilder:
                         stats.dump_stats('profiling_stats.prof')
                         stats.print_stats()
             else:
-                self.handle_document()
+            # check to see if it is within first and last epoch (default is 0 and maxsize)
+                if file_time >= self.load_spec['first_last_params']['first_epoch']:
+                    self.handle_document()
             document_map = self.get_document_map()
             return document_map
         except Exception as e:
@@ -392,7 +416,7 @@ class GribModelBuilderV01(GribBuilder):
         self.template = ingest_document['template']
         # self.do_profiling = True  # set to True to enable build_document profiling
         self.do_profiling = False  # set to True to enable build_document profiling
-    
+
     def initialize_document_map(self):
         """
         reset the document_map for a new file
@@ -424,7 +448,7 @@ class GribModelBuilderV01(GribBuilder):
             for i in range(len(self.domain_stations)):
                 elem = {}
                 for key in keys:
-                    elem[key] = element[key][i]    
+                    elem[key] = element[key][i]
                 doc['data'].append(elem)
         return doc
 
@@ -446,8 +470,8 @@ class GribModelBuilderV01(GribBuilder):
             y_gridpoint = round(station['y_gridpoint'])
             if not numpy.ma.is_masked(values[y_gridpoint, x_gridpoint]):
                 surface_values.append(values[y_gridpoint, x_gridpoint])
-            else:    
-                surface_values.append(None)    
+            else:
+                surface_values.append(None)
 
         message = self.grbs.select(
             name='Geopotential Height', typeOfFirstFixedSurface='215')[0]
@@ -460,15 +484,16 @@ class GribModelBuilderV01(GribBuilder):
             # what do we do with a masked ceiling value?
             if not numpy.ma.is_masked(values[y_gridpoint, x_gridpoint]):
                 ceil_msl_values.append(values[y_gridpoint, x_gridpoint])
-            else:    
-                ceil_msl_values.append(None)    
+            else:
+                ceil_msl_values.append(None)
         # Convert to ceiling AGL and from meters to tens of feet (what is currently inside SQL, we'll leave it as just feet in CB)
         ceil_agl = []
         for i in range(len(self.domain_stations)):
             if ceil_msl_values[i] == None or surface_values[i] == None:
                 ceil_agl.append(None)
-            else:        
-                ceil_agl.append((ceil_msl_values[i] - surface_values[i]) * 0.32808)
+            else:
+                ceil_agl.append(
+                    (ceil_msl_values[i] - surface_values[i]) * 0.32808)
         return ceil_agl
 
         # SURFACE PRESSURE
@@ -495,18 +520,20 @@ class GribModelBuilderV01(GribBuilder):
         # convert all the values to a float
         rh_interpolated_values = []
         for v, v_intrp_pressure in list(params_dict.values())[0]:
-            rh_interpolated_values.append(float(v_intrp_pressure) if v_intrp_pressure is not None else None)
+            rh_interpolated_values.append(
+                float(v_intrp_pressure) if v_intrp_pressure is not None else None)
         return rh_interpolated_values
 
     def kelvin_to_farenheight(self, params_dict):
         """
             param:params_dict expects {'station':{},'*variable name':variable_value}
             Used for temperature and dewpoint
-        """        
+        """
         # Convert each station value from Kelvin to Farenheit
         tempf_values = []
         for v, v_intrp_tempf in list(params_dict.values())[0]:
-            tempf_values.append(((float(v_intrp_tempf)-273.15)*9)/5 + 32 if v_intrp_tempf is not None else None)
+            tempf_values.append(((float(v_intrp_tempf)-273.15)*9) /
+                                5 + 32 if v_intrp_tempf is not None else None)
         return tempf_values
 
         # WIND SPEED

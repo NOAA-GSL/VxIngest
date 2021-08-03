@@ -246,7 +246,7 @@ class VxIngestManager(Process):
         # noinspection PyBroadException
         try:
             logging.info(self.threadName + ': process_file writing documents for '
-                                           'ingest_document :  ' + str(file_name) + "  with threadName: " + self.threadName)
+                                           'ingest_document :  ' + str(file_name) + " with threadName: " + self.threadName)
             # this call is volatile i.e. it might change syntax in
             # the future.
             # if it does, please just fix it.

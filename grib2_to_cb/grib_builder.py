@@ -310,7 +310,7 @@ class GribBuilder:
             if self.load_spec['first_last_params']['first_epoch'] == 0:
                 # need to find first_epoch from the database - only do this once for all the files
                 result = self.cluster.query(
-                    "SELECT raw max(mdata.fcstValidEpoch) FROM mdata WHERE type='DD' AND docType='model' AND model=$model AND version='V01' AND subset='METAR';", self.template['model'])
+                    "SELECT raw max(mdata.fcstValidEpoch) FROM mdata WHERE type='DD' AND docType='model' AND model=$model AND version='V01' AND subset='METAR';", model=self.template['model'])
                 epoch = list(result)[0]
                 if epoch is not None:
                     self.load_spec['first_last_params']['first_epoch'] = epoch

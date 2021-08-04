@@ -308,8 +308,6 @@ class NetcdfBuilder:
             logging.error(self.__class__.__name__ +
                           ": Exception with builder build_document: error: " + str(e))
             return {}
-        finally:
-            self.close()
 
 
 # Concrete builders

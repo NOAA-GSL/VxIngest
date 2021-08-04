@@ -359,18 +359,20 @@ class CTCBuilder:
             # get stations from couchbase and filter them so
             # that we retain only the ones for this models domain which is defined by the region boundingbox
             try:
+                # get the bounding box for this region
                 result = self.cluster.query(
-                    "SELECT  geo.bottom_right.lat as br_lat, geo.bottom_right.lon as br_lon, geo.top_left.lat as tl_lat, geo.top_left.lon as tl_lon FROM mdata  WHERE type='MD' and docType='region' and subset='COMMON' and version='V01' and name=$region", region=self.region)
+                    "SELECT  geo.bottom_right.lat as br_lat, geo.bottom_right.lon as br_lon, geo.top_left.lat as tl_lat, geo.top_left.lon as tl_lon FROM mdata  WHERE type='MD' and docType='region' and subset='COMMON' and version='V01' and name=$region", region=self.region, read_only=True)
                 boundingbox = list(result)[0]
                 self.domain_stations = []
+                # get the stations that are within this boundingbox
                 result = self.cluster .query(
-                    "SELECT mdata.geo.lat, mdata.geo.lon, name from mdata where type='MD' and docType='station' and subset='METAR' and version='V01'")
+                    "SELECT mdata.geo.lat, mdata.geo.lon, name from mdata where type='MD' and docType='station' and subset='METAR' and version='V01'", read_only=True)
                 for row in result:
-                    rlat = row['lat'] if row['lat'] >= 0 else 90 - row['lat']
+                    rlat = row['lat']
+                    bb_br_lat = boundingbox['br_lat']
+                    bb_tl_lat = boundingbox['tl_lat']
                     rlon = row['lon'] if row['lon'] >= 0 else 180 - row['lon']
-                    bb_br_lat = boundingbox['br_lat'] if boundingbox['br_lat'] >= 0 else 90 - boundingbox['br_lat']
                     bb_br_lon = boundingbox['br_lon'] if boundingbox['br_lon'] >= 0 else 180 - boundingbox['br_lon']
-                    bb_tl_lat = boundingbox['tl_lat'] if boundingbox['tl_lat'] >= 0 else 90 - boundingbox['tl_lat'] 
                     bb_tl_lon = boundingbox['tl_lon'] if boundingbox['tl_lon'] >= 0 else 180 - boundingbox['tl_lon']
                     if rlat >= bb_br_lat and rlat <= bb_tl_lat and rlon >= bb_br_lon and rlon <= bb_tl_lon:
                         self.domain_stations.append(row['name'])
@@ -378,17 +380,16 @@ class CTCBuilder:
                 logging.error(self.__class__.__name__ +
                               ": Exception with builder build_document: error: " + str(e))
 
-            # Get the valid list of fcstValidEpochs for this operation.
-            # First get the latest fcstValidEpoch for the ctc's for this model and region.
-            # Second get the intersection of the fcstValidEpochs that correspond for this
-            # model and the obs for all fcstValidEpochs greater than the first ctc.
             
+            # First get the latest fcstValidEpoch for the ctc's for this model and region.
             result = self.cluster.query(
-                "SELECT RAW MAX(mdata.fcstValidEpoch) FROM mdata WHERE type='DD' AND docType='CTC' AND model=$model AND region=$region AND version='V01' AND subset='METAR'", model=self.model, region=self.region, read_only=True)
+                "SELECT RAW MAX(mdata.fcstValidEpoch) FROM mdata WHERE type='DD' AND docType='CTC' AND subDocType=$subDocType AND model=$model AND region=$region AND version='V01' AND subset='METAR'", model=self.model, region=self.region, subDocType=self.subDocType, read_only=True)
             max_ctc_fcstValidEpochs = 0
             if list(result)[0] is not None:
                 max_ctc_fcstValidEpochs = list(result)[0]
 
+            # Second get the intersection of the fcstValidEpochs that correspond for this
+            # model and the obs for all fcstValidEpochs greater than the first ctc.
             result = self.cluster.query(
                 "SELECT raw mdata.fcstValidEpoch FROM mdata WHERE type='DD' AND docType='model' AND model=$model AND version='V01' AND subset='METAR' and fcstValidEpoch > $max_fcst_epoch", model=self.model, max_fcst_epoch=max_ctc_fcstValidEpochs, read_only=True)
             model_fcstValidEpochs = list(result)
@@ -424,12 +425,16 @@ class CTCBuilder:
 class CTCModelObsBuilderV01(CTCBuilder):
     def __init__(self, load_spec, ingest_document, cluster, collection):
         """
-        This builder creates a set of V01 model documents using the stations in the station list.
-        This builder loads domain qualified station data into memory, and uses the domain_station 
-        list to associate a station with a grid value at an x_lat, x_lon point.
-        In each document the data is an array of objects each of which is the model variable data
-        for specific variables at a point associated with a specific station at the time and fcstLen of
-        the document.
+        This builder creates a set of V01 ctc documents using the data from associated
+        model and obs data for the model and the region defined in the ingest document.
+        Each document is indexed by the &handle_time:&handle_fcst_len" where the
+        handle_time returns the valid time of a model and the handle_fcst_len returns the
+        fcst_len of the model. 
+        The minimum valid time that is available to be ingested for the specified model
+        and the minimum valid time for the obs that is available to be ingested,
+        where both are greater than what already exists in the database,
+        will be matched against the prescribed thresholds from the ingest metadata in
+        the MD:matsAux:COMMON:V01 metadata document in the thresholdDescriptions map.
         :param load spec used to init the parent
         :param ingest_document: the document from the ingest document
         :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
@@ -480,27 +485,49 @@ class CTCModelObsBuilderV01(CTCBuilder):
 
     # named functions
 
-    def kelvin_to_farenheight(self, params_dict):
-        """
-            param:params_dict expects {'station':{},'*variable name':variable_value}
-            Used for temperature and dewpoint
-        """
-        # Convert each station value from Kelvin to Farenheit
-        tempf_values = []
-        for v, v_intrp_tempf in list(params_dict.values())[0]:
-            tempf_values.append(((float(v_intrp_tempf)-273.15)*9) /
-                                5 + 32 if v_intrp_tempf is not None else None)
-        return tempf_values
-
     def handle_time(self, params_dict):
-        # validTime = grbs[1].validate -> 2021-07-12 15:00:00
-        valid_time = self.grbm.analDate
-        return round(valid_time.timestamp())
+        """
+        build a list of all the valid_times for the set of fcstValidEpochs
+        """
+        valid_times = []
+        for fcst_valid_epoch in self.fcstValidEpochs:
+            valid_times.append(fcst_valid_epoch)
+            return valid_times
 
     def handle_iso_time(self, params_dict):
-        valid_time = valid_time = self.grbm.analDate
-        return valid_time.isoformat()
+        """
+        build a list of all the valid_times iso format for the set of fcstValidEpochs
+        """
+        valid_iso_times = []
+        for fcst_valid_epoch in self.fcstValidEpochs:
+            valid_iso_times.append(dt.datetime.utcfromtimestamp(fcst_valid_epoch).isoformat())
+            return valid_iso_times
 
     def handle_fcst_len(self, params_dict):
-        fcst_len = self.grbm.forecastTime
+        """
+        We need to query models for each fcst_valid_epoch that is in the set of fcstValidEpochs
+        and each of those will have a set of fcstLens i.e. there will be a different document for
+        each fcstLen. Each of those documents will have a data region for all the stations. 
+        """
+        fcst_len = 
         return fcst_len
+
+    def handle_threshold(self, params_dict):
+        threshold = 1
+        return threshold
+
+    def handle_hits(self, params_dict):
+        hits = 1
+        return hits
+
+    def handle_false_alarms(self, params_dict):
+        false_alarms = 1
+        return false_alarms
+
+    def handle_misses(self, params_dict):
+        misses = 1
+        return misses
+
+    def handle_correct_negatives(self, params_dict):
+        correct_negatives = 1
+        return correct_negatives

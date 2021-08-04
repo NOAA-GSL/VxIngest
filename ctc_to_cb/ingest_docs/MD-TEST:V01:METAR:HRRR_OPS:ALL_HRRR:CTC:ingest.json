@@ -1,7 +1,8 @@
 {
-  "id": "MD-TEST:V01:METAR:HRRR_OPS:ALL_HRRR:CTC:ingest",
+  "id": "MD-TEST:V01:METAR:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest",
   "builder_type": "CTCModelObsBuilderV01",
   "docType": "ingest",
+  "subDocType": "CEILING",
   "type": "MD-TEST",
   "version": "V01",
   "subset": "METAR",
@@ -11,9 +12,10 @@
   "template": {
     "dataFileId": "DF_id",
     "dataSourceId": "DS_id",
-    "id": "DD-TEST:V01:METAR:HRRR_OPS:ALL_HRRR:CTC:&handle_time:&handle_fcst_len",
+    "id": "DD-TEST:V01:METAR:HRRR_OPS:ALL_HRRR:CTC:CEILING:&handle_time:&handle_fcst_len",
     "type": "DD-TEST",
     "docType": "CTC",
+    "subDocType": "CEILING",
     "model": "HRRR_OPS",
     "region": "ALL_HRRR",
     "version": "V01",

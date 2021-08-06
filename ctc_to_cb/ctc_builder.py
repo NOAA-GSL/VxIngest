@@ -12,8 +12,7 @@ import datetime as dt
 import logging
 import sys
 import re
-from datetime import timedelta
-from couchbase.cluster import ClusterTimeoutOptions
+from couchbase.exceptions import DocumentNotFoundException
 
 from pstats import Stats
 
@@ -113,6 +112,7 @@ class CTCBuilder:
         self.model_fcstValidEpochs = []
         self.model_data = {} # used to stash each fcstValidEpoch model_data for the handlers
         self.obs_data = {} # used to stash each fcstValidEpoch obs_data for the handlers
+        self.obs_station_names = [] # used to stash sorted obs names for the handlers
         self.thresholds = None
     def initialize_document_map(self):
         pass
@@ -281,13 +281,25 @@ class CTCBuilder:
 
 
     def handle_fcstValidEpochs(self):
-        for fve in self.model_fcstValidEpochs:
-            # get the models and obs for this fve
-            obs_id = re.sub(':' + str(fve['fcstLen']), '',fve['id'] ) # remove the fcstLen part
-            obs_id = re.sub(self.model,'obs',obs_id) # substitute the model part for obs
-            self.model_data = self.collection.get(fve['id']).content
-            self.obs_data = self.collection.get(obs_id).content
-            self.handle_document()
+        try:
+            for fve in self.model_fcstValidEpochs:
+                self.obs_data = {}
+                self.obs_station_names = []
+                # get the models and obs for this fve
+                obs_id = re.sub(':' + str(fve['fcstLen']) +"$", '',fve['id'] ) # remove the fcstLen part
+                obs_id = re.sub(self.model,'obs',obs_id) # substitute the model part for obs
+                self.model_data = self.collection.get(fve['id']).content
+                _obs_data = self.collection.get(obs_id).content
+                for entry in _obs_data['data']:
+                    self.obs_data[entry['name']] = entry
+                    self.obs_station_names.append(entry['name'])
+                self.obs_station_names.sort()
+                self.handle_document()
+        except DocumentNotFoundException:
+            logging.info(self.__class__.__name__ + " handle_fcstValidEpochs: document " + fve['id'] + " was not found! ")
+        except Exception as e:
+            logging.error(
+                self.__class__.__name__ + " handle_fcstValidEpochs: Exception instantiating builder:  error: " + str(e))
 
     def build_document(self):
         """
@@ -337,6 +349,7 @@ class CTCBuilder:
                         boundingbox['tl_lon']
                     if rlat >= bb_br_lat and rlat <= bb_tl_lat and rlon >= bb_br_lon and rlon <= bb_tl_lon:
                         self.domain_stations.append(row['name'])
+                self.domain_stations.sort()        
             except Exception as e:
                 logging.error(self.__class__.__name__ +
                               ": Exception with builder build_document: error: " + str(e))
@@ -436,12 +449,6 @@ class CTCModelObsBuilderV01(CTCBuilder):
         self.document_map = {}
 
     def get_document_map(self):
-        """
-        In case there are leftovers we have to process them first.
-        :return: the document_map
-        """
-        if len(self.same_time_rows) != 0:
-            self.handle_document(self.interpolated_time, self.same_time_rows)
         return self.document_map
 
     # named functions
@@ -468,25 +475,26 @@ class CTCModelObsBuilderV01(CTCBuilder):
                 misses = 0
                 false_alarms = 0
                 correct_negatives = 0
-                i = 0
+                
                 for station in self.model_data['data']:
                     # only count the ones that are in our region
                     if station['name'] not in self.domain_stations:
-                        i = i + 1
+                        continue
+                    if station['name'] not in self.obs_station_names:
+                        logging.info(self.__class__.__name__ +
+                          "handle_data: model station " + station['name'] + " was not found in the available observations.")
                         continue
                     if station['Ceiling'] is None:
-                        i = i + 1
                         continue
-                    if station['Ceiling'] < threshold and self.obs_data['data'][i]['Ceiling'] < threshold:
+                    if station['Ceiling'] < threshold and self.obs_data[station['name']]['Ceiling'] < threshold:
                         hits = hits + 1
-                    if station['Ceiling'] < threshold and not self.obs_data['data'][i]['Ceiling'] < threshold:
+                    if station['Ceiling'] < threshold and not self.obs_data[station['name']]['Ceiling'] < threshold:
                         false_alarms = false_alarms + 1
-                    if not station['Ceiling'] < threshold and self.obs_data['data'][i]['Ceiling'] < threshold:
+                    if not station['Ceiling'] < threshold and self.obs_data[station['name']]['Ceiling'] < threshold:
                         misses = misses + 1
-                    if not station['Ceiling'] < threshold and not self.obs_data['data'][i]['Ceiling'] < threshold:
+                    if not station['Ceiling'] < threshold and not self.obs_data[station['name']]['Ceiling'] < threshold:
                         correct_negatives = correct_negatives + 1
-                    i = i + 1
-
+                data_elem[threshold] = data_elem[threshold] if threshold in data_elem.keys() else {}
                 data_elem[threshold]['hits'] = hits
                 data_elem[threshold]['false_alarms'] = false_alarms
                 data_elem[threshold]['misses'] = misses
@@ -496,7 +504,7 @@ class CTCModelObsBuilderV01(CTCBuilder):
                 return doc
         except Exception as e:
             logging.error(self.__class__.__name__ +
-                          "handle_data: Exception instantiating builder:  error: " + str(e))
+                          "handle_data: Exception :  error: " + str(e))
         return doc
 
     def handle_time(self, params_dict):

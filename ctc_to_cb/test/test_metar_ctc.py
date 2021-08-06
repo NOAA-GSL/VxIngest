@@ -22,12 +22,14 @@ class TestGribBuilderV01(unittest.TestCase):
         try:
             cwd = os.getcwd()
             self.credentials_file = os.environ['HOME'] + '/adb-cb1-credentials'
-            self.spec_file = cwd + '/ctc_to_cb/test/test_load_spec_metar_hrrr_ops_all_hrrr_ctc_V01.yaml'
+            self.spec_file = cwd + '/ctc_to_cb/test/test_load_spec_metar_ctc_V01.yaml'
             vxIngest = VXIngest()
             vxIngest.runit({'spec_file': self.spec_file,
                             'credentials_file': self.credentials_file,
                             'output_dir': '/opt/data/ctc_to_cb/output',
                             'threads': 1,
+                            'first_epoch': 1627149600,
+                            'last_epoch': 1627149600
                             })
             list_of_output_files = glob.glob('/opt/data/ctc_to_cb/output/*')
             latest_output_file = max(list_of_output_files, key=os.path.getctime)

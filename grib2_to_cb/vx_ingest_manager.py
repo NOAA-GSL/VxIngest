@@ -5,26 +5,6 @@ Abstract:
 
 History Log:  Initial version
 
-IMPORTANT NOTE ABOUT PYTHON THREADS!!!
-Please read https://docs.couchbase.com/python-sdk/2.0/threads.html
-Due to the Global Interpreter Lock (GIL), only one python thread can execute
-Python code at a a_time.
-See  https://docs.python.org/2/library/threading.html.
-However Python also has multiprocessing which can be used if the memory
-footprint of the application is small enough.
-This program uses multiprocessing which essentially uses an entire
-interpreter for each thread, thus avoiding the GIL.
-The python SDK 3.0 is thread safe.
-See https://docs.couchbase.com/python-sdk/current/howtos/managing
--connections.html
-"Most of the high-level classes in the Python SDK are designed to be safe
-for concurrent use by multiple threads. For asynchronous modes, you will get
-the best performance if you share and reuse instances of Cluster, Bucket,
-Scope, and Collection, all of which are thread-safe."
-Observations have shown that two or four threads help reduce the execution
-a_time of the program significantly.
-More than that does not. I would have left out threading all-together but
-someday we may decide to port this to a truly thread capable language.
 
 Usage: The IngestManager extends Process - python multiprocess thread -
 and runs as a Process and pulls from a queue of file names. It
@@ -42,7 +22,8 @@ The builders are instantiated once and kept in a map of objects for the
 duration of the programs life. For IngestManager it is likely that 
 each file will require only one builder type to be instantiated.
 When IngestManager finishes a document specification  it  "upserts"
-a document_map to the couchbase database.
+a document_map to the couchbase database or it writes the document to the output directory,
+if an output directory was specified.
 
         Attributes:
             file_queue - a shared queue of filenames.
@@ -72,26 +53,25 @@ from grib2_to_cb import grib_builder as grib_builder
 class VxIngestManager(Process):
     """
     IngestManager is a Process Thread that manages an object pool of
-    NetcdfBuilders to ingest data from GSD netcdf files or grib files into documents that can be
+    builders to ingest data from GSD grib2 files or netcdf files into documents that can be
     inserted into couchbase.
 
     This class will process data by reading an ingest_document_id
-    and instantiating a NetcdfBuilder class of the type specified in the
+    and instantiating a builder class of the type specified in the
     ingest_document. 
-    The ingest document specifies the builder, class, a set of variables that are expected to be
-    in each file, and a template that defines how to place the variable values
-    into a couchbase document and how to construct the couchbase data document id.
+    The ingest document specifies the builder class, and a template that defines 
+    how to place the variable values into a couchbase document and how to 
+    construct the couchbase data document id.
 
     It will then read file_names, one by one,
     from the file_name_queue.  The builders use the template to create documents for
     each filename and put them into the document map.
 
     When all of the result set entries for a file are processed, the IngestManager upserts
-    the document(s) to couchbase, retrieves a new filename from
+    the document(s) to couchbase, or writes to an output directory and retrieves a new filename from
     the queue and starts over.
 
-    Each NetcdfBuilder is kept in a n object pool so that they do not need to
-    be re instantiated.
+    Each builder is kept in an object pool so that they do not need to be re instantiated.
     When the queue has been emptied the IngestManager closes its connections
     and dies.
     """

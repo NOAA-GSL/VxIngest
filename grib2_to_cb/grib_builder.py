@@ -300,13 +300,20 @@ class GribBuilder:
     def build_document(self, file_name):
         """
         This is the entry point for the gribBuilders from the ingestManager.
+        The ingest manager is giving us a grib file to process from the queue.
         These documents are id'd by time and fcstLen. The data section is an array 
         each element of which contains variable data and a station name. To process this
         file we need to itterate the domain_stations list and process the station name along
         with all the required variables.
+        1) get the first epoch - if none was specified get the latest one from the db
+        2) transform the projection from the grib file 
+        3) determine the stations for this domain, adding gridpoints to each station - build a station list
+        4) enable profiling if requested
+        5) handle_document - iterate the template and process all the keys and values
         """
         # noinspection PyBroadException
         try:
+            # resolve the first epoch
             if self.load_spec['first_last_params']['first_epoch'] == 0:
                 # need to find first_epoch from the database - only do this once for all the files
                 result = self.cluster.query(
@@ -314,6 +321,7 @@ class GribBuilder:
                 epoch = list(result)[0]
                 if epoch is not None:
                     self.load_spec['first_last_params']['first_epoch'] = epoch
+            # translate the projection from the grib file 
             file_utc_time = datetime.datetime.strptime(
                 os.path.basename(file_name), self.load_spec['fmask'])
             file_time = (file_utc_time - datetime.datetime(1970, 1, 1)).total_seconds()

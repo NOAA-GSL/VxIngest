@@ -34,10 +34,8 @@ Colorado, NOAA/OAR/ESRL/GSD
 import json
 import logging
 import os
-import queue
 import sys
 import time
-from itertools import islice
 from multiprocessing import Process
 
 from couchbase.cluster import Cluster, ClusterOptions
@@ -49,25 +47,25 @@ from ctc_to_cb import ctc_builder as ctc_builder
 class VxIngestManager(Process):
     """
     IngestManager is a Process Thread that manages an object pool of
-    NetcdfBuilders to ingest data from GSD netcdf files or grib files into documents that can be
-    inserted into couchbase.
+    builders to ingest data from GSD couchbase documents, producing new documents
+    that can be inserted into couchbase or written to json files in the specified output directory.
 
     This class will process data by reading an ingest_document_id
-    and instantiating a NetcdfBuilder class of the type specified in the
+    and instantiating a builder class of the type specified in the
     ingest_document. 
-    The ingest document specifies the builder, class, a set of variables that are expected to be
-    in each file, and a template that defines how to place the variable values
-    into a couchbase document and how to construct the couchbase data document id.
 
-    It will then read file_names, one by one,
-    from the file_name_queue.  The builders use the template to create documents for
-    each filename and put them into the document map.
+    The ingest document specifies the builder class, and a template that defines how to 
+    place the variable values into a couchbase document and how to construct the couchbase data document id.
+
+    It will then read model and obs documents from the data base and use the template to create 
+    contingency count documents for each fcstValidEpoch that falls between the first_epoch and the
+    last_epoch.
 
     When all of the result set entries for a file are processed, the IngestManager upserts
-    the document(s) to couchbase, retrieves a new filename from
-    the queue and starts over.
+    the document(s) to couchbase or writes the json into the output directory, retrieves 
+    a new ingest document from the queue and starts over.
 
-    Each NetcdfBuilder is kept in a n object pool so that they do not need to
+    Each builder is kept in an object pool so that they do not need to
     be re instantiated.
     When the queue has been emptied the IngestManager closes its connections
     and dies.
@@ -108,10 +106,6 @@ class VxIngestManager(Process):
             logging.getLogger().setLevel(logging.INFO)
             # establish connections to cb, collection
             self.connect_cb()
-            # Read the ingest document
-            start_process_time = int(time.time())
-            builder = None
-
             # infinite loop terminates when the file_name_queue is empty
             empty_count = 0
             while True:
@@ -197,7 +191,8 @@ class VxIngestManager(Process):
             document_map = builder.build_document()
 
             if self.output_dir:
-                self.write_document_to_files(document_map)
+                file_name = self.ingest_document['id']
+                self.write_document_to_files(file_name, document_map)
             else:
                 self.write_document_to_cb(document_map)
 

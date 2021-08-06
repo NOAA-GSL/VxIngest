@@ -23,13 +23,6 @@
     "fcstValidBeg": "&handle_iso_time",
     "fcstValidEpoch": "&handle_time",
     "fcstLen": "&handle_fcst_len",
-    "data": {
-      "&handle_threshold": {
-        "hits": "&handle_hits",
-        "false_alarms": "&handle_false_alarms",
-        "misses": "&handle_misses",
-        "correct_negatives": "&handle_correct_negatives"
-      }
-    }
+    "data": "&handle_data"
   }
 }

@@ -11,8 +11,7 @@ This script processes arguments which define a a yaml load_spec file,
 a defaults file (for credentials),
 and a thread count.
 The script maintains a thread pool of VxIngestManagers and a queue of
-filenames that are derived from the path, mask, first_epoch, and last_epoch.
-that are defined in the load_spec file.
+filenames that are derived from the path, mask, first_epoch, and last_epoch parameters.
 The number of threads in the thread pool is set to the -t n (or --threads n)
 argument, where n is the number of threads to start. The default is one thread. 
 The optional -n number_stations will restrict the processing to n number of stations to limit run time.
@@ -56,7 +55,6 @@ Copyright 2019 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of
 Colorado, NOAA/OAR/ESRL/GSL
 """
 import argparse
-import json
 import logging
 import os
 import sys
@@ -161,7 +159,6 @@ class VXIngest(object):
                 sys.exc_info())
             sys.exit("*** Error reading load_spec: " + self.spec_file)
 
-        # get all the ingest_document_ids and put them into a my_queue
         # load the my_queue with filenames that match the mask and are between first and last epoch (if they are in the args)
         # Constructor for an infinite size  FIFO my_queue
         q = JoinableQueue()

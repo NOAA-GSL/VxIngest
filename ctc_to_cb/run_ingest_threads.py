@@ -6,41 +6,40 @@ Abstract:
 History Log:  Initial version
 
 Usage:
-run_ingest_threads -s spec_file -c credentials_file -p path -m _file_mask[-o output_dir -t thread_count -f first_epoch -l last_epoch -n number_stations]
+run_ingest_threads -s spec_file -c credentials_file [-o output_dir -t thread_count -f first_epoch -l last_epoch -n number_stations]
 This script processes arguments which define a a yaml load_spec file,
 a defaults file (for credentials),
 and a thread count.
 The script maintains a thread pool of VxIngestManagers and a queue of
-filenames that are derived from the path, mask, first_epoch, and last_epoch.
-that are defined in the load_spec file.
+ingest documents that are retrieved from the load_spec file.
 The number of threads in the thread pool is set to the -t n (or --threads n)
 argument, where n is the number of threads to start. The default is one thread. 
 The optional -n number_stations will restrict the processing to n number of stations to limit run time.
-Each thread will run a VxIngestManager which will pull filenames, one at a time, 
-from the filename queue and fully process that input file. 
+This is analgous to specifying a small custom domain. The default is all the stations
+in the region specified in the ingest document.
+Each thread will run a VxIngestManager which will pull ingest documents, one at a time, 
+from the queue and fully process that document. 
 When the queue is empty each NetcdfIngestManager will gracefully die.
 
 This is an example load_spec...
 
 load_spec:
   email: "randy.pierce@noaa.gov"
-  ingest_document_id: 'MD:V01:METAR:obs'
+  ingest_document_ids: ['MD:V01:METAR:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest'....]
   cb_connection:
     management_system: cb
     host: "cb_host"   - should come from defaults file
     user: "cb_user"   - should come from defaults file
     password: "cb_pwd" - should come from defaults file
   
-The mask  is a python time.strftime format e.g. '%y%j%H%f',
 The optional output_dir specifies the directory where output files will be written instead
 of writing them directly to couchbase. If the output_dir is not specified data will be written
 to couchbase cluster specified in the cb_connection.
-Files in the path will be enqueued if the file name mask renders a valid datetime that 
-falls between the first_epoch and the last_epoch. 
-The first_epoch and the last_epoch may be omitted in which case all the files in the path
-will be processed.
+For each ingest document the template will be rendered for each fcstValidEpoch between the 
+specified first_epoch and the last_epoch. If the first_epoch is unspecified then the latest
+fcstValidEpoch currently in the db will be chosen as the first_epoch.
 
-This is an example defaults file. The keys should match
+This is an example credentials file. The keys should match
 the keys in the connection clauses of the load_spec.
 defaults:
   cb_host: my_cb_host.some_subdomain.some_domain
@@ -49,14 +48,12 @@ defaults:
 
 This is an example invocation in bash. t=The python must be python3.
 export PYTHONPATH=${HOME}/VXingest
-python grib2_to_cb/run_ingest_threads.py -s /data/grib2_to_cb/load_specs/load_spec_grib_metar_hrrr_ops_V01.yaml -c ~/adb-cb1-credentials -p /data/grib2_to_cb/input_files -m %y%j%H%f -o /data/grib2_to_cb/output 
-
+python grib2_to_cb/run_ingest_threads.py -s /data/grib2_to_cb/load_specs/load_spec_metar_ctc_V01.yaml -c ~/adb-cb1-credentials -o /data/grib2_to_cb/output 
 
 Copyright 2019 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of
 Colorado, NOAA/OAR/ESRL/GSL
 """
 import argparse
-import json
 import logging
 import os
 import sys
@@ -120,7 +117,7 @@ class VXIngest(object):
         self.thread_count = args['threads']
         self.output_dir = args['output_dir'].strip()
         _args_keys = args.keys()
-        if 'first_epoch' in _args_keys and 'second_epoch' in _args_keys:
+        if 'first_epoch' in _args_keys and 'last_epoch' in _args_keys:
             self.first_last_params = {'first_epoch': args['first_epoch'],
                                       'last_epoch': args['last_epoch']}
         else:
@@ -138,6 +135,9 @@ class VXIngest(object):
             load_spec = dict(load_spec_file.read())
             # put the real credentials into the load_spec
             load_spec['cb_connection'] = self.get_credentials(load_spec)['cb_connection']
+            # stash the first_last_params because the builder will need to detrmine
+            # if it needs to check for the latest validEpoch from the database (first_epoch == 0)
+            load_spec['first_last_params'] = self.first_last_params
         except (RuntimeError, TypeError, NameError, KeyError):
             logging.error(
                 "*** %s occurred in Main reading load_spec " +

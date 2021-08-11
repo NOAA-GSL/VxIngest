@@ -195,7 +195,7 @@ class NetcdfBuilder:
         try:
             if key == 'id':
                 id = self.derive_id(self.template['id'], _recNum)
-                if not id in doc:
+                if not id == doc['id']:
                     doc['id'] = id
                 return doc
             if isinstance(doc[key], dict):

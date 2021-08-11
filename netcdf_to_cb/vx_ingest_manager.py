@@ -152,11 +152,7 @@ class VxIngestManager(Process):
             while True:
                 try:
                     file_name = self.queue.get_nowait()
-                    logging.info(
-                        self.threadName + ': IngestManager - processing file ' + file_name)
                     self.process_file(file_name)
-                    logging.info(
-                        self.threadName + ': IngestManager - finished processing file ' + file_name)
                     self.queue.task_done()
                 except Exception as e:
                     # should probably just catch _queue.Empty but I think Python changed the name - so to be certain catching ANY exception
@@ -206,9 +202,6 @@ class VxIngestManager(Process):
         document_map = {}
         # noinspection PyBroadException
         try:
-            logging.info(
-                "process_file - : start time: " + str(start_process_time))
-
             if self.ingest_type_builder_name in self.builder_map.keys():
                 builder = self.builder_map[self.ingest_type_builder_name]
             else:

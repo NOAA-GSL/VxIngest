@@ -301,6 +301,7 @@ class NetcdfBuilder:
             file_time = (file_utc_time - datetime(1970, 1, 1)).total_seconds()
             # check to see if it is within first and last epoch (default is 0 and maxsize)
             if file_time >= float(self.load_spec['first_last_params']['first_epoch']):
+                logging.info(self.__class__.__name__ + "building documents for file " + file_name)
                 self.handle_document()
             document_map = self.get_document_map()
             return document_map

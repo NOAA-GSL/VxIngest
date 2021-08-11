@@ -11,12 +11,15 @@ This script processes arguments which define a a yaml load_spec file,
 a defaults file (for credentials),
 and a thread count.
 The script maintains a thread pool of VxIngestManagers and a queue of
-filenames that are derived from the path, mask, first_epoch, and last_epoch.
-that are defined in the load_spec file.
+filenames that are derived from the path and file_mask.
 The number of threads in the thread pool is set to the -t n (or --threads n)
 argument, where n is the number of threads to start. The default is one thread. 
 Each thread will run a VxIngestManager which will pull filenames, one at a time, 
-from the filename queue and fully process that input file. 
+from the filename queue and fully process that input file.
+If the first_epoch and last_epoch are defined only files that have a name / mask combination 
+that resolve to an epoch between the first_epoch and the last_epoch will be processed. If the 
+first_epoch is undefined it will be set to the last fcstValidEpoch of the observations currently in the
+database.
 When the queue is empty each NetcdfIngestManager will gracefully die.
 
 This is an example load_spec...
@@ -179,6 +182,8 @@ class VXIngest(object):
                         _file_utc_time = datetime.strptime(entry.name, self.fmask)
                         _file_time = (_file_utc_time - datetime(1970, 1, 1)).total_seconds()
                         # check to see if it is within first and last epoch (default is 0 and maxsize)
+                        # if no first_epoch was specified then the first_epoch will be 0 and all the files wll be added.
+                        # In that case the builder itself will filter files to process by checking them against the latest entry in the database
                         if self.first_last_params['first_epoch'] <= _file_time and _file_time <= self.first_last_params['last_epoch']:
                             file_names.append(os.path.join(self.path,entry.name))
                     except:

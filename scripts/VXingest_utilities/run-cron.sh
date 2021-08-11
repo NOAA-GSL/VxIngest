@@ -1,5 +1,7 @@
 #!/usr/bin/env sh
 
+echo STARTING 
+date
 if [ $# -ne 1 ]; then
         echo "Usage $0 VxIngest_clonedir";
         exit 1
@@ -13,7 +15,7 @@ if [ "$gitroot" != "$(pwd)" ];then
         exit
 fi
 
-if [ ! -d "$clonedir/logs" ]i; then
+if [ ! -d "$clonedir/logs" ]; then
         mkdir ${clonedir}/logs
 fi
 
@@ -41,3 +43,6 @@ echo "ctc's"
 rm -rf /data/ctc_to_cb/output/*
 python ctc_to_cb/run_ingest_threads.py -s /data/ctc_to_cb/load_specs/load_spec_metar_ctc_V01.yaml  -c ~/adb-cb1-credentials -o /data/ctc_to_cb/output
 ${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p /data/ctc_to_cb/output -l ${clonedir}/logs
+
+echo "FINISHED" 
+date

@@ -1,13 +1,22 @@
 #!/usr/bin/env sh
 
-[ $# == 1 ] || echo "Usage $0 VxIngest_clonedir"; exit
+if [ $# -ne 1 ]; then
+        echo "Usage $0 VxIngest_clonedir";
+        exit 1
+fi
 clonedir=$1
 
-cd ${clonedir} && export PYTHONPATH=`pwd` 
+cd ${clonedir} && export PYTHONPATH=`pwd`
 gitroot=$(git rev-parse --show-toplevel)
-[ "$gitroot" == "$(pwd)" ] || echo "$(pwd) is not a git root directory: Usage $0 VxIngest_clonedir"; exit
+if [ "$gitroot" != "$(pwd)" ];then
+        echo "$(pwd) is not a git root directory: Usage $0 VxIngest_clonedir"
+        exit
+fi
 
-[ -d "$clonedir/logs" ] || mkdir ${clonedir}/logs
+if [ ! -d "$clonedir/logs" ]i; then
+        mkdir ${clonedir}/logs
+fi
+
 
 echo "*************************************"
 echo "netcdf obs and stations"

@@ -1,5 +1,5 @@
 """
-Program Name: Class sql_builder.py
+Program Name: Class netcdf_builder.py
 Contact(s): Randy Pierce
 History Log:  Initial version
 Copyright 2019 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of
@@ -16,17 +16,9 @@ import re
 import sys
 import time
 from datetime import datetime, timedelta
-from decimal import Decimal
 
 import netCDF4 as nc
 import numpy.ma as ma
-from couchbase.cluster import Cluster, ClusterOptions, PasswordAuthenticator
-from couchbase.exceptions import CouchbaseException
-from couchbase.mutation_state import MutationState
-from couchbase.search import (HighlightStyle, PrefixQuery, QueryStringQuery,
-                              SearchOptions, SearchQuery, SortField, SortScore,
-                              TermFacet)
-from numpy.lib.nanfunctions import nanvar
 
 TS_OUT_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
@@ -56,6 +48,7 @@ class NetcdfBuilder:
         self.id = None
         self.document_map = {}
         self.ncdf_data_set = None
+        self.station_names = []
 
     def load_data(self, doc, key, element):
         pass
@@ -123,6 +116,7 @@ class NetcdfBuilder:
                         if chartostring:
                             # for these we have to convert the character array AND convert to ISO (it is probably a string date)
                             value = convert_to_iso(
+                                # pylint: disable=maybe-no-member
                                 "*{ISO}" + nc.chartostring(self.ncdf_data_set[variable][recNum]))
                         else:
                             # for these we have to convert convert to ISO (it is probably an epoch)
@@ -134,6 +128,7 @@ class NetcdfBuilder:
                             if chartostring:
                                 # it is a char array of something
                                 value = value.replace(
+                                    # pylint: disable=maybe-no-member
                                     '*' + ri, str(nc.chartostring(self.ncdf_data_set[variable][recNum])))
                                 return value
                             else:
@@ -271,6 +266,7 @@ class NetcdfBuilder:
             if data_key is None:
                 logging.warning(self.__class__.__name__ +
                                 "NetcdfBuilder.handle_data - _data_key is None")
+            # pylint: disable=assignment-from-no-return
             doc = self.load_data(doc, data_key, data_elem)
             return doc
         except Exception as e:
@@ -288,7 +284,18 @@ class NetcdfBuilder:
         """
         # noinspection PyBroadException
         try:
+            # pylint: disable=no-member
             self.ncdf_data_set = nc.Dataset(file_name)
+            if len(self.station_names) == 0:
+                result = self.cluster.query("""SELECT raw name FROM mdata 
+                    WHERE 
+                    type = 'MD'
+                    AND docType = 'station'
+                    AND subset = 'METAR'
+                    AND version = 'V01';
+                """)
+                self.station_names = list(result)
+
             if self.load_spec['first_last_params']['first_epoch'] == 0:
                 # need to find first_epoch from the database - only do this once for all the files
                 result = self.cluster.query(
@@ -301,8 +308,10 @@ class NetcdfBuilder:
             file_time = (file_utc_time - datetime(1970, 1, 1)).total_seconds()
             # check to see if it is within first and last epoch (default is 0 and maxsize)
             if file_time >= float(self.load_spec['first_last_params']['first_epoch']):
-                logging.info(self.__class__.__name__ + "building documents for file " + file_name)
+                logging.info(self.__class__.__name__ +
+                             "building documents for file " + file_name)
                 self.handle_document()
+            # pylint: disable=assignment-from-no-return
             document_map = self.get_document_map()
             return document_map
         except Exception as e:
@@ -345,7 +354,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
         :return: the document_map
         """
         if len(self.same_time_rows) != 0:
-            self.handle_document(self.interpolated_time, self.same_time_rows)
+            self.handle_document()
         return self.document_map
 
     def load_data(self, doc, key, element):
@@ -503,6 +512,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
                 self.ncdf_data_set['elevation'][_recNum])[0]
         else:
             netcdf['elevation'] = None
+        # pylint: disable=no-member
         netcdf['description'] = str(nc.chartostring(
             self.ncdf_data_set['locationName'][_recNum]))
         netcdf['name'] = str(nc.chartostring(
@@ -512,68 +522,22 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
     def handle_station(self, params_dict):
         """
          This method uses the station name in the params_dict
-         and a full text search to find a station with that name.
+         to find a station with that name.
          If the station does not exist it will be created with data from the 
-         netcdf file. If it does exist, data from the netcdf file will be compared to what is in the database.
-         If the data does not match, the database will be updated.
-        For the moment I do not know how to retrieve the elevation from the 
-        full text search fields. It is probably possible by modifying the station_geo query.
-        I just know how to get the geopoint [lon,lat], the descripttion, and the name, and so that
-        is what this code is using to do the comparison. Not the elevation or any of the other fields. 
-        It is possible to retrive the document like this..
-        _db_station = self.collection.get(rows[0].id).content
-        and then all the data could be compared, but I don't think that is necessary at the moment
-        unless we decide that elevation is important to compare.
+         netcdf file. 
          :param params_dict: {station_name:a_station_name}
          :return: 
          """
         recNum = params_dict['recNum']
         station_name = params_dict['stationName']
         id = None
-        add_station = False
         netcdf = {}
-        existing = {}
 
         # noinspection PyBroadException
         try:
-            result = self.cluster.search_query(
-                "station_geo", QueryStringQuery(station_name), fields=["*"])
-            rows = result.rows()
-
-            if len(rows) == 0:  # too cold
-                add_station = True
-
-            if len(rows) > 1:  # too hot
-                raise Exception(
-                    "netcdfObsBuilderV01.handle_station: There are more than one station with the name " + station_name + "! FIX THAT!")
-
-            # get the netcdf fields for comparing or adding new
-            netcdf = self.fill_from_netcdf(recNum, netcdf)
-
-            if len(rows) == 1:  # just right
-                # compare the existing record from the query to the netcdf record
-                existing['name'] = rows[0].fields['name']
-                existing['description'] = rows[0].fields['description']
-                if 'geo' in rows[0].fields:
-                    existing['latitude'] = round(rows[0].fields['geo'][1], 2)
-                    existing['longitude'] = round(rows[0].fields['geo'][0], 2)
-                else:
-                    existing['latitude'] = None
-                    existing['longitude'] = None
-
-                for key in ['latitude', 'longitude']:
-                    if not math.isclose(existing[key], netcdf[key], abs_tol=.001):
-                        add_station = True
-                        break
-                if not add_station:
-                    for key in ['description', 'name']:
-                        if existing[key] != netcdf[key]:
-                            add_station = True
-                            break
-
-            if add_station:
-                # got to add a station either because it didn't exist in the database, or it didn't match
-                # what was in the database
+            if station_name not in self.station_names:
+                # get the netcdf fields for comparing or adding new
+                netcdf = self.fill_from_netcdf(recNum, netcdf)
                 logging.info(
                     "netcdfObsBuilderV01.handle_station - adding station " + netcdf['name'])
                 id = "MD:V01:METAR:station:" + netcdf['name']
@@ -595,12 +559,13 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
                     "version": "V01"
                 }
                 # add the station to the document map
-                if not id in self.document_map:
+                if not id in self.document_map.keys():
                     self.document_map[id] = new_station
+                self.station_names.append(station_name)
             return params_dict['stationName']
         except Exception as e:
             logging.error(
                 self.__class__.__name__ +
-                "netcdfObsBuilderV01.handle_station: Exception finding or creating station to match station_name  "
-                "error: ".format(e), " params: " + str(params_dict))
+                "netcdfObsBuilderV01.handle_station: Exception finding or creating station to match station_name  " +
+                str(e) + " params: " + str(params_dict))
             return ""

@@ -131,8 +131,6 @@ class VxIngestManager(Process):
             # establish connections to cb, collection
             self.connect_cb()
             # Read the ingest document
-            start_process_time = int(time.time())
-            builder = None
             # get the document from couchbase
             # noinspection PyBroadException
             try:
@@ -249,8 +247,8 @@ class VxIngestManager(Process):
                                       "EMPTY")
             else:
                 try:
-                    ret = self.collection.upsert_multi(document_map)
-                except TimeoutException as t:
+                    self.collection.upsert_multi(document_map)
+                except TimeoutException:
                     logging.info(
                         "process_file - trying upsert: Got TimeOutException -  Document may not be persisted.")
             upsert_stop_time = int(time.time())

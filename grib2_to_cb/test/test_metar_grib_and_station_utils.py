@@ -42,7 +42,7 @@ class TestGribStationUtils(unittest.TestCase):
             current_clock = result.rows()[0] / 1000
             current_time = time.time()
 
-            self.assertAlmostEqual(current_clock, current_time, places=None, delta=1,
+            self.assertAlmostEqual(current_clock, current_time, places=None, delta=100,
                                    msg="SELECT RAW CLOCK_MILLIS() did not return current time")
 
             # Grab the projection information from the test file

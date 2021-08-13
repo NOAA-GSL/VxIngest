@@ -10,16 +10,19 @@ import copy
 import cProfile
 import datetime as dt
 import logging
-import sys
 import re
-from couchbase.exceptions import DocumentNotFoundException
-
+import sys
 from pstats import Stats
+
+from couchbase.exceptions import DocumentNotFoundException
 
 TS_OUT_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
 
 def convert_to_iso(an_epoch):
+    """
+    simple conversion of an epoch to an iso string
+    """
     if not isinstance(an_epoch, int):
         an_epoch = int(an_epoch)
     valid_time_str = dt.datetime.utcfromtimestamp(
@@ -40,12 +43,12 @@ class CTCBuilder:
     1) find all the stations for the region for this ingest (model and region)
     select raw geo from mdata where type="MD" and docType="station" and subset='METAR' and version='V01'
     Use the region metadata document....
-    SELECT 
+    SELECT
         geo.bottom_right.lat as br_lat,
         geo.bottom_right.lon as br_lon,
         geo.top_left.lat as tl_lat,
         geo.top_left.lon as tl_lon
-    FROM mdata 
+    FROM mdata
     WHERE type="MD" and docType="region" and subset='COMMON' and version='V01' and name="ALL_HRRR"
     use the boubnding box to select stations for the region
     [
@@ -91,7 +94,7 @@ class CTCBuilder:
     3) find the maximum of the minimum valid times of the obs and corresponding models that are currently in the database. This is
     the data for ALL the stations. What delineates a region is the subset of station names that are in a region. This corresponds to a
     subset of the data portion of each model.
-    select raw min (mdata.fcstValidEpoch) from mdata where type="DD" and docType="model" and subset='METAR' and version='V01' and model="HRRR_OPS" 
+    select raw min (mdata.fcstValidEpoch) from mdata where type="DD" and docType="model" and subset='METAR' and version='V01' and model="HRRR_OPS"
     select raw min (mdata.fcstValidEpoch) from mdata where type="DD" and docType="obs" and subset='METAR' and version='V01'  limit 10
     4) using the minimum valid time and the domain station list query for model and obs pairs within the station list.
 
@@ -108,19 +111,20 @@ class CTCBuilder:
         self.domain_stations = []
         self.model = self.template['model']
         self.region = self.template['region']
-        self.subDocType = self.template['subDocType']
-        self.model_fcstValidEpochs = []
-        self.model_data = {} # used to stash each fcstValidEpoch model_data for the handlers
-        self.obs_data = {} # used to stash each fcstValidEpoch obs_data for the handlers
-        self.obs_station_names = [] # used to stash sorted obs names for the handlers
+        self.sub_doc_type = self.template['subDocType']
+        self.model_fcst_valid_epochs = []
+        self.model_data = {}  # used to stash each fcstValidEpoch model_data for the handlers
+        self.obs_data = {}  # used to stash each fcstValidEpoch obs_data for the handlers
+        self.obs_station_names = []  # used to stash sorted obs names for the handlers
         self.thresholds = None
+
     def initialize_document_map(self):
         pass
 
     def get_document_map(self):
         pass
 
-    def handle_data(self):
+    def handle_data(self, doc):
         pass
 
     def derive_id(self, template_id):
@@ -142,14 +146,15 @@ class CTCBuilder:
                 new_parts.append(value)
             new_id = ":".join(new_parts)
             return new_id
-        except:
+        except Exception as e:
             e = sys.exc_info()
-            logging.error("GribBuilder.derive_id: Exception  error: " + str(e))
+            logging.error(
+                "GribBuilder.derive_id: Exception  error: %s", str(e))
 
     def translate_template_item(self, variable):
         """
         This method translates template replacements (*item or *item1*item2).
-        It can translate keys or values. 
+        It can translate keys or values.
         :param variable: a value from the template - should be a variable or a constant
         :return: It returns an array of values, ordered by domain_stations
         """
@@ -164,22 +169,22 @@ class CTCBuilder:
             # pre assign these in case it isn't a replacement - makes it easier
             value = variable
             if len(replacements) > 0:
-                station_values = []
                 for ri in replacements:
-                        value = self.model_data[ri]
-                        # convert each station value to iso if necessary
-                        if ri.startswith("{ISO}"):
-                            value = variable.replace("*" + ri, convert_to_iso(value))
-                        else:
-                            value = variable.replace("*" + ri, str(value))
+                    value = self.model_data[ri]
+                    # convert each station value to iso if necessary
+                    if ri.startswith("{ISO}"):
+                        value = variable.replace(
+                            "*" + ri, convert_to_iso(value))
+                    else:
+                        value = variable.replace("*" + ri, str(value))
             return value
         except Exception as e:
             logging.error(
-                "GribBuilder.translate_template_item: Exception  error: " + str(e))
+                "GribBuilder.translate_template_item: Exception  error: %s", str(e))
 
     def handle_document(self):
         """
-        This routine processes the complete document matching template items to 
+        This routine processes the complete document matching template items to
         the self.modelData and self.obsData
         :return: The modified document_map
         """
@@ -194,25 +199,26 @@ class CTCBuilder:
             new_document = initialize_data(new_document)
             for key in self.template.keys():
                 if key == "data":
+                    # pylint: disable=assignment-from-no-return
                     new_document = self.handle_data(new_document)
                     continue
                 new_document = self.handle_key(new_document, key)
             # put document into document map
             if new_document['id']:
                 logging.info(
-                    "GribBuilder.handle_document - adding document " + new_document['id'])
+                    "GribBuilder.handle_document - adding document %s", new_document['id'])
                 self.document_map[new_document['id']] = new_document
             else:
                 logging.info(
-                    "GribBuilder.handle_document - cannot add document with key " + str(new_document['id']))
+                    "GribBuilder.handle_document - cannot add document with key %s", str(new_document['id']))
         except Exception as e:
-            logging.error(self.__class__.__name__ + "GribBuilder.handle_document: Exception instantiating "
-                                                    "builder: " + self.__class__.__name__ + " error: " + str(e))
+            logging.error("%s GribBuilder.handle_document: Exception instantiating builder:  error %s",
+                          self.__class__.__name__, str(e))
             raise e
 
     def handle_key(self, doc, key):
         """
-        This routine handles keys by substituting 
+        This routine handles keys by substituting
         the data that correspond to the key into the values
         in the template that begin with *
         :param doc: the current document
@@ -223,9 +229,9 @@ class CTCBuilder:
         # noinspection PyBroadException
         try:
             if key == 'id':
-                id = self.derive_id(self.template['id'])
-                if not id in doc:
-                    doc['id'] = id
+                an_id = self.derive_id(self.template['id'])
+                if not an_id in doc:
+                    doc['id'] = an_id
                 return doc
             if isinstance(doc[key], dict):
                 # process an embedded dictionary
@@ -239,8 +245,8 @@ class CTCBuilder:
                 doc[key] = self.translate_template_item(doc[key])
             return doc
         except Exception as e:
-            logging.error(
-                self.__class__.__name__ + "GribBuilder.handle_key: Exception in builder:  error: " + str(e))
+            logging.error("%s GribBuilder.handle_key: Exception in builder:  error: %s",
+                          self.__class__.__name__, str(e))
         return doc
 
     def handle_named_function(self, _named_function_def):
@@ -252,7 +258,7 @@ class CTCBuilder:
         The name of the function and the function parameters are seperated by a ":" and
         the parameters are seperated by a ','.
         It is expected that field1, field2, and field3 etc are all valid variable names.
-        Each field will be translated from the netcdf file into value1, value2 etc. 
+        Each field will be translated from the netcdf file into value1, value2 etc.
         The method "named_function" will be called like...
         named_function({field1:value1, field2:value2, ... fieldn:valuen}) and the return value from named_function
         will be substituted into the document.
@@ -275,19 +281,21 @@ class CTCBuilder:
             # call the named function using getattr
             replace_with = getattr(self, func)(dict_params)
         except Exception as e:
-            logging.error(
-                self.__class__.__name__ + " handle_named_function: " + func + " Exception instantiating builder:  error: " + str(e))
+            logging.error("%s handle_named_function: %s Exception instantiating builder:  error: %s",
+                          self.__class__.__name__, func, str(e))
         return replace_with
 
-
     def handle_fcstValidEpochs(self):
+        # noinspection PyBroadException
         try:
-            for fve in self.model_fcstValidEpochs:
+            for fve in self.model_fcst_valid_epochs:
                 self.obs_data = {}
                 self.obs_station_names = []
                 # get the models and obs for this fve
-                obs_id = re.sub(':' + str(fve['fcstLen']) +"$", '',fve['id'] ) # remove the fcstLen part
-                obs_id = re.sub(self.model,'obs',obs_id) # substitute the model part for obs
+                # remove the fcstLen part
+                obs_id = re.sub(':' + str(fve['fcstLen']) + "$", '', fve['id'])
+                # substitute the model part for obs
+                obs_id = re.sub(self.model, 'obs', obs_id)
                 self.model_data = self.collection.get(fve['id']).content
                 _obs_data = self.collection.get(obs_id).content
                 for entry in _obs_data['data']:
@@ -296,28 +304,29 @@ class CTCBuilder:
                 self.obs_station_names.sort()
                 self.handle_document()
         except DocumentNotFoundException:
-            logging.info(self.__class__.__name__ + " handle_fcstValidEpochs: document " + fve['id'] + " was not found! ")
+            logging.info("%s handle_fcstValidEpochs: document %s was not found! ",
+                         self.__class__.__name__, fve['id'])
         except Exception as e:
-            logging.error(
-                self.__class__.__name__ + " handle_fcstValidEpochs: Exception instantiating builder:  error: " + str(e))
+            logging.error("%s handle_fcstValidEpochs: Exception instantiating builder:  error: %s",
+                          self.__class__.__name__, str(e))
 
     def build_document(self):
         """
         This is the entry point for the ctcBuilders from the ingestManager.
-        These documents are id'd by time and fcstLen. The data section is an array 
+        These documents are id'd by time and fcstLen. The data section is an array
         each element of which contains a map keyed by thresholds. The values are the
         hits, misses, false_alarms, adn correct_negatives for the stations in the region
-        that is specified in the ingest_document. 
+        that is specified in the ingest_document.
         To process this file we need to itterate the list of valid fcstValidEpochs
         and process the region station list for each fcstValidEpoch and fcstLen.
 
         1) get stations from couchbase and filter them so that we retain only the ones for this models region
         2) get the latest fcstValidEpoch for the ctc's for this model and region.
-        3) get the intersection of the fcstValidEpochs that correspond for this model and the obs 
+        3) get the intersection of the fcstValidEpochs that correspond for this model and the obs
         for all fcstValidEpochs greater than the first ctc.
         4) if we have asked for profiling go ahead and do it
         5) iterate the fcstValidEpochs an get the models and obs for each fcstValidEpoch
-        6) Within the fcstValidEpoch loop iterate the models and handle a document for each 
+        6) Within the fcstValidEpoch loop iterate the models and handle a document for each
         fcstValidEpoch. This will result in a document for each fcstLen within a fcstValidEpoch.
         5) and 6) are enclosed in the handle_document()
         """
@@ -349,14 +358,14 @@ class CTCBuilder:
                         boundingbox['tl_lon']
                     if rlat >= bb_br_lat and rlat <= bb_tl_lat and rlon >= bb_br_lon and rlon <= bb_tl_lon:
                         self.domain_stations.append(row['name'])
-                self.domain_stations.sort()        
+                self.domain_stations.sort()
             except Exception as e:
-                logging.error(self.__class__.__name__ +
-                              ": Exception with builder build_document: error: " + str(e))
+                logging.error(
+                    "%s: Exception with builder build_document: error: %s", self.__class__.__name__, str(e))
 
             # First get the latest fcstValidEpoch for the ctc's for this model and region.
             result = self.cluster.query(
-                "SELECT RAW MAX(mdata.fcstValidEpoch) FROM mdata WHERE type='DD' AND docType='CTC' AND subDocType=$subDocType AND model=$model AND region=$region AND version='V01' AND subset='METAR'", model=self.model, region=self.region, subDocType=self.subDocType, read_only=True)
+                "SELECT RAW MAX(mdata.fcstValidEpoch) FROM mdata WHERE type='DD' AND docType='CTC' AND subDocType=$subDocType AND model=$model AND region=$region AND version='V01' AND subset='METAR'", model=self.model, region=self.region, subDocType=self.sub_doc_type, read_only=True)
             max_ctc_fcstValidEpochs = 0
             if list(result)[0] is not None:
                 max_ctc_fcstValidEpochs = list(result)[0]
@@ -374,7 +383,7 @@ class CTCBuilder:
                         AND fve.subset='METAR'
                         AND fve.fcstValidEpoch > $max_fcst_epoch
                     ORDER BY fve.fcstValidEpoch, fcstLen""",
-                        model=self.model, max_fcst_epoch=max_ctc_fcstValidEpochs)
+                model=self.model, max_fcst_epoch=max_ctc_fcstValidEpochs)
             _tmp_model_fve = list(result)
 
             result1 = self.cluster.query(
@@ -386,15 +395,16 @@ class CTCBuilder:
                             AND obs.subset='METAR'
                             AND obs.fcstValidEpoch > $max_fcst_epoch
                     ORDER BY obs.fcstValidEpoch""", max_fcst_epoch=max_ctc_fcstValidEpochs)
-            _tmp_obs_fve = list(result1)        
-            # for row in result:        
+            _tmp_obs_fve = list(result1)
+            # for row in result:
             #     _tmp_obs_fve.append(row.fcstValidEpoch)
 
             for fve in _tmp_model_fve:
                 if fve['fcstValidEpoch'] in _tmp_obs_fve:
-                    self.model_fcstValidEpochs.append(fve)
-            
+                    self.model_fcst_valid_epochs.append(fve)
+
             # if we have asked for profiling go ahead and do it
+            # pylint: disable=no-member
             if self.do_profiling:
                 with cProfile.Profile() as pr:
                     self.handle_fcstValidEpochs()
@@ -406,11 +416,12 @@ class CTCBuilder:
                         stats.print_stats()
             else:
                 self.handle_fcstValidEpochs()
+            # pylint: disable=assignment-from-no-return
             document_map = self.get_document_map()
             return document_map
         except Exception as e:
-            logging.error(self.__class__.__name__ +
-                          ": Exception with builder build_document: error: " + str(e))
+            logging.error("%s: Exception with builder build_document: error: %s",
+                          self.__class__.__name__, str(e))
             return {}
 
 # Concrete builders
@@ -423,7 +434,7 @@ class CTCModelObsBuilderV01(CTCBuilder):
         model and obs data for the model and the region defined in the ingest document.
         Each document is indexed by the &handle_time:&handle_fcst_len" where the
         handle_time returns the valid time of a model and the handle_fcst_len returns the
-        fcst_len of the model. 
+        fcst_len of the model.
         The minimum valid time that is available to be ingested for the specified model
         and the minimum valid time for the obs that is available to be ingested,
         where both are greater than what already exists in the database,
@@ -455,7 +466,7 @@ class CTCModelObsBuilderV01(CTCBuilder):
     def handle_data(self, doc):
         # noinspection PyBroadException
         """
-        This routine processes the ctc data element. The data elements are all the same and always have the 
+        This routine processes the ctc data element. The data elements are all the same and always have the
         same keys which are thresholds, therefore this routine does not implement handlers.
         :return: The modified document_map
         """
@@ -469,20 +480,21 @@ class CTCModelObsBuilderV01(CTCBuilder):
                     WHERE type="MD"
                         AND docType="matsAux"
                 """, read_only=True)
-                self.thresholds = list(map(int,list((list(result)[0])['ceiling'].keys())))
+                self.thresholds = list(
+                    map(int, list((list(result)[0])['ceiling'].keys())))
             for threshold in self.thresholds:
                 hits = 0
                 misses = 0
                 false_alarms = 0
                 correct_negatives = 0
-                
+
                 for station in self.model_data['data']:
                     # only count the ones that are in our region
                     if station['name'] not in self.domain_stations:
                         continue
                     if station['name'] not in self.obs_station_names:
-                        logging.info(self.__class__.__name__ +
-                          "handle_data: model station " + station['name'] + " was not found in the available observations.")
+                        logging.info("%s handle_data: model station %s was not found in the available observations.",
+                                     self.__class__.__name__, station['name'])
                         continue
                     if station['Ceiling'] is None:
                         continue
@@ -494,7 +506,8 @@ class CTCModelObsBuilderV01(CTCBuilder):
                         misses = misses + 1
                     if not station['Ceiling'] < threshold and not self.obs_data[station['name']]['Ceiling'] < threshold:
                         correct_negatives = correct_negatives + 1
-                data_elem[threshold] = data_elem[threshold] if threshold in data_elem.keys() else {}
+                data_elem[threshold] = data_elem[threshold] if threshold in data_elem.keys() else {
+                }
                 data_elem[threshold]['hits'] = hits
                 data_elem[threshold]['false_alarms'] = false_alarms
                 data_elem[threshold]['misses'] = misses
@@ -503,27 +516,27 @@ class CTCModelObsBuilderV01(CTCBuilder):
                 doc['data'] = data_elem
                 return doc
         except Exception as e:
-            logging.error(self.__class__.__name__ +
-                          "handle_data: Exception :  error: " + str(e))
+            logging.error("%s handle_data: Exception :  error: %s",
+                          self.__class__.__name__, str(e))
         return doc
+
+    # pylint: disable=unused-argument
 
     def handle_time(self, params_dict):
         return self.model_data['fcstValidEpoch']
 
     def handle_iso_time(self, params_dict):
-        return (dt.datetime.utcfromtimestamp(self.model_data['fcstValidEpoch']).isoformat())
+        return dt.datetime.utcfromtimestamp(self.model_data['fcstValidEpoch']).isoformat()
 
     def handle_fcst_len(self, params_dict):
         return self.model_data['fcstLen']
 
-    """
-        How CTC tables are derived....
-        ARRAY_SUM(ARRAY CASE WHEN (pair.modelValue < 300
-                AND pair.observationValue < 300) THEN 1 ELSE 0 END FOR pair IN pairs END) AS hits,
-        ARRAY_SUM(ARRAY CASE WHEN (pair.modelValue < 300
-                AND NOT pair.observationValue < 300) THEN 1 ELSE 0 END FOR pair IN pairs END) AS false_alarms,
-        ARRAY_SUM(ARRAY CASE WHEN (NOT pair.modelValue < 300
-                AND pair.observationValue < 300) THEN 1 ELSE 0 END FOR pair IN pairs END) AS misses,
-        ARRAY_SUM(ARRAY CASE WHEN (NOT pair.modelValue < 300
-                AND NOT pair.observationValue < 300) THEN 1 ELSE 0 END FOR pair IN pairs END) AS correct_negatives
-    """
+        # How CTC tables are derived....
+        # ARRAY_SUM(ARRAY CASE WHEN (pair.modelValue < 300
+        #         AND pair.observationValue < 300) THEN 1 ELSE 0 END FOR pair IN pairs END) AS hits,
+        # ARRAY_SUM(ARRAY CASE WHEN (pair.modelValue < 300
+        #         AND NOT pair.observationValue < 300) THEN 1 ELSE 0 END FOR pair IN pairs END) AS false_alarms,
+        # ARRAY_SUM(ARRAY CASE WHEN (NOT pair.modelValue < 300
+        #         AND pair.observationValue < 300) THEN 1 ELSE 0 END FOR pair IN pairs END) AS misses,
+        # ARRAY_SUM(ARRAY CASE WHEN (NOT pair.modelValue < 300
+        #         AND NOT pair.observationValue < 300) THEN 1 ELSE 0 END FOR pair IN pairs END) AS correct_negatives

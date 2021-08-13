@@ -79,13 +79,12 @@ class NetcdfBuilder:
             return new_id
         except:
             e = sys.exc_info()
-            logging.error(
-                "NetcdfBuilder.derive_id: Exception  error: " + str(e))
+            logging.error("NetcdfBuilder.derive_id: Exception  error: %s", str(e))
 
     def translate_template_item(self, variable, recNum):
         """
         This method translates template replacements (*item).
-        It can translate keys or values. 
+        It can translate keys or values.
         :param variable: a value from the template - should be a netcdf variable
         :param recNum: the current recNum
         :return:
@@ -140,8 +139,7 @@ class NetcdfBuilder:
                             # it desn't need to be a string
                             return self.ncdf_data_set[variable][recNum]
         except Exception as e:
-            logging.error(
-                "NetcdfBuilder.translate_template_item: Exception  error: " + str(e))
+            logging.error("NetcdfBuilder.translate_template_item: Exception  error: %s", str(e))
         return value
 
     def handle_document(self):
@@ -165,20 +163,17 @@ class NetcdfBuilder:
                     new_document = self.handle_key(new_document, recNum, key)
             # put document into document map
             if new_document['id']:
-                logging.info(
-                    "NetcdfBuilder.handle_document - adding document " + new_document['id'])
+                logging.info("NetcdfBuilder.handle_document - adding document %s", new_document['id'])
                 self.document_map[new_document['id']] = new_document
             else:
-                logging.info(
-                    "NetcdfBuilder.handle_document - cannot add document with key " + str(new_document['id']))
+                logging.info("NetcdfBuilder.handle_document - cannot add document with key %s", str(new_document['id']))
         except Exception as e:
-            logging.error(self.__class__.__name__ + "NetcdfBuilder.handle_document: Exception instantiating "
-                                                    "builder: " + self.__class__.__name__ + " error: " + str(e))
+            logging.error("NetcdfBuilder.handle_document: Exception instantiating builder: %s error: %s", self.__class__.__name__,  str(e))
             raise e
 
     def handle_key(self, doc, _recNum, key):
         """
-        This routine handles keys by substituting 
+        This routine handles keys by substituting
         the netcdf variables that correspond to the key into the values
         in the template that begin with *
         :param doc: the current document
@@ -189,9 +184,9 @@ class NetcdfBuilder:
         # noinspection PyBroadException
         try:
             if key == 'id':
-                id = self.derive_id(self.template['id'], _recNum)
-                if not id == doc['id']:
-                    doc['id'] = id
+                an_id = self.derive_id(self.template['id'], _recNum)
+                if not an_id == doc['id']:
+                    doc['id'] = an_id
                 return doc
             if isinstance(doc[key], dict):
                 # process an embedded dictionary
@@ -206,8 +201,7 @@ class NetcdfBuilder:
                 doc[key] = self.translate_template_item(doc[key], _recNum)
             return doc
         except Exception as e:
-            logging.error(
-                self.__class__.__name__ + "NetcdfBuilder.handle_key: Exception in builder:  error: " + str(e))
+            logging.error("%s NetcdfBuilder.handle_key: Exception in builder:  error: %s", self.__class__.__name__, str(e))
         return doc
 
     def handle_named_function(self, named_function_def, _recNum):
@@ -219,7 +213,7 @@ class NetcdfBuilder:
         The name of the function and the function parameters are seperated by a ":" and
         the parameters are seperated vy a ','.
         It is expected that field1, field2, and field3 etc are all valid variable names.
-        Each field will be translated from the netcdf file into value1, value2 etc. 
+        Each field will be translated from the netcdf file into value1, value2 etc.
         The method "named_function" will be called like...
         named_function({field1:value1, field2:value2, ... fieldn:valuen}) and the return value from named_function
         will be substituted into the document.
@@ -236,8 +230,7 @@ class NetcdfBuilder:
             # call the named function using getattr
             replace_with = getattr(self, func)(dict_params)
         except Exception as e:
-            logging.error(
-                self.__class__.__name__ + "handle_named_function: Exception instantiating builder:  error: " + str(e))
+            logging.error("%s handle_named_function: Exception instantiating builder:  error: %s", self.__class__.__name__, str(e))
         return replace_with
 
     def handle_data(self, doc, recNum):
@@ -256,28 +249,25 @@ class NetcdfBuilder:
                         value = self.translate_template_item(value, recNum)
                 except Exception as e:
                     value = None
-                    logging.warning(self.__class__.__name__ +
-                                    "NetcdfBuilder.handle_data - value is None")
+                    logging.warning("%s NetcdfBuilder.handle_data - value is None", self.__class__.__name__)
                 data_elem[key] = value
             if data_key.startswith('&'):
                 data_key = self.handle_named_function(data_key, recNum)
             else:
                 data_key = self.translate_template_item(data_key, recNum)
             if data_key is None:
-                logging.warning(self.__class__.__name__ +
-                                "NetcdfBuilder.handle_data - _data_key is None")
+                logging.warning("%s NetcdfBuilder.handle_data - _data_key is None", self.__class__.__name__)
             # pylint: disable=assignment-from-no-return
             doc = self.load_data(doc, data_key, data_elem)
             return doc
         except Exception as e:
-            logging.error(self.__class__.__name__ +
-                          "handle_data: Exception instantiating builder:  error: " + str(e))
+            logging.error("%s handle_data: Exception instantiating builder:  error: %s", self.__class__.__name__, str(e))
         return doc
 
     def build_document(self, file_name):
         """
         This is the entry point for the NetcfBuilders from the ingestManager.
-        These documents are id'd by fcstValidEpoch. The data section is an array 
+        These documents are id'd by fcstValidEpoch. The data section is an array
         each element of which contains variable data and a station name. To process this
         file we need to itterate the document by recNum and process the station name along
         with all the other variables in the variableList.
@@ -287,8 +277,8 @@ class NetcdfBuilder:
             # pylint: disable=no-member
             self.ncdf_data_set = nc.Dataset(file_name)
             if len(self.station_names) == 0:
-                result = self.cluster.query("""SELECT raw name FROM mdata 
-                    WHERE 
+                result = self.cluster.query("""SELECT raw name FROM mdata
+                    WHERE
                     type = 'MD'
                     AND docType = 'station'
                     AND subset = 'METAR'
@@ -308,15 +298,13 @@ class NetcdfBuilder:
             file_time = (file_utc_time - datetime(1970, 1, 1)).total_seconds()
             # check to see if it is within first and last epoch (default is 0 and maxsize)
             if file_time >= float(self.load_spec['first_last_params']['first_epoch']):
-                logging.info(self.__class__.__name__ +
-                             "building documents for file " + file_name)
+                logging.info("%s building documents for file %s", self.__class__.__name__, file_name)
                 self.handle_document()
             # pylint: disable=assignment-from-no-return
             document_map = self.get_document_map()
             return document_map
         except Exception as e:
-            logging.error(self.__class__.__name__ +
-                          ": Exception with builder build_document: error: " + str(e))
+            logging.error("%s: Exception with builder build_document: error: %s", self.__class__.__name__, str(e))
             return {}
 
 
@@ -380,8 +368,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
                 value = value * 2.237
             return value
         except Exception as e:
-            logging.error(self.__class__.__name__ +
-                          "handle_data: Exception in named function meterspersecond_to_milesperhour:  error: " + str(e))
+            logging.error("%s handle_data: Exception in named function meterspersecond_to_milesperhour:  error: %s", self.__class__.__name__, str(e))
 
     def ceiling_transform(self, params_dict):
         try:
@@ -400,8 +387,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
                     break
             return math.floor(ceiling)
         except Exception as e:
-            logging.error(self.__class__.__name__ +
-                          "handle_data: Exception in named function ceiling_transform:  error: " + str(e))
+            logging.error("%s handle_data: Exception in named function ceiling_transform:  error: %s", self.__class__.__name__, str(e))
 
     def kelvin_to_farenheight(self, params_dict):
         try:
@@ -410,8 +396,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
                 value = (float(value) - 273.15) * 1.8 + 32
             return value
         except Exception as e:
-            logging.error(self.__class__.__name__ +
-                          "handle_data: Exception in named function kelvin_to_farenheight:  error: " + str(e))
+            logging.error("%s handle_data: Exception in named function kelvin_to_farenheight:  error: %s", self.__class__.__name__, str(e))
 
     def umask_value_transform(self, params_dict):
         # Probably need more here....
@@ -428,8 +413,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
             else:
                 return None
         except Exception as e:
-            logging.error(self.__class__.__name__ +
-                          "umask_value_transform: Exception in named function umask_value_transform for key " + key + ":  error: " + str(e))
+            logging.error("%s umask_value_transform: Exception in named function umask_value_transform for key %s:  error: %s", self.__class__.__name__, key, str(e))
 
     def handle_pressure(self, params_dict):
         try:
@@ -439,8 +423,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
                 value = math.floor(float(value) / 100)
             return value
         except Exception as e:
-            logging.error(self.__class__.__name__ +
-                          "handle_pressure: Exception in named function:  error: " + str(e))
+            logging.error("%s handle_pressure: Exception in named function:  error: %s", self.__class__.__name__, str(e))
 
     def handle_visibility(self, params_dict):
         try:
@@ -449,8 +432,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
                 value = math.floor(float(value))  # round
             return float(value)
         except Exception as e:
-            logging.error(self.__class__.__name__ +
-                          "handle_pressure: Exception in named function:  error: " + str(e))
+            logging.error("%s handle_pressure: Exception in named function:  error: %s", self.__class__.__name__, str(e))
 
     def interpolate_time(self, params_dict):
         """
@@ -468,8 +450,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
                                 hour=time.hour) + timedelta(hours=time.minute//30)
             return calendar.timegm(time.timetuple())
         except Exception as e:
-            logging.error(self.__class__.__name__ +
-                          "handle_data: Exception in named function interpolate_time:  error: " + str(e))
+            logging.error("%s handle_data: Exception in named function interpolate_time:  error: %s", self.__class__.__name__, str(e))
 
     def interpolate_time_iso(self, params_dict):
         """
@@ -488,12 +469,11 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
             # convert this iso
             return str(time.isoformat())
         except Exception as e:
-            logging.error(self.__class__.__name__ +
-                          "handle_data: Exception in named function interpolate_time_iso:  error: " + str(e))
+            logging.error("%s handle_data: Exception in named function interpolate_time_iso:  error: %s", self.__class__.__name__, str(e))
 
     def fill_from_netcdf(self, _recNum, netcdf):
         """
-        Used by handle_station to get the records from netcdf for comparing with the 
+        Used by handle_station to get the records from netcdf for comparing with the
         records from the database.
         """
         netcdf = {}
@@ -523,10 +503,10 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
         """
          This method uses the station name in the params_dict
          to find a station with that name.
-         If the station does not exist it will be created with data from the 
-         netcdf file. 
+         If the station does not exist it will be created with data from the
+         netcdf file.
          :param params_dict: {station_name:a_station_name}
-         :return: 
+         :return:
          """
         recNum = params_dict['recNum']
         station_name = params_dict['stationName']
@@ -538,8 +518,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
             if station_name not in self.station_names:
                 # get the netcdf fields for comparing or adding new
                 netcdf = self.fill_from_netcdf(recNum, netcdf)
-                logging.info(
-                    "netcdfObsBuilderV01.handle_station - adding station " + netcdf['name'])
+                logging.info("netcdfObsBuilderV01.handle_station - adding station %s", netcdf['name'])
                 id = "MD:V01:METAR:station:" + netcdf['name']
                 new_station = {
                     "id": "MD:V01:METAR:station:" + netcdf['name'],
@@ -564,8 +543,6 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
                 self.station_names.append(station_name)
             return params_dict['stationName']
         except Exception as e:
-            logging.error(
-                self.__class__.__name__ +
-                "netcdfObsBuilderV01.handle_station: Exception finding or creating station to match station_name  " +
-                str(e) + " params: " + str(params_dict))
+            logging.error("%s netcdfObsBuilderV01.handle_station: Exception finding or creating station to match station_name error: %s params: %s", self.__class__.__name__,
+                str(e), str(params_dict))
             return ""

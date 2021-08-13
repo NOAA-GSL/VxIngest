@@ -128,7 +128,7 @@ class VXIngest(object):
         #  Read the load_spec file
         #
         try:
-            logging.debug("load_spec filename is %s" + self.spec_file)
+            logging.debug("load_spec filename is %s", self.spec_file)
             load_spec_file = LoadYamlSpecFile(
                 {'spec_file': self.spec_file})
             # read in the load_spec file

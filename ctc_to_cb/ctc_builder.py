@@ -366,9 +366,9 @@ class CTCBuilder:
             # First get the latest fcstValidEpoch for the ctc's for this model and region.
             result = self.cluster.query(
                 "SELECT RAW MAX(mdata.fcstValidEpoch) FROM mdata WHERE type='DD' AND docType='CTC' AND subDocType=$subDocType AND model=$model AND region=$region AND version='V01' AND subset='METAR'", model=self.model, region=self.region, subDocType=self.sub_doc_type, read_only=True)
-            max_ctc_fcstValidEpochs = 0
+            max_ctc_fcst_valid_epochs = 0
             if list(result)[0] is not None:
-                max_ctc_fcstValidEpochs = list(result)[0]
+                max_ctc_fcst_valid_epochs = list(result)[0]
 
             # Second get the intersection of the fcstValidEpochs that correspond for this
             # model and the obs for all fcstValidEpochs greater than the first_epoch ctc.
@@ -383,7 +383,7 @@ class CTCBuilder:
                         AND fve.subset='METAR'
                         AND fve.fcstValidEpoch > $max_fcst_epoch
                     ORDER BY fve.fcstValidEpoch, fcstLen""",
-                model=self.model, max_fcst_epoch=max_ctc_fcstValidEpochs)
+                model=self.model, max_fcst_epoch=max_ctc_fcst_valid_epochs)
             _tmp_model_fve = list(result)
 
             result1 = self.cluster.query(
@@ -394,7 +394,7 @@ class CTCBuilder:
                             AND obs.version='V01'
                             AND obs.subset='METAR'
                             AND obs.fcstValidEpoch > $max_fcst_epoch
-                    ORDER BY obs.fcstValidEpoch""", max_fcst_epoch=max_ctc_fcstValidEpochs)
+                    ORDER BY obs.fcstValidEpoch""", max_fcst_epoch=max_ctc_fcst_valid_epochs)
             _tmp_obs_fve = list(result1)
             # for row in result:
             #     _tmp_obs_fve.append(row.fcstValidEpoch)

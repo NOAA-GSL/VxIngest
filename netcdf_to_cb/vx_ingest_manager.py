@@ -39,7 +39,7 @@ the concrete builder type from the metadata document and uses a
 concrete builder to process the file.
 
 The builders are instantiated once and kept in a map of objects for the
-duration of the programs life. For NetcdfIngestManager it is likely that 
+duration of the programs life. For NetcdfIngestManager it is likely that
 each file will require only one builder type to be instantiated.
 When NetcdfIngestManager finishes a document specification  it  "upserts"
 a document_map to the couchbase database.
@@ -54,18 +54,16 @@ Copyright 2019 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of
 Colorado, NOAA/OAR/ESRL/GSD
 """
 import logging
-import queue
 import sys
 import os
 import time
 import json
 from multiprocessing import Process
+from pathlib import Path
 from couchbase.cluster import Cluster, ClusterOptions
 from couchbase.exceptions import TimeoutException
 from couchbase_core.cluster import PasswordAuthenticator
-from itertools import islice
-from netcdf_to_cb import netcdf_builder as netcdf_builder
-
+from netcdf_to_cb import netcdf_builder
 
 class VxIngestManager(Process):
     """
@@ -75,7 +73,7 @@ class VxIngestManager(Process):
 
     This class will process data by reading an ingest_document_id
     and instantiating a NetcdfBuilder class of the type specified in the
-    ingest_document. 
+    ingest_document.
     The ingest document specifies the builder, class, a set of variables that are expected to be
     in each file, and a template that defines how to place the variable values
     into a couchbase document and how to construct the couchbase data document id.
@@ -102,7 +100,7 @@ class VxIngestManager(Process):
         """
         # The Constructor for the RunCB class.
         Process.__init__(self)
-        self.threadName = name
+        self.thread_name = name
         self.load_spec = load_spec
         self.cb_credentials = self.load_spec['cb_connection']
         self.ingest_document_id = self.load_spec['ingest_document_id']
@@ -120,9 +118,9 @@ class VxIngestManager(Process):
     def run(self):
         """
         This is the entry point for the NetcdfIngestManager thread. It runs an
-        infinite loop that only terminates when the  file_name_queue is 
-        empty. For each enqueued file name it calls 
-        process_file with the file_name and the couchbase 
+        infinite loop that only terminates when the  file_name_queue is
+        empty. For each enqueued file name it calls
+        process_file with the file_name and the couchbase
         connection to process the file.
         """
         # noinspection PyBroadException
@@ -141,8 +139,7 @@ class VxIngestManager(Process):
                 self.ingest_document = ingest_document_result.content
                 self.ingest_type_builder_name = self.ingest_document['builder_type']
             except Exception as e:
-                logging.error(
-                    self.threadName + ".process_file: Exception getting ingest document: " + str(e))
+                logging.error( "%s: process_file: Exception getting ingest document: %s", self.thread_name, str(e))
                 sys.exit("*** Error getting ingest document ***")
 
             # infinite loop terminates when the file_name_queue is empty
@@ -155,31 +152,27 @@ class VxIngestManager(Process):
                 except Exception as e:
                     # should probably just catch _queue.Empty but I think Python changed the name - so to be certain catching ANY exception
                     # three strikes and your out! finished! kaput!
-                    logging.info(self.threadName + ': IngestManager - After file processing Exception - type' + str(
-                        type(e)) + ' empty count is ' + str(empty_count))
+                    logging.info('%s: IngestManager - After file processing Exception - type %s empty count is %s',self.thread_name, str(type(e)), str(empty_count))
                     if empty_count < 3:
                         empty_count += 1
                         time.sleep(1)
                         continue
                     else:
-                        logging.info(
-                            self.threadName + ': IngestManager - Queue empty - disconnecting ' + 'couchbase')
+                        logging.info('%s: IngestManager - Queue empty - disconnecting couchbase', self.thread_name)
                         break
         except Exception as e:
-            logging.error(
-                self.threadName + ": *** %s Error in IngestManager run ***" + str(e))
+            logging.error("%s: *** %s Error in IngestManager run ***", self.thread_name, str(e))
             raise e
         finally:
             self.close_cb()
-            logging.error(self.threadName + ": IngestManager finished")
+            logging.info("%s: IngestManager finished", self.thread_name)
 
     def close_cb(self):
         if self.cluster:
             self.cluster.disconnect()
 
     def connect_cb(self):
-        logging.info(self.threadName +
-                     ': data_type_manager - Connecting to couchbase')
+        logging.info('%s: data_type_manager - Connecting to couchbase', self.thread_name)
         # get a reference to our cluster
         # noinspection PyBroadException
         try:
@@ -188,9 +181,9 @@ class VxIngestManager(Process):
             self.cluster = Cluster(
                 'couchbase://' + self.cb_credentials['host'], options)
             self.collection = self.cluster.bucket("mdata").default_collection()
-            logging.info(self.threadName + ': Couchbase connection success')
+            logging.info('%s: Couchbase connection success', self.thread_name)
         except Exception as e:
-            logging.error("*** %s in connect_cb ***" + str(e))
+            logging.error("*** %s in connect_cb ***", str(e))
             sys.exit("*** Error when connecting to mysql database: ")
 
     def process_file(self, file_name):
@@ -216,35 +209,28 @@ class VxIngestManager(Process):
                 self.write_document_to_cb(file_name, document_map)
 
         except Exception as e:
-            logging.error(self.threadName + ": Exception in builder: " +
-                          str(self.ingest_type_builder_name) + " error: " + str(e))
+            logging.error("%s: Exception in builder: %s error: ", str(self.ingest_type_builder_name), str(e))
             raise e
 
         finally:
             # reset the document map and record stop time
             stop_process_time = int(time.time())
             document_map = {}
-            logging.info("IngestManager.process_file: "
-                         "elapsed time: " + str(stop_process_time - start_process_time))
-            return
+            logging.info("IngestManager.process_file: elapsed time: %s", str(stop_process_time - start_process_time))
 
     def write_document_to_cb(self, file_name, document_map):
         # The document_map is all built now so write all the
         # documents in the document_map into couchbase
         # noinspection PyBroadException
         try:
-            logging.info(self.threadName + ': process_file writing documents for '
-                                           'ingest_document :  ' + str(file_name) + " with threadName: " + self.threadName)
+            logging.info('%s: process_file writing documents for ingest_document: %s', self.thread_name, str(file_name))
             # this call is volatile i.e. it might change syntax in
             # the future.
             # if it does, please just fix it.
             upsert_start_time = int(time.time())
-            logging.info(
-                "process_file - executing upsert: stop time: " + str(upsert_start_time))
+            logging.info("process_file - executing upsert: stop time: %s", str(upsert_start_time))
             if not document_map:
-                logging.info(
-                    self.threadName + ": process_file: would upsert documents but DOCUMENT_MAP IS "
-                                      "EMPTY")
+                logging.info("%s: process_file: would upsert documents but DOCUMENT_MAP IS EMPTY", self.thread_name)
             else:
                 try:
                     self.collection.upsert_multi(document_map)
@@ -252,13 +238,10 @@ class VxIngestManager(Process):
                     logging.info(
                         "process_file - trying upsert: Got TimeOutException -  Document may not be persisted.")
             upsert_stop_time = int(time.time())
-            logging.info(
-                "process_file - executing upsert: stop time: " + str(upsert_stop_time))
-            logging.info("process_file - executing upsert: elapsed time: " +
-                         str(upsert_stop_time - upsert_start_time))
+            logging.info("process_file - executing upsert: stop time: %s", str(upsert_stop_time))
+            logging.info("process_file - executing upsert: elapsed time: %s", str(upsert_stop_time - upsert_start_time))
         except Exception as e:
-            logging.error(self.threadName + ": *** %s Error writing to Couchbase: in "
-                                            "process_file writing document ***" + str(e))
+            logging.error("%s: *** %s Error writing to Couchbase: in process_file writing document ***", self.thread_name, str(e))
             raise e
 
     def write_document_to_files(self, file_name, document_map):
@@ -266,35 +249,27 @@ class VxIngestManager(Process):
         # documents in the document_map into files in the output_dir
         # noinspection PyBroadException
         try:
-            logging.info(self.threadName + ': process_file writing documents into ' + self.output_dir + ' for '
-                                           'ingest_document :  ' + str(file_name) + "threadName: " + self.threadName)
+            logging.info('process_file writing documents into %s for ingest_document : %s threadName:  %s', self.output_dir, str(file_name), self.thread_name)
             write_start_time = int(time.time())
-            logging.info(
-                "process_file - executing write: start time: " + str(write_start_time))
+            logging.info("process_file - executing write: start time: %s", str(write_start_time))
             if not document_map:
-                logging.info(
-                    self.threadName + ": process_file: would write documents but DOCUMENT_MAP IS EMPTY")
+                logging.info("%s: process_file: would write documents but DOCUMENT_MAP IS EMPTY", self.thread_name)
             else:
-                from pathlib import Path
                 Path(self.output_dir).mkdir(parents=True, exist_ok=True)
                 try:
                     file_name = os.path.basename(file_name) + ".json"
                     complete_file_name = os.path.join(
                         self.output_dir, file_name)
-                    logging.info(self.threadName + ': process_file writing documents into ' + complete_file_name)
+                    logging.info(self.thread_name + ': process_file writing documents into ' + complete_file_name)
                     f = open(complete_file_name, "w")
                     # we need to write out a list of the values of the _document_map for cbimport
                     f.write(json.dumps(list(document_map.values())))
                     f.close()
                 except Exception as e:
-                    logging.info(
-                        "process_file - trying write: Got Exception - " + str(e))
+                    logging.info("process_file - trying write: Got Exception - %s", str(e))
             write_stop_time = int(time.time())
-            logging.info(
-                "process_file - executing file write: stop time: " + str(write_stop_time))
-            logging.info("process_file - executing file write: elapsed time: " +
-                         str(write_stop_time - write_start_time))
+            logging.info("process_file - executing file write: stop time: %s", str(write_stop_time))
+            logging.info("process_file - executing file write: elapsed time: %s", str(write_stop_time - write_start_time))
         except Exception as e:
-            logging.error(self.threadName + ": *** %s Error writing to files: in "
-                                            "process_file writing document ***" + str(e))
+            logging.error("%s: *** %s Error writing to files: in process_file writing document ***", self.thread_name, str(e))
             raise e

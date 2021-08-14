@@ -296,7 +296,9 @@ class CTCBuilder:
                 obs_id = re.sub(':' + str(fve['fcstLen']) + "$", '', fve['id'])
                 # substitute the model part for obs
                 obs_id = re.sub(self.model, 'obs', obs_id)
+                logging.info("Looking up model document: %s", fve['id'])
                 self.model_data = self.collection.get(fve['id']).content
+                logging.info("Looking up observation document: %s", obs_id)
                 _obs_data = self.collection.get(obs_id).content
                 for entry in _obs_data['data']:
                     self.obs_data[entry['name']] = entry

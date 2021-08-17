@@ -297,9 +297,19 @@ class CTCBuilder:
                 # substitute the model part for obs
                 obs_id = re.sub(self.model, 'obs', obs_id)
                 logging.info("Looking up model document: %s", fve['id'])
-                self.model_data = self.collection.get(fve['id']).content
+                try:
+                    _model_doc = self.collection.get(fve['id'])
+                except Exception as e:
+                    logging.error('%s Error getting model document: %s', self.__class__.__name__, str(e))
+                self.model_data = _model_doc.content
+
                 logging.info("Looking up observation document: %s", obs_id)
-                _obs_data = self.collection.get(obs_id).content
+                try:
+                    _obs_doc = self.collection.get(obs_id)
+                except Exception as e:
+                    logging.error('%s Error getting obs document: %s', self.__class__.__name__, str(e))
+                _obs_data = _obs_doc.content
+
                 for entry in _obs_data['data']:
                     self.obs_data[entry['name']] = entry
                     self.obs_station_names.append(entry['name'])

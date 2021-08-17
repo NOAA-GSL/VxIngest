@@ -117,6 +117,7 @@ class CTCBuilder:
         self.obs_data = {}  # used to stash each fcstValidEpoch obs_data for the handlers
         self.obs_station_names = []  # used to stash sorted obs names for the handlers
         self.thresholds = None
+        self.station_not_found_log_list = []
 
     def initialize_document_map(self):
         pass
@@ -495,7 +496,6 @@ class CTCModelObsBuilderV01(CTCBuilder):
                 """, read_only=True)
                 self.thresholds = list(
                     map(int, list((list(result)[0])['ceiling'].keys())))
-            station_not_found_log_list = []
             for threshold in self.thresholds:
                 hits = 0
                 misses = 0
@@ -506,10 +506,10 @@ class CTCModelObsBuilderV01(CTCBuilder):
                     if station['name'] not in self.domain_stations:
                         continue
                     if station['name'] not in self.obs_station_names:
-                        if station['name'] not in station_not_found_log_list:
+                        if station['name'] not in self.station_not_found_log_list:
                             logging.info("%s handle_data: model station %s was not found in the available observations.",
                                         self.__class__.__name__, station['name'])
-                            station_not_found_log_list.append(station['name'])
+                            self.station_not_found_log_list.append(station['name'])
                         continue
                     if station['Ceiling'] is None:
                         continue

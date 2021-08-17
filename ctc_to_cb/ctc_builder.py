@@ -308,14 +308,14 @@ class CTCBuilder:
                     try:
                         _obs_doc = self.collection.get(obs_id)
                         _obs_data = _obs_doc.content
+                        for entry in _obs_data['data']:
+                            self.obs_data[entry['name']] = entry
+                            self.obs_station_names.append(entry['name'])
+                        self.obs_station_names.sort()
+                        self.handle_document()
                     except Exception as e:
                         logging.error('%s Error getting obs document: %s', self.__class__.__name__, str(e))
 
-                    for entry in _obs_data['data']:
-                        self.obs_data[entry['name']] = entry
-                        self.obs_station_names.append(entry['name'])
-                    self.obs_station_names.sort()
-                    self.handle_document()
                 except DocumentNotFoundException:
                     logging.info("%s handle_fcstValidEpochs: document %s was not found! ",
                                 self.__class__.__name__, fve['id'])

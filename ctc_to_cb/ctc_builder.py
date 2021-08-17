@@ -528,8 +528,8 @@ class CTCModelObsBuilderV01(CTCBuilder):
                 data_elem[threshold]['misses'] = misses
                 data_elem[threshold]['correct_negatives'] = correct_negatives
 
-                doc['data'] = data_elem
-                return doc
+            doc['data'] = data_elem
+            return doc
         except Exception as e:
             logging.error("%s handle_data: Exception :  error: %s",
                           self.__class__.__name__, str(e))

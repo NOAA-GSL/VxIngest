@@ -495,19 +495,21 @@ class CTCModelObsBuilderV01(CTCBuilder):
                 """, read_only=True)
                 self.thresholds = list(
                     map(int, list((list(result)[0])['ceiling'].keys())))
+            station_not_found_log_list = []
             for threshold in self.thresholds:
                 hits = 0
                 misses = 0
                 false_alarms = 0
                 correct_negatives = 0
-
                 for station in self.model_data['data']:
                     # only count the ones that are in our region
                     if station['name'] not in self.domain_stations:
                         continue
                     if station['name'] not in self.obs_station_names:
-                        logging.info("%s handle_data: model station %s was not found in the available observations.",
-                                     self.__class__.__name__, station['name'])
+                        if station['name'] not in station_not_found_log_list:
+                            logging.info("%s handle_data: model station %s was not found in the available observations.",
+                                        self.__class__.__name__, station['name'])
+                            station_not_found_log_list.append(station['name'])
                         continue
                     if station['Ceiling'] is None:
                         continue

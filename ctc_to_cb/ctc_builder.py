@@ -289,38 +289,39 @@ class CTCBuilder:
         # noinspection PyBroadException
         try:
             for fve in self.model_fcst_valid_epochs:
-                self.obs_data = {}
-                self.obs_station_names = []
-                # get the models and obs for this fve
-                # remove the fcstLen part
-                obs_id = re.sub(':' + str(fve['fcstLen']) + "$", '', fve['id'])
-                # substitute the model part for obs
-                obs_id = re.sub(self.model, 'obs', obs_id)
-                logging.info("Looking up model document: %s", fve['id'])
                 try:
-                    _model_doc = self.collection.get(fve['id'])
-                except Exception as e:
-                    logging.error('%s Error getting model document: %s', self.__class__.__name__, str(e))
-                self.model_data = _model_doc.content
+                    self.obs_data = {}
+                    self.obs_station_names = []
+                    # get the models and obs for this fve
+                    # remove the fcstLen part
+                    obs_id = re.sub(':' + str(fve['fcstLen']) + "$", '', fve['id'])
+                    # substitute the model part for obs
+                    obs_id = re.sub(self.model, 'obs', obs_id)
+                    logging.info("Looking up model document: %s", fve['id'])
+                    try:
+                        _model_doc = self.collection.get(fve['id'])
+                    except Exception as e:
+                        logging.error('%s Error getting model document: %s', self.__class__.__name__, str(e))
+                    self.model_data = _model_doc.content
 
-                logging.info("Looking up observation document: %s", obs_id)
-                try:
-                    _obs_doc = self.collection.get(obs_id)
-                except Exception as e:
-                    logging.error('%s Error getting obs document: %s', self.__class__.__name__, str(e))
-                _obs_data = _obs_doc.content
+                    logging.info("Looking up observation document: %s", obs_id)
+                    try:
+                        _obs_doc = self.collection.get(obs_id)
+                    except Exception as e:
+                        logging.error('%s Error getting obs document: %s', self.__class__.__name__, str(e))
+                    _obs_data = _obs_doc.content
 
-                for entry in _obs_data['data']:
-                    self.obs_data[entry['name']] = entry
-                    self.obs_station_names.append(entry['name'])
-                self.obs_station_names.sort()
-                self.handle_document()
-        except DocumentNotFoundException:
-            logging.info("%s handle_fcstValidEpochs: document %s was not found! ",
-                         self.__class__.__name__, fve['id'])
+                    for entry in _obs_data['data']:
+                        self.obs_data[entry['name']] = entry
+                        self.obs_station_names.append(entry['name'])
+                    self.obs_station_names.sort()
+                    self.handle_document()
+                except DocumentNotFoundException:
+                    logging.info("%s handle_fcstValidEpochs: document %s was not found! ",
+                                self.__class__.__name__, fve['id'])
         except Exception as e:
             logging.error("%s handle_fcstValidEpochs: Exception instantiating builder:  error: %s",
-                          self.__class__.__name__, str(e))
+                        self.__class__.__name__, str(e))
 
     def build_document(self):
         """

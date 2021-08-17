@@ -300,16 +300,16 @@ class CTCBuilder:
                     logging.info("Looking up model document: %s", fve['id'])
                     try:
                         _model_doc = self.collection.get(fve['id'])
+                        self.model_data = _model_doc.content
                     except Exception as e:
                         logging.error('%s Error getting model document: %s', self.__class__.__name__, str(e))
-                    self.model_data = _model_doc.content
-
+    
                     logging.info("Looking up observation document: %s", obs_id)
                     try:
                         _obs_doc = self.collection.get(obs_id)
+                        _obs_data = _obs_doc.content
                     except Exception as e:
                         logging.error('%s Error getting obs document: %s', self.__class__.__name__, str(e))
-                    _obs_data = _obs_doc.content
 
                     for entry in _obs_data['data']:
                         self.obs_data[entry['name']] = entry

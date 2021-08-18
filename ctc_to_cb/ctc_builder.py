@@ -365,14 +365,17 @@ class CTCBuilder:
                     rlat = row['lat']
                     bb_br_lat = boundingbox['br_lat']
                     bb_tl_lat = boundingbox['tl_lat']
-                    rlon = row['lon'] if row['lon'] >= 0 else 180 - row['lon']
-                    bb_br_lon = boundingbox['br_lon'] if boundingbox['br_lon'] >= 0 else 180 - \
-                        boundingbox['br_lon']
-                    bb_tl_lon = boundingbox['tl_lon'] if boundingbox['tl_lon'] >= 0 else 180 - \
-                        boundingbox['tl_lon']
-                    if rlat >= bb_br_lat and rlat <= bb_tl_lat and rlon >= bb_br_lon and rlon <= bb_tl_lon:
+                    
+                    rlon = row['lon'] if row['lon'] <= 180 else row['lon'] - 360
+                    bb_br_lon = boundingbox['br_lon'] if boundingbox['br_lon'] <= 180 else \
+                        boundingbox['br_lon'] - 360
+                    bb_tl_lon = boundingbox['tl_lon'] if boundingbox['tl_lon'] <= 180 else \
+                        boundingbox['tl_lon'] - 360
+
+                    if rlat >= bb_br_lat and rlat <= bb_tl_lat and rlon >= bb_tl_lon and rlon <= bb_br_lon:
                         self.domain_stations.append(row['name'])
                 self.domain_stations.sort()
+                logging.info ("")
             except Exception as e:
                 logging.error(
                     "%s: Exception with builder build_document: error: %s", self.__class__.__name__, str(e))

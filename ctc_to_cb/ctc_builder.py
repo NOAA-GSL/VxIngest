@@ -375,7 +375,9 @@ class CTCBuilder:
                     else:
                         continue
                 self.domain_stations.sort()
-                logging.info ("")
+                # with open('./test/ + self.region + '_stations.txt', 'w') as f:
+                #     for s in self.domain_stations:
+                #         f.write(s + "\n")
             except Exception as e:
                 logging.error(
                     "%s: Exception with builder build_document: error: %s", self.__class__.__name__, str(e))

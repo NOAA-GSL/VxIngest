@@ -117,7 +117,6 @@ class CTCBuilder:
         self.obs_data = {}  # used to stash each fcstValidEpoch obs_data for the handlers
         self.obs_station_names = []  # used to stash sorted obs names for the handlers
         self.thresholds = None
-        self.station_not_found_log_list = []
 
     def initialize_document_map(self):
         pass
@@ -289,6 +288,7 @@ class CTCBuilder:
     def handle_fcstValidEpochs(self):
         # noinspection PyBroadException
         try:
+            _obs_data = {}
             for fve in self.model_fcst_valid_epochs:
                 try:
                     self.obs_data = {}
@@ -307,12 +307,13 @@ class CTCBuilder:
     
                     logging.info("Looking up observation document: %s", obs_id)
                     try:
-                        _obs_doc = self.collection.get(obs_id)
-                        _obs_data = _obs_doc.content
-                        for entry in _obs_data['data']:
-                            self.obs_data[entry['name']] = entry
-                            self.obs_station_names.append(entry['name'])
-                        self.obs_station_names.sort()
+                        if not _obs_data or (_obs_data['id'] != obs_id):
+                            _obs_doc = self.collection.get(obs_id)
+                            _obs_data = _obs_doc.content
+                            for entry in _obs_data['data']:
+                                self.obs_data[entry['name']] = entry
+                                self.obs_station_names.append(entry['name'])
+                            self.obs_station_names.sort()
                         self.handle_document()
                     except Exception as e:
                         logging.error('%s Error getting obs document: %s', self.__class__.__name__, str(e))
@@ -367,13 +368,12 @@ class CTCBuilder:
                     bb_tl_lat = boundingbox['tl_lat']
                     
                     rlon = row['lon'] if row['lon'] <= 180 else row['lon'] - 360
-                    bb_br_lon = boundingbox['br_lon'] if boundingbox['br_lon'] <= 180 else \
-                        boundingbox['br_lon'] - 360
-                    bb_tl_lon = boundingbox['tl_lon'] if boundingbox['tl_lon'] <= 180 else \
-                        boundingbox['tl_lon'] - 360
-
+                    bb_br_lon = boundingbox['br_lon'] if boundingbox['br_lon'] <= 180 else boundingbox['br_lon'] - 360
+                    bb_tl_lon = boundingbox['tl_lon'] if boundingbox['tl_lon'] <= 180 else boundingbox['tl_lon'] - 360
                     if rlat >= bb_br_lat and rlat <= bb_tl_lat and rlon >= bb_tl_lon and rlon <= bb_br_lon:
                         self.domain_stations.append(row['name'])
+                    else:
+                        continue
                 self.domain_stations.sort()
                 logging.info ("")
             except Exception as e:
@@ -382,13 +382,26 @@ class CTCBuilder:
 
             # First get the latest fcstValidEpoch for the ctc's for this model and region.
             result = self.cluster.query(
-                "SELECT RAW MAX(mdata.fcstValidEpoch) FROM mdata WHERE type='DD' AND docType='CTC' AND subDocType=$subDocType AND model=$model AND region=$region AND version='V01' AND subset='METAR'", model=self.model, region=self.region, subDocType=self.sub_doc_type, read_only=True)
-            max_ctc_fcst_valid_epochs = 0
+                """SELECT RAW MAX(mdata.fcstValidEpoch) 
+                    FROM mdata 
+                    WHERE type='DD' 
+                    AND docType='CTC' 
+                    AND subDocType=$subDocType 
+                    AND model=$model 
+                    AND region=$region 
+                    AND version='V01' 
+                    AND subset='METAR'""", \
+                        model=self.model, \
+                        region=self.region, \
+                        subDocType=self.sub_doc_type, \
+                        read_only=True)
+            max_ctc_fcst_valid_epochs = self.load_spec['first_last_params']['first_epoch']
             if list(result)[0] is not None:
                 max_ctc_fcst_valid_epochs = list(result)[0]
 
             # Second get the intersection of the fcstValidEpochs that correspond for this
-            # model and the obs for all fcstValidEpochs greater than the first_epoch ctc.
+            # model and the obs for all fcstValidEpochs greater than the first_epoch ctc
+            # and less than the last_epoch.
             # this could be done with implicit join but this seems to be faster when the results are large.
             result = self.cluster.query(
                 """SELECT fve.fcstValidEpoch, fve.fcstLen, meta().id
@@ -398,9 +411,12 @@ class CTCBuilder:
                         AND fve.model=$model
                         AND fve.version='V01'
                         AND fve.subset='METAR'
-                        AND fve.fcstValidEpoch > $max_fcst_epoch
+                        AND fve.fcstValidEpoch >= $first_epoch
+                        AND fve.fcstValidEpoch <= $last_epoch
                     ORDER BY fve.fcstValidEpoch, fcstLen""",
-                model=self.model, max_fcst_epoch=max_ctc_fcst_valid_epochs)
+                model=self.model, \
+                first_epoch=self.load_spec['first_last_params']['first_epoch'], \
+                last_epoch=self.load_spec['first_last_params']['last_epoch'])
             _tmp_model_fve = list(result)
 
             result1 = self.cluster.query(
@@ -410,11 +426,12 @@ class CTCBuilder:
                             AND obs.docType='obs'
                             AND obs.version='V01'
                             AND obs.subset='METAR'
-                            AND obs.fcstValidEpoch > $max_fcst_epoch
-                    ORDER BY obs.fcstValidEpoch""", max_fcst_epoch=max_ctc_fcst_valid_epochs)
+                            AND obs.fcstValidEpoch >= $max_fcst_epoch
+                            AND obs.fcstValidEpoch <= $last_epoch
+                    ORDER BY obs.fcstValidEpoch""", \
+                        max_fcst_epoch=max_ctc_fcst_valid_epochs, \
+                        last_epoch=self.load_spec['first_last_params']['last_epoch'])
             _tmp_obs_fve = list(result1)
-            # for row in result:
-            #     _tmp_obs_fve.append(row.fcstValidEpoch)
 
             for fve in _tmp_model_fve:
                 if fve['fcstValidEpoch'] in _tmp_obs_fve:
@@ -509,10 +526,8 @@ class CTCModelObsBuilderV01(CTCBuilder):
                     if station['name'] not in self.domain_stations:
                         continue
                     if station['name'] not in self.obs_station_names:
-                        if station['name'] not in self.station_not_found_log_list:
-                            logging.info("%s handle_data: model station %s was not found in the available observations.",
-                                        self.__class__.__name__, station['name'])
-                            self.station_not_found_log_list.append(station['name'])
+                        logging.info("%s handle_data: model station %s was not found in the available observations.",
+                                    self.__class__.__name__, station['name'])
                         continue
                     if station['Ceiling'] is None:
                         continue

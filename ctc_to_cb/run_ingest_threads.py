@@ -87,7 +87,7 @@ def parse_args(args):
                         help="Number of threads to use")
     parser.add_argument("-o", "--output_dir", type=str, default="/tmp",
                         help="Specify the output directory to put the json output files")
-    parser.add_argument("-f", "--first_epoc", type=int, default=0,
+    parser.add_argument("-f", "--first_epoch", type=int, default=0,
                         help="The first epoch to use, inclusive")
     parser.add_argument("-l", "--last_epoch", type=int, default=sys.maxsize,
                         help="The last epoch to use, exclusive")

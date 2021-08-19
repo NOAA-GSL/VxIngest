@@ -117,6 +117,7 @@ class CTCBuilder:
         self.obs_data = {}  # used to stash each fcstValidEpoch obs_data for the handlers
         self.obs_station_names = []  # used to stash sorted obs names for the handlers
         self.thresholds = None
+        self.not_found_stations = set()
 
     def initialize_document_map(self):
         pass
@@ -350,7 +351,7 @@ class CTCBuilder:
             logging.getLogger().setLevel(logging.INFO)
             # reset the builders document_map for a new file
             self.initialize_document_map()
-
+            not_found_station_count = 0
             # get stations from couchbase and filter them so
             # that we retain only the ones for this models domain which is defined by the region boundingbox
             try:
@@ -453,6 +454,7 @@ class CTCBuilder:
             else:
                 self.handle_fcstValidEpochs()
             # pylint: disable=assignment-from-no-return
+            logging.info("There were %s stations not found", not_found_station_count)
             document_map = self.get_document_map()
             return document_map
         except Exception as e:
@@ -528,8 +530,11 @@ class CTCModelObsBuilderV01(CTCBuilder):
                     if station['name'] not in self.domain_stations:
                         continue
                     if station['name'] not in self.obs_station_names:
-                        logging.info("%s handle_data: model station %s was not found in the available observations.",
-                                    self.__class__.__name__, station['name'])
+                        not_found_station_count = not_found_station_count +1
+                        if station['name'] not in self.not_found_stations:
+                            logging.info("%s handle_data: model station %s was not found in the available observations.",
+                                     self.__class__.__name__, station['name'])
+                            self.not_found_stations.add(station['name'])
                         continue
                     if station['Ceiling'] is None:
                         continue

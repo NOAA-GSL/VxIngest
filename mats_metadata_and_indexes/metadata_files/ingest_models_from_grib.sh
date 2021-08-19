@@ -19,4 +19,4 @@ host=`grep cb_host ${credentials_file} | awk '{print $2}'`
 user=`grep cb_user ${credentials_file} | awk '{print $2}'`
 pwd=`grep cb_password ${credentials_file} | awk '{print $2}'`
 
-cbimport json --cluster couchbase://${host} --bucket mdata --username ${user} --password ${pwd} --format list --generate-key %id% --dataset file://${PWD}/VxData/mats_metadata_and_indexes/metadata_files/ingest_sql_ctcs.json
+cbimport json --cluster couchbase://${host} --bucket mdata --username ${user} --password ${pwd} --format list --generate-key %id% --dataset file://${PWD}/VxData/mats_metadata_and_indexes/metadata_files/ingest_models_from_grib.json

@@ -1,4 +1,10 @@
 #!/bin/sh
+gitroot=$(git rev-parse --show-toplevel)
+if [ "$gitroot" != "$(pwd)" ];then
+        echo "$(pwd) is not a git root directory: cd to the clone root of VxIngest"
+        exit
+fi
+
 if [ $# -ne 1 ]; then
   echo "Usage $0 credentials-file"
   exit 1

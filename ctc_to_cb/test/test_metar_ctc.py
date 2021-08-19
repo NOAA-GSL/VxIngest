@@ -9,7 +9,7 @@ import unittest
 from ctc_to_cb.run_ingest_threads import VXIngest
 
 
-class TestGribBuilderV01(unittest.TestCase):
+class TestCTCBuilderV01(unittest.TestCase):
     """
     This test expects to find obs data and model data for hrrr_ops.
     This test expects to write to the local output directory /opt/data/ctc_to_cb/output
@@ -37,6 +37,11 @@ class TestGribBuilderV01(unittest.TestCase):
             # returns JSON object as
             # a dictionary
             vx_ingest_output_data = json.load(f)
+            self.assertEqual(len(vx_ingest_output_data), 9, "There aren't 9 elements in the output data")
+            self.assertEqual(vx_ingest_output_data[0]['data']['500']['hits'], 3, "hits should be 3 for threshold 500 not %s" + str(vx_ingest_output_data[0]['data']['500']['hits']))
+            self.assertEqual(vx_ingest_output_data[0]['data']['500']['false_alarms'], 5, "hits should be 5 for threshold 500 not %s" + str(vx_ingest_output_data[0]['data']['500']['false_alarms']))
+            self.assertEqual(vx_ingest_output_data[0]['data']['500']['misses'], 4, "misses should be 8 for threshold 500 not %s" + str(vx_ingest_output_data[0]['data']['500']['misses']))
+            self.assertEqual(vx_ingest_output_data[0]['data']['500']['correct_negatives'], 1782, "correct_negatives should be 1782 for threshold 500 not %s" + str(vx_ingest_output_data[0]['data']['500']['correct_negatives']))
             # Closing file
             f.close()
 
@@ -101,6 +106,11 @@ class TestGribBuilderV01(unittest.TestCase):
             # returns JSON object as
             # a dictionary
             vx_ingest_output_data = json.load(f)
+            self.assertEqual(len(vx_ingest_output_data), 9, "There aren't 9 elements in the output data")
+            self.assertEqual(vx_ingest_output_data[0]['data']['500']['hits'], 3, "hits should be 3 for threshold 500 not %s" + str(vx_ingest_output_data[0]['data']['500']['hits']))
+            self.assertEqual(vx_ingest_output_data[0]['data']['500']['false_alarms'], 5, "hits should be 5 for threshold 500 not %s" + str(vx_ingest_output_data[0]['data']['500']['false_alarms']))
+            self.assertEqual(vx_ingest_output_data[0]['data']['500']['misses'], 4, "misses should be 8 for threshold 500 not %s" + str(vx_ingest_output_data[0]['data']['500']['misses']))
+            self.assertEqual(vx_ingest_output_data[0]['data']['500']['correct_negatives'], 1782, "correct_negatives should be 1782 for threshold 500 not %s" + str(vx_ingest_output_data[0]['data']['500']['correct_negatives']))
             # Closing file
             f.close()
 

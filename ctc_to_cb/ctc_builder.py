@@ -526,6 +526,7 @@ class CTCModelObsBuilderV01(CTCBuilder):
                 misses = 0
                 false_alarms = 0
                 correct_negatives = 0
+                none_count = 0
                 for station in self.model_data['data']:
                     # only count the ones that are in our region
                     if station['name'] not in self.domain_stations:
@@ -538,6 +539,7 @@ class CTCModelObsBuilderV01(CTCBuilder):
                             self.not_found_stations.add(station['name'])
                         continue
                     if station['Ceiling'] is None:
+                        none_count = none_count + 1
                         continue
                     if station['Ceiling'] < threshold and self.obs_data[station['name']]['Ceiling'] < threshold:
                         hits = hits + 1
@@ -553,7 +555,7 @@ class CTCModelObsBuilderV01(CTCBuilder):
                 data_elem[threshold]['false_alarms'] = false_alarms
                 data_elem[threshold]['misses'] = misses
                 data_elem[threshold]['correct_negatives'] = correct_negatives
-
+                data_elem[threshold]['none_count'] = none_count
             doc['data'] = data_elem
             return doc
         except Exception as e:

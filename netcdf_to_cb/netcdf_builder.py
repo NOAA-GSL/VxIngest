@@ -376,12 +376,18 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
             skyLayerBase = params_dict['skyLayerBase']
             # code clear as 60,000 ft 
             ceiling = 60000
+            mSKC = re.compile('.*SKC.*')
+            mNSC = re.compile('.*NSC.*')
+            mFEW = re.compile('.*FEW.*')
+            mSCT = re.compile('.*SCT.*')
             mBKN = re.compile('.*BKN.*')  # Broken
             mOVC = re.compile('.*OVC.*')  # Overcast
             mVV = re.compile('.*VV.*')  # Vertical Visibility
             mask_array = ma.getmaskarray(skyLayerBase)
             skyCover_array = skyCover[1:-1].replace("'", "").split(" ")
             for index in range(len(skyLayerBase)):
+                if mBKN.match(skyCover_array[index]) or mNSC.match(skyCover_array[index]) or mFEW.match(skyCover_array[index]) or mSCT.match(skyCover_array[index]):
+                    return 60000
                 if (not mask_array[index]) and (mBKN.match(skyCover_array[index]) or mOVC.match(skyCover_array[index]) or mVV.match(skyCover_array[index])):
                     ceiling = skyLayerBase[index]
                     break

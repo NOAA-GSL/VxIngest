@@ -528,29 +528,31 @@ class CTCModelObsBuilderV01(CTCBuilder):
                 correct_negatives = 0
                 none_count = 0
                 for station in self.model_data['data']:
-                    # only count the ones that are in our region
-                    if station['name'] not in self.domain_stations:
-                        continue
-                    if station['name'] not in self.obs_station_names:
-                        self.not_found_station_count = self.not_found_station_count +1
-                        if station['name'] not in self.not_found_stations:
-                            logging.info("%s handle_data: model station %s was not found in the available observations.",
-                                     self.__class__.__name__, station['name'])
-                            self.not_found_stations.add(station['name'])
-                        continue
-                    if station['Ceiling'] is None:
-                        none_count = none_count + 1
-                        continue
-                    if station['Ceiling'] < threshold and self.obs_data[station['name']]['Ceiling'] < threshold:
-                        hits = hits + 1
-                    if station['Ceiling'] < threshold and not self.obs_data[station['name']]['Ceiling'] < threshold:
-                        false_alarms = false_alarms + 1
-                    if not station['Ceiling'] < threshold and self.obs_data[station['name']]['Ceiling'] < threshold:
-                        misses = misses + 1
-                    if not station['Ceiling'] < threshold and not self.obs_data[station['name']]['Ceiling'] < threshold:
-                        correct_negatives = correct_negatives + 1
-                data_elem[threshold] = data_elem[threshold] if threshold in data_elem.keys() else {
-                }
+                    try:
+                        # only count the ones that are in our region
+                        if station['name'] not in self.domain_stations:
+                            continue
+                        if station['name'] not in self.obs_station_names:
+                            self.not_found_station_count = self.not_found_station_count +1
+                            if station['name'] not in self.not_found_stations:
+                                logging.info("%s handle_data: model station %s was not found in the available observations.",
+                                        self.__class__.__name__, station['name'])
+                                self.not_found_stations.add(station['name'])
+                            continue
+                        if station['Ceiling'] is None or self.obs_data[station['name']]['Ceiling'] is None:
+                            none_count = none_count + 1
+                            continue
+                        if station['Ceiling'] < threshold and self.obs_data[station['name']]['Ceiling'] < threshold:
+                            hits = hits + 1
+                        if station['Ceiling'] < threshold and not self.obs_data[station['name']]['Ceiling'] < threshold:
+                            false_alarms = false_alarms + 1
+                        if not station['Ceiling'] < threshold and self.obs_data[station['name']]['Ceiling'] < threshold:
+                            misses = misses + 1
+                        if not station['Ceiling'] < threshold and not self.obs_data[station['name']]['Ceiling'] < threshold:
+                            correct_negatives = correct_negatives + 1
+                    except Exception as e:
+                        logging.info("unexpected exception:%s", str(e))
+                data_elem[threshold] = data_elem[threshold] if threshold in data_elem.keys() else {}
                 data_elem[threshold]['hits'] = hits
                 data_elem[threshold]['false_alarms'] = false_alarms
                 data_elem[threshold]['misses'] = misses

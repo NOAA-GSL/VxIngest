@@ -375,7 +375,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
             skyCover = params_dict['skyCover']
             skyLayerBase = params_dict['skyLayerBase']
             # code clear as 60,000 ft 
-            ceiling = 60000
+            mCLR = re.compile('.*CLR.*')
             mSKC = re.compile('.*SKC.*')
             mNSC = re.compile('.*NSC.*')
             mFEW = re.compile('.*FEW.*')
@@ -385,13 +385,16 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
             mVV = re.compile('.*VV.*')  # Vertical Visibility
             mask_array = ma.getmaskarray(skyLayerBase)
             skyCover_array = skyCover[1:-1].replace("'", "").split(" ")
+            # check for unmasked ceiling values - broken, overcast, vertical visibility - return associated skyLayerBase
             for index in range(len(skyLayerBase)):
-                if mBKN.match(skyCover_array[index]) or mNSC.match(skyCover_array[index]) or mFEW.match(skyCover_array[index]) or mSCT.match(skyCover_array[index]):
-                    return 60000
                 if (not mask_array[index]) and (mBKN.match(skyCover_array[index]) or mOVC.match(skyCover_array[index]) or mVV.match(skyCover_array[index])):
-                    ceiling = skyLayerBase[index]
-                    break
-            return math.floor(ceiling)
+                    return math.floor(skyLayerBase[index])
+            # check for unmasked ceiling values - all the others - CLR, SKC, NSC, FEW, SCT - return 60000
+            for index in range(len(skyLayerBase)):
+                if (not mask_array[index]) and (mCLR.match(skyCover_array[index]) or mSKC.match(skyCover_array[index]) or mNSC.match(skyCover_array[index]) or mFEW.match(skyCover_array[index]) or mSCT.match(skyCover_array[index])):                 
+                    return 60000
+            # nothing was unmasked - return None
+            return None
         except Exception as e:
             logging.error("%s handle_data: Exception in named function ceiling_transform:  error: %s", self.__class__.__name__, str(e))
 

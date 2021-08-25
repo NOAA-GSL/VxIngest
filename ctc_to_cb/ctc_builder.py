@@ -309,7 +309,13 @@ class CTCBuilder:
     
                     logging.info("Looking up observation document: %s", obs_id)
                     try:
-                        if not _obs_data or (_obs_data['id'] != obs_id):
+                        # I don't really know how I can get here with _obs_data AND 
+                        # _obs_data['id'] != obs_id and still no self.obs_data
+                        # but it does happen and it results in documents
+                        # that have 0 hits, misses, false_alarms etc
+                        # It might be from duplicate ids but it must be handled
+                        # so  "or not self.obs_data"
+                        if not _obs_data or (_obs_data['id'] != obs_id) or not self.obs_data:
                             _obs_doc = self.collection.get(obs_id)
                             _obs_data = _obs_doc.content
                             for entry in _obs_data['data']:

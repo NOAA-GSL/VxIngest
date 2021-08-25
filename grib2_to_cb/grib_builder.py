@@ -492,14 +492,13 @@ class GribModelBuilderV01(GribBuilder):
                 ceil_msl_values.append(values[y_gridpoint, x_gridpoint])
             else:
                 ceil_msl_values.append(None)
-        # Convert to ceiling AGL and from meters to tens of feet (what is currently inside SQL, we'll leave it as just feet in CB)
         ceil_agl = []
         for i in range(len(self.domain_stations)):
             if ceil_msl_values[i] == None or surface_values[i] == None:
                 ceil_agl.append(None)
             else:
                 ceil_agl.append(
-                    (ceil_msl_values[i] - surface_values[i]) * 0.32808)
+                    (ceil_msl_values[i] - surface_values[i]) * 3.281)
         return ceil_agl
 
         # SURFACE PRESSURE
@@ -626,11 +625,11 @@ class GribModelBuilderV01(GribBuilder):
 
     def handle_time(self, params_dict):
         # validTime = grbs[1].validate -> 2021-07-12 15:00:00
-        valid_time = self.grbm.analDate
+        valid_time = self.grbm.validDate
         return round(valid_time.timestamp())
 
     def handle_iso_time(self, params_dict):
-        valid_time = valid_time = self.grbm.analDate
+        valid_time = valid_time = self.grbm.validDate
         return valid_time.isoformat()
 
     def handle_fcst_len(self, params_dict):

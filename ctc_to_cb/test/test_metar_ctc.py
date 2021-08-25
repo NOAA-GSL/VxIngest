@@ -74,8 +74,8 @@ class TestCTCBuilderV01(unittest.TestCase):
                             'credentials_file': credentials_file,
                             'output_dir': '/opt/data/ctc_to_cb/output',
                             'threads': 1,
-                            'first_epoch': 1627149600,
-                            'last_epoch': 1627149600
+                            'first_epoch': 1629828000,
+                            'last_epoch': 162983000
                             })
             list_of_output_files = glob.glob('/opt/data/ctc_to_cb/output/*')
             latest_output_file = max(list_of_output_files, key=os.path.getctime)

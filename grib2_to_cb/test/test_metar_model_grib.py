@@ -111,14 +111,14 @@ class TestGribBuilderV01(unittest.TestCase):
                 self.domain_stations.append(station)
 
             expected_station_data['fcstValidEpoch'] = round(
-                self.grbm.analDate.timestamp())
+                self.grbm.validDate.timestamp())
             self.assertEqual(expected_station_data['fcstValidEpoch'], vxIngest_output_data[0]['fcstValidEpoch'],
                              "expected fcstValidEpoch and derived fcstValidEpoch are not the same")
-            expected_station_data['fcstValidBeg'] = self.grbm.analDate.isoformat(
+            expected_station_data['fcstValidBeg'] = self.grbm.validDate.isoformat(
             )
             self.assertEqual(expected_station_data['fcstValidBeg'], vxIngest_output_data[0]['fcstValidBeg'],
                              "expected fcstValidBeg and derived fcstValidBeg are not the same")
-            expected_station_data['id'] = "DD-TEST:V01:METAR:HRRR_OPS:1626379200:" + str(
+            expected_station_data['id'] = "DD-TEST:V01:METAR:HRRR_OPS:" + str(expected_station_data['fcstValidEpoch']) + ":" + str(
                 self.grbm.forecastTime)
             self.assertEqual(expected_station_data['id'], vxIngest_output_data[0]['id'],
                              "expected id and derived id are not the same")
@@ -138,7 +138,7 @@ class TestGribBuilderV01(unittest.TestCase):
                 ceil_msl = ceil_values[round(
                     station['y_gridpoint']), round(station['x_gridpoint'])]
                 # Convert to ceiling AGL and from meters to tens of feet (what is currently inside SQL, we'll leave it as just feet in CB)
-                ceil_agl = (ceil_msl - surface) * 0.32808
+                ceil_agl = (ceil_msl - surface) * 3.281
 
                 # lazy initialization of _expected_station_data
                 if 'data' not in expected_station_data.keys():

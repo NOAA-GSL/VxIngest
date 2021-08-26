@@ -355,7 +355,8 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
         This method appends an observation to the data array -
         in fact we use a dict to hold data elems to ensure
         the data elements are unique per station name, the map is converted
-        back to a list in get_document_map.
+        back to a list in get_document_map. Using a map ensures that the last 
+        entry in the netcdf file is the one that gets captured.
         :param doc: The document being created
         :param key: Not used
         :param element: the observation data

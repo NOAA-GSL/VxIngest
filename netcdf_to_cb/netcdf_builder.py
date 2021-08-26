@@ -343,19 +343,28 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
         """
         if len(self.same_time_rows) != 0:
             self.handle_document()
+        # convert data map to a list
+        for d in self.document_map.values():
+           data_map = d['data']
+           data_list = list(data_map.values())
+           d['data'] = sorted(data_list, key=lambda data_elem: data_elem['name'])
         return self.document_map
 
     def load_data(self, doc, key, element):
         """
-        This method appends an observation to the data array
+        This method appends an observation to the data array -
+        in fact we use a dict to hold data elems to ensure
+        the data elements are unique per station name, the map is converted
+        back to a list in get_document_map. Using a map ensures that the last 
+        entry in the netcdf file is the one that gets captured.
         :param doc: The document being created
         :param key: Not used
         :param element: the observation data
         :return: the document being created
         """
         if 'data' not in doc.keys() or doc['data'] is None:
-            doc['data'] = []
-        doc['data'].append(element)
+            doc['data'] = {}
+        doc['data'][element['name']] = element
         return doc
 
     # named functions

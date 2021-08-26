@@ -626,11 +626,11 @@ class GribModelBuilderV01(GribBuilder):
 
     def handle_time(self, params_dict):
         # validTime = grbs[1].validate -> 2021-07-12 15:00:00
-        valid_time = self.grbm.analDate
+        valid_time = self.grbm.validDate
         return round(valid_time.timestamp())
 
     def handle_iso_time(self, params_dict):
-        valid_time = valid_time = self.grbm.analDate
+        valid_time = valid_time = self.grbm.validDate
         return valid_time.isoformat()
 
     def handle_fcst_len(self, params_dict):

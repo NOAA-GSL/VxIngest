@@ -111,14 +111,14 @@ class TestGribBuilderV01(unittest.TestCase):
                 self.domain_stations.append(station)
 
             expected_station_data['fcstValidEpoch'] = round(
-                self.grbm.analDate.timestamp())
+                self.grbm.validDate.timestamp())
             self.assertEqual(expected_station_data['fcstValidEpoch'], vxIngest_output_data[0]['fcstValidEpoch'],
                              "expected fcstValidEpoch and derived fcstValidEpoch are not the same")
-            expected_station_data['fcstValidBeg'] = self.grbm.analDate.isoformat(
+            expected_station_data['fcstValidBeg'] = self.grbm.validDate.isoformat(
             )
             self.assertEqual(expected_station_data['fcstValidBeg'], vxIngest_output_data[0]['fcstValidBeg'],
                              "expected fcstValidBeg and derived fcstValidBeg are not the same")
-            expected_station_data['id'] = "DD-TEST:V01:METAR:HRRR_OPS:1626379200:" + str(
+            expected_station_data['id'] = "DD-TEST:V01:METAR:HRRR_OPS:" + str(expected_station_data['fcstValidEpoch']) + ":" + str(
                 self.grbm.forecastTime)
             self.assertEqual(expected_station_data['id'], vxIngest_output_data[0]['id'],
                              "expected id and derived id are not the same")

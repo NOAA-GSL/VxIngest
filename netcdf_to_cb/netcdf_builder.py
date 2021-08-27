@@ -347,10 +347,13 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
             # convert data map to a list
             if type(self.document_map) == dict:
                 for d in self.document_map.values():
-                    if d['docType'] == "obs":
-                        data_map = d['data']
-                        data_list = list(data_map.values())
-                        d['data'] = sorted(data_list, key=lambda data_elem: data_elem['name'])
+                    try:
+                        if d['docType'] == "obs":
+                            data_map = d['data']
+                            data_list = list(data_map.values())
+                            d['data'] = sorted(data_list, key=lambda data_elem: data_elem['name'])
+                    except Exception as e:
+                        logging.error("%s get_document_map list conversion: Exception processing%s:  error: %s", self.__class__.__name__, str(data_map), str(e))
             return self.document_map
         except Exception as e:
             logging.error("%s get_document_map: Exception in get_document_map:  error: %s", self.__class__.__name__, str(e))

@@ -341,15 +341,18 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
         In case there are leftovers we have to process them first.
         :return: the document_map
         """
-        if len(self.same_time_rows) != 0:
-            self.handle_document()
-        # convert data map to a list
-        for d in self.document_map.values():
-           data_map = d['data']
-           data_list = list(data_map.values())
-           d['data'] = sorted(data_list, key=lambda data_elem: data_elem['name'])
-        return self.document_map
-
+        try:
+            if len(self.same_time_rows) != 0:
+                self.handle_document()
+            # convert data map to a list
+            for d in self.document_map.values():
+                if d['docType'] == "obs":
+                    data_map = d['data']
+                    data_list = list(data_map.values())
+                    d['data'] = sorted(data_list, key=lambda data_elem: data_elem['name'])
+            return self.document_map
+        except Exception as e:
+            logging.error("%s get_document_map: Exception in get_document_map:  error: %s", self.__class__.__name__, str(e))
     def load_data(self, doc, key, element):
         """
         This method appends an observation to the data array -

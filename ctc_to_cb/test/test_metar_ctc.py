@@ -22,7 +22,6 @@ class TestCTCBuilderV01(unittest.TestCase):
 
     def test_get_stations_geo_search(self):
         try:
-            cwd = os.getcwd()
             self.credentials_file = os.environ['HOME'] + '/adb-cb1-credentials'
             self.assertTrue(Path(self.credentials_file).is_file(),
                             "credentials_file Does not exist")
@@ -74,8 +73,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                             'credentials_file': credentials_file,
                             'output_dir': '/opt/data/ctc_to_cb/output',
                             'threads': 1,
-                            'first_epoch': 1629828000,
-                            'last_epoch': 162983000
+                            'first_epoch': 100
                             })
             list_of_output_files = glob.glob('/opt/data/ctc_to_cb/output/*')
             latest_output_file = max(list_of_output_files, key=os.path.getctime)

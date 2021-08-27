@@ -13,7 +13,7 @@ import logging
 import re
 import sys
 from pstats import Stats
-
+from couchbase.search import GeoBoundingBoxQuery, SearchOptions
 from couchbase.exceptions import DocumentNotFoundException
 
 TS_OUT_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
@@ -362,27 +362,7 @@ class CTCBuilder:
             # get stations from couchbase and filter them so
             # that we retain only the ones for this models domain which is defined by the region boundingbox
             try:
-                # get the bounding box for this region
-                result = self.cluster.query(
-                    "SELECT  geo.bottom_right.lat as br_lat, geo.bottom_right.lon as br_lon, geo.top_left.lat as tl_lat, geo.top_left.lon as tl_lon FROM mdata  WHERE type='MD' and docType='region' and subset='COMMON' and version='V01' and name=$region", region=self.region, read_only=True)
-                boundingbox = list(result)[0]
-                self.domain_stations = []
-                # get the stations that are within this boundingbox
-                result = self.cluster .query(
-                    "SELECT mdata.geo.lat, mdata.geo.lon, name from mdata where type='MD' and docType='station' and subset='METAR' and version='V01'", read_only=True)
-                for row in result:
-                    rlat = row['lat']
-                    bb_br_lat = boundingbox['br_lat']
-                    bb_tl_lat = boundingbox['tl_lat']
-                    
-                    rlon = row['lon'] if row['lon'] <= 180 else row['lon'] - 360
-                    bb_br_lon = boundingbox['br_lon'] if boundingbox['br_lon'] <= 180 else boundingbox['br_lon'] - 360
-                    bb_tl_lon = boundingbox['tl_lon'] if boundingbox['tl_lon'] <= 180 else boundingbox['tl_lon'] - 360
-                    if rlat >= bb_br_lat and rlat <= bb_tl_lat and rlon >= bb_tl_lon and rlon <= bb_br_lon:
-                        self.domain_stations.append(row['name'])
-                    else:
-                        continue
-                self.domain_stations.sort()
+                self.domain_stations = self.get_stations_for_region_by_sort(self.region)
                 # with open('./test/ + self.region + '_stations.txt', 'w') as f:
                 #     for s in self.domain_stations:
                 #         f.write(s + "\n")
@@ -468,6 +448,62 @@ class CTCBuilder:
             logging.error("%s: Exception with builder build_document: error: %s",
                           self.__class__.__name__, str(e))
             return {}
+
+    def get_stations_for_region_by_geosearch(self, region_name):
+        try:
+            result = self.cluster.query(
+                    "SELECT  geo.bottom_right.lat as br_lat, geo.bottom_right.lon as br_lon, geo.top_left.lat as tl_lat, geo.top_left.lon as tl_lon FROM mdata  WHERE type='MD' and docType='region' and subset='COMMON' and version='V01' and name=$region", region=region_name, read_only=True)
+            _boundingbox = list(result)[0]
+            _domain_stations = []
+
+            _result1 = self.cluster.search_query("station_geo", GeoBoundingBoxQuery(
+                top_left=(_boundingbox['tl_lon'], _boundingbox['tl_lat']), bottom_right=(_boundingbox['br_lon'], _boundingbox['br_lat']), field="geo"), SearchOptions(fields=["name"], limit=10000))
+            for elem in list(_result1):
+                    _domain_stations.append(elem.fields['name'])
+            _domain_stations.sort()
+            return _domain_stations
+        except Exception as e:
+            logging.error("%s: Exception with builder: error: %s",
+                          self.__class__.__name__, str(e))
+
+    def get_legacy_stations_for_region(self, region_name):
+        try:
+            classic_station_id = "MD-TEST:V01:CLASSIC_STATIONS:" + region_name
+            doc = self.collection.get(classic_station_id.strip())
+            classic_stations = doc.content['stations']
+            classic_stations.sort()
+            return classic_stations
+        except Exception as e:
+            logging.error("%s: Exception with builder: error: %s",
+                          self.__class__.__name__, str(e))
+
+    def get_stations_for_region_by_sort(self, region_name):
+        # get the bounding box for this region
+        try:
+            result = self.cluster.query(
+                        "SELECT  geo.bottom_right.lat as br_lat, geo.bottom_right.lon as br_lon, geo.top_left.lat as tl_lat, geo.top_left.lon as tl_lon FROM mdata  WHERE type='MD' and docType='region' and subset='COMMON' and version='V01' and name=$region", region=region_name, read_only=True)
+            _boundingbox = list(result)[0]
+            _domain_stations = []
+                    # get the stations that are within this boundingbox
+            result = self.cluster .query(
+                        "SELECT mdata.geo.lat, mdata.geo.lon, name from mdata where type='MD' and docType='station' and subset='METAR' and version='V01'", read_only=True)
+            for row in result:
+                rlat = row['lat']
+                bb_br_lat = _boundingbox['br_lat']
+                bb_tl_lat = _boundingbox['tl_lat']
+                        
+                rlon = row['lon'] if row['lon'] <= 180 else row['lon'] - 360
+                bb_br_lon = _boundingbox['br_lon'] if _boundingbox['br_lon'] <= 180 else _boundingbox['br_lon'] - 360
+                bb_tl_lon = _boundingbox['tl_lon'] if _boundingbox['tl_lon'] <= 180 else _boundingbox['tl_lon'] - 360
+                if rlat >= bb_br_lat and rlat <= bb_tl_lat and rlon >= bb_tl_lon and rlon <= bb_br_lon:
+                    _domain_stations.append(row['name'])
+                else:
+                    continue
+            _domain_stations.sort()
+            return _domain_stations
+        except Exception as e:
+            logging.error("%s: Exception with builder: error: %s",
+                          self.__class__.__name__, str(e))
 
 # Concrete builders
 

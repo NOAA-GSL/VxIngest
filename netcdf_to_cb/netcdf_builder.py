@@ -349,7 +349,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
             if self.document_map and (type(self.document_map) == dict):
                 for d in self.document_map.values():
                     try:
-                        if d['data'] and type(d['data']) == dict:
+                        if 'data' in d.keys() and type(d['data']) == dict:
                             data_map = d['data']
                             data_list = list(data_map.values())
                             d['data'] = sorted(data_list, key=lambda data_elem: data_elem['name'])

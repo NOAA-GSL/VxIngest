@@ -356,8 +356,8 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
                     except Exception as e1:
                         logging.error("%s get_document_map list conversion: Exception processing%s:  error: %s", self.__class__.__name__, str(d['data']), str(e1))
             return self.document_map
-        except Exception as e:
-            logging.error("%s get_document_map: Exception in get_document_map:  error: %s", self.__class__.__name__, str(e))
+        except Exception:
+            logging.exception("%s get_document_map: Exception in get_document_map", self.__class__.__name__)
     def load_data(self, doc, key, element):
         """
         This method appends an observation to the data array -

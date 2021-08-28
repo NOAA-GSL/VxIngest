@@ -345,7 +345,8 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
             if len(self.same_time_rows) != 0:
                 self.handle_document()
             # convert data map to a list
-            if type(self.document_map) == dict:
+            # document_map might be None
+            if self.document_map and type(self.document_map) == dict:
                 for d in self.document_map.values():
                     try:
                         if type(d['data']) == dict:
@@ -353,7 +354,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
                             data_list = list(data_map.values())
                             d['data'] = sorted(data_list, key=lambda data_elem: data_elem['name'])
                     except Exception as e:
-                        logging.error("%s get_document_map list conversion: Exception processing%s:  error: %s", self.__class__.__name__, str(data_map), str(e))
+                        logging.error("%s get_document_map list conversion: Exception processing%s:  error: %s", self.__class__.__name__, str(d['data']), str(e))
             return self.document_map
         except Exception as e:
             logging.error("%s get_document_map: Exception in get_document_map:  error: %s", self.__class__.__name__, str(e))

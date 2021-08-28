@@ -346,15 +346,15 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
                 self.handle_document()
             # convert data map to a list
             # document_map might be None
-            if self.document_map and type(self.document_map) == dict:
+            if self.document_map and (type(self.document_map) == dict):
                 for d in self.document_map.values():
                     try:
-                        if type(d['data']) == dict:
+                        if d['data'] and type(d['data']) == dict:
                             data_map = d['data']
                             data_list = list(data_map.values())
                             d['data'] = sorted(data_list, key=lambda data_elem: data_elem['name'])
-                    except Exception as e:
-                        logging.error("%s get_document_map list conversion: Exception processing%s:  error: %s", self.__class__.__name__, str(d['data']), str(e))
+                    except Exception as e1:
+                        logging.error("%s get_document_map list conversion: Exception processing%s:  error: %s", self.__class__.__name__, str(d['data']), str(e1))
             return self.document_map
         except Exception as e:
             logging.error("%s get_document_map: Exception in get_document_map:  error: %s", self.__class__.__name__, str(e))

@@ -25,7 +25,6 @@ class TestGribStationUtils(unittest.TestCase):
                 out_proj = projection
         """
         try:
-            cwd = os.getcwd()
             self.credentials_file = os.environ['HOME'] + '/adb-cb1-credentials'
             self.assertTrue(Path(self.credentials_file).is_file(),
                             "credentials_file Does not exist")

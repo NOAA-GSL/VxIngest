@@ -468,6 +468,31 @@ class GribModelBuilderV01(GribBuilder):
         then all the domain_stations are iterated (in memory operation)
         to make the ceiling calculations for each station location.
         """
+        # This is the original 'C' algorithm for grib
+        # if(ceil_msl < -1000 ||
+        #    ceil_msl > 1e10) {
+        #   /* printf("setting ceil_agl for x/y %d/%d from %0f to 6000\n",xi,yj,ceil_msl); */
+        #   ceil_agl = 6000;
+        #   n_forced_clear++;
+        # } else if(ceil_msl < 0) {
+        #   /* weird '-1's in the grib files */
+        #   printf("strange ceiling: %f. setting to 0.\n",ceil_msl);
+        #   ceil_agl = 0;
+        #   n_zero_ceils++;
+        #  } else {
+        #     ceil_agl = (ceil_msl - sfc_hgt)*0.32808; /* m -> tens of ft */
+        #   }
+        #   n_good_ceils++;
+        #   if(ceil_agl < 0) {
+        #     if(DEBUG == 1) {
+        #       printf("negative AGL ceiling for %d: ceil (MSL?): %.0f sfc: %.0f (ft)\n",
+        #              sp->sta_id,ceil_msl*3.2808,sfc_hgt*3.2808);
+        #     }
+        #     ceil_agl = 0;
+        #     n_zero_ceils++;
+        #   }
+        # }
+
         message = self.grbs.select(name='Orography')[0]
         values = message['values']
         surface_values = []
@@ -491,14 +516,25 @@ class GribModelBuilderV01(GribBuilder):
             if not numpy.ma.is_masked(values[y_gridpoint, x_gridpoint]):
                 ceil_msl_values.append(values[y_gridpoint, x_gridpoint])
             else:
-                ceil_msl_values.append(None)
+                # masked values should be treated as all clear i.e. 60000
+                ceil_msl_values.append(60000)
         ceil_agl = []
         for i in range(len(self.domain_stations)):
-            if ceil_msl_values[i] == None or surface_values[i] == None:
+            if ceil_msl_values[i] is None or surface_values[i] is None:
                 ceil_agl.append(None)
             else:
-                ceil_agl.append(
-                    (ceil_msl_values[i] - surface_values[i]) * 3.281)
+                if(ceil_msl_values[i] < -1000 or ceil_msl_values[i] > 1e10):
+                    ceil_agl.append(60000)
+                else: 
+                    if ceil_msl_values[i] < 0:
+                        # weird '-1's in the grib files??? (from legacy code)
+                        ceil_agl.append(0)
+                    else:
+                        tmp_ceil = (ceil_msl_values[i] - surface_values[i]) * 3.281
+                        if tmp_ceil < 0:
+                            ceil_agl.append(0)
+                        else:
+                            ceil_agl.append(tmp_ceil)
         return ceil_agl
 
         # SURFACE PRESSURE
@@ -509,7 +545,7 @@ class GribModelBuilderV01(GribBuilder):
         pressures = []
         for v, v_intrp_pressure in list(params_dict.values())[0]:
             # Convert from pascals to milibars
-            pressures.append(float(v_intrp_pressure) * 100)
+            pressures.append(float(v_intrp_pressure) / 100)
         return pressures
 
         # Visibility - convert to float
@@ -518,7 +554,7 @@ class GribModelBuilderV01(GribBuilder):
         vis_values = []
         for v, v_intrp_ignore in list(params_dict.values())[0]:
             vis_values.append(float(v) if v is not None else None)
-        return vis_values
+        return vis_values / 1609.344
 
         # relative humidity - convert to float
     def handle_RH(self, params_dict):

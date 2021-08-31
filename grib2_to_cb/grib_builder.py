@@ -553,8 +553,8 @@ class GribModelBuilderV01(GribBuilder):
         # convert all the values to a float
         vis_values = []
         for v, v_intrp_ignore in list(params_dict.values())[0]:
-            vis_values.append(float(v) if v is not None else None)
-        return vis_values / 1609.344
+            vis_values.append(float(v) / 1609.344 if v is not None else None)
+        return vis_values
 
         # relative humidity - convert to float
     def handle_RH(self, params_dict):

@@ -15,7 +15,7 @@ class TestNetcdfObsBuilderV01(TestCase):
 
     def test_compare_model_obs_to_mysql(self):
         """This test attempts to find recent observations that match in both the mysql and the CB
-            databases and compare them. This test isn't likely to succedd unless both the legacy 
+            databases and compare them. This test isn't likely to succeed unless both the legacy 
             ingest and the VxIngest have recently run.
         """
         try:
@@ -71,7 +71,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                             FROM   madis3.HRRR_OPSqp AS m0,
                             madis3.obs AS o,
                             madis3.metars AS s
-                            WHERE  s.name = "KDEN"
+                            WHERE  s.name = "KPDX"
                             AND m0.time = o.time 
                             AND s.madis_id = m0.sta_id
                             AND o.sta_id = m0.sta_id
@@ -96,7 +96,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                             AND mdata.model="HRRR_OPS"
                             AND mdata.version='V01'
                             AND mdata.subset='METAR'
-                            AND data_item.name="KDEN"
+                            AND data_item.name="KPDX"
                             AND mdata.fcstValidEpoch=$time
                             ORDER BY mdata.fcstLen""", time=time)
                 cb_model_values = list(result)
@@ -105,7 +105,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                 from  madis3.metars as s, madis3.HRRR_OPSqp as m0 
                 WHERE 1=1 
                 AND s.madis_id = m0.sta_id 
-                AND s.name = "KDEN" 
+                AND s.name = "KPDX" 
                 AND  m0.time >= %s - 1800 and m0.time < %s + 1800
                 ORDER BY m0.fcst_len;"""
                 cursor.execute(statement, (time, time))
@@ -122,7 +122,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                 from  madis3.metars as s, ceiling2.HRRR_OPS as m0 
                 WHERE 1=1 
                 AND s.madis_id = m0.madis_id 
-                AND s.name = "KDEN" 
+                AND s.name = "KPDX" 
                 AND  m0.time >= %s - 1800 and m0.time < %s + 1800
                 ORDER BY m0.fcst_len;"""
                 cursor.execute(statement, (time, time))
@@ -133,32 +133,99 @@ class TestNetcdfObsBuilderV01(TestCase):
                 from  madis3.metars as s, visibility.HRRR_OPS as m0 
                 WHERE 1=1 
                 AND s.madis_id = m0.madis_id 
-                AND s.name = "KDEN" 
+                AND s.name = "KPDX" 
                 AND  m0.time >= %s - 1800 and m0.time < %s + 1800
                 ORDER BY m0.fcst_len;"""
                 cursor.execute(statement, (time, time))
                 mysql_model_visibility_values_tmp = cursor.fetchall()
                 mysql_model_visibility = [v['vis100']/100 for v in mysql_model_visibility_values_tmp]
+                
                 # now we have values for this time for each fcst_len, iterate the fcst_len and assert each value
-                for i in range(len(mysql_model_fcst_len)):
+                intersect_fcst_len = []
+                for cb_elem in cb_model_values:
+                    fcst_len = cb_elem['fcstLen']
+                    if fcst_len in mysql_model_fcst_len:
+                        intersect_fcst_len.append(fcst_len)
+                intersect_data_dict = {}
+                for i in intersect_fcst_len:
+                    intersect_data_dict[i] = {}
+                    mysql_index = mysql_model_fcst_len.index(i)
+                    cb = next(item for item in cb_model_values if item["fcstLen"] == i)
+                    intersect_data_dict[i]['cb'] = {}
+                    intersect_data_dict[i]['cb']['fcstLen'] = cb['fcstLen']
+                    intersect_data_dict[i]['cb'].update(cb['data_item'])
+                    intersect_data_dict[i]['mysql'] = {}
+                    intersect_data_dict[i]['mysql']['fcst_len'] = mysql_model_fcst_len[mysql_index]
+                    intersect_data_dict[i]['mysql']['press'] = mysql_model_press[mysql_index]
+                    intersect_data_dict[i]['mysql']['temp'] = mysql_model_temp[mysql_index]
+                    intersect_data_dict[i]['mysql']['dp'] = mysql_model_dp[mysql_index]
+                    intersect_data_dict[i]['mysql']['rh'] = mysql_model_rh[mysql_index]
+                    intersect_data_dict[i]['mysql']['ws'] = mysql_model_ws[mysql_index]
+                    intersect_data_dict[i]['mysql']['wd'] = mysql_model_wd[mysql_index]
+                    intersect_data_dict[i]['mysql']['ceiling'] = mysql_model_ceiling[mysql_index]
+                    intersect_data_dict[i]['mysql']['visibility'] = mysql_model_visibility[mysql_index]
+
+                for i in intersect_fcst_len:
                     self.assertEquals(
-                        mysql_model_fcst_len[i], cb_model_values[i]['fcstLen'], message='MYSQL fcst_len and CB fcstLen are not equal')
-                    np.testing.assert_almost_equal(mysql_model_press[i], cb_model_values[i]['data_item']['Surface Pressure'],
-                                                   decimal=4, err_msg='MYSQL Pressure and CB Surface Pressure are not approximately equal', verbose=True)
-                    np.testing.assert_almost_equal(mysql_model_temp[i], cb_model_values[i]['data_item']['Temperature'],
-                                                   decimal=4, err_msg='MYSQL temp and CB Temperature are not approximately equal', verbose=True)
-                    np.testing.assert_almost_equal(mysql_model_dp[i], cb_model_values[i]['data_item']['DewPoint'],
-                                                   decimal=4, err_msg='MYSQL dp and CB Dew Point are not approximately equal', verbose=True)
-                    np.testing.assert_almost_equal(mysql_model_rh[i], cb_model_values[i]['data_item']['RH'],
-                                                   decimal=3, err_msg='MYSQL rh and CB RH are not approximately equal', verbose=True)
-                    np.testing.assert_almost_equal(mysql_model_wd[i], cb_model_values[i]['data_item']['WD'],
-                                                   decimal=3, err_msg='MYSQL wd and CB WD are not approximately equal', verbose=True)
-                    np.testing.assert_almost_equal(mysql_model_ws[i], cb_model_values[i]['data_item']['WS'],
-                                                   decimal=3, err_msg='MYSQL ws and CB WS are not approximately equal', verbose=True)
-                    np.testing.assert_almost_equal(mysql_model_visibility[i], cb_model_values[i]['data_item']['Visibility'],
-                                                   decimal=3, err_msg='MYSQL Visibility and CB Visibility are not approximately equal', verbose=True)
-                    np.testing.assert_almost_equal(mysql_model_ceiling[i], cb_model_values[i]['data_item']['Ceiling'],
-                                                   decimal=3, err_msg='MYSQL Ceiling and CB Ceiling are not approximately equal', verbose=True)
+                        intersect_data_dict[i]['mysql']['fcst_len'], 
+                        intersect_data_dict[i]['cb']['fcstLen'], 
+                        msg='MYSQL fcst_len and CB fcstLen are not equal')
+                    np.testing.assert_allclose(
+                        intersect_data_dict[i]['mysql']['press'], 
+                        intersect_data_dict[i]['cb']['Surface Pressure'],
+                        atol = 2,
+                        rtol = 0,
+                        err_msg='MYSQL Pressure and CB Surface Pressure are not approximately equal',
+                        verbose=True)
+                    np.testing.assert_allclose(
+                        intersect_data_dict[i]['mysql']['temp'],
+                        intersect_data_dict[i]['cb']['Temperature'],
+                        atol = 2,
+                        rtol = 0,
+                        err_msg='MYSQL temp and CB Temperature are not approximately equal',
+                        verbose=True)
+                    np.testing.assert_allclose(
+                        intersect_data_dict[i]['mysql']['dp'],
+                        intersect_data_dict[i]['cb']['DewPoint'],
+                        atol = 2,
+                        rtol = 0,
+                        err_msg='MYSQL dp and CB Dew Point are not approximately equal',
+                        verbose=True)
+                    np.testing.assert_allclose(
+                        intersect_data_dict[i]['mysql']['rh'],
+                        intersect_data_dict[i]['cb']['RH'],
+                        atol = 6,
+                        rtol = 0,
+                        err_msg='MYSQL rh and CB RH are not approximately equal',
+                        verbose=True)
+                    np.testing.assert_allclose(
+                        intersect_data_dict[i]['mysql']['wd'],
+                        intersect_data_dict[i]['cb']['WD'],
+                        atol = 2,
+                        rtol = 0,
+                        err_msg='MYSQL wd and CB WD are not approximately equal',
+                        verbose=True)
+                    np.testing.assert_allclose(
+                        intersect_data_dict[i]['mysql']['ws'],
+                        intersect_data_dict[i]['cb']['WS'],
+                        atol = 2,
+                        rtol = 0,
+                        err_msg='MYSQL ws and CB WS are not approximately equal',
+                        verbose=True)
+                    np.testing.assert_allclose(
+                        intersect_data_dict[i]['mysql']['visibility'],
+                        intersect_data_dict[i]['cb']['Visibility'],
+                        atol = 1,
+                        rtol = 0,
+                        err_msg='MYSQL Visibility and CB Visibility are not approximately equal',
+                        verbose=True)
+                    np.testing.assert_allclose(
+                        intersect_data_dict[i]['mysql']['ceiling'],
+                        intersect_data_dict[i]['cb']['Ceiling'],
+                        atol = 2,
+                        rtol = 0,
+                        err_msg='MYSQL Ceiling and CB Ceiling are not approximately equal',
+                        verbose=True)
         except:
             self.fail("TestGsdIngestManager Exception failure: " +
                       str(sys.exc_info()[0]))

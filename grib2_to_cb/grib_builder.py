@@ -103,7 +103,7 @@ class GribBuilder:
     def translate_template_item(self, variable, single_return=False):
         """
         This method translates template replacements (*item or *item1*item2).
-        It can translate keys or values. 
+        It can translate keys or values.
         :param variable: a value from the template - should be a grib2 variable or a constant
         :param single_return: if this is True on one value is returned, otherwise an array.
         single_returns are always constants (no replacement).
@@ -193,7 +193,7 @@ class GribBuilder:
 
     def handle_key(self, doc, key):
         """
-        This routine handles keys by substituting 
+        This routine handles keys by substituting
         the grib variables that correspond to the key into the values
         in the template that begin with *
         :param doc: the current document
@@ -234,7 +234,7 @@ class GribBuilder:
         The name of the function and the function parameters are seperated by a ":" and
         the parameters are seperated by a ','.
         It is expected that field1, field2, and field3 etc are all valid variable names.
-        Each field will be translated from the netcdf file into value1, value2 etc. 
+        Each field will be translated from the netcdf file into value1, value2 etc.
         The method "named_function" will be called like...
         named_function({field1:value1, field2:value2, ... fieldn:valuen}) and the return value from named_function
         will be substituted into the document.
@@ -301,12 +301,12 @@ class GribBuilder:
         """
         This is the entry point for the gribBuilders from the ingestManager.
         The ingest manager is giving us a grib file to process from the queue.
-        These documents are id'd by time and fcstLen. The data section is an array 
+        These documents are id'd by time and fcstLen. The data section is an array
         each element of which contains variable data and a station name. To process this
         file we need to itterate the domain_stations list and process the station name along
         with all the required variables.
         1) get the first epoch - if none was specified get the latest one from the db
-        2) transform the projection from the grib file 
+        2) transform the projection from the grib file
         3) determine the stations for this domain, adding gridpoints to each station - build a station list
         4) enable profiling if requested
         5) handle_document - iterate the template and process all the keys and values
@@ -321,7 +321,7 @@ class GribBuilder:
                 epoch = list(result)[0]
                 if epoch is not None:
                     self.load_spec['first_last_params']['first_epoch'] = epoch
-            # translate the projection from the grib file 
+            # translate the projection from the grib file
             file_utc_time = datetime.datetime.strptime(
                 os.path.basename(file_name), self.load_spec['fmask'])
             file_time = (file_utc_time - datetime.datetime(1970, 1, 1)).total_seconds()
@@ -398,7 +398,7 @@ class GribModelBuilderV01(GribBuilder):
     def __init__(self, load_spec, ingest_document, cluster, collection, number_stations=sys.maxsize):
         """
         This builder creates a set of V01 model documents using the stations in the station list.
-        This builder loads domain qualified station data into memory, and uses the domain_station 
+        This builder loads domain qualified station data into memory, and uses the domain_station
         list to associate a station with a grid value at an x_lat, x_lon point.
         In each document the data is an array of objects each of which is the model variable data
         for specific variables at a point associated with a specific station at the time and fcstLen of
@@ -462,7 +462,7 @@ class GribModelBuilderV01(GribBuilder):
 
     def handle_ceiling(self, params_dict):
         """
-        the dict_params aren't used here since we need to 
+        the dict_params aren't used here since we need to
         select two messages (self.grbs.select is expensive since it scans the whole grib file).
         Each message is selected once and the station location data saved in an array,
         then all the domain_stations are iterated (in memory operation)
@@ -525,7 +525,7 @@ class GribModelBuilderV01(GribBuilder):
             else:
                 if(ceil_msl_values[i] < -1000 or ceil_msl_values[i] > 1e10):
                     ceil_agl.append(60000)
-                else: 
+                else:
                     if ceil_msl_values[i] < 0:
                         # weird '-1's in the grib files??? (from legacy code)
                         ceil_agl.append(0)
@@ -580,7 +580,7 @@ class GribModelBuilderV01(GribBuilder):
         # WIND SPEED
     def handle_wind_speed(self, params_dict):
         """
-        the params_dict aren't used here since we need to 
+        the params_dict aren't used here since we need to
         select two messages (self.grbs.select is expensive since it scans the whole grib file).
         Each message is selected once and the station location data saved in an array,
         then all the domain_stations are iterated (in memory operation)
@@ -618,7 +618,7 @@ class GribModelBuilderV01(GribBuilder):
         # wind direction
     def handle_wind_direction(self, params_dict):
         """
-        the params_dict aren't used here since we need to 
+        the params_dict aren't used here since we need to
         select two messages (self.grbs.select is expensive since it scans the whole grib file).
         Each message is selected once and the station location data saved in an array,
         then all the domain_stations are iterated (in memory operation)

@@ -15,7 +15,7 @@ class TestNetcdfObsBuilderV01(TestCase):
 
     def test_compare_model_to_mysql(self):
         """This test attempts to find recent models that match in both the mysql and the CB
-            databases and compare them. This test isn't likely to succeed unless both the legacy 
+            databases and compare them. This test isn't likely to succeed unless both the legacy
             ingest and the VxIngest have recently run.
         """
         try:
@@ -70,7 +70,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                             madis3.obs AS o,
                             madis3.metars AS s
                             WHERE  s.name = "KPDX"
-                            AND m0.time = o.time 
+                            AND m0.time = o.time
                             AND s.madis_id = m0.sta_id
                             AND o.sta_id = m0.sta_id
                             AND m0.fcst_len = 0
@@ -97,11 +97,11 @@ class TestNetcdfObsBuilderV01(TestCase):
                             ORDER BY mdata.fcstLen""", time=time)
                 cb_model_values = list(result)
 
-                statement = """select m0.* 
-                from  madis3.metars as s, madis3.HRRR_OPSqp as m0 
-                WHERE 1=1 
-                AND s.madis_id = m0.sta_id 
-                AND s.name = "KPDX" 
+                statement = """select m0.*
+                from  madis3.metars as s, madis3.HRRR_OPSqp as m0
+                WHERE 1=1
+                AND s.madis_id = m0.sta_id
+                AND s.name = "KPDX"
                 AND  m0.time >= %s - 1800 and m0.time < %s + 1800
                 ORDER BY m0.fcst_len;"""
                 cursor.execute(statement, (time, time))
@@ -114,28 +114,28 @@ class TestNetcdfObsBuilderV01(TestCase):
                 mysql_model_ws = [v['ws'] for v in mysql_model_values_tmp]
                 mysql_model_rh = [v['rh']/10 for v in mysql_model_values_tmp]
 
-                statement = """select m0.* 
-                from  madis3.metars as s, ceiling2.HRRR_OPS as m0 
-                WHERE 1=1 
-                AND s.madis_id = m0.madis_id 
-                AND s.name = "KPDX" 
+                statement = """select m0.*
+                from  madis3.metars as s, ceiling2.HRRR_OPS as m0
+                WHERE 1=1
+                AND s.madis_id = m0.madis_id
+                AND s.name = "KPDX"
                 AND  m0.time >= %s - 1800 and m0.time < %s + 1800
                 ORDER BY m0.fcst_len;"""
                 cursor.execute(statement, (time, time))
                 mysql_model_ceiling_values_tmp = cursor.fetchall()
                 mysql_model_ceiling = [v['ceil']*10 for v in mysql_model_ceiling_values_tmp] if len(mysql_model_ceiling_values_tmp) > 0 else None
 
-                statement = """select m0.* 
-                from  madis3.metars as s, visibility.HRRR_OPS as m0 
-                WHERE 1=1 
-                AND s.madis_id = m0.madis_id 
-                AND s.name = "KPDX" 
+                statement = """select m0.*
+                from  madis3.metars as s, visibility.HRRR_OPS as m0
+                WHERE 1=1
+                AND s.madis_id = m0.madis_id
+                AND s.name = "KPDX"
                 AND  m0.time >= %s - 1800 and m0.time < %s + 1800
                 ORDER BY m0.fcst_len;"""
                 cursor.execute(statement, (time, time))
                 mysql_model_visibility_values_tmp = cursor.fetchall()
                 mysql_model_visibility = [v['vis100']/100 for v in mysql_model_visibility_values_tmp] if len(mysql_model_visibility_values_tmp) > 0 else None
-                
+
                 # now we have values for this time for each fcst_len, iterate the fcst_len and assert each value
                 intersect_fcst_len = []
                 for cb_elem in cb_model_values:
@@ -161,15 +161,71 @@ class TestNetcdfObsBuilderV01(TestCase):
                     intersect_data_dict[i]['mysql']['ceiling'] = mysql_model_ceiling[mysql_index] if len(mysql_model_ceiling) > mysql_index else None
                     intersect_data_dict[i]['mysql']['visibility'] = mysql_model_visibility[mysql_index] if len(mysql_model_visibility) > mysql_index else None
                     print ("time: {0}\t\tfcst_len: {1}\t\tstation:{2}".format(time,i,"KPDX"))
-                    print ("field\t\tmysql\t\tcb")
-                    print ("press\t\t{0}\t\t{1}".format(intersect_data_dict[i]['mysql']['press'],intersect_data_dict[i]['cb']['Surface Pressure']))
-                    print ("temp\t\t{0}\t\t{1}".format(intersect_data_dict[i]['mysql']['temp'],intersect_data_dict[i]['cb']['Temperature']))
-                    print ("dp\t\t{0}\t\t{1}".format(intersect_data_dict[i]['mysql']['dp'],intersect_data_dict[i]['cb']['DewPoint']))
-                    print ("rh\t\t{0}\t\t{1}".format(intersect_data_dict[i]['mysql']['rh'],intersect_data_dict[i]['cb']['RH']))
-                    print ("ws\t\t{0}\t\t{1}".format(intersect_data_dict[i]['mysql']['wd'],intersect_data_dict[i]['cb']['WD']))
-                    print ("wd\t\t{0}\t\t{1}".format(intersect_data_dict[i]['mysql']['ws'],intersect_data_dict[i]['cb']['WS']))
-                    print ("ceiling\t\t{0}\t\t{1}".format(intersect_data_dict[i]['mysql']['ceiling'],intersect_data_dict[i]['cb']['Ceiling']))
-                    print ("visibility\t{0}\t\t{1}".format(intersect_data_dict[i]['mysql']['visibility'],intersect_data_dict[i]['cb']['Visibility']))
+                    print ("field\t\tmysql\t\tcb\t\t\t\tdelta")
+                    if intersect_data_dict[i]['mysql']['press'] and intersect_data_dict[i]['cb']['Surface Pressure']:
+                        delta = abs(intersect_data_dict[i]['mysql']['press'] - intersect_data_dict[i]['cb']['Surface Pressure'])
+                    else:
+                        delta = None
+                    print ("press\t\t{0}\t\t{1}\t\t\t{2}".format(
+                        intersect_data_dict[i]['mysql']['press'],
+                        intersect_data_dict[i]['cb']['Surface Pressure'],
+                        delta))
+                    if intersect_data_dict[i]['mysql']['temp'] and intersect_data_dict[i]['cb']['Temperature']:
+                        delta = abs(intersect_data_dict[i]['mysql']['temp'] - intersect_data_dict[i]['cb']['Temperature'])
+                    else:
+                        delta = None
+                    print ("temp\t\t{0}\t\t{1}\t\t\t{2}".format(
+                        intersect_data_dict[i]['mysql']['temp'],
+                        intersect_data_dict[i]['cb']['Temperature'],
+                        delta))
+                    if intersect_data_dict[i]['mysql']['dp'] and intersect_data_dict[i]['cb']['DewPoint']:
+                        delta = abs(intersect_data_dict[i]['mysql']['dp'] - intersect_data_dict[i]['cb']['DewPoint'])
+                    else:
+                        delta = None
+                    print ("dp\t\t{0}\t\t{1}\t\t\t{2}".format(
+                        intersect_data_dict[i]['mysql']['dp'],
+                        intersect_data_dict[i]['cb']['DewPoint'],
+                        delta))
+                    if intersect_data_dict[i]['mysql']['rh'] and intersect_data_dict[i]['cb']['RH']:
+                        delta = abs(intersect_data_dict[i]['mysql']['rh'] - intersect_data_dict[i]['cb']['RH'])
+                    else:
+                        delta = None
+                    print ("rh\t\t{0}\t\t{1}\t\t\t{2}".format(
+                        intersect_data_dict[i]['mysql']['rh'],
+                        intersect_data_dict[i]['cb']['RH'],
+                        delta))
+                    if intersect_data_dict[i]['mysql']['wd'] and intersect_data_dict[i]['cb']['WD']:
+                        delta = abs(intersect_data_dict[i]['mysql']['wd'] - intersect_data_dict[i]['cb']['WD'])
+                    else:
+                        delta = None
+                    print ("ws\t\t{0}\t\t{1}\t\t\t{2}".format(
+                        intersect_data_dict[i]['mysql']['wd'],
+                        intersect_data_dict[i]['cb']['WD'],
+                        delta))
+                    if intersect_data_dict[i]['mysql']['ws']  and intersect_data_dict[i]['cb']['WS']:
+                        delta = abs(intersect_data_dict[i]['mysql']['ws'] - intersect_data_dict[i]['cb']['WS'])
+                    else:
+                        delta = None
+                    print ("wd\t\t{0}\t\t{1}\t\t\t{2}".format(
+                        intersect_data_dict[i]['mysql']['ws'],
+                        intersect_data_dict[i]['cb']['WS'],
+                        delta))
+                    if intersect_data_dict[i]['mysql']['ceiling'] and intersect_data_dict[i]['cb']['Ceiling']:
+                        delta = abs(intersect_data_dict[i]['mysql']['ceiling'] - intersect_data_dict[i]['cb']['Ceiling'])
+                    else:
+                        delta = None
+                    print ("ceiling\t\t{0}\t\t{1}\t\t\t{2}".format(
+                        intersect_data_dict[i]['mysql']['ceiling'],
+                        intersect_data_dict[i]['cb']['Ceiling'],
+                        delta))
+                    if intersect_data_dict[i]['mysql']['visibility']  and intersect_data_dict[i]['cb']['Visibility']:
+                        delta = abs(intersect_data_dict[i]['mysql']['visibility'] - intersect_data_dict[i]['cb']['Visibility'])
+                    else:
+                        delta = None
+                    print ("visibility\t{0}\t\t{1}\t\t\t{2}".format(
+                        intersect_data_dict[i]['mysql']['visibility'],
+                        intersect_data_dict[i]['cb']['Visibility'],
+                        delta))
                     print("--")
 
                 for i in intersect_fcst_len:
@@ -179,7 +235,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                         msg='MYSQL fcst_len and CB fcstLen are not equal')
                     if intersect_data_dict[i]['mysql']['press'] is not None and intersect_data_dict[i]['cb']['Surface Pressure'] is not None:
                         np.testing.assert_allclose(
-                            intersect_data_dict[i]['mysql']['press'], 
+                            intersect_data_dict[i]['mysql']['press'],
                             intersect_data_dict[i]['cb']['Surface Pressure'],
                             atol = 2,
                             rtol = 0,
@@ -247,10 +303,10 @@ class TestNetcdfObsBuilderV01(TestCase):
             print (str(sys.exc_info()))
             self.fail("TestGsdIngestManager Exception failure: " +
                       str(sys.exc_info()))
-    
+
     def test_compare_obs_to_mysql(self):
         """This test attempts to find recent observations that match in both the mysql and the CB
-            databases and compare them. This test isn't likely to succeed unless both the legacy 
+            databases and compare them. This test isn't likely to succeed unless both the legacy
             ingest and the VxIngest have recently run.
         """
         try:
@@ -313,63 +369,108 @@ class TestNetcdfObsBuilderV01(TestCase):
                 cb_obs_values = list(result)[0]
 
                 statement = """select o.*
-                from  madis3.metars as s, madis3.obs as o 
-                WHERE 1=1 
-                AND s.madis_id = o.sta_id 
-                AND s.name = "KPDX" 
+                from  madis3.metars as s, madis3.obs as o
+                WHERE 1=1
+                AND s.madis_id = o.sta_id
+                AND s.name = "KPDX"
                 AND  o.time >= %s - 1800 and o.time < %s + 1800 order by ABS(%s - o.time) limit 1;"""
                 cursor.execute(statement, (time, time, time))
                 mysql_obs_values_tmp = cursor.fetchall()
 
                 mysql_obs_press = mysql_obs_values_tmp[0]['slp']/10
                 mysql_obs_temp = mysql_obs_values_tmp[0]['temp']/10
+                # need to convert mysql farenheight * 10 value to straight kelvin
                 mysql_obs_dp = mysql_obs_values_tmp[0]['dp']/10
                 mysql_obs_wd = mysql_obs_values_tmp[0]['wd']
                 mysql_obs_ws = mysql_obs_values_tmp[0]['ws']
 
                 statement = """select o.*
-                from  madis3.metars as s, ceiling2.obs as o 
-                WHERE 1=1 
-                AND s.madis_id = o.madis_id 
-                AND s.name = "KPDX" 
+                from  madis3.metars as s, ceiling2.obs as o
+                WHERE 1=1
+                AND s.madis_id = o.madis_id
+                AND s.name = "KPDX"
                 AND  o.time >= %s - 1800 and o.time < %s + 1800 order by ABS(%s - o.time) limit 1;"""
                 cursor.execute(statement, (time, time, time))
                 mysql_obs_ceiling_values_tmp = cursor.fetchall()
                 mysql_obs_ceiling = mysql_obs_ceiling_values_tmp[0]['ceil']*10 if len(mysql_obs_ceiling_values_tmp) > 0 else None
 
-                statement = """select o.* 
-                from  madis3.metars as s, visibility.obs as o 
-                WHERE 1=1 
-                AND s.madis_id = o.madis_id 
-                AND s.name = "KPDX" 
+                statement = """select o.*
+                from  madis3.metars as s, visibility.obs as o
+                WHERE 1=1
+                AND s.madis_id = o.madis_id
+                AND s.name = "KPDX"
                 AND  o.time >= %s - 1800 and o.time < %s + 1800 order by ABS(%s - o.time) limit 1;"""
                 cursor.execute(statement, (time, time, time))
                 mysql_obs_visibility_values_tmp = cursor.fetchall()
                 mysql_obs_visibility = mysql_obs_visibility_values_tmp[0]['vis100']/100 if len(mysql_obs_visibility_values_tmp) > 0 else None
-                
+
                 # now we have values for this time for each fcst_len, iterate the fcst_len and assert each value
                 intersect_data_dict = {}
                 intersect_data_dict['cb'] = cb_obs_values
                 intersect_data_dict['mysql'] = {}
                 intersect_data_dict['mysql']['press'] = mysql_obs_press
                 intersect_data_dict['mysql']['temp'] = mysql_obs_temp
-                intersect_data_dict['mysql']['dp'] = mysql_obs_dp
+                # convert farenheight to kelvin
+                intersect_data_dict['mysql']['dp'] = (mysql_obs_dp - 32) * 5/9 + 273.15
                 intersect_data_dict['mysql']['ws'] = mysql_obs_ws
                 intersect_data_dict['mysql']['wd'] = mysql_obs_wd
                 intersect_data_dict['mysql']['ceiling'] = mysql_obs_ceiling
                 intersect_data_dict['mysql']['visibility'] = mysql_obs_visibility
                 print ("time: {0}\t\tstation: {1}".format(time,"KPDX"))
-                print ("field\t\tmysql\t\tcb")
-                print ("press\t\t{0}\t\t{1}".format(intersect_data_dict['mysql']['press'],intersect_data_dict['cb']['Surface Pressure']))
-                print ("temp\t\t{0}\t\t{1}".format(intersect_data_dict['mysql']['temp'],intersect_data_dict['cb']['Temperature']))
-                print ("dp\t\t{0}\t\t{1}".format(intersect_data_dict['mysql']['dp'],intersect_data_dict['cb']['DewPoint']))
-                print ("ws\t\t{0}\t\t{1}".format(intersect_data_dict['mysql']['wd'],intersect_data_dict['cb']['WD']))
-                print ("wd\t\t{0}\t\t{1}".format(intersect_data_dict['mysql']['ws'],intersect_data_dict['cb']['WS']))
-                print ("ceiling\t\t{0}\t\t{1}".format(intersect_data_dict['mysql']['ceiling'],intersect_data_dict['cb']['Ceiling']))
-                print ("visibility\t{0}\t\t{1}".format(intersect_data_dict['mysql']['visibility'],intersect_data_dict['cb']['Visibility']))
+                print ("field\t\tmysql\t\tcb\t\t\tdelta")
+                if intersect_data_dict['mysql']['press']  and intersect_data_dict['cb']['Surface Pressure']:
+                    delta = abs(intersect_data_dict['mysql']['press'] - intersect_data_dict['cb']['Surface Pressure'])
+                else:
+                    delta = None
+                print ("press\t\t{0}\t\t{1}\t\t\t{2}".format(intersect_data_dict['mysql']['press'],
+                    intersect_data_dict['cb']['Surface Pressure'],
+                    delta))
+                if intersect_data_dict['mysql']['temp']  and intersect_data_dict['cb']['Temperature']:
+                    delta = abs(intersect_data_dict['mysql']['temp'] - intersect_data_dict['cb']['Temperature'])
+                else:
+                    delta = None
+                print ("temp\t\t{0}\t\t{1}\t\t\t{2}".format(intersect_data_dict['mysql']['temp'],
+                    intersect_data_dict['cb']['Temperature'],
+                    delta))
+                if intersect_data_dict['mysql']['dp'] and intersect_data_dict['cb']['DewPoint']:
+                    delta = abs(intersect_data_dict['mysql']['dp'] - intersect_data_dict['cb']['DewPoint'])
+                else:
+                    delta = None
+                print ("dp\t\t{0}\t\t{1}\t\t\t{2}".format(intersect_data_dict['mysql']['dp'],
+                    intersect_data_dict['cb']['DewPoint'],
+                    delta))
+                if intersect_data_dict['mysql']['wd']  and intersect_data_dict['cb']['WD']:
+                    delta = abs(intersect_data_dict['mysql']['wd'] - intersect_data_dict['cb']['WD'])
+                else:
+                    delta = None
+                print ("ws\t\t{0}\t\t{1}\t\t\t{2}".format(intersect_data_dict['mysql']['wd'],
+                    intersect_data_dict['cb']['WD'],
+                    delta))
+                if intersect_data_dict['mysql']['ws']  and intersect_data_dict['cb']['WS']:
+                    delta = abs(intersect_data_dict['mysql']['ws'] - intersect_data_dict['cb']['WS'])
+                else:
+                    delta = None
+                print ("wd\t\t{0}\t\t{1}\t\t\t{2}".format(intersect_data_dict['mysql']['ws'],
+                    intersect_data_dict['cb']['WS'],
+                    delta))
+
+                if intersect_data_dict['mysql']['ceiling'] and intersect_data_dict['cb']['Ceiling']:
+                    delta = abs(intersect_data_dict['mysql']['ceiling'] - intersect_data_dict['cb']['Ceiling'])
+                else:
+                    delta = None
+                print ("ceiling\t\t{0}\t\t{1}\t\t\t{2}".format(intersect_data_dict['mysql']['ceiling'],
+                    intersect_data_dict['cb']['Ceiling'],
+                    delta))
+                if intersect_data_dict['mysql']['visibility']  and intersect_data_dict['cb']['Visibility']:
+                    delta = abs(intersect_data_dict['mysql']['visibility'] - intersect_data_dict['cb']['Visibility'])
+                else:
+                    delta = None
+                print ("visibility\t{0}\t\t{1}\t\t\t{2}".format(intersect_data_dict['mysql']['visibility'],
+                    intersect_data_dict['cb']['Visibility'],
+                    delta))
                 print("--")
                 np.testing.assert_allclose(
-                    intersect_data_dict['mysql']['press'], 
+                    intersect_data_dict['mysql']['press'],
                     intersect_data_dict['cb']['Surface Pressure'],
                     atol = 2,
                     rtol = 0,
@@ -382,11 +483,10 @@ class TestNetcdfObsBuilderV01(TestCase):
                     rtol = 0,
                     err_msg='MYSQL temp and CB Temperature are not approximately equal',
                     verbose=True)
-                #TODO FIX THIS!
                 np.testing.assert_allclose(
                     intersect_data_dict['mysql']['dp'],
                     intersect_data_dict['cb']['DewPoint'],
-                    atol = 9999999,
+                    atol = 2,
                     rtol = 0,
                     err_msg='MYSQL dp and CB Dew Point are not approximately equal',
                     verbose=True)
@@ -399,7 +499,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                         rtol = 0,
                         err_msg='MYSQL wd and CB WD are not approximately equal',
                         verbose=True)
-                #TODO FIX THIS!    
+                #TODO FIX THIS!
                 if intersect_data_dict['mysql']['ws'] is not None and intersect_data_dict['cb']['WS'] is not None:
                     np.testing.assert_allclose(
                         intersect_data_dict['mysql']['ws'],
@@ -459,7 +559,8 @@ class TestNetcdfObsBuilderV01(TestCase):
                             'file_name_mask': "%Y%m%d_%H%M",
                             'output_dir': '/opt/data/netcdf_to_cb/output',
                             'threads': 1,
-                            'first_epoch': 100
+                            'first_epoch': 1630008000 - 10,
+                            'last_epoch':  1630008000 + 10
                             })
         except:
             self.fail("TestGsdIngestManager Exception failure: " +

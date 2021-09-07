@@ -15,7 +15,7 @@
       "data": {
         "*stationName": {
           "Ceiling": "&ceiling_transform|*skyCover,*skyLayerBase",
-          "DewPoint": "&umask_value_transform|*dewpoint",
+          "DewPoint": "&kelvin_to_farenheight|*dewpoint",
           "Reported Time": "&interpolate_time|*timeObs",
           "Surface Pressure": "&handle_pressure|*altimeter",
           "Temperature": "&kelvin_to_farenheight|*temperature",

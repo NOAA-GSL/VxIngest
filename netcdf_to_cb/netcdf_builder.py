@@ -454,10 +454,11 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
             logging.error("%s handle_pressure: Exception in named function:  error: %s", self.__class__.__name__, str(e))
 
     def handle_visibility(self, params_dict):
+        #vis_sm = vis_m / 1609.344
         try:
             value = self.umask_value_transform(params_dict)
             if value is not None and value != "":
-                value = math.floor(float(value))  # round
+                value = math.floor(float(value)/ 1609.344)  
             return float(value)
         except Exception as e:
             logging.error("%s handle_pressure: Exception in named function:  error: %s", self.__class__.__name__, str(e))

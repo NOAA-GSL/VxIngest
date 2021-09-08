@@ -448,6 +448,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
             value = self.umask_value_transform(params_dict)
             if value:
                 # convert to millibars (from pascals) and round
+                logging.info("converting %s to millibars", str(value))
                 value = math.floor(float(value) / 100)
             return value
         except Exception as e:

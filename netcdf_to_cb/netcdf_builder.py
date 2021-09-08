@@ -458,7 +458,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
         try:
             value = self.umask_value_transform(params_dict)
             if value is not None and value != "":
-                value = math.floor(float(value)/ 1609.344)  
+                value = math.floor(float(value)/ 1609.344)
             return float(value)
         except Exception as e:
             logging.error("%s handle_pressure: Exception in named function:  error: %s", self.__class__.__name__, str(e))

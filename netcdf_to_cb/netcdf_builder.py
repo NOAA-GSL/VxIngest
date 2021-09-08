@@ -446,7 +446,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
     def handle_pressure(self, params_dict):
         try:
             value = self.umask_value_transform(params_dict)
-            if value is not None and value != "":
+            if value:
                 # convert to millibars (from pascals) and round
                 value = math.floor(float(value) / 100)
             return value

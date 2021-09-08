@@ -446,7 +446,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
     def handle_pressure(self, params_dict):
         try:
             value = self.umask_value_transform(params_dict)
-            if value is not None:
+            if not value is None:
                 # convert to millibars (from pascals) and round
                 value = math.floor(float(value) / 100)
             return value
@@ -458,7 +458,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
         try:
             value = self.umask_value_transform(params_dict)
             logging.info("converting %s to nautical miles", str(value))
-            if value is not None:
+            if not value is None:
                 value = math.floor(float(value)/ 1609.344)
             return float(value)
         except Exception as e:

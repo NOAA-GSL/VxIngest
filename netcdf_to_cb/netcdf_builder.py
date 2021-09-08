@@ -458,9 +458,9 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
         try:
             value = self.umask_value_transform(params_dict)
             logging.info("converting %s to nautical miles", str(value))
-            if not value is None:
+            if value is None:
                 value = math.floor(float(value)/ 1609.344)
-            return float(value)
+            return value
         except Exception as e:
             logging.error("%s handle_visibility: Exception in named function:  error: %s", self.__class__.__name__, str(e))
 

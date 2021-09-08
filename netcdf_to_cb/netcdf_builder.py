@@ -448,7 +448,6 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
             value = self.umask_value_transform(params_dict)
             if value:
                 # convert to millibars (from pascals) and round
-                logging.info("converting %s to millibars", str(value))
                 value = math.floor(float(value) / 100)
             return value
         except Exception as e:
@@ -458,11 +457,12 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
         #vis_sm = vis_m / 1609.344
         try:
             value = self.umask_value_transform(params_dict)
-            if value is not None and value != "":
+            logging.info("converting %s to nautical miles", str(value))
+            if value:
                 value = math.floor(float(value)/ 1609.344)
             return float(value)
         except Exception as e:
-            logging.error("%s handle_pressure: Exception in named function:  error: %s", self.__class__.__name__, str(e))
+            logging.error("%s handle_visibility: Exception in named function:  error: %s", self.__class__.__name__, str(e))
 
     def interpolate_time(self, params_dict):
         """

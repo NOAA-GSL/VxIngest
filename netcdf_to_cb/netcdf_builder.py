@@ -457,7 +457,6 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
         #vis_sm = vis_m / 1609.344
         try:
             value = self.umask_value_transform(params_dict)
-            logging.info("converting %s to nautical miles", str(value))
             if value is not None:
                 value = math.floor(float(value)/ 1609.344)
             return value

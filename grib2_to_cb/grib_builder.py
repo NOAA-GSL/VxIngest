@@ -530,7 +530,7 @@ class GribModelBuilderV01(GribBuilder):
                         # weird '-1's in the grib files??? (from legacy code)
                         ceil_agl.append(0)
                     else:
-                        tmp_ceil = ((ceil_msl_values[i] - surface_values[i]) * 3.281 ) if ceil_msl_values[i] != 60000 else 60000
+                        tmp_ceil = (ceil_msl_values[i] - surface_values[i]) * 3.281
                         if tmp_ceil < 0:
                             ceil_agl.append(0)
                         else:

@@ -458,7 +458,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
         try:
             value = self.umask_value_transform(params_dict)
             if value is not None:
-                value = math.floor(float(value)/ 1609.344)
+                value = round(float(value)/ 1609.344)
             return value
         except Exception as e:
             logging.error("%s handle_visibility: Exception in named function:  error: %s", self.__class__.__name__, str(e))

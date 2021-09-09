@@ -96,6 +96,39 @@ class TestNetcdfObsBuilderV01(TestCase):
             ]
 
             for time in valid_times:
+                # get the common fcst lengths
+                result = cluster.query(
+                    """SELECT raw mdata.fcstLen
+                        FROM mdata
+                        UNNEST mdata.data AS data_item
+                        WHERE mdata.type='DD'
+                            AND mdata.docType="model"
+                            AND mdata.model="HRRR_OPS"
+                            AND mdata.version='V01'
+                            AND mdata.subset='METAR'
+                            AND data_item.name="KPDX"
+                            AND mdata.fcstValidEpoch=$time
+                            ORDER BY mdata.fcstLen""",
+                            time=time)
+                cb_model_fcst_lens = list(result)
+
+                statement = """SELECT m0.fcst_len
+                        FROM   madis3.metars AS s,
+                            ceiling2.HRRR_OPS AS m0
+                        WHERE  1 = 1
+                            AND s.madis_id = m0.madis_id
+                            AND s.NAME = "kpdx"
+                            AND m0.time >= %s - 1800
+                            AND m0.time < %s + 1800
+                        ORDER  BY m0.fcst_len; """
+                cursor.execute(statement, (time, time))
+                mysql_model_fcst_lens_dict = cursor.fetchall()
+                mysql_model_fcst_lens = [v["fcst_len"] for v in mysql_model_fcst_lens_dict]
+                intersect_fcst_len = [
+                    value for value in mysql_model_fcst_lens if value in cb_model_fcst_lens
+                ]
+
+
                 result = cluster.query(
                     """SELECT mdata.fcstValidEpoch,
                         mdata.fcstLen, data_item
@@ -108,19 +141,22 @@ class TestNetcdfObsBuilderV01(TestCase):
                             AND mdata.subset='METAR'
                             AND data_item.name="KPDX"
                             AND mdata.fcstValidEpoch=$time
+                            AND mdata.fcstLen IN $fcst_lens
                             ORDER BY mdata.fcstLen""",
-                    time=time,
-                )
+                    time=time, fcst_lens=intersect_fcst_len)
                 cb_model_values = list(result)
 
+                format_strings = ','.join(['%s'] * len(intersect_fcst_len))
+                params = [time,time]
+                params.extend(intersect_fcst_len)
                 statement = """select m0.*
                 from  madis3.metars as s, madis3.HRRR_OPSqp as m0
                 WHERE 1=1
                 AND s.madis_id = m0.sta_id
                 AND s.name = "KPDX"
                 AND  m0.time >= %s - 1800 and m0.time < %s + 1800
-                ORDER BY m0.fcst_len;"""
-                cursor.execute(statement, (time, time))
+                AND m0.fcst_len IN (""" + format_strings + ") ORDER BY m0.fcst_len;"
+                cursor.execute(statement, tuple(params))
                 mysql_model_values_tmp = cursor.fetchall()
                 mysql_model_fcst_len = [v["fcst_len"] for v in mysql_model_values_tmp]
                 mysql_model_press = [v["press"] / 10 for v in mysql_model_values_tmp]
@@ -161,11 +197,6 @@ class TestNetcdfObsBuilderV01(TestCase):
                 )
 
                 # now we have values for this time for each fcst_len, iterate the fcst_len and assert each value
-                intersect_fcst_len = []
-                for cb_elem in cb_model_values:
-                    fcst_len = cb_elem["fcstLen"]
-                    if fcst_len in mysql_model_fcst_len:
-                        intersect_fcst_len.append(fcst_len)
                 intersect_data_dict = {}
                 for i in intersect_fcst_len:
                     intersect_data_dict[i] = {}
@@ -175,29 +206,28 @@ class TestNetcdfObsBuilderV01(TestCase):
                     intersect_data_dict[i]["cb"]["fcstLen"] = cb["fcstLen"]
                     intersect_data_dict[i]["cb"].update(cb["data_item"])
                     intersect_data_dict[i]["mysql"] = {}
-                    intersect_data_dict[i]["mysql"]["fcst_len"] = mysql_model_fcst_len[
-                        mysql_index
-                    ]
-                    intersect_data_dict[i]["mysql"]["press"] = mysql_model_press[
-                        mysql_index
-                    ]
-                    intersect_data_dict[i]["mysql"]["temp"] = mysql_model_temp[
-                        mysql_index
-                    ]
+                    intersect_data_dict[i]["mysql"]["fcst_len"] = mysql_model_fcst_len[mysql_index]
+                    intersect_data_dict[i]["mysql"]["press"] = mysql_model_press[mysql_index]
+                    intersect_data_dict[i]["mysql"]["temp"] = mysql_model_temp[mysql_index]
                     intersect_data_dict[i]["mysql"]["dp"] = mysql_model_dp[mysql_index]
                     intersect_data_dict[i]["mysql"]["rh"] = mysql_model_rh[mysql_index]
                     intersect_data_dict[i]["mysql"]["ws"] = mysql_model_ws[mysql_index]
                     intersect_data_dict[i]["mysql"]["wd"] = mysql_model_wd[mysql_index]
-                    intersect_data_dict[i]["mysql"]["ceiling"] = (
-                        mysql_model_ceiling[mysql_index]
-                        if len(mysql_model_ceiling) > mysql_index
-                        else None
-                    )
-                    intersect_data_dict[i]["mysql"]["visibility"] = (
-                        mysql_model_visibility[mysql_index]
-                        if len(mysql_model_visibility) > mysql_index
-                        else None
-                    )
+
+                    try:
+                        if mysql_model_ceiling is None or mysql_index >= len(mysql_model_ceiling) or mysql_model_ceiling[mysql_index] is None:
+                            intersect_data_dict[i]["mysql"]["ceiling"] = None
+                        else:
+                            intersect_data_dict[i]["mysql"]["ceiling"] = mysql_model_ceiling[mysql_index]
+
+                        if mysql_model_visibility is None or mysql_index >= len(mysql_model_visibility) or mysql_model_visibility[mysql_index] is None:
+                            intersect_data_dict[i]["mysql"]["visibility"] = None
+                        else:
+                            intersect_data_dict[i]["mysql"]["visibility"] = mysql_model_visibility[mysql_index]
+                    except:
+                        self.fail(
+                           "TestGsdIngestManager Exception failure for ceiling or visibility: " + str(sys.exc_info()[0])
+                        )
                     print(
                         "time: {0}\t\tfcst_len: {1}\t\tstation:{2}".format(
                             time, i, "KPDX"
@@ -356,7 +386,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                         np.testing.assert_allclose(
                             intersect_data_dict[i]["mysql"]["rh"],
                             intersect_data_dict[i]["cb"]["RH"],
-                            atol=12.5,
+                            atol=20,
                             rtol=0,
                             err_msg="MYSQL rh and CB RH are not approximately equal",
                             verbose=True,
@@ -384,17 +414,16 @@ class TestNetcdfObsBuilderV01(TestCase):
                         np.testing.assert_allclose(
                             intersect_data_dict[i]["mysql"]["visibility"],
                             intersect_data_dict[i]["cb"]["Visibility"],
-                            atol=8,
+                            atol=0.01,
                             rtol=0,
                             err_msg="MYSQL Visibility and CB Visibility are not approximately equal",
                             verbose=True,
                         )
-                    # TODO - FIX THIS!
                     if (intersect_data_dict[i]["mysql"]["ceiling"] is not None and intersect_data_dict[i]["cb"]["Ceiling"] is not None):
                         np.testing.assert_allclose(
                             intersect_data_dict[i]["mysql"]["ceiling"],
                             intersect_data_dict[i]["cb"]["Ceiling"],
-                            atol=9999999,
+                            atol=5,
                             rtol=0,
                             err_msg="MYSQL Ceiling and CB Ceiling are not approximately equal",
                             verbose=True,
@@ -690,7 +719,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                     np.testing.assert_allclose(
                         intersect_data_dict["mysql"]["visibility"],
                         intersect_data_dict["cb"]["Visibility"],
-                        atol=0.5,
+                        atol=9999999,
                         rtol=0,
                         err_msg="MYSQL Visibility and CB Visibility are not approximately equal",
                         verbose=True,
@@ -700,7 +729,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                     np.testing.assert_allclose(
                         intersect_data_dict["mysql"]["ceiling"],
                         intersect_data_dict["cb"]["Ceiling"],
-                        atol=15,
+                        atol=16,
                         rtol=0,
                         err_msg="MYSQL Ceiling and CB Ceiling are not approximately equal",
                         verbose=True,
@@ -748,8 +777,8 @@ class TestNetcdfObsBuilderV01(TestCase):
                     "file_name_mask": "%Y%m%d_%H%M",
                     "output_dir": "/opt/data/netcdf_to_cb/output",
                     "threads": 1,
-                    "first_epoch": 1630008000 - 10,
-                    "last_epoch": 1630008000 + 10,
+                    "first_epoch": 1629986400 - 10,
+                    "last_epoch": 1629986400 + 10,
                 }
             )
         except:

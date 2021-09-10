@@ -41,8 +41,8 @@ ${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -
 echo "*************************************"
 echo "ctc's"
 rm -rf /data/ctc_to_cb/output/*
-python ctc_to_cb/run_ingest_threads.py -s /data/ctc_to_cb/load_specs/load_spec_metar_ctc_V01.yaml  -c ~/adb-cb1-credentials -o /data/ctc_to_cb/output
-${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p /data/ctc_to_cb/output -l ${clonedir}/logs
+python ctc_to_cb/run_ingest_threads.py -s /data/ctc_to_cb/load_specs/load_spec_metar_ctc_V01.yaml  -c ~/adb-cb1-credentials -o /data/ctc_to_cb/output -t8
+${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p /data/ctc_to_cb/output -n 8 -l ${clonedir}/logs
 
 echo "FINISHED" 
 date

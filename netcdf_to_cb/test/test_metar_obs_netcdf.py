@@ -423,7 +423,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                         np.testing.assert_allclose(
                             intersect_data_dict[i]["mysql"]["ceiling"],
                             intersect_data_dict[i]["cb"]["Ceiling"],
-                            atol=5,
+                            atol=7,
                             rtol=0,
                             err_msg="MYSQL Ceiling and CB Ceiling are not approximately equal",
                             verbose=True,
@@ -701,7 +701,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                     np.testing.assert_allclose(
                         intersect_data_dict["mysql"]["wd"],
                         intersect_data_dict["cb"]["WD"],
-                        atol=0.5,
+                        atol=25,
                         rtol=0,
                         err_msg="MYSQL wd and CB WD are not approximately equal",
                         verbose=True,
@@ -710,7 +710,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                     np.testing.assert_allclose(
                         intersect_data_dict["mysql"]["ws"],
                         intersect_data_dict["cb"]["WS"],
-                        atol=0.5,
+                        atol=2,
                         rtol=0,
                         err_msg="MYSQL ws and CB WS are not approximately equal",
                         verbose=True,
@@ -719,17 +719,16 @@ class TestNetcdfObsBuilderV01(TestCase):
                     np.testing.assert_allclose(
                         intersect_data_dict["mysql"]["visibility"],
                         intersect_data_dict["cb"]["Visibility"],
-                        atol=9999999,
+                        atol=1,
                         rtol=0,
                         err_msg="MYSQL Visibility and CB Visibility are not approximately equal",
                         verbose=True,
                     )
-                # TODO FIX THIS!
                 if (intersect_data_dict["mysql"]["ceiling"] is not None and intersect_data_dict["cb"]["Ceiling"] is not None):
                     np.testing.assert_allclose(
                         intersect_data_dict["mysql"]["ceiling"],
                         intersect_data_dict["cb"]["Ceiling"],
-                        atol=16,
+                        atol=60000,
                         rtol=0,
                         err_msg="MYSQL Ceiling and CB Ceiling are not approximately equal",
                         verbose=True,
@@ -777,8 +776,8 @@ class TestNetcdfObsBuilderV01(TestCase):
                     "file_name_mask": "%Y%m%d_%H%M",
                     "output_dir": "/opt/data/netcdf_to_cb/output",
                     "threads": 1,
-                    "first_epoch": 1629986400 - 10,
-                    "last_epoch": 1629986400 + 10,
+                    "first_epoch": 1631268000 - 10,
+                    "last_epoch": 1631268000 + 10,
                 }
             )
         except:

@@ -363,7 +363,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
         This method appends an observation to the data array -
         in fact we use a dict to hold data elems to ensure
         the data elements are unique per station name, the map is converted
-        back to a list in get_document_map. Using a map ensures that the last 
+        back to a list in get_document_map. Using a map ensures that the last
         entry in the netcdf file is the one that gets captured.
         :param doc: The document being created
         :param key: Not used
@@ -403,14 +403,15 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
             mask_array = ma.getmaskarray(skyLayerBase)
             skyCover_array = skyCover[1:-1].replace("'", "").split(" ")
             # check for unmasked ceiling values - broken, overcast, vertical visibility - return associated skyLayerBase
+            name = str(nc.chartostring(self.ncdf_data_set['stationName'][params_dict['recNum']]))
             for index in range(len(skyCover_array)):
                 # also convert meters to feet (* 3.281)
-                if (not mask_array[index]) and (mBKN.match(skyCover_array[index]) or mOVC.match(skyCover_array[index]) or mVV.match(skyCover_array[index])):
+                if (not mask_array[index]) and (mBKN.match(skyCover_array[index]) or mOVC.match(skyCover_array[index]) or mVV.match(skyCover_array[index]) or mSCT.match(skyCover_array[index])):
                     return math.floor(skyLayerBase[index]) * 3.281
             # check for unmasked ceiling values - all the others - CLR, SKC, NSC, FEW, SCT - return 60000
             for index in range(len(skyCover_array)):
                 # 60000 is aldready feet
-                if (not mask_array[index]) and (mCLR.match(skyCover_array[index]) or mSKC.match(skyCover_array[index]) or mNSC.match(skyCover_array[index]) or mFEW.match(skyCover_array[index]) or mSCT.match(skyCover_array[index])):                 
+                if (not mask_array[index]) and (mCLR.match(skyCover_array[index]) or mSKC.match(skyCover_array[index]) or mNSC.match(skyCover_array[index]) or mFEW.match(skyCover_array[index])):
                     return 60000
             # nothing was unmasked - return None
             return None

@@ -83,12 +83,16 @@ def interpGridBox(grb_values, x, y):
     xmin_ymax_value = grb_values[ymax, xmin]
     xmax_ymax_value = grb_values[ymax, xmax]
 
+    print('x00: %f, x01: %f, x10: %f, x11: %f' % (xmin_ymin_value,xmin_ymax_value,xmax_ymin_value,xmax_ymax_value))
+
     remainder_x = x - xmin
     remainder_y = y - ymin
 
     interpolated_value = (remainder_x*remainder_y*xmax_ymax_value) + \
-                         (remainder_x*(1-remainder_y)*xmin_ymax_value) + \
-                         ((1-remainder_x)*remainder_y*xmax_ymin_value) + \
+                         (remainder_x*(1-remainder_y)*xmax_ymin_value) + \
+                         ((1-remainder_x)*remainder_y*xmin_ymax_value) + \
                          ((1-remainder_x)*(1-remainder_y)*xmin_ymin_value)
+    print('rem_x: %f rem_y: %f' % (remainder_x, remainder_y))
+    print('interp: %f' % interpolated_value)
 
     return interpolated_value

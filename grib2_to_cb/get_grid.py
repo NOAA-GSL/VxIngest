@@ -91,8 +91,8 @@ def interpGridBox(grb_values,y,x):
         remainder_y = y - ymin
 
         interpolated_value = (remainder_x*remainder_y*xmax_ymax_value) + \
-                            (remainder_x*(1-remainder_y)*xmin_ymax_value) + \
-                            ((1-remainder_x)*remainder_y*xmax_ymin_value) + \
+                            (remainder_x*(1-remainder_y)*xmax_ymin_value) + \
+                            ((1-remainder_x)*remainder_y*xmin_ymax_value) + \
                             ((1-remainder_x)*(1-remainder_y)*xmin_ymin_value)
         return interpolated_value
     except Exception as e:

@@ -15,7 +15,7 @@ import get_grid as gg
     
 def test():
         # Grab the projection information from the test file
-        grib2_file = '/Users/jeffrey.a.hamilton/VxIngest/grib2_to_cb_test/test/2119312000003'
+        grib2_file = '/Users/jeffrey.a.hamilton/VxIngest/grib2_to_cb_test/test/2125217000000'
         print("grib2 file being tested: %s" % grib2_file)
 
         projection = gg.getGrid(grib2_file)
@@ -28,8 +28,8 @@ def test():
         in_proj = pyproj.Proj(proj='latlon')
         out_proj = projection
 
-        # Example METAR station lat-lon from Danbury, CT (name: KDXR, id:2556)
-        lat, lon = 41.37, 286.52
+        # Example METAR station lat-lon from Portland (KPDX)
+        lat, lon = 45.6, 237.4
 
         # Find the x, y coordinate on the model grid, then round to nearest integer
         transformer = pyproj.Transformer.from_proj(proj_from=in_proj,proj_to=out_proj)
@@ -73,6 +73,9 @@ def test():
         #    cname=dict_params['Geopotential Height']
         #    typeOfFirstFixedSurface=dict_params[{typeOfFirstFixedSurface:'215'}]
         
+        #for grb in grbs:
+        #        print(grb)
+
         surface_hgt = grbs.select(name='Orography')[0]
         print(surface_hgt)
         surface_hgt_values = surface_hgt['values']
@@ -81,9 +84,11 @@ def test():
         print(ceil)
         ceil_values = ceil['values']
         ceil_msl = ceil_values[round(y_stat),round(x_stat)]
+        print(surface)
+        print(ceil_msl)
 
-        # Convert to ceiling AGL and from meters to tens of feet (what is currently inside SQL, we'll leave it as just feet in CB)
-        ceil_agl = (ceil_msl - surface) * 0.32808
+        # Convert to ceiling AGL and feet
+        ceil_agl = (ceil_msl - surface) * 3.281
         print(ceil_agl)
 
         # This value matches the rounded value inside the MySQL database, extracted with the following query:
@@ -98,7 +103,7 @@ def test():
         #pres = sfc_pres_values[round(y_stat),round(x_stat)]
 
         # Convert from pascals to milibars
-        pres_mb = pres * 100
+        pres_mb = pres / 100
         print(pres_mb)
 
         ## 2M TEMPERATURE
@@ -118,8 +123,8 @@ def test():
         dp = grbs.select(name='2 metre dewpoint temperature')[0]
         print(dp)
         dp_values = dp['values']
-        dpk = gg.interpGridBox(dp_values,x_stat,y_stat)
-        #dpk = dp_values[round(y_stat),round(x_stat)]
+        #dpk = gg.interpGridBox(dp_values,x_stat,y_stat)
+        dpk = dp_values[round(y_stat),round(x_stat)]
 
         # Convert from Kelvin to Farenheit
         dpf = ((dpk-273.15)*9)/5 + 32
@@ -130,10 +135,20 @@ def test():
         relhumid = grbs.select(name='2 metre relative humidity')[0]
         print(relhumid)
         relhumid_values = relhumid['values']
-        rh = gg.interpGridBox(relhumid_values,x_stat,y_stat)
-        #rh = relhumid_values[round(y_stat),round(x_stat)]
+        #rh = gg.interpGridBox(relhumid_values,x_stat,y_stat)
+        rh = relhumid_values[round(y_stat),round(x_stat)]
 
         print(rh)
+
+        ## 2M SPECIFIC HUMIDITY
+
+        spechumid = grbs.select(name='2 metre specific humidity')[0]
+        print(spechumid)
+        spechumid_values = spechumid['values']
+        #rh = gg.interpGridBox(relhumid_values,x_stat,y_stat)
+        sh = spechumid_values[round(y_stat),round(x_stat)]
+
+        print(sh)
 
         ## WIND SPEED AND DIRECTION
 
@@ -166,7 +181,7 @@ def test():
         vis = grbs.select(name='Visibility')[0]
         print(vis)
         vis_values = vis['values']
-        vis_m = vis_values[round(y_stat),round(x_stat)]
+        vis_m = (vis_values[round(y_stat),round(x_stat)]) / 1609.344
 
         print(vis_m)
 

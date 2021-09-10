@@ -511,21 +511,24 @@ class GribModelBuilderV01(GribBuilder):
                 ceil_msl_values.append(60000)
         ceil_agl = []
         for i in range(len(self.domain_stations)):
-            if ceil_msl_values[i] is None or surface_values[i] is None:
-                ceil_agl.append(None)
+            if ceil_msl_values[i] == 60000:
+                ceil_agl.append(60000)
             else:
-                if(ceil_msl_values[i] < -1000 or ceil_msl_values[i] > 1e10):
-                    ceil_agl.append(60000)
+                if ceil_msl_values[i] is None or surface_values[i] is None:
+                    ceil_agl.append(None)
                 else:
-                    if ceil_msl_values[i] < 0:
-                        # weird '-1's in the grib files??? (from legacy code)
-                        ceil_agl.append(0)
+                    if(ceil_msl_values[i] < -1000 or ceil_msl_values[i] > 1e10):
+                        ceil_agl.append(60000)
                     else:
-                        tmp_ceil = (ceil_msl_values[i] - surface_values[i]) * 3.281
-                        if tmp_ceil < 0:
+                        if ceil_msl_values[i] < 0:
+                            # weird '-1's in the grib files??? (from legacy code)
                             ceil_agl.append(0)
                         else:
-                            ceil_agl.append(tmp_ceil)
+                            tmp_ceil = (ceil_msl_values[i] - surface_values[i]) * 3.281
+                            if tmp_ceil < 0:
+                                ceil_agl.append(0)
+                            else:
+                                ceil_agl.append(tmp_ceil)
         return ceil_agl
 
         # SURFACE PRESSURE

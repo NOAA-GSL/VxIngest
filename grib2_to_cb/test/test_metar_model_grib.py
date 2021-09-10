@@ -158,7 +158,7 @@ class TestGribBuilderV01(unittest.TestCase):
                 # interpolated gridpoints cannot be rounded
                 interpolated_value = gg.interpGridBox(
                     values, station['y_gridpoint'], station['x_gridpoint'])
-                pres_mb = interpolated_value * 100
+                pres_mb = interpolated_value / 100
                 expected_station_data['data'][i]['Surface Pressure'] = pres_mb if not numpy.ma.is_masked(pres_mb) else None
 
             # Temperature
@@ -224,32 +224,40 @@ class TestGribBuilderV01(unittest.TestCase):
                 station = self.domain_stations[i]
                 value = values[round(station['y_gridpoint']), round(
                     station['x_gridpoint'])]
-                expected_station_data['data'][i]['Visibility'] = value if not numpy.ma.is_masked(value) else None
+                expected_station_data['data'][i]['Visibility'] = value / 1609.344 if not numpy.ma.is_masked(value) else None
             self.grbs.close()
 
             for i in range(len(self.domain_stations)):
-                self.assertAlmostEqual(expected_station_data['data'][i]['Ceiling'],
+                if expected_station_data['data'][i]['Ceiling'] is not None:
+                    self.assertAlmostEqual(expected_station_data['data'][i]['Ceiling'],
                                        vxIngest_output_data[0]['data'][i]['Ceiling'], msg="Expected Ceiling and derived Ceiling are not equal")
 
-                self.assertAlmostEqual(expected_station_data['data'][i]['Surface Pressure'],
+                if expected_station_data['data'][i]['Surface Pressure'] is not None:
+                    self.assertAlmostEqual(expected_station_data['data'][i]['Surface Pressure'],
                                        vxIngest_output_data[0]['data'][i]['Surface Pressure'], msg="Expected Surface Pressure and derived Surface Pressure are not equal")
 
-                self.assertAlmostEqual(expected_station_data['data'][i]['Temperature'],
+                if expected_station_data['data'][i]['Temperature'] is not None:
+                    self.assertAlmostEqual(expected_station_data['data'][i]['Temperature'],
                                        vxIngest_output_data[0]['data'][i]['Temperature'], msg="Expected Temperature and derived Temperature are not equal")
 
-                self.assertAlmostEqual(expected_station_data['data'][i]['DewPoint'],
+                if expected_station_data['data'][i]['DewPoint'] is not None:
+                    self.assertAlmostEqual(expected_station_data['data'][i]['DewPoint'],
                                        vxIngest_output_data[0]['data'][i]['DewPoint'], msg="Expected DewPoint and derived DewPoint are not equal")
 
-                self.assertAlmostEqual(expected_station_data['data'][i]['RH'],
+                if expected_station_data['data'][i]['RH'] is not None:
+                    self.assertAlmostEqual(expected_station_data['data'][i]['RH'],
                                        vxIngest_output_data[0]['data'][i]['RH'], msg="Expected RH and derived RH are not equal")
 
-                self.assertAlmostEqual(expected_station_data['data'][i]['WS'],
+                if expected_station_data['data'][i]['WS'] is not None:
+                    self.assertAlmostEqual(expected_station_data['data'][i]['WS'],
                                        vxIngest_output_data[0]['data'][i]['WS'], msg="Expected WS and derived WS are not equal")
 
-                self.assertAlmostEqual(expected_station_data['data'][i]['WD'],
+                if expected_station_data['data'][i]['WD'] is not None:
+                    self.assertAlmostEqual(expected_station_data['data'][i]['WD'],
                                        vxIngest_output_data[0]['data'][i]['WD'], msg="Expected WD and derived WD are not equal")
 
-                self.assertAlmostEqual(expected_station_data['data'][i]['Visibility'],
+                if expected_station_data['data'][i]['Visibility'] is not None:
+                    self.assertAlmostEqual(expected_station_data['data'][i]['Visibility'],
                                        vxIngest_output_data[0]['data'][i]['Visibility'], msg="Expected Visibility and derived Visibility are not equal")
 
         except:

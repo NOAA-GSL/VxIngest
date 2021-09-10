@@ -18,12 +18,6 @@ from pstats import Stats
 import numpy
 import pygrib
 import pyproj
-from couchbase.cluster import Cluster, ClusterOptions, PasswordAuthenticator
-from couchbase.exceptions import CouchbaseException
-from couchbase.mutation_state import MutationState
-from couchbase.search import (HighlightStyle, PrefixQuery, QueryStringQuery,
-                              SearchOptions, SearchQuery, SortField, SortScore,
-                              TermFacet)
 
 import grib2_to_cb.get_grid as gg
 
@@ -499,10 +493,7 @@ class GribModelBuilderV01(GribBuilder):
         for station in self.domain_stations:
             x_gridpoint = round(station['x_gridpoint'])
             y_gridpoint = round(station['y_gridpoint'])
-            if not numpy.ma.is_masked(values[y_gridpoint, x_gridpoint]):
-                surface_values.append(values[y_gridpoint, x_gridpoint])
-            else:
-                surface_values.append(None)
+            surface_values.append(values[y_gridpoint, x_gridpoint])
 
         message = self.grbs.select(
             name='Geopotential Height', typeOfFirstFixedSurface='215')[0]

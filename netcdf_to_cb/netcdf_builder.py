@@ -406,12 +406,12 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
             name = str(nc.chartostring(self.ncdf_data_set['stationName'][params_dict['recNum']]))
             for index in range(len(skyCover_array)):
                 # also convert meters to feet (* 3.281)
-                if (not mask_array[index]) and (mBKN.match(skyCover_array[index]) or mOVC.match(skyCover_array[index]) or mVV.match(skyCover_array[index]) or mSCT.match(skyCover_array[index])):
+                if (not mask_array[index]) and (mBKN.match(skyCover_array[index]) or mOVC.match(skyCover_array[index]) or mVV.match(skyCover_array[index])):
                     return math.floor(skyLayerBase[index]) * 3.281
             # check for unmasked ceiling values - all the others - CLR, SKC, NSC, FEW, SCT - return 60000
             for index in range(len(skyCover_array)):
                 # 60000 is aldready feet
-                if (not mask_array[index]) and (mCLR.match(skyCover_array[index]) or mSKC.match(skyCover_array[index]) or mNSC.match(skyCover_array[index]) or mFEW.match(skyCover_array[index])):
+                if (not mask_array[index]) and (mCLR.match(skyCover_array[index]) or mSKC.match(skyCover_array[index]) or mNSC.match(skyCover_array[index]) or mFEW.match(skyCover_array[index]) or mSCT.match(skyCover_array[index])):
                     return 60000
             # nothing was unmasked - return None
             return None

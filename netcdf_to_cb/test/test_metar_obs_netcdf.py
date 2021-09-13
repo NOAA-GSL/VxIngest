@@ -710,7 +710,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                     np.testing.assert_allclose(
                         intersect_data_dict["mysql"]["ws"],
                         intersect_data_dict["cb"]["WS"],
-                        atol=2,
+                        atol=4,
                         rtol=0,
                         err_msg="MYSQL ws and CB WS are not approximately equal",
                         verbose=True,

@@ -25,6 +25,16 @@
           "name": "&handle_station|*stationName"
         }
       },
+      "units": {
+        "Ceiling": "ft",
+        "DewPoint": "deg F",
+        "Surface Pressure": "mb",
+        "Temperature": "deg F",
+        "Visibility": "miles",
+        "RH": "percent",
+        "WD": "degrees",
+        "WS": "mph"
+      },
       "dataSourceId": "MADIS",
       "docType": "obs",
       "fcstValidBeg": "&interpolate_time_iso|*timeObs",

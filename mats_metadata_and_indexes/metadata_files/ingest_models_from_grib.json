@@ -26,6 +26,16 @@
           "name": "&getName"
         }
       },
+      "units": {
+        "Ceiling": "ft",
+        "DewPoint": "deg F",
+        "Surface Pressure": "mb",
+        "Temperature": "deg F",
+        "Visibility": "miles",
+        "RH": "percent",
+        "WD": "degrees",
+        "WS": "mph"
+      },
       "dataSourceId": "NCO",
       "docType": "model",
       "model": "HRRR_OPS",
@@ -65,6 +75,16 @@
           "WS": "&handle_wind_speed|*10 metre U wind component,*10 metre V wind component",
           "name": "&getName"
         }
+      },
+      "units": {
+        "Ceiling": "ft",
+        "DewPoint": "deg F",
+        "Surface Pressure": "mb",
+        "Temperature": "deg F",
+        "Visibility": "miles",
+        "RH": "percent",
+        "WD": "degrees",
+        "WS": "mph"
       },
       "dataSourceId": "NCO",
       "docType": "model",

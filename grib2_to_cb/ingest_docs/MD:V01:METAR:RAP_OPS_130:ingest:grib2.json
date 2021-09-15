@@ -24,6 +24,16 @@
         "name": "&getName"
       }
     },
+    "units": {
+      "Ceiling": "ft",
+      "DewPoint": "deg F",
+      "Surface Pressure": "mb",
+      "Temperature": "deg F",
+      "Visibility": "miles",
+      "RH": "percent",
+      "WD": "degrees",
+      "WS": "mph"
+    },
     "dataSourceId": "NCO",
     "docType": "model",
     "model": "RAP_OPS_130",

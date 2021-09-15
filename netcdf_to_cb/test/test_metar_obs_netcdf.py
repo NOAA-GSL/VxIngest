@@ -749,8 +749,8 @@ class TestNetcdfObsBuilderV01(TestCase):
                     "file_name_mask": "%Y%m%d_%H%M",
                     "output_dir": "/opt/data/netcdf_to_cb/output",
                     "threads": 1,
-                    "first_epoch": 1631268000 - 10,
-                    "last_epoch": 1631268000 + 10,
+                    "first_epoch": 1631264400 - 10,
+                    "last_epoch": 1631264400 + 10,
                 }
             )
         except:

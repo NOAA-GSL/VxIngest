@@ -358,6 +358,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
             return self.document_map
         except Exception:
             logging.exception("%s get_document_map: Exception in get_document_map", self.__class__.__name__)
+
     def load_data(self, doc, key, element):
         """
         This method appends an observation to the data array -
@@ -372,7 +373,9 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
         """
         if 'data' not in doc.keys() or doc['data'] is None:
             doc['data'] = {}
-        doc['data'][element['name']] = element
+        if element['name'] not in doc['data'].keys():
+            # we only want the first record (to match the legacy data)
+            doc['data'][element['name']] = element
         return doc
 
     # named functions
@@ -403,11 +406,11 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
             mask_array = ma.getmaskarray(skyLayerBase)
             skyCover_array = skyCover[1:-1].replace("'", "").split(" ")
             # check for unmasked ceiling values - broken, overcast, vertical visibility - return associated skyLayerBase
-            name = str(nc.chartostring(self.ncdf_data_set['stationName'][params_dict['recNum']]))
+            #name = str(nc.chartostring(self.ncdf_data_set['stationName'][params_dict['recNum']]))
             for index in range(len(skyCover_array)):
                 # also convert meters to feet (* 3.281)
                 if (not mask_array[index]) and (mBKN.match(skyCover_array[index]) or mOVC.match(skyCover_array[index]) or mVV.match(skyCover_array[index])):
-                    return math.floor(skyLayerBase[index]) * 3.281
+                    return math.floor(skyLayerBase[index] * 3.281)
             # check for unmasked ceiling values - all the others - CLR, SKC, NSC, FEW, SCT - return 60000
             for index in range(len(skyCover_array)):
                 # 60000 is aldready feet
@@ -449,7 +452,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
             value = self.umask_value_transform(params_dict)
             if value is not None:
                 # convert to millibars (from pascals) and round
-                value = math.floor(float(value) / 100)
+                value = float(value) / 100
             return value
         except Exception as e:
             logging.error("%s handle_pressure: Exception in named function:  error: %s", self.__class__.__name__, str(e))
@@ -459,7 +462,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
         try:
             value = self.umask_value_transform(params_dict)
             if value is not None:
-                value = round(float(value)/ 1609.344)
+                value = float(value) / 1609.344
             return value
         except Exception as e:
             logging.error("%s handle_visibility: Exception in named function:  error: %s", self.__class__.__name__, str(e))

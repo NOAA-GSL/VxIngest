@@ -48,7 +48,7 @@ class HistBuilder():
             f.close()
             keys=datasets.keys()
             for field in keys:
-                fig = px.histogram(x=datasets[field], nbins=20, title=field.replace("'","").upper())
+                fig = px.histogram(x=datasets[field], nbins=20, title=self.delta_file + " - " + field.replace("'","").upper())
                 fig.show()
         except:
             print(

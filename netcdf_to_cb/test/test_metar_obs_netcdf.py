@@ -95,6 +95,19 @@ class TestNetcdfObsBuilderV01(TestCase):
                 value for value in intersect_mysql_times if value in intersect_cb_times
             ]
 
+            result = cluster.query(
+                """SELECT raw mdata.units
+                    FROM mdata
+                    UNNEST mdata.data AS data_item
+                    WHERE mdata.type='DD'
+                        AND mdata.docType="obs"
+                        AND mdata.version='V01'
+                        AND mdata.subset='METAR'
+                        AND data_item.name="KPDX"
+                        AND mdata.fcstValidEpoch=$time""",
+                        time=valid_times[0])
+            units = list(result)[0]
+
             for time in valid_times:
                 # get the common fcst lengths
                 result = cluster.query(
@@ -235,17 +248,17 @@ class TestNetcdfObsBuilderV01(TestCase):
                             time, i, "KPDX"
                         )
                     )
-                    print("field\t\tmysql\t\tcb\t\t\t\tdelta")
+                    print("field\t\tmysql\t\tcb\t\t\t\tdelta\t\t\tunits")
 
                     if (intersect_data_dict[i]["mysql"]["press"] and intersect_data_dict[i]["cb"]["Surface Pressure"]):
                         delta = intersect_data_dict[i]["mysql"]["press"] - intersect_data_dict[i]["cb"]["Surface Pressure"]
                     else:
                         delta = None
                     print(
-                        "'press'\t\t{0}\t\t{1}\t\t\t{2}".format(
+                        "'press'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
                             intersect_data_dict[i]["mysql"]["press"],
                             intersect_data_dict[i]["cb"]["Surface Pressure"],
-                            delta,
+                            delta, units['Surface Pressure']
                         )
                     )
 
@@ -254,10 +267,10 @@ class TestNetcdfObsBuilderV01(TestCase):
                     else:
                         delta = None
                     print(
-                        "'temp'\t\t{0}\t\t{1}\t\t\t{2}".format(
+                        "'temp'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
                             intersect_data_dict[i]["mysql"]["temp"],
                             intersect_data_dict[i]["cb"]["Temperature"],
-                            delta,
+                            delta, units['Temperature']
                         )
                     )
 
@@ -266,10 +279,10 @@ class TestNetcdfObsBuilderV01(TestCase):
                     else:
                         delta = None
                     print(
-                        "'dp'\t\t{0}\t\t{1}\t\t\t{2}".format(
+                        "'dp'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
                             intersect_data_dict[i]["mysql"]["dp"],
                             intersect_data_dict[i]["cb"]["DewPoint"],
-                            delta,
+                            delta, units['DewPoint']
                         )
                     )
 
@@ -278,10 +291,10 @@ class TestNetcdfObsBuilderV01(TestCase):
                     else:
                         delta = None
                     print(
-                        "'rh'\t\t{0}\t\t{1}\t\t\t{2}".format(
+                        "'rh'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
                             intersect_data_dict[i]["mysql"]["rh"],
                             intersect_data_dict[i]["cb"]["RH"],
-                            delta,
+                            delta, units['RH']
                         )
                     )
 
@@ -290,10 +303,10 @@ class TestNetcdfObsBuilderV01(TestCase):
                     else:
                         delta = None
                     print(
-                        "'ws'\t\t{0}\t\t{1}\t\t\t{2}".format(
+                        "'ws'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
                             intersect_data_dict[i]["mysql"]["ws"],
                             intersect_data_dict[i]["cb"]["WS"],
-                            delta,
+                            delta, units['WS']
                         )
                     )
 
@@ -302,10 +315,10 @@ class TestNetcdfObsBuilderV01(TestCase):
                     else:
                         delta = None
                     print(
-                        "'wd'\t\t{0}\t\t{1}\t\t\t{2}".format(
+                        "'wd'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
                             intersect_data_dict[i]["mysql"]["wd"],
                             intersect_data_dict[i]["cb"]["WD"],
-                            delta,
+                            delta, units['WD']
                         )
                     )
 
@@ -314,10 +327,10 @@ class TestNetcdfObsBuilderV01(TestCase):
                     else:
                         delta = None
                     print(
-                        "'ceiling'\t\t{0}\t\t{1}\t\t\t{2}".format(
+                        "'ceiling'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
                             intersect_data_dict[i]["mysql"]["ceiling"],
                             intersect_data_dict[i]["cb"]["Ceiling"],
-                            delta,
+                            delta, units['Ceiling']
                         )
                     )
 
@@ -326,10 +339,10 @@ class TestNetcdfObsBuilderV01(TestCase):
                     else:
                         delta = None
                     print(
-                        "'visibility'\t{0}\t\t{1}\t\t\t{2}".format(
+                        "'visibility'\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
                             intersect_data_dict[i]["mysql"]["visibility"],
                             intersect_data_dict[i]["cb"]["Visibility"],
-                            delta,
+                            delta, units['Visibility']
                         )
                     )
                     print("--")
@@ -464,7 +477,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                 client_flag=CLIENT.MULTI_STATEMENTS,
             )
             cursor = connection.cursor(pymysql.cursors.SSDictCursor)
-            statement = """SELECT floor((o.time+1800)/(3600))*3600 AS time
+            statement = """SELECT DISTINCT floor((o.time+1800)/(3600))*3600 AS time
                             FROM   madis3.obs AS o,
                             madis3.metars AS s
                             WHERE  s.name = "KPDX"
@@ -481,6 +494,20 @@ class TestNetcdfObsBuilderV01(TestCase):
                 for value in intersect_mysql_times
                 if value in cb_obs_fcst_valid_epochs
             ]
+
+            result = cluster.query(
+                """SELECT raw mdata.units
+                    FROM mdata
+                    UNNEST mdata.data AS data_item
+                    WHERE mdata.type='DD'
+                        AND mdata.docType="obs"
+                        AND mdata.version='V01'
+                        AND mdata.subset='METAR'
+                        AND data_item.name="KPDX"
+                        AND mdata.fcstValidEpoch=$time""",
+                        time=valid_times[0])
+            units = list(result)[0]
+
 
             for time in valid_times:
                 result = cluster.query(
@@ -552,7 +579,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                 intersect_data_dict["mysql"]["ceiling"] = mysql_obs_ceiling
                 intersect_data_dict["mysql"]["visibility"] = mysql_obs_visibility
                 print("time: {0}\t\tstation: {1}".format(time, "KPDX"))
-                print("field\t\tmysql\t\tcb\t\t\tdelta")
+                print("field\t\tmysql\t\tcb\t\t\tdelta\t\t\tunits")
 
                 if (
                     intersect_data_dict["mysql"]["press"]
@@ -562,10 +589,10 @@ class TestNetcdfObsBuilderV01(TestCase):
                 else:
                     delta = None
                 print(
-                    "'press'\t\t{0}\t\t{1}\t\t\t{2}".format(
+                    "'press'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
                         intersect_data_dict["mysql"]["press"],
                         intersect_data_dict["cb"]["Surface Pressure"],
-                        delta,
+                        delta, units['Surface Pressure']
                     )
                 )
 
@@ -576,10 +603,10 @@ class TestNetcdfObsBuilderV01(TestCase):
                 else:
                     delta = None
                 print(
-                    "'temp'\t\t{0}\t\t{1}\t\t\t{2}".format(
+                    "'temp'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
                         intersect_data_dict["mysql"]["temp"],
                         intersect_data_dict["cb"]["Temperature"],
-                        delta,
+                        delta, units['Temperature']
                     )
                 )
 
@@ -588,10 +615,10 @@ class TestNetcdfObsBuilderV01(TestCase):
                 else:
                     delta = None
                 print(
-                    "'dp'\t\t{0}\t\t{1}\t\t\t{2}".format(
+                    "'dp'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
                         intersect_data_dict["mysql"]["dp"],
                         intersect_data_dict["cb"]["DewPoint"],
-                        delta,
+                        delta, units['DewPoint']
                     )
                 )
 
@@ -600,10 +627,10 @@ class TestNetcdfObsBuilderV01(TestCase):
                 else:
                     delta = None
                 print(
-                    "'wd'\t\t{0}\t\t{1}\t\t\t{2}".format(
+                    "'wd'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
                         intersect_data_dict["mysql"]["wd"],
                         intersect_data_dict["cb"]["WD"],
-                        delta,
+                        delta, units['WD']
                     )
                 )
 
@@ -612,10 +639,10 @@ class TestNetcdfObsBuilderV01(TestCase):
                 else:
                     delta = None
                 print(
-                    "'ws'\t\t{0}\t\t{1}\t\t\t{2}".format(
+                    "'ws'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
                         intersect_data_dict["mysql"]["ws"],
                         intersect_data_dict["cb"]["WS"],
-                        delta,
+                        delta, units['WS']
                     )
                 )
 
@@ -624,10 +651,10 @@ class TestNetcdfObsBuilderV01(TestCase):
                 else:
                     delta = None
                 print(
-                    "'ceiling'\t\t{0}\t\t{1}\t\t\t{2}".format(
+                    "'ceiling'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
                         intersect_data_dict["mysql"]["ceiling"],
                         intersect_data_dict["cb"]["Ceiling"],
-                        delta,
+                        delta, units['Ceiling']
                     )
                 )
 
@@ -636,10 +663,10 @@ class TestNetcdfObsBuilderV01(TestCase):
                 else:
                     delta = None
                 print(
-                    "'visibility'\t{0}\t\t{1}\t\t\t{2}".format(
+                    "'visibility'\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
                         intersect_data_dict["mysql"]["visibility"],
                         intersect_data_dict["cb"]["Visibility"],
-                        delta,
+                        delta, units['Visibility']
                     )
                 )
                 print("--")

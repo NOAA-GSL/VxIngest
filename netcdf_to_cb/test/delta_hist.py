@@ -33,6 +33,7 @@ class HistBuilder():
         self.delta_file = args['file'].strip()
         try:
             datasets={}
+            unitset = {}
             f=open(self.delta_file,"r")
             lines=f.readlines()
             for x in lines:
@@ -40,15 +41,17 @@ class HistBuilder():
                     columns = x.split()
                     field = columns[0]
                     delta = columns[3]
+                    units = columns[4]
                     if field not in datasets.keys():
                         datasets[field] = []
                     if delta == 'None':
                         continue
                     datasets[field].append(float(delta))
+                    unitset[field] = units
             f.close()
             keys=datasets.keys()
             for field in keys:
-                fig = px.histogram(x=datasets[field], nbins=20, title=self.delta_file + " - " + field.replace("'","").upper())
+                fig = px.histogram(x=datasets[field], nbins=20, title=self.delta_file + " - " + field.replace("'","").upper(), labels={"x":unitset[field]})
                 fig.show()
         except:
             print(

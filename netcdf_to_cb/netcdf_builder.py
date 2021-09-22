@@ -374,8 +374,13 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
         if 'data' not in doc.keys() or doc['data'] is None:
             doc['data'] = {}
         if element['name'] not in doc['data'].keys():
-            # we only want the first record (to match the legacy data)
+            # we only want the closest record (to match the legacy data)
             doc['data'][element['name']] = element
+        else:
+            # is this one closer to the target time?
+            top_of_hour = doc['fcstValidEpoch']
+            if abs(top_of_hour - element['Reported Time']) < abs(top_of_hour - doc['data'][element['name']]['Reported Time']):
+                doc['data'][element['name']] = element
         return doc
 
     # named functions

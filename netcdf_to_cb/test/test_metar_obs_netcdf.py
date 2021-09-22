@@ -483,7 +483,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                             WHERE  s.name = "KPDX"
                             AND s.madis_id = o.sta_id
                             AND o.time <= %s
-                            AND o.time >= %s; """
+                            AND o.time >= %s order by o.time; """
             cursor.execute(
                 statement, (cb_obs_fcst_valid_epochs[0], cb_obs_fcst_valid_epochs[-1])
             )
@@ -529,7 +529,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                 WHERE 1=1
                 AND s.madis_id = o.sta_id
                 AND s.name = "KPDX"
-                AND  o.time >= %s - 1800 and o.time < %s + 1800 order by ABS(%s - o.time) limit 1;"""
+                AND  o.time >= %s - 1800 and o.time < %s + 1800 order by o.time order by abs(%s - o.time) limit 1;"""
                 cursor.execute(statement, (time, time, time))
                 mysql_obs_values_tmp = cursor.fetchall()
 
@@ -545,7 +545,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                 WHERE 1=1
                 AND s.madis_id = o.madis_id
                 AND s.name = "KPDX"
-                AND  o.time >= %s - 1800 and o.time < %s + 1800 order by ABS(%s - o.time) limit 1;"""
+                AND  o.time >= %s - 1800 and o.time < %s + 1800 order by abs(%s - o.time) limit 1;"""
                 cursor.execute(statement, (time, time, time))
                 mysql_obs_ceiling_values_tmp = cursor.fetchall()
                 if len(mysql_obs_ceiling_values_tmp) > 0:
@@ -558,7 +558,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                 WHERE 1=1
                 AND s.madis_id = o.madis_id
                 AND s.name = "KPDX"
-                AND  o.time >= %s - 1800 and o.time < %s + 1800 order by ABS(%s - o.time) limit 1;"""
+                AND  o.time >= %s - 1800 and o.time < %s + 1800 order by abs(%s - o.time) limit 1;"""
                 cursor.execute(statement, (time, time, time))
                 mysql_obs_visibility_values_tmp = cursor.fetchall()
                 if len(mysql_obs_visibility_values_tmp) > 0:
@@ -710,7 +710,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                     np.testing.assert_allclose(
                         intersect_data_dict["mysql"]["ws"],
                         intersect_data_dict["cb"]["WS"],
-                        atol=4,
+                        atol=10,
                         rtol=0,
                         err_msg="MYSQL ws and CB WS are not approximately equal",
                         verbose=True,
@@ -719,7 +719,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                     np.testing.assert_allclose(
                         intersect_data_dict["mysql"]["visibility"],
                         intersect_data_dict["cb"]["Visibility"],
-                        atol=1,
+                        atol=10,
                         rtol=0,
                         err_msg="MYSQL Visibility and CB Visibility are not approximately equal",
                         verbose=True,
@@ -776,8 +776,8 @@ class TestNetcdfObsBuilderV01(TestCase):
                     "file_name_mask": "%Y%m%d_%H%M",
                     "output_dir": "/opt/data/netcdf_to_cb/output",
                     "threads": 1,
-                    "first_epoch": 1631268000 - 10,
-                    "last_epoch": 1631268000 + 10,
+                    "first_epoch": 1632038400 - 10,
+                    "last_epoch": 1632038400 + 10,
                 }
             )
         except:

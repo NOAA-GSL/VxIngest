@@ -529,7 +529,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                 WHERE 1=1
                 AND s.madis_id = o.sta_id
                 AND s.name = "KPDX"
-                AND  o.time >= %s - 1800 and o.time < %s + 1800 order by o.time order by abs(%s - o.time) limit 1;"""
+                AND  o.time >= %s - 1800 and o.time < %s + 1800 order by abs(%s - o.time) limit 1;"""
                 cursor.execute(statement, (time, time, time))
                 mysql_obs_values_tmp = cursor.fetchall()
 

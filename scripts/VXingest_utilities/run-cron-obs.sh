@@ -8,6 +8,13 @@ if [ $# -ne 1 ]; then
 fi
 clonedir=$1
 
+if [ "$(whoami)" != "amb-verif" ]; then
+        echo "Script must be run as user: amb-verif"
+        exit 255
+fi
+
+source ${HOME}/vxingest-env/bin/activate
+
 cd ${clonedir} && export PYTHONPATH=`pwd`
 gitroot=$(git rev-parse --show-toplevel)
 if [ "$gitroot" != "$(pwd)" ];then
@@ -15,8 +22,8 @@ if [ "$gitroot" != "$(pwd)" ];then
         exit
 fi
 
-if [ ! -d "$clonedir/logs" ]; then
-        mkdir ${clonedir}/logs
+if [ ! -d "${HOME}/logs" ]; then
+        mkdir ${HOME}/logs
 fi
 
 echo "*************************************"

@@ -58,6 +58,8 @@ class GribBuilder:
         self.transformer = None
         self.transformer_reverse = None
         self.domain_stations = []
+         # self.do_profiling = True  # set to True to enable build_document profiling
+        self.do_profiling = False
 
     def initialize_document_map(self):
         pass
@@ -284,7 +286,7 @@ class GribBuilder:
                 logging.warning(self.__class__.__name__ +
                                 "GribBuilder.handle_data - _data_key is None")
 
-            doc = self.load_data(doc, data_key, data_elem)
+            self.load_data(doc, data_key, data_elem)
             return doc
         except Exception as e:
             logging.error(self.__class__.__name__ +
@@ -429,7 +431,7 @@ class GribModelBuilderV01(GribBuilder):
         :return: the document_map
         """
         if len(self.same_time_rows) != 0:
-            self.handle_document(self.interpolated_time, self.same_time_rows)
+            self.handle_document()
         return self.document_map
 
     def load_data(self, doc, key, element):
@@ -486,50 +488,55 @@ class GribModelBuilderV01(GribBuilder):
         #     n_zero_ceils++;
         #   }
         # }
+        try:
+            message = self.grbs.select(name='Orography')[0]
+            values = message['values']
+            surface_values = []
+            for station in self.domain_stations:
+                x_gridpoint = round(station['x_gridpoint'])
+                y_gridpoint = round(station['y_gridpoint'])
+                surface_values.append(values[y_gridpoint, x_gridpoint])
 
-        message = self.grbs.select(name='Orography')[0]
-        values = message['values']
-        surface_values = []
-        for station in self.domain_stations:
-            x_gridpoint = round(station['x_gridpoint'])
-            y_gridpoint = round(station['y_gridpoint'])
-            surface_values.append(values[y_gridpoint, x_gridpoint])
+            message = self.grbs.select(
+                name='Geopotential Height', typeOfFirstFixedSurface='215')[0]
+            values = message['values']
 
-        message = self.grbs.select(
-            name='Geopotential Height', typeOfFirstFixedSurface='215')[0]
-        values = message['values']
-
-        ceil_msl_values = []
-        for station in self.domain_stations:
-            x_gridpoint = round(station['x_gridpoint'])
-            y_gridpoint = round(station['y_gridpoint'])
-            # what do we do with a masked ceiling value?
-            if not numpy.ma.is_masked(values[y_gridpoint, x_gridpoint]):
-                ceil_msl_values.append(values[y_gridpoint, x_gridpoint])
-            else:
-                # masked values should be treated as all clear i.e. 60000
-                ceil_msl_values.append(60000)
-        ceil_agl = []
-        for i in range(len(self.domain_stations)):
-            if ceil_msl_values[i] == 60000:
-                ceil_agl.append(60000)
-            else:
-                if ceil_msl_values[i] is None or surface_values[i] is None:
-                    ceil_agl.append(None)
+            ceil_msl_values = []
+            for station in self.domain_stations:
+                x_gridpoint = round(station['x_gridpoint'])
+                y_gridpoint = round(station['y_gridpoint'])
+                # what do we do with a masked ceiling value?
+                if not numpy.ma.is_masked(values[y_gridpoint, x_gridpoint]):
+                    ceil_msl_values.append(values[y_gridpoint, x_gridpoint])
                 else:
-                    if(ceil_msl_values[i] < -1000 or ceil_msl_values[i] > 1e10):
-                        ceil_agl.append(60000)
+                    # masked values should be treated as all clear i.e. 60000
+                    ceil_msl_values.append(60000)
+            ceil_agl = []
+            i = 0
+            for station in self.domain_stations:
+                if ceil_msl_values[i] == 60000:
+                    ceil_agl.append(60000)
+                else:
+                    if ceil_msl_values[i] is None or surface_values[i] is None:
+                        ceil_agl.append(None)
                     else:
-                        if ceil_msl_values[i] < 0:
-                            # weird '-1's in the grib files??? (from legacy code)
-                            ceil_agl.append(0)
+                        if(ceil_msl_values[i] < -1000 or ceil_msl_values[i] > 1e10):
+                            ceil_agl.append(60000)
                         else:
-                            tmp_ceil = (ceil_msl_values[i] - surface_values[i]) * 3.281
-                            if tmp_ceil < 0:
+                            if ceil_msl_values[i] < 0:
+                                # weird '-1's in the grib files??? (from legacy code)
                                 ceil_agl.append(0)
                             else:
-                                ceil_agl.append(tmp_ceil)
-        return ceil_agl
+                                tmp_ceil = (ceil_msl_values[i] - surface_values[i]) * 3.281
+                                if tmp_ceil < 0:
+                                    ceil_agl.append(0)
+                                else:
+                                    ceil_agl.append(tmp_ceil)
+                i = i + 1
+            return ceil_agl
+        except Exception as e:
+            logging.error(self.__class__.__name__ +
+                          "handle_ceiling: Exception  error: " + str(e))
 
         # SURFACE PRESSURE
     def handle_surface_pressure(self, params_dict):

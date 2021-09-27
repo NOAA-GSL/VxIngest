@@ -43,7 +43,7 @@ class TestNetcdfObsBuilderV01(TestCase):
             cb_hrrr_ops_fcst_valid_epochs = list(result)
 
             result = cluster.query(
-                """SELECT raw fcstValidEpoch
+                """SELECT DISTINCT RAW fcstValidEpoch
                 FROM mdata
                 WHERE type='DD'
                 AND docType="obs"
@@ -125,7 +125,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                             time=time)
                 cb_model_fcst_lens = list(result)
 
-                statement = """SELECT m0.fcst_len
+                statement = """SELECT DISTINCT m0.fcst_len
                         FROM   madis3.metars AS s,
                             ceiling2.HRRR_OPS AS m0
                         WHERE  1 = 1
@@ -145,7 +145,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                     continue
 
                 result = cluster.query(
-                    """SELECT mdata.fcstValidEpoch,
+                    """SELECT DISTINCT mdata.fcstValidEpoch,
                         mdata.fcstLen, data_item
                         FROM mdata
                         UNNEST mdata.data AS data_item
@@ -187,8 +187,8 @@ class TestNetcdfObsBuilderV01(TestCase):
                 AND s.madis_id = m0.madis_id
                 AND s.name = "KPDX"
                 AND  m0.time >= %s - 1800 and m0.time < %s + 1800
-                ORDER BY m0.fcst_len;"""
-                cursor.execute(statement, (time, time))
+                AND m0.fcst_len IN (""" + format_strings + ") ORDER BY m0.fcst_len;"
+                cursor.execute(statement, tuple(params))
                 mysql_model_ceiling_values_tmp = cursor.fetchall()
                 mysql_model_ceiling = (
                     [v["ceil"] * 10 for v in mysql_model_ceiling_values_tmp]
@@ -202,8 +202,8 @@ class TestNetcdfObsBuilderV01(TestCase):
                 AND s.madis_id = m0.madis_id
                 AND s.name = "KPDX"
                 AND  m0.time >= %s - 1800 and m0.time < %s + 1800
-                ORDER BY m0.fcst_len;"""
-                cursor.execute(statement, (time, time))
+                AND m0.fcst_len IN (""" + format_strings + ") ORDER BY m0.fcst_len;"
+                cursor.execute(statement, tuple(params))
                 mysql_model_visibility_values_tmp = cursor.fetchall()
                 mysql_model_visibility = (
                     [v["vis100"] / 100 for v in mysql_model_visibility_values_tmp]
@@ -250,7 +250,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                     )
                     print("field\t\tmysql\t\tcb\t\t\t\tdelta\t\t\tunits")
 
-                    if (intersect_data_dict[i]["mysql"]["press"] and intersect_data_dict[i]["cb"]["Surface Pressure"]):
+                    if intersect_data_dict[i]["mysql"]["press"] is not None and intersect_data_dict[i]["cb"]["Surface Pressure"] is not None:
                         delta = intersect_data_dict[i]["mysql"]["press"] - intersect_data_dict[i]["cb"]["Surface Pressure"]
                     else:
                         delta = None
@@ -262,7 +262,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                         )
                     )
 
-                    if (intersect_data_dict[i]["mysql"]["temp"] and intersect_data_dict[i]["cb"]["Temperature"]):
+                    if intersect_data_dict[i]["mysql"]["temp"] is not None and intersect_data_dict[i]["cb"]["Temperature"] is not None:
                         delta = intersect_data_dict[i]["mysql"]["temp"] - intersect_data_dict[i]["cb"]["Temperature"]
                     else:
                         delta = None
@@ -274,7 +274,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                         )
                     )
 
-                    if (intersect_data_dict[i]["mysql"]["dp"] and intersect_data_dict[i]["cb"]["DewPoint"]):
+                    if intersect_data_dict[i]["mysql"]["dp"] is not None and intersect_data_dict[i]["cb"]["DewPoint"] is not None:
                         delta = intersect_data_dict[i]["mysql"]["dp"] - intersect_data_dict[i]["cb"]["DewPoint"]
                     else:
                         delta = None
@@ -286,7 +286,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                         )
                     )
 
-                    if (intersect_data_dict[i]["mysql"]["rh"] and intersect_data_dict[i]["cb"]["RH"]):
+                    if intersect_data_dict[i]["mysql"]["rh"] is not None and intersect_data_dict[i]["cb"]["RH"] is not None:
                         delta = intersect_data_dict[i]["mysql"]["rh"] - intersect_data_dict[i]["cb"]["RH"]
                     else:
                         delta = None
@@ -298,7 +298,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                         )
                     )
 
-                    if (intersect_data_dict[i]["mysql"]["ws"] and intersect_data_dict[i]["cb"]["WS"]):
+                    if intersect_data_dict[i]["mysql"]["ws"] is not None and intersect_data_dict[i]["cb"]["WS"] is not None:
                         delta = intersect_data_dict[i]["mysql"]["ws"] - intersect_data_dict[i]["cb"]["WS"]
                     else:
                         delta = None
@@ -310,7 +310,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                         )
                     )
 
-                    if (intersect_data_dict[i]["mysql"]["wd"] and intersect_data_dict[i]["cb"]["WD"]):
+                    if intersect_data_dict[i]["mysql"]["wd"] is not None and intersect_data_dict[i]["cb"]["WD"] is not None:
                         delta = intersect_data_dict[i]["mysql"]["wd"] - intersect_data_dict[i]["cb"]["WD"]
                     else:
                         delta = None
@@ -322,7 +322,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                         )
                     )
 
-                    if (intersect_data_dict[i]["mysql"]["ceiling"] and intersect_data_dict[i]["cb"]["Ceiling"]):
+                    if intersect_data_dict[i]["mysql"]["ceiling"] is not None and intersect_data_dict[i]["cb"]["Ceiling"] is not None:
                         delta = intersect_data_dict[i]["mysql"]["ceiling"] - intersect_data_dict[i]["cb"]["Ceiling"]
                     else:
                         delta = None
@@ -334,7 +334,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                         )
                     )
 
-                    if (intersect_data_dict[i]["mysql"]["visibility"] and intersect_data_dict[i]["cb"]["Visibility"]):
+                    if intersect_data_dict[i]["mysql"]["visibility"] is not None and intersect_data_dict[i]["cb"]["Visibility"] is not None:
                         delta = intersect_data_dict[i]["mysql"]["visibility"] - intersect_data_dict[i]["cb"]["Visibility"]
                     else:
                         delta = None
@@ -354,7 +354,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                         msg="MYSQL fcst_len and CB fcstLen are not equal",
                     )
 
-                    if (intersect_data_dict[i]["mysql"]["press"] is not None and intersect_data_dict[i]["cb"]["Surface Pressure"] is not None):
+                    if intersect_data_dict[i]["mysql"]["press"] is not None and intersect_data_dict[i]["cb"]["Surface Pressure"] is not None:
                         np.testing.assert_allclose(
                             intersect_data_dict[i]["mysql"]["press"],
                             intersect_data_dict[i]["cb"]["Surface Pressure"],
@@ -363,7 +363,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                             err_msg="MYSQL Pressure and CB Surface Pressure are not approximately equal",
                             verbose=True,
                         )
-                    if (intersect_data_dict[i]["mysql"]["temp"] is not None and intersect_data_dict[i]["cb"]["Temperature"] is not None):
+                    if intersect_data_dict[i]["mysql"]["temp"] is not None and intersect_data_dict[i]["cb"]["Temperature"] is not None:
                         np.testing.assert_allclose(
                             intersect_data_dict[i]["mysql"]["temp"],
                             intersect_data_dict[i]["cb"]["Temperature"],
@@ -372,7 +372,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                             err_msg="MYSQL temp and CB Temperature are not approximately equal",
                             verbose=True,
                         )
-                    if (intersect_data_dict[i]["mysql"]["dp"] is not None and intersect_data_dict[i]["cb"]["DewPoint"] is not None):
+                    if intersect_data_dict[i]["mysql"]["dp"] is not None and intersect_data_dict[i]["cb"]["DewPoint"] is not None:
                         np.testing.assert_allclose(
                             intersect_data_dict[i]["mysql"]["dp"],
                             intersect_data_dict[i]["cb"]["DewPoint"],
@@ -381,7 +381,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                             err_msg="MYSQL dp and CB Dew Point are not approximately equal",
                             verbose=True,
                         )
-                    if (intersect_data_dict[i]["mysql"]["rh"] is not None and intersect_data_dict[i]["cb"]["RH"] is not None):
+                    if intersect_data_dict[i]["mysql"]["rh"] is not None and intersect_data_dict[i]["cb"]["RH"] is not None:
                         np.testing.assert_allclose(
                             intersect_data_dict[i]["mysql"]["rh"],
                             intersect_data_dict[i]["cb"]["RH"],
@@ -390,8 +390,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                             err_msg="MYSQL rh and CB RH are not approximately equal",
                             verbose=True,
                         )
-                    # TODO - FIX THIS!
-                    if (intersect_data_dict[i]["mysql"]["wd"] is not None and intersect_data_dict[i]["cb"]["WD"] is not None):
+                    if intersect_data_dict[i]["mysql"]["wd"] is not None and intersect_data_dict[i]["cb"]["WD"] is not None:
                         np.testing.assert_allclose(
                             intersect_data_dict[i]["mysql"]["wd"],
                             intersect_data_dict[i]["cb"]["WD"],
@@ -400,7 +399,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                             err_msg="MYSQL wd and CB WD are not approximately equal",
                             verbose=True,
                         )
-                    if (intersect_data_dict[i]["mysql"]["ws"] is not None and intersect_data_dict[i]["cb"]["WS"] is not None):
+                    if intersect_data_dict[i]["mysql"]["ws"] is not None and intersect_data_dict[i]["cb"]["WS"] is not None:
                         np.testing.assert_allclose(
                             intersect_data_dict[i]["mysql"]["ws"],
                             intersect_data_dict[i]["cb"]["WS"],
@@ -409,7 +408,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                             err_msg="MYSQL ws and CB WS are not approximately equal",
                             verbose=True,
                         )
-                    if (intersect_data_dict[i]["mysql"]["visibility"] is not None and intersect_data_dict[i]["cb"]["Visibility"] is not None):
+                    if intersect_data_dict[i]["mysql"]["visibility"] is not None and intersect_data_dict[i]["cb"]["Visibility"] is not None:
                         np.testing.assert_allclose(
                             intersect_data_dict[i]["mysql"]["visibility"],
                             intersect_data_dict[i]["cb"]["Visibility"],
@@ -418,7 +417,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                             err_msg="MYSQL Visibility and CB Visibility are not approximately equal",
                             verbose=True,
                         )
-                    if (intersect_data_dict[i]["mysql"]["ceiling"] is not None and intersect_data_dict[i]["cb"]["Ceiling"] is not None):
+                    if intersect_data_dict[i]["mysql"]["ceiling"] is not None and intersect_data_dict[i]["cb"]["Ceiling"] is not None:
                         np.testing.assert_allclose(
                             intersect_data_dict[i]["mysql"]["ceiling"],
                             intersect_data_dict[i]["cb"]["Ceiling"],
@@ -581,10 +580,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                 print("time: {0}\t\tstation: {1}".format(time, "KPDX"))
                 print("field\t\tmysql\t\tcb\t\t\tdelta\t\t\tunits")
 
-                if (
-                    intersect_data_dict["mysql"]["press"]
-                    and intersect_data_dict["cb"]["Surface Pressure"]
-                ):
+                if intersect_data_dict["mysql"]["press"] is not None and intersect_data_dict["cb"]["Surface Pressure"] is not None:
                     delta = intersect_data_dict["mysql"]["press"] - intersect_data_dict["cb"]["Surface Pressure"]
                 else:
                     delta = None
@@ -596,7 +592,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                     )
                 )
 
-                if (intersect_data_dict["mysql"]["temp"] and intersect_data_dict["cb"]["Temperature"]):
+                if intersect_data_dict["mysql"]["temp"] is not None and intersect_data_dict["cb"]["Temperature"] is not None:
                     delta = abs(
                         intersect_data_dict["mysql"]["temp"] - intersect_data_dict["cb"]["Temperature"]
                     )
@@ -610,7 +606,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                     )
                 )
 
-                if (intersect_data_dict["mysql"]["dp"] and intersect_data_dict["cb"]["DewPoint"]):
+                if intersect_data_dict["mysql"]["dp"] is not None and intersect_data_dict["cb"]["DewPoint"] is not None:
                     delta = intersect_data_dict["mysql"]["dp"] - intersect_data_dict["cb"]["DewPoint"]
                 else:
                     delta = None
@@ -622,7 +618,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                     )
                 )
 
-                if (intersect_data_dict["mysql"]["wd"] and intersect_data_dict["cb"]["WD"]):
+                if intersect_data_dict["mysql"]["wd"] is not None and intersect_data_dict["cb"]["WD"] is not None:
                     delta = intersect_data_dict["mysql"]["wd"] - intersect_data_dict["cb"]["WD"]
                 else:
                     delta = None
@@ -634,7 +630,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                     )
                 )
 
-                if (intersect_data_dict["mysql"]["ws"] and intersect_data_dict["cb"]["WS"]):
+                if intersect_data_dict["mysql"]["ws"] is not None and intersect_data_dict["cb"]["WS"]  is not None:
                     delta =intersect_data_dict["mysql"]["ws"] - intersect_data_dict["cb"]["WS"]
                 else:
                     delta = None
@@ -646,7 +642,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                     )
                 )
 
-                if (intersect_data_dict["mysql"]["ceiling"] and intersect_data_dict["cb"]["Ceiling"]):
+                if intersect_data_dict["mysql"]["ceiling"] is not None and intersect_data_dict["cb"]["Ceiling"] is not None:
                     delta = intersect_data_dict["mysql"]["ceiling"] - intersect_data_dict["cb"]["Ceiling"]
                 else:
                     delta = None
@@ -658,7 +654,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                     )
                 )
 
-                if (intersect_data_dict["mysql"]["visibility"] and intersect_data_dict["cb"]["Visibility"]):
+                if intersect_data_dict["mysql"]["visibility"] is not None and intersect_data_dict["cb"]["Visibility"] is not None:
                     delta = intersect_data_dict["mysql"]["visibility"] - intersect_data_dict["cb"]["Visibility"]
                 else:
                     delta = None
@@ -706,7 +702,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                         err_msg="MYSQL wd and CB WD are not approximately equal",
                         verbose=True,
                     )
-                if (intersect_data_dict["mysql"]["ws"] is not None and intersect_data_dict["cb"]["WS"] is not None):
+                if intersect_data_dict["mysql"]["ws"] is not None and intersect_data_dict["cb"]["WS"] is not None:
                     np.testing.assert_allclose(
                         intersect_data_dict["mysql"]["ws"],
                         intersect_data_dict["cb"]["WS"],
@@ -715,7 +711,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                         err_msg="MYSQL ws and CB WS are not approximately equal",
                         verbose=True,
                     )
-                if (intersect_data_dict["mysql"]["visibility"] is not None and intersect_data_dict["cb"]["Visibility"] is not None):
+                if intersect_data_dict["mysql"]["visibility"] is not None and intersect_data_dict["cb"]["Visibility"] is not None:
                     np.testing.assert_allclose(
                         intersect_data_dict["mysql"]["visibility"],
                         intersect_data_dict["cb"]["Visibility"],
@@ -724,7 +720,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                         err_msg="MYSQL Visibility and CB Visibility are not approximately equal",
                         verbose=True,
                     )
-                if (intersect_data_dict["mysql"]["ceiling"] is not None and intersect_data_dict["cb"]["Ceiling"] is not None):
+                if intersect_data_dict["mysql"]["ceiling"] is not None and intersect_data_dict["cb"]["Ceiling"] is not None:
                     np.testing.assert_allclose(
                         intersect_data_dict["mysql"]["ceiling"],
                         intersect_data_dict["cb"]["Ceiling"],

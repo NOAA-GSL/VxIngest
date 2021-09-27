@@ -25,6 +25,34 @@ class TestGribBuilderV01(unittest.TestCase):
     # 21 196 14 000018 %y %j %H %f  treating the last 6 decimals as microseconds even though they are not.
     # these files are two digit year, day of year, hour, and forecast lead time (6 digit ??)
 
+    def test_gribBuilder_one_epoch_hrrr_ops_conus(self):
+        try:
+            #1632412800 fcst_len 1 -> 1632412800 - 1 * 3600 -> 1632409200 September 23, 2021 15:00:00 -> 2126615000001
+            #1632412800 fcst_len 3 -> 1632412800 - 3 * 3600 -> 1632402000 September 23, 2021 13:00:00 -> 2126613000003
+            #1632412800 fcst_len 15 -> 1632412800 - 15 * 3600 -> 1632358800 September 22, 2021 19:00:00  ->  (missing)
+            #1632412800 fcst_len 18 -> 1632412800 - 18 * 3600 -> 1632348000 September 22, 2021 22:00:00 -> 2126522000018 (missing)
+            #1632420000 September 23, 2021 18:00:00  2126616000018
+            #1632423600  September 23, 2021 19:00:00 2126617000001
+            first_epoch = 1632409200 - 10
+            last_epoch = 1632409200 + 10
+            cwd = os.getcwd()
+            self.credentials_file = os.environ['HOME'] + '/adb-cb1-credentials'
+            self.spec_file = cwd + '/grib2_to_cb/test/test_load_spec_grib_metar_hrrr_ops_V01.yaml'
+            vxIngest = VXIngest()
+            vxIngest.runit({'spec_file': self.spec_file,
+                            'credentials_file': self.credentials_file,
+                            'path': '/opt/public/data/grids/hrrr/conus/wrfprs/grib2',
+                            'file_name_mask': '%y%j%H%f',
+                            'output_dir': '/opt/data/grib2_to_cb/output',
+                            'threads': 1,
+                            'first_epoch': first_epoch,
+                            'last_epoch': last_epoch
+                            })
+        except:
+            self.fail("TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus Exception failure: " +
+                      str(sys.exc_info()[0]))
+        return
+
     def test_gribBuilder_verses_script(self):
         # noinspection PyBroadException
         try:

@@ -627,31 +627,32 @@ class GribModelBuilderV01(GribBuilder):
         Each individual station longitude is used to rotate the wind direction.
         """
 
-        message = self.grbs.select(name='10 metre U wind component')[0]
-        values = message['values']
+        uwind_message = self.grbs.select(name='10 metre U wind component')[0]
+        u_values = uwind_message['values']
         uwind_ms = []
         for station in self.domain_stations:
             x_gridpoint = station['x_gridpoint']
             y_gridpoint = station['y_gridpoint']
-            longitude = station['lon']
             # interpolated value cannot use rounded gridpoints
-            uwind_ms.append(gg.interpGridBox(values, y_gridpoint, x_gridpoint))
+            uwind_ms.append(gg.interpGridBox(u_values, y_gridpoint, x_gridpoint))
 
-        message = self.grbs.select(name='10 metre V wind component')[0]
-        values = message['values']
+        vwind_message = self.grbs.select(name='10 metre V wind component')[0]
+        v_values = vwind_message['values']
         vwind_ms = []
-        theta = []
-        wd = []
         for station in self.domain_stations:
             x_gridpoint = station['x_gridpoint']
             y_gridpoint = station['y_gridpoint']
-            longitude = station['lon']
-            vwind_ms.append(gg.interpGridBox(values, y_gridpoint, x_gridpoint))
-            theta.append(gg.getWindTheta(message, longitude))
+            vwind_ms.append(gg.interpGridBox(v_values, y_gridpoint, x_gridpoint))
 
+        wd = []
         for i in range(len(uwind_ms)):
+                # theta = gg.getWindTheta(vwind_message, station['lon'])
+                # radians = math.atan2(uwind_ms, vwind_ms)
+                # wd = (radians*57.2958) + theta + 180
+            longitude = self.domain_stations[i]['lon']
+            theta = gg.getWindTheta(vwind_message, longitude)
             radians = math.atan2(uwind_ms[i], vwind_ms[i])
-            wd.append((radians*57.2958) + theta[i] + 180)
+            wd.append((radians*57.2958) + theta + 180)
         return wd
 
     def getName(self, params_dict):

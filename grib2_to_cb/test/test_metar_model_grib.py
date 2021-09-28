@@ -243,6 +243,7 @@ class TestGribBuilderV01(unittest.TestCase):
                 theta = gg.getWindTheta(vwind_message, station['lon'])
                 radians = math.atan2(uwind_ms, vwind_ms)
                 wd = (radians*57.2958) + theta + 180
+
                 expected_station_data['data'][i]['WD'] = wd if not numpy.ma.is_masked(wd) else None
 
             # Visibility

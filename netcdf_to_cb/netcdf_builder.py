@@ -421,7 +421,11 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
                 # 60000 is aldready feet
                 if (not mask_array[index]) and (mCLR.match(skyCover_array[index]) or mSKC.match(skyCover_array[index]) or mNSC.match(skyCover_array[index]) or mFEW.match(skyCover_array[index]) or mSCT.match(skyCover_array[index])):
                     return 60000
-            # nothing was unmasked - return None
+            # nothing was unmasked - return 60000 if there is a ceiling value in skycover array (legacy)
+            for index in range(len(skyCover_array)):
+                if mCLR.match(skyCover_array[index] or mSKC.match(skyCover_array[index]) or mNSC.match(skyCover_array[index]) or mFEW.match(skyCover_array[index]) or mSCT.match(skyCover_array[index])):
+                    return 60000
+            #  masked and no ceiling value in skyCover_array
             return None
         except Exception as e:
             logging.error("%s handle_data: Exception in named function ceiling_transform:  error: %s", self.__class__.__name__, str(e))

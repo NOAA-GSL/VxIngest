@@ -548,7 +548,7 @@ class CTCModelObsBuilderV01(CTCBuilder):
         # noinspection PyBroadException
         """
         This routine processes the ctc data element. The data elements are all the same and always have the
-        same keys which are thresholds, therefore this routine does not implement handlers.
+        same keys which are thresholds, therefore this class does not implement handlers.
         :return: The modified document_map
         """
         try:

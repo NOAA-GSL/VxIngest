@@ -2,13 +2,14 @@ import sys
 import os
 import yaml
 import pymysql
+from pymysql.constants import CLIENT
 import numpy as np
 from unittest import TestCase
 from netcdf_to_cb.run_ingest_threads import VXIngest
 from pathlib import Path
 from couchbase.cluster import Cluster, ClusterOptions
 from couchbase_core.cluster import PasswordAuthenticator
-from pymysql.constants import CLIENT
+
 
 class TestNetcdfObsBuilderV01(TestCase):
     def test_compare_model_to_mysql(self):

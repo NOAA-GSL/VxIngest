@@ -306,10 +306,10 @@ class CTCBuilder:
                         self.model_data = _model_doc.content
                     except Exception as e:
                         logging.error('%s Error getting model document: %s', self.__class__.__name__, str(e))
-    
+
                     logging.info("Looking up observation document: %s", obs_id)
                     try:
-                        # I don't really know how I can get here with _obs_data AND 
+                        # I don't really know how I can get here with _obs_data AND
                         # _obs_data['id'] != obs_id and still no self.obs_data
                         # but it does happen and it results in documents
                         # that have 0 hits, misses, false_alarms etc
@@ -359,27 +359,22 @@ class CTCBuilder:
             # reset the builders document_map for a new file
             self.initialize_document_map()
             self.not_found_station_count = 0
-            # get stations from couchbase and filter them so
-            # that we retain only the ones for this models domain which is defined by the region boundingbox
             try:
-                self.domain_stations = self.get_stations_for_region_by_sort(self.region)
-                # with open('./test/ + self.region + '_stations.txt', 'w') as f:
-                #     for s in self.domain_stations:
-                #         f.write(s + "\n")
+                self.domain_stations = self.get_stations_for_region_by_geosearch(self.region)
             except Exception as e:
                 logging.error(
                     "%s: Exception with builder build_document: error: %s", self.__class__.__name__, str(e))
 
             # First get the latest fcstValidEpoch for the ctc's for this model and region.
             result = self.cluster.query(
-                """SELECT RAW MAX(mdata.fcstValidEpoch) 
-                    FROM mdata 
-                    WHERE type='DD' 
-                    AND docType='CTC' 
-                    AND subDocType=$subDocType 
-                    AND model=$model 
-                    AND region=$region 
-                    AND version='V01' 
+                """SELECT RAW MAX(mdata.fcstValidEpoch)
+                    FROM mdata
+                    WHERE type='DD'
+                    AND docType='CTC'
+                    AND subDocType=$subDocType
+                    AND model=$model
+                    AND region=$region
+                    AND version='V01'
                     AND subset='METAR'""", \
                         model=self.model, \
                         region=self.region, \
@@ -491,7 +486,7 @@ class CTCBuilder:
                 rlat = row['lat']
                 bb_br_lat = _boundingbox['br_lat']
                 bb_tl_lat = _boundingbox['tl_lat']
-                        
+
                 rlon = row['lon'] if row['lon'] <= 180 else row['lon'] - 360
                 bb_br_lon = _boundingbox['br_lon'] if _boundingbox['br_lon'] <= 180 else _boundingbox['br_lon'] - 360
                 bb_tl_lon = _boundingbox['tl_lon'] if _boundingbox['tl_lon'] <= 180 else _boundingbox['tl_lon'] - 360
@@ -569,28 +564,28 @@ class CTCModelObsBuilderV01(CTCBuilder):
                 false_alarms = 0
                 correct_negatives = 0
                 none_count = 0
-                for station in self.model_data['data']:
+                for model_station in self.model_data['data']:
                     try:
                         # only count the ones that are in our region
-                        if station['name'] not in self.domain_stations:
+                        if model_station['name'] not in self.domain_stations:
                             continue
-                        if station['name'] not in self.obs_station_names:
+                        if model_station['name'] not in self.obs_station_names:
                             self.not_found_station_count = self.not_found_station_count +1
-                            if station['name'] not in self.not_found_stations:
+                            if model_station['name'] not in self.not_found_stations:
                                 logging.info("%s handle_data: model station %s was not found in the available observations.",
-                                        self.__class__.__name__, station['name'])
-                                self.not_found_stations.add(station['name'])
+                                        self.__class__.__name__, model_station['name'])
+                                self.not_found_stations.add(model_station['name'])
                             continue
-                        if station['Ceiling'] is None or self.obs_data[station['name']]['Ceiling'] is None:
+                        if model_station['Ceiling'] is None or self.obs_data[model_station['name']]['Ceiling'] is None:
                             none_count = none_count + 1
                             continue
-                        if station['Ceiling'] < threshold and self.obs_data[station['name']]['Ceiling'] < threshold:
+                        if model_station['Ceiling'] < threshold and self.obs_data[model_station['name']]['Ceiling'] < threshold:
                             hits = hits + 1
-                        if station['Ceiling'] < threshold and not self.obs_data[station['name']]['Ceiling'] < threshold:
+                        if model_station['Ceiling'] < threshold and not self.obs_data[model_station['name']]['Ceiling'] < threshold:
                             false_alarms = false_alarms + 1
-                        if not station['Ceiling'] < threshold and self.obs_data[station['name']]['Ceiling'] < threshold:
+                        if not model_station['Ceiling'] < threshold and self.obs_data[model_station['name']]['Ceiling'] < threshold:
                             misses = misses + 1
-                        if not station['Ceiling'] < threshold and not self.obs_data[station['name']]['Ceiling'] < threshold:
+                        if not model_station['Ceiling'] < threshold and not self.obs_data[model_station['name']]['Ceiling'] < threshold:
                             correct_negatives = correct_negatives + 1
                     except Exception as e:
                         logging.info("unexpected exception:%s", str(e))

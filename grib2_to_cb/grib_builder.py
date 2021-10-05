@@ -652,7 +652,13 @@ class GribModelBuilderV01(GribBuilder):
             longitude = self.domain_stations[i]['lon']
             theta = gg.getWindTheta(vwind_message, longitude)
             radians = math.atan2(uwind_ms[i], vwind_ms[i])
-            wd.append((radians*57.2958) + theta + 180)
+            wd_value = (radians*57.2958) + theta + 180
+            # adjust for outliers
+            if wd_value < 0:
+                wd_value= wd_value + 360
+            if wd_value > 360:
+                wd_value = wd_value - 360
+            wd.append(wd_value)
         return wd
 
     def getName(self, params_dict):

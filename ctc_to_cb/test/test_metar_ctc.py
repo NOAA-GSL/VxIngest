@@ -69,6 +69,80 @@ class TestCTCBuilderV01(unittest.TestCase):
         except Exception as e:
             self.fail("TestGsdIngestManager Exception failure: " + str(e))
 
+    def calculate_mysql_ctc(self, epoch, fcst_len, threshold, model, region):
+        """This method calculates a ctc table from mysql data using the following algorithm
+        --replace into $table (time,fcst_len,trsh,yy,yn,ny,nn)
+        select 1*3600*floor((o.time+1800)/(1*3600)) as time,
+            m.fcst_len as fcst_len,
+            $thresh as trsh,
+            sum(if(    (m.ceil < $thresh) and     (o.ceil < $thresh),1,0)) as yy,
+            sum(if(    (m.ceil < $thresh) and NOT (o.ceil < $thresh),1,0)) as yn,
+            sum(if(NOT (m.ceil < $thresh) and     (o.ceil < $thresh),1,0)) as ny,
+            sum(if(NOT (m.ceil < $thresh) and NOT (o.ceil < $thresh),1,0)) as nn
+            from
+            ceiling2.$model as m,madis3.metars,ceiling2.obs as o,ceiling2.ruc_metars as rm
+            where 1 = 1
+            and m.madis_id = metars.madis_id
+            and m.madis_id = o.madis_id
+            and m.fcst_len = $fcst_len
+            and m.time = o.time
+            and find_in_set("ALL_HRRR",reg) > 0
+            and o.time  >= $valid_time - 1800
+            and o.time < $valid_time + 1800
+            and m.time  >= $valid_time - 1800
+            and m.time < $valid_time + 1800
+            group by time
+            having yy+yn+ny+nn > 0
+            order by time
+        """
+        credentials_file = os.environ['HOME'] + '/adb-cb1-credentials'
+        self.assertTrue(Path(credentials_file).is_file(),"credentials_file Does not exist")
+        cf = open(credentials_file)
+        yaml_data = yaml.load(cf, yaml.SafeLoader)
+        cf.close()
+        host = yaml_data["mysql_host"]
+        user = yaml_data["mysql_user"]
+        passwd = yaml_data["mysql_password"]
+        connection = pymysql.connect(
+            host=host,
+            user=user,
+            passwd=passwd,
+            local_infile=True,
+            autocommit=True,
+            charset="utf8mb4",
+            cursorclass=pymysql.cursors.SSDictCursor,
+            client_flag=CLIENT.MULTI_STATEMENTS,
+        )
+        cursor = connection.cursor(pymysql.cursors.SSDictCursor)
+        statement = """
+            select 1*3600*floor((o.time+1800)/(1*3600)) as time,
+            m.fcst_len as fcst_len,
+            $thresh as trsh,
+            sum(if(    (m.ceil < $thresh) and     (o.ceil < $thresh),1,0)) as yy,
+            sum(if(    (m.ceil < $thresh) and NOT (o.ceil < $thresh),1,0)) as yn,
+            sum(if(NOT (m.ceil < $thresh) and     (o.ceil < $thresh),1,0)) as ny,
+            sum(if(NOT (m.ceil < $thresh) and NOT (o.ceil < $thresh),1,0)) as nn
+            from
+            ceiling2.$model as m,madis3.metars,ceiling2.obs as o,ceiling2.ruc_metars as rm
+            where 1 = 1
+            and m.madis_id = metars.madis_id
+            and m.madis_id = o.madis_id
+            and m.fcst_len = $fcst_len
+            and m.time = o.time
+            and find_in_set("ALL_HRRR",reg) > 0
+            and o.time  >= $valid_time - 1800
+            and o.time < $valid_time + 1800
+            and m.time  >= $valid_time - 1800
+            and m.time < $valid_time + 1800
+            group by time
+            having yy+yn+ny+nn > 0
+            order by time
+            """
+            cursor.execute(statement,())
+        ctc = {}
+
+        return ctc
+
     def test_ctc_builder_hrrr_ops_all_hrrr(self):
         """
         This test verifies that data is returned for each fcstLen and each threshold. It does not validate the data.
@@ -77,7 +151,6 @@ class TestCTCBuilderV01(unittest.TestCase):
         try:
             cwd = os.getcwd()
             credentials_file = os.environ['HOME'] + '/adb-cb1-credentials'
-            self.assertTrue(Path(credentials_file).is_file(),"credentials_file Does not exist")
             spec_file = cwd + '/ctc_to_cb/test/test_load_spec_metar_hrrr_ops_all_hrrr_ctc_V01.yaml'
             outdir = '/opt/data/ctc_to_cb/output'
             filepaths =  outdir + "/*.json"
@@ -115,6 +188,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                     if elem['fcstLen'] == i:
                         break
                 for t in thresholds:
+                    mysql_ctc = self.calculate_mysql_ctc(epoch=elem['fcstValidEpoch'], fcst_len=i, threshold=t, model="HRRR_OPS", region="ALL_HRRR")
                     self.assertIsNotNone(elem['data'][str(t)]['hits'],"data is None for test document id:" +
                     elem['id'] + " threshold: " + str(t) + " hits")
                     self.assertIsNotNone(elem['data'][str(t)]['misses'],"data is None for test document id:" +

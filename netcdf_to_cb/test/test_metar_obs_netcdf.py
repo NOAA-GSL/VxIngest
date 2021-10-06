@@ -314,6 +314,10 @@ class TestNetcdfObsBuilderV01(TestCase):
 
                     if intersect_data_dict[i]["mysql"]["wd"] is not None and intersect_data_dict[i]["cb"]["WD"] is not None:
                         delta = intersect_data_dict[i]["mysql"]["wd"] - intersect_data_dict[i]["cb"]["WD"]
+                        if delta > 180:
+                            delta = 360 - delta
+                        if delta < -180:
+                            delta = 360 + delta
                     else:
                         delta = None
                     print(
@@ -734,6 +738,10 @@ class TestNetcdfObsBuilderV01(TestCase):
 
                     if intersect_data_dict[i]["mysql"]["wd"] is not None and intersect_data_dict[i]["cb"]["WD"] is not None:
                         delta = intersect_data_dict[i]["mysql"]["wd"] - intersect_data_dict[i]["cb"]["WD"]
+                        if delta > 180:
+                            delta = 360 - delta
+                        if delta < -180:
+                            delta = 360 + delta
                     else:
                         delta = None
                     print(
@@ -1044,6 +1052,10 @@ class TestNetcdfObsBuilderV01(TestCase):
 
                 if intersect_data_dict["mysql"]["wd"] is not None and intersect_data_dict["cb"]["WD"] is not None:
                     delta = intersect_data_dict["mysql"]["wd"] - intersect_data_dict["cb"]["WD"]
+                    if delta > 180:
+                        delta = 360 - delta
+                    if delta < -180:
+                        delta = 360 + delta
                 else:
                     delta = None
                 print(

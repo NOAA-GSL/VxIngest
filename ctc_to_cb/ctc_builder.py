@@ -360,7 +360,7 @@ class CTCBuilder:
             self.initialize_document_map()
             self.not_found_station_count = 0
             try:
-                self.domain_stations = self.get_stations_for_region_by_geosearch(self.region)
+                self.domain_stations = self.get_legacy_stations_for_region(self.region)
             except Exception as e:
                 logging.error(
                     "%s: Exception with builder build_document: error: %s", self.__class__.__name__, str(e))

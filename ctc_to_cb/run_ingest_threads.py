@@ -13,12 +13,12 @@ and a thread count.
 The script maintains a thread pool of VxIngestManagers and a queue of
 ingest documents that are retrieved from the load_spec file.
 The number of threads in the thread pool is set to the -t n (or --threads n)
-argument, where n is the number of threads to start. The default is one thread. 
+argument, where n is the number of threads to start. The default is one thread.
 The optional -n number_stations will restrict the processing to n number of stations to limit run time.
 This is analgous to specifying a small custom domain. The default is all the stations
 in the region specified in the ingest document.
-Each thread will run a VxIngestManager which will pull ingest documents, one at a time, 
-from the queue and fully process that document. 
+Each thread will run a VxIngestManager which will pull ingest documents, one at a time,
+from the queue and fully process that document.
 When the queue is empty each NetcdfIngestManager will gracefully die.
 
 This is an example load_spec...
@@ -31,11 +31,11 @@ load_spec:
     host: "cb_host"   - should come from defaults file
     user: "cb_user"   - should come from defaults file
     password: "cb_pwd" - should come from defaults file
-  
+
 The optional output_dir specifies the directory where output files will be written instead
 of writing them directly to couchbase. If the output_dir is not specified data will be written
 to couchbase cluster specified in the cb_connection.
-For each ingest document the template will be rendered for each fcstValidEpoch between the 
+For each ingest document the template will be rendered for each fcstValidEpoch between the
 specified first_epoch and the last_epoch. If the first_epoch is unspecified then the latest
 fcstValidEpoch currently in the db will be chosen as the first_epoch.
 
@@ -48,7 +48,7 @@ defaults:
 
 This is an example invocation in bash. t=The python must be python3.
 export PYTHONPATH=${HOME}/VXingest
-python grib2_to_cb/run_ingest_threads.py -s /data/grib2_to_cb/load_specs/load_spec_metar_ctc_V01.yaml -c ~/adb-cb1-credentials -o /data/grib2_to_cb/output 
+python grib2_to_cb/run_ingest_threads.py -s /data/grib2_to_cb/load_specs/load_spec_metar_ctc_V01.yaml -c ~/adb-cb1-credentials -o /data/grib2_to_cb/output
 
 Copyright 2019 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of
 Colorado, NOAA/OAR/ESRL/GSL
@@ -145,7 +145,7 @@ class VXIngest(object):
                 sys.exc_info())
             sys.exit("*** Error reading load_spec: " + self.spec_file)
 
-        
+
         # get all the ingest_document_ids and put them into a my_queue
         # load the my_queue with
         # Constructor for an infinite size  FIFO my_queue

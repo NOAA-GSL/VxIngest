@@ -15,6 +15,7 @@ import os.path
 import re
 import sys
 import time
+import traceback
 from datetime import datetime, timedelta
 
 import netCDF4 as nc
@@ -429,6 +430,9 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
             return None
         except Exception as e:
             logging.error("%s handle_data: Exception in named function ceiling_transform:  error: %s", self.__class__.__name__, str(e))
+            logging.error("ceiling_transform skyCover_array: %s skyLayerBase %s", str(skyCover_array), str(skyLayerBase))
+            logging.error("ceiling_transform stacktrace %s", str(traceback.format_exc()))
+            return None
 
     def kelvin_to_farenheight(self, params_dict):
         try:
@@ -455,6 +459,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
                 return None
         except Exception as e:
             logging.error("%s umask_value_transform: Exception in named function umask_value_transform for key %s:  error: %s", self.__class__.__name__, key, str(e))
+            return None
 
     def handle_pressure(self, params_dict):
         try:
@@ -465,6 +470,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
             return value
         except Exception as e:
             logging.error("%s handle_pressure: Exception in named function:  error: %s", self.__class__.__name__, str(e))
+            return None
 
     def handle_visibility(self, params_dict):
         #vis_sm = vis_m / 1609.344
@@ -475,6 +481,7 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
             return value
         except Exception as e:
             logging.error("%s handle_visibility: Exception in named function:  error: %s", self.__class__.__name__, str(e))
+            return None
 
     def interpolate_time(self, params_dict):
         """

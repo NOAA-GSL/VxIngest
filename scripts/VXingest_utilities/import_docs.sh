@@ -90,7 +90,7 @@ do_import() {
   sleep 10
   cat ${file_list} | while read f; do
     #echo 'cbimport json --cluster couchbase://${host} --bucket mdata --username ${user} --password ${pwd} --format list --generate-key %id% --dataset file:///${f}'
-    cbimport json --cluster couchbase://${host} --bucket mdata --username ${user} --password ${pwd} --format list --generate-key %id% --dataset file:///${f}
+    /opt/couchbase/bin/cbimport json --cluster couchbase://${host} --bucket mdata --username ${user} --password ${pwd} --format list --generate-key %id% --dataset file:///${f}
   done
 }
 
@@ -112,3 +112,7 @@ wait
 echo "cbimport commands submitted, done waiting"
 cd ${curdir}
 rm -rf ${tmp_dir}
+grep -i successfully ${log_dir}/x* | awk '{print $2}' | awk 'BEGIN { FS="file:///" }; {print $2}' | tr -d "\`" | while read f
+do
+rm -rf $f
+done

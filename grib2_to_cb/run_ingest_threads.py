@@ -13,12 +13,13 @@ and a thread count.
 The script maintains a thread pool of VxIngestManagers and a queue of
 filenames that are derived from the path, mask, first_epoch, and last_epoch parameters.
 The number of threads in the thread pool is set to the -t n (or --threads n)
-argument, where n is the number of threads to start. The default is one thread. 
+argument, where n is the number of threads to start. The default is one thread.
 The optional -n number_stations will restrict the processing to n number of stations to limit run time.
-Each thread will run a VxIngestManager which will pull filenames, one at a time, 
-from the filename queue and fully process that input file. 
+Each thread will run a VxIngestManager which will pull filenames, one at a time,
+from the filename queue and fully process that input file.
 When the queue is empty each NetcdfIngestManager will gracefully die.
-
+Only files that do not have a DataFile entry in the database will be added to the file queue.
+When a file is processed it a datafile entry will be made for that file and added to the result documents to ne imported.
 This is an example load_spec...
 
 load_spec:
@@ -29,13 +30,13 @@ load_spec:
     host: "cb_host"   - should come from defaults file
     user: "cb_user"   - should come from defaults file
     password: "cb_pwd" - should come from defaults file
-  
+
 The mask  is a python time.strftime format e.g. '%y%j%H%f',
 The optional output_dir specifies the directory where output files will be written instead
 of writing them directly to couchbase. If the output_dir is not specified data will be written
 to couchbase cluster specified in the cb_connection.
-Files in the path will be enqueued if the file name mask renders a valid datetime that 
-falls between the first_epoch and the last_epoch. 
+Files in the path will be enqueued if the file name mask renders a valid datetime that
+falls between the first_epoch and the last_epoch.
 The first_epoch and the last_epoch may be omitted in which case all the non processed files in the path
 will be processed.
 
@@ -48,7 +49,7 @@ defaults:
 
 This is an example invocation in bash. t=The python must be python3.
 export PYTHONPATH=${HOME}/VXingest
-python grib2_to_cb/run_ingest_threads.py -s /data/grib2_to_cb/load_specs/load_spec_grib_metar_hrrr_ops_V01.yaml -c ~/adb-cb1-credentials -p /data/grib2_to_cb/input_files -m %y%j%H%f -o /data/grib2_to_cb/output 
+python grib2_to_cb/run_ingest_threads.py -s /data/grib2_to_cb/load_specs/load_spec_grib_metar_hrrr_ops_V01.yaml -c ~/adb-cb1-credentials -p /data/grib2_to_cb/input_files -m %y%j%H%f -o /data/grib2_to_cb/output
 
 
 Copyright 2019 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of
@@ -62,12 +63,12 @@ import time
 from datetime import datetime, timedelta
 from multiprocessing import JoinableQueue
 from pathlib import Path
-
+import json
 import yaml
-
+from couchbase.cluster import Cluster, ClusterOptions, ClusterTracingOptions
+from couchbase_core.cluster import PasswordAuthenticator
 from grib2_to_cb.load_spec_yaml import LoadYamlSpecFile
 from grib2_to_cb.vx_ingest_manager import VxIngestManager
-
 
 def parse_args(args):
     """
@@ -76,7 +77,7 @@ def parse_args(args):
     begin_time = str(datetime.now())
     logging.getLogger().setLevel(logging.INFO)
     logging.info("--- *** --- Start --- *** ---")
-    logging.info("Begin a_time: %s" + begin_time)
+    logging.info("Begin a_time: %s", begin_time)
     # a_time execution
     parser = argparse.ArgumentParser()
     parser.add_argument("-s", "--spec_file", type=str,
@@ -102,8 +103,13 @@ def parse_args(args):
     args = parser.parse_args(args)
     return args
 
-
 class VXIngest(object):
+    """
+    This class is the commandline mechanism for using the grib2_to_cb builder.
+    This class will maintain the couchbase collection and cluster objects for all
+    the ingest managers that this thread will use. There will be VxIngestManagers started
+    to match the threadcount that is passed in. The default number of threads is one.
+    """
     def __init__(self):
         self.load_time_start = time.perf_counter()
         self.spec_file = ""
@@ -118,6 +124,76 @@ class VXIngest(object):
         self.output_dir = None
         # optional: used to limit the number of stations processed
         self.number_stations = sys.maxsize
+        self.load_job_id = None
+        self.load_spec = None
+        self.cb_credentials = None
+        self.collection = None
+        self.cluster = None
+        self.ingest_document_id = None
+        self.ingest_document = None
+        logging.getLogger().setLevel(logging.INFO)
+
+    def write_load_job_to_files(self):
+        # The document_map is all built now so write all the
+        # documents in the document_map into files in the output_dir
+        # noinspection PyBroadException
+        try:
+            Path(self.output_dir).mkdir(parents=True, exist_ok=True)
+            try:
+                file_name = self.load_job_id + ".json"
+                complete_file_name = os.path.join(self.output_dir, file_name)
+                f = open(complete_file_name, "w")
+                f.write(json.dumps([self.load_spec['load_job_doc']]))
+                f.close()
+            except Exception as e:
+                logging.info("process_file - trying write load_job: Got Exception - %s", str(e))
+        except Exception as e:
+            logging.error(": *** Error writing load_job to files: %s***", str(e))
+            raise e
+
+    def build_load_job_doc(self):
+        """
+        This method will build a load_job document for GribBuilder
+        """
+        self.load_job_id = "LF:{m}:{c}:{t}".format(m=self.__module__, c=self.__class__.__name__, t=str(int(time.time())))
+        stream = os.popen('git rev-parse HEAD')
+        git_hash = stream.read().strip()
+        lj_doc = {
+            "id": self.load_job_id,
+            "subset": "metar",
+            "type": "DF",
+            "lineageId": "",
+            "script": "__file__",
+            "scriptVersion": git_hash,
+            "loadSpec": self.spec_file,
+            "note": ""
+        }
+        return lj_doc
+
+    def close_cb(self):
+        """
+            close couchbase connection
+        """
+        if self.cluster:
+            self.cluster.disconnect()
+
+    def connect_cb(self):
+        """
+        create a couchbase connection and maintain the collection and cluster objects.
+        """
+        logging.info('%s: data_type_manager - Connecting to couchbase')
+        # get a reference to our cluster
+        # noinspection PyBroadException
+        try:
+            options = ClusterOptions(
+                PasswordAuthenticator(self.cb_credentials['user'], self.cb_credentials['password']))
+            self.cluster = Cluster(
+                'couchbase://' + self.cb_credentials['host'], options)
+            self.collection = self.cluster.bucket("mdata").default_collection()
+            logging.info('%s: Couchbase connection success')
+        except Exception as e:
+            logging.error("*** %s in connect_cb ***", str(e))
+            sys.exit("*** Error when connecting to mysql database: ")
 
     def runit(self, args):
         """
@@ -142,27 +218,48 @@ class VXIngest(object):
         #  Read the load_spec file
         #
         try:
-            logging.debug("load_spec filename is %s" + self.spec_file)
-            load_spec_file = LoadYamlSpecFile(
-                {'spec_file': self.spec_file})
+            logging.debug("load_spec filename is %s", self.spec_file)
+            load_spec_file = LoadYamlSpecFile({'spec_file': self.spec_file})
             # read in the load_spec file
-            load_spec = dict(load_spec_file.read())
+            self.load_spec = dict(load_spec_file.read())
             # put the real credentials into the load_spec
-            load_spec = self.get_credentials(load_spec)
+            self.cb_credentials = self.get_credentials(self.load_spec)
             # stash the first_last_params because the builder will need to detrmine
             # if it needs to check for the latest validEpoch from the database (first_epoch == 0)
-            load_spec['first_last_params'] = self.first_last_params
+            self.load_spec['first_last_params'] = self.first_last_params
+            # stash the load_job
+            self.load_spec['load_job_doc'] = self.build_load_job_doc()
+            # get the ingest document id.
+            # NOTE: in future we may make this (ingest_document_id) a list
+            # and start each VxIngestManager with its own ingest_document_id
+            self.ingest_document_id = self.load_spec['ingest_document_id']
+            # establish connections to cb, collection
+            self.connect_cb()
         except (RuntimeError, TypeError, NameError, KeyError):
             logging.error(
-                "*** %s occurred in Main reading load_spec " +
-                self.spec_file + " ***",
-                sys.exc_info())
+                "*** Error occurred in Main reading load_spec %s: %s ***",
+                self.spec_file, str(sys.exc_info()))
             sys.exit("*** Error reading load_spec: " + self.spec_file)
 
-        # load the my_queue with filenames that match the mask and are between first and last epoch (if they are in the args)
+        ingest_document = self.collection.get(self.ingest_document_id).content
+        # load the my_queue with filenames that match the mask and have not already been ingested
+        # (do not have associated datafile documents)
         # Constructor for an infinite size  FIFO my_queue
         q = JoinableQueue()
         file_names = []
+        model = ingest_document['model']
+        # get the urls (full_file_names) from all the datafiles for this type of ingest
+        result = self.cluster.query("""
+        SELECT url
+        FROM mdata
+        WHERE
+        subset='metar'
+        AND type='DF'
+        AND fileType='grib2'
+        AND originType='model'
+        AND model='{model}';
+        """.format(model=model))
+        df_full_names = list(result)
         if os.path.exists(self.path) and os.path.isdir(self.path):
             with os.scandir(self.path) as entries:
                 for entry in entries:
@@ -170,16 +267,15 @@ class VXIngest(object):
                     # first remove any characters from the file_name that correpond
                     # to "|" in the mask. Also remove the "|" characters from the mask itself
                     try:
-                        entry_name = entry.name
-                        file_utc_time = datetime.strptime(entry_name, self.fmask)
-                        file_time = int((file_utc_time - datetime(1970, 1, 1)).total_seconds())
-                        # check to see if it is within first and last epoch (default is 0 and maxsize)
-                        if self.first_last_params['first_epoch'] <= file_time and file_time <= self.first_last_params['last_epoch']:
-                            file_names.append(os.path.join(self.path, entry.name))
+                        #entry_name = entry.name
+                        #file_utc_time = datetime.strptime(entry_name, self.fmask)
+                        #file_time = int((file_utc_time - datetime(1970, 1, 1)).total_seconds())
+                        # check to see if this file has already been processed (if it is in the df_full_names)
+                        if  entry.name not in df_full_names:
+                            file_names.append(entry.path)
                     except:
                         # don't care, it just means it wasn't a properly formatted file per the mask
                         continue
-
         if len(file_names) == 0:
             raise Exception("No files to Process!")
         for f in file_names:
@@ -189,31 +285,33 @@ class VXIngest(object):
         # thread that uses builders to process one file at a time from the queue
         # Make the Pool of ingest_managers
         ingest_manager_list = []
-        for _threadCount in range(int(self.thread_count)):
+        for thread_count in range(int(self.thread_count)):
             # noinspection PyBroadException
             try:
-                load_spec['fmask'] = self.fmask
+                self.load_spec['fmask'] = self.fmask
+                # passing a cluster and collection is giving me trouble so each VxIngestManager is getting its own, for now.
                 ingest_manager_thread = VxIngestManager(
-                    "VxIngestManager-" + str(self.thread_count), load_spec, q, self.output_dir, self.number_stations)
+                    "VxIngestManager-" + str(thread_count), self.load_spec, ingest_document, q, self.output_dir, number_stations=self.number_stations)
                 ingest_manager_list.append(ingest_manager_thread)
                 ingest_manager_thread.start()
             except:
-                logging.error(
-                    "*** Error in  VxIngestManager ***" + str(sys.exc_info()))
+                logging.error("*** Error in  VxIngestManager %s***", str(sys.exc_info()))
         # be sure to join all the threads to wait on them
-        [proc.join() for proc in ingest_manager_list]
+        finished = [proc.join() for proc in ingest_manager_list]
+        self.write_load_job_to_files()
         logging.info("finished starting threads")
         load_time_end = time.perf_counter()
         load_time = timedelta(seconds=load_time_end - self.load_time_start)
-        logging.info("    >>> Total load a_time: %s" + str(load_time))
-        logging.info("End a_time: %s" + str(datetime.now()))
+        logging.info(" finished %s", str(finished))
+        logging.info("    >>> Total load a_time: %s", str(load_time))
+        logging.info("End a_time: %s", str(datetime.now()))
         logging.info("--- *** --- End  --- *** ---")
 
     def get_credentials(self, load_spec):
         #
         #  Read the credentials
         #
-        logging.debug("credentials filename is %s" + self.credentials_file)
+        logging.debug("credentials filename is %s", self.credentials_file)
         try:
             # check for existence of file
             if not Path(self.credentials_file).is_file():
@@ -225,13 +323,14 @@ class VXIngest(object):
             load_spec['cb_connection']['user'] = yaml_data['cb_user']
             load_spec['cb_connection']['password'] = yaml_data['cb_password']
             f.close()
-            return load_spec
+            return load_spec['cb_connection']
         except (RuntimeError, TypeError, NameError, KeyError):
             logging.error("*** %s in read ***", sys.exc_info()[0])
             sys.exit("*** Parsing error(s) in load_spec file!")
 
     def main(self):
-        logging.info("PYTHONPATH: " + os.environ['PYTHONPATH'])
+        """run_ingest_threads main entry. Manages a set of VxIngestManagers for processing grib files"""
+        logging.info("PYTHONPATH: %s", os.environ['PYTHONPATH'])
         args = parse_args(sys.argv[1:])
         self.runit(vars(args))
         sys.exit("*** FINISHED ***")

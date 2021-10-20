@@ -7,11 +7,9 @@ History Log:  Initial version
 
 
 Usage: The IngestManager extends Process - python multiprocess thread -
-and runs as a Process and pulls from a queue of file names. It
-maintains its own connection to couchbase which it keeps open until it finishes.
-
-It finishes and closes its database connection when the file_name_queue is
-empty.
+and runs as a Process and pulls from a queue of file names. It uses the collection and the cluster
+objects that are passed from the run_ingest_threads (VXIngest class).
+It finishes when the file_name_queue is empty.
 
 It gets file names serially from a queue that is shared by a
 thread pool of data_type_manager's and processes them one at a a_time. It gets
@@ -21,16 +19,18 @@ concrete builder to process the file.
 The builders are instantiated once and kept in a map of objects for the
 duration of the programs life. For IngestManager it is likely that
 each file will require only one builder type to be instantiated.
-When IngestManager finishes a document specification  it  "upserts"
-a document_map to the couchbase database or it writes the document to the output directory,
+When IngestManager finishes a document specification  it  writes the document to the output directory,
 if an output directory was specified.
 
         Attributes:
-            file_queue - a shared queue of filenames.
-            threadName - a threadName for logging and debugging purposes.
-            cb_credentials - a set of cb_credentials that
-            the DataTypeManager will use to connect to the database. This
-            connection will be maintained until the thread terminates.
+            name a threadName for logging and debugging purposes.
+            load_spec a load_spec object contains ingest_document_id, credentials, and first and last epoch
+            ingest_document an ingest document from the database
+            file_name_queue a shared queue of filenames.
+            output_dir where the output documents will be written
+            collection couchbase collection object for data service access
+            cluster couchbase cluster object for query service access
+            number_stations=sys.maxsize (you can limit how many stations will be processed - for debugging)
 Copyright 2019 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of
 Colorado, NOAA/OAR/ESRL/GSD
 """
@@ -42,12 +42,9 @@ import time
 from multiprocessing import Process
 from pathlib import Path
 from couchbase.cluster import Cluster, ClusterOptions
-from couchbase.exceptions import TimeoutException
 from couchbase_core.cluster import PasswordAuthenticator
-
+from couchbase.exceptions import TimeoutException
 from grib2_to_cb import grib_builder
-
-
 class VxIngestManager(Process):
     """
     IngestManager is a Process Thread that manages an object pool of
@@ -74,7 +71,7 @@ class VxIngestManager(Process):
     and dies.
     """
 
-    def __init__(self, name, load_spec, file_name_queue, output_dir, number_stations=sys.maxsize):
+    def __init__(self, name, load_spec, ingest_document, file_name_queue, output_dir, number_stations=sys.maxsize):
         """
         :param name: (str) the thread name for this IngestManager
         :param load_spec: (Object) contains Couchbase credentials
@@ -84,16 +81,44 @@ class VxIngestManager(Process):
         Process.__init__(self)
         self.thread_name = name
         self.load_spec = load_spec
-        self.cb_credentials = self.load_spec['cb_connection']
-        self.ingest_document_id = self.load_spec['ingest_document_id']
+        self.ingest_document = ingest_document
         self.ingest_type_builder_name = None
-        self.ingest_document = None
         self.queue = file_name_queue
         self.builder_map = {}
         self.cluster = None
         self.collection = None
         self.output_dir = output_dir
         self.number_stations = number_stations
+        self.cb_credentials = {}
+        self.cb_credentials['host'] = load_spec['cb_connection']['host']
+        self.cb_credentials['user'] = load_spec['cb_connection']['user']
+        self.cb_credentials['password'] = load_spec['cb_connection']['password']
+
+    def close_cb(self):
+        """
+            close couchbase connection
+        """
+        if self.cluster:
+            self.cluster.disconnect()
+
+    def connect_cb(self):
+        """
+        create a couchbase connection and maintain the collection and cluster objects.
+        """
+        logging.info('%s: data_type_manager - Connecting to couchbase')
+        # get a reference to our cluster
+        # noinspection PyBroadException
+        try:
+            options = ClusterOptions(
+                PasswordAuthenticator(self.cb_credentials['user'], self.cb_credentials['password']))
+            self.cluster = Cluster(
+                'couchbase://' + self.cb_credentials['host'], options)
+            self.collection = self.cluster.bucket("mdata").default_collection()
+            logging.info('%s: Couchbase connection success')
+        except Exception as e:
+            logging.error("*** %s in connect_cb ***", str(e))
+            sys.exit("*** Error when connecting to mysql database: ")
+
 
     # entry point of the thread. Is invoked automatically when the thread is
     # started.
@@ -101,7 +126,7 @@ class VxIngestManager(Process):
     def run(self):
         """
         This is the entry point for the IngestManager thread. It runs an
-        infinite loop that only terminates when the  file_name_queue is
+        infinite loop that only terminates when the file_name_queue is
         empty. For each enqueued file name it calls
         process_file with the file_name and the couchbase
         connection to process the file.
@@ -109,22 +134,16 @@ class VxIngestManager(Process):
         # noinspection PyBroadException
         try:
             logging.getLogger().setLevel(logging.INFO)
-            # establish connections to cb, collection
-            self.connect_cb()
             # Read the ingest document
             # get the document from couchbase
             # noinspection PyBroadException
             try:
-                if self.ingest_document_id is None:
-                    raise Exception('ingest_document is undefined')
-                ingest_document_result = self.collection.get(
-                    self.ingest_document_id)
-                self.ingest_document = ingest_document_result.content
                 self.ingest_type_builder_name = self.ingest_document['builder_type']
             except Exception as e:
                 logging.error("%s.process_file: Exception getting ingest document: %s", self.thread_name, str(e))
                 sys.exit("*** Error getting ingest document ***")
-
+            # get a connection
+            self.connect_cb()
             # infinite loop terminates when the file_name_queue is empty
             empty_count = 0
             while True:
@@ -154,24 +173,6 @@ class VxIngestManager(Process):
             self.close_cb()
             logging.info("%s: IngestManager finished", self.thread_name)
 
-    def close_cb(self):
-        if self.cluster:
-            self.cluster.disconnect()
-
-    def connect_cb(self):
-        logging.info('%s: data_type_manager - Connecting to couchbase', self.thread_name)
-        # get a reference to our cluster
-        # noinspection PyBroadException
-        try:
-            options = ClusterOptions(
-                PasswordAuthenticator(self.cb_credentials['user'], self.cb_credentials['password']))
-            self.cluster = Cluster(
-                'couchbase://' + self.cb_credentials['host'], options)
-            self.collection = self.cluster.bucket("mdata").default_collection()
-            logging.info('%s: Couchbase connection success', self.thread_name)
-        except Exception as e:
-            logging.error("*** %s in connect_cb ***", str(e))
-            sys.exit("*** Error when connecting to mysql database: ")
 
     def process_file(self, file_name):
         # get or instantiate the builder
@@ -191,7 +192,6 @@ class VxIngestManager(Process):
                                         self.cluster, self.collection, self.number_stations)
                 self.builder_map[self.ingest_type_builder_name] = builder
             document_map = builder.build_document(file_name)
-
             if self.output_dir:
                 self.write_document_to_files(file_name, document_map)
             else:

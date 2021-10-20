@@ -11,8 +11,8 @@ import cProfile
 import datetime
 import logging
 import math
-import os.path
 import sys
+import os
 from pstats import Stats
 
 import numpy
@@ -42,6 +42,7 @@ def initialize_data(doc):
 
 class GribBuilder:
     def __init__(self, load_spec, ingest_document, cluster, collection, number_stations=sys.maxsize):
+        self.ingest_document = ingest_document
         self.template = ingest_document['template']
         self.load_spec = load_spec
         self.cluster = cluster
@@ -71,6 +72,12 @@ class GribBuilder:
         pass
 
     def handlestation(self, row):
+        pass
+
+    def build_datafile_doc(self, model, file_name, data_file_id):
+        pass
+
+    def create_data_file_id(self, model, file_name):
         pass
 
     def derive_id(self, template_id):
@@ -306,21 +313,37 @@ class GribBuilder:
         3) determine the stations for this domain, adding gridpoints to each station - build a station list
         4) enable profiling if requested
         5) handle_document - iterate the template and process all the keys and values
+        6) build a datafile document to record that this file has been processed
         """
         # noinspection PyBroadException
         try:
-            # resolve the first epoch
+#            resolve the first epoch
             if self.load_spec['first_last_params']['first_epoch'] == 0:
-                # need to find first_epoch from the database - only do this once for all the files
+                # need to find first_epoch and its fcst_len's from the database - only do this once for all the files
                 result = self.cluster.query(
-                    "SELECT raw max(mdata.fcstValidEpoch) FROM mdata WHERE type='DD' AND docType='model' AND model=$model AND version='V01' AND subset='METAR';", model=self.template['model'])
+                    """SELECT RAW max(mdata.fcstValidEpoch)
+                        FROM mdata
+                            WHERE type='DD'
+                            AND docType='model'
+                            AND model=$model
+                            AND version='V01'
+                            AND subset='METAR';""", model=self.template['model'])
                 epoch = list(result)[0]
                 if epoch is not None:
                     self.load_spec['first_last_params']['first_epoch'] = epoch
-            # translate the projection from the grib file
-            file_utc_time = datetime.datetime.strptime(
-                os.path.basename(file_name), self.load_spec['fmask'])
-            file_time = (file_utc_time - datetime.datetime(1970, 1, 1)).total_seconds()
+                result = self.cluster.query(
+                    """SELECT RAW (DISTINCT fcstLen)
+                        FROM mdata
+                        WHERE type='DD'
+                            AND docType='model'
+                            AND model=$model
+                            AND version='V01'
+                            AND subset='METAR'
+                            AND fcstValidEpoch=$epoch;""", model=self.template['model'],epoch=epoch)
+                fcst_lens = list(result)
+                self.load_spec['first_last_params']['first_epoch_fcst_lens'] = fcst_lens
+
+            #translate the projection from the grib file
             logging.getLogger().setLevel(logging.INFO)
             self.projection = gg.getGrid(file_name)
             self.grbs = pygrib.open(file_name)
@@ -339,13 +362,19 @@ class GribBuilder:
             # get stations from couchbase and filter them so
             # that we retain only the ones for this models domain which is derived from the projection
             self.domain_stations = []
+            limit_clause = ""
+            if self.number_stations != sys.maxsize:
+                limit_clause = "limit {l}".format(l=self.number_stations)
             result = self.cluster.query(
-                "SELECT mdata.geo.lat, mdata.geo.lon, name from mdata where type='MD' and docType='station' and subset='METAR' and version='V01'")
-            station_limit = self.number_stations
-            count = 1
+                """SELECT mdata.geo.lat, mdata.geo.lon, name
+                    from mdata
+                    where type='MD'
+                    and docType='station'
+                    and subset='METAR'
+                    and version='V01'
+                    {limit_clause}
+                    """.format(limit_clause=limit_clause))
             for row in result:
-                if count > station_limit:
-                    break
                 if row['lat'] == -90 and row['lon'] == 180:
                     # TODO need to fix this
                     continue  # don't know how to transform that station
@@ -363,14 +392,14 @@ class GribBuilder:
                 station['x_gridpoint'] = x_gridpoint
                 station['y_gridpoint'] = y_gridpoint
                 self.domain_stations.append(station)
-                count = count + 1
 
             # if we have asked for profiling go ahead and do it
             if self.do_profiling:
                 with cProfile.Profile() as pr:
             # check to see if it is within first and last epoch (default is 0 and maxsize)
-                    if file_time >= self.load_spec['first_last_params']['first_epoch']:
-                        self.handle_document()
+                    # Cannot do this because each file is a valid_epoch + a fcst_len
+                    # if file_time >= self.load_spec['first_last_params']['first_epoch']:
+                    self.handle_document()
                     with open('profiling_stats.txt', 'w') as stream:
                         stats = Stats(pr, stream=stream)
                         stats.strip_dirs()
@@ -379,13 +408,16 @@ class GribBuilder:
                         stats.print_stats()
             else:
             # check to see if it is within first and last epoch (default is 0 and maxsize)
-                if file_time >= self.load_spec['first_last_params']['first_epoch']:
-                    self.handle_document()
+                # Cannot do this because each file is a valid_epoch + a fcst_len
+                #if file_time >= self.load_spec['first_last_params']['first_epoch']:
+                self.handle_document()
             document_map = self.get_document_map()
+            data_file_id = self.create_data_file_id(model=self.template['model'], file_name=file_name)
+            data_file_doc = self.build_datafile_doc(model=self.template['model'], file_name=file_name, data_file_id=data_file_id)
+            document_map[data_file_doc['id']] = data_file_doc
             return document_map
         except Exception as e:
-            logging.error(self.__class__.__name__ +
-                          ": Exception with builder build_document: error: " + str(e))
+            logging.error("%s: Exception with builder build_document: error: %s", self.__class__.__name__ , str(e))
             return {}
 # Concrete builders
 
@@ -418,6 +450,37 @@ class GribModelBuilderV01(GribBuilder):
         self.template = ingest_document['template']
         # self.do_profiling = True  # set to True to enable build_document profiling
         self.do_profiling = False  # set to True to enable build_document profiling
+
+    def create_data_file_id(self, model, file_name):
+        """
+        This method creates a metar grib_to_cb datafile id from the parameters
+        """
+        base_name = os.path.basename(file_name)
+        an_id = "DF:metar:grib2:{m}:{n}".format(m=model, n=base_name)
+        return an_id
+
+    def build_datafile_doc(self, model, file_name, data_file_id):
+        """
+        This method will build a dataFile document for GribBuilder. The dataFile
+        document will represent the file that is ingested by the GribBuilder. The document
+        is intended to be added to the output folder and imported with the other documents.
+        The VxIngest will examine the existing dataFile documents to determine if a psecific file
+        has already been ingested.
+        """
+        df_doc = {
+            "id": data_file_id,
+            "subset": "metar",
+            "type": "DF",
+            "fileType": "grib2",
+            "originType": "model",
+            "model": model,
+            "loadJobId": self.load_spec['load_job_doc']['id'],
+            "dataSourceId": "GSL",
+            "url": file_name,
+            "projection": "lambert_conformal_conic",
+            "interpolation": "nearest 4 weighted average"
+        }
+        return df_doc
 
     def initialize_document_map(self):
         """

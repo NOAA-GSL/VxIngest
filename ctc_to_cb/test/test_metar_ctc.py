@@ -491,8 +491,8 @@ class TestCTCBuilderV01(unittest.TestCase):
             
             # choose one sort of near the end to be sure that all the data is present and that
             # it won't get its raw data migrated away
-            #fcst_valid_epoch = common_fcst_valid_epochs[round(len(common_fcst_valid_epochs)/2)]
-            fcst_valid_epoch = common_fcst_valid_epochs[-50]
+            rindex = min(len (common_fcst_valid_epochs), 15) * -1
+            fcst_valid_epoch = common_fcst_valid_epochs[rindex]
             result = cluster.query("""
                 SELECT RAW fcstLen
                 FROM mdata

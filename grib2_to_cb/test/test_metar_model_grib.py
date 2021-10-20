@@ -33,8 +33,8 @@ class TestGribBuilderV01(unittest.TestCase):
             #1632412800 fcst_len 18 -> 1632412800 - 18 * 3600 -> 1632348000 September 22, 2021 22:00:00 -> 2126522000018 (missing)
             #1632420000 September 23, 2021 18:00:00  2126616000018
             #1632423600  September 23, 2021 19:00:00 2126617000001
-            first_epoch = 1632409200 - 10
-            last_epoch = 1632409200 + 10
+            #first_epoch = 1634252400 - 10
+            #last_epoch = 1634252400 + 10
             cwd = os.getcwd()
             self.credentials_file = os.environ['HOME'] + '/adb-cb1-credentials'
             self.spec_file = cwd + '/grib2_to_cb/test/test_load_spec_grib_metar_hrrr_ops_V01.yaml'
@@ -45,9 +45,11 @@ class TestGribBuilderV01(unittest.TestCase):
                             'file_name_mask': '%y%j%H%f',
                             'output_dir': '/opt/data/grib2_to_cb/output',
                             'threads': 1,
-                            'first_epoch': first_epoch,
-                            'last_epoch': last_epoch
+                            'first_epoch':1634252400
                             })
+                            # 'first_epoch': first_epoch,
+                            # 'last_epoch': last_epoch
+
         except:
             self.fail("TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus Exception failure: " +
                       str(sys.exc_info()[0]))

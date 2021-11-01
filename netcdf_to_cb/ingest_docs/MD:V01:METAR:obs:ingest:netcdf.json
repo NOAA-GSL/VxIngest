@@ -1,5 +1,5 @@
 {
-  "builder_type": "NetcdfObsBuilderV01",
+  "builder_type": "NetcdfMetarObsBuilderV01",
   "validTimeInterval": 3600,
   "validTimeDelta": 1800,
   "docType": "ingest",

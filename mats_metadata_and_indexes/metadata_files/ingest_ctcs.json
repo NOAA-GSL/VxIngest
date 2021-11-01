@@ -21,7 +21,7 @@
       "region": "E_US",
       "version": "V01",
       "subset": "METAR",
-      "fcstValidBeg": "&handle_iso_time",
+      "fcstValidISO": "&handle_iso_time",
       "fcstValidEpoch": "&handle_time",
       "fcstLen": "&handle_fcst_len",
       "data": "&handle_data"
@@ -49,14 +49,14 @@
       "region": "ALL_HRRR",
       "version": "V01",
       "subset": "METAR",
-      "fcstValidBeg": "&handle_iso_time",
+      "fcstValidISO": "&handle_iso_time",
       "fcstValidEpoch": "&handle_time",
       "fcstLen": "&handle_fcst_len",
       "data": "&handle_data"
     }
   },
   {
-    "id": "MD:V01:METAR:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest",
+    "id": "MD:V01:METAR:HRRR_OPS:E_HRRR:CTC:CEILING:ingest",
     "builder_type": "CTCModelObsBuilderV01",
     "docType": "ingest",
     "type": "MD",
@@ -65,19 +65,19 @@
     "subType": "CTC",
     "subDocType": "CEILING",
     "model": "HRRR_OPS",
-    "region": "ALL_HRRR",
+    "region": "E_HRRR",
     "template": {
       "dataFileId": "DF_id",
       "dataSourceId": "DS_id",
-      "id": "DD:V01:METAR:HRRR_OPS:ALL_HRRR:CTC:CEILING:&handle_time:&handle_fcst_len",
+      "id": "DD:V01:METAR:HRRR_OPS:E_HRRR:CTC:CEILING:&handle_time:&handle_fcst_len",
       "type": "DD",
       "docType": "CTC",
       "subDocType": "CEILING",
       "model": "HRRR_OPS",
-      "region": "ALL_HRRR",
+      "region": "E_HRRR",
       "version": "V01",
       "subset": "METAR",
-      "fcstValidBeg": "&handle_iso_time",
+      "fcstValidISO": "&handle_iso_time",
       "fcstValidEpoch": "&handle_time",
       "fcstLen": "&handle_fcst_len",
       "data": "&handle_data"
@@ -105,7 +105,7 @@
       "region": "E_HRRR",
       "version": "V01",
       "subset": "METAR",
-      "fcstValidBeg": "&handle_iso_time",
+      "fcstValidISO": "&handle_iso_time",
       "fcstValidEpoch": "&handle_time",
       "fcstLen": "&handle_fcst_len",
       "data": "&handle_data"
@@ -133,7 +133,7 @@
       "region": "ALL_HRRR",
       "version": "V01",
       "subset": "METAR",
-      "fcstValidBeg": "&handle_iso_time",
+      "fcstValidISO": "&handle_iso_time",
       "fcstValidEpoch": "&handle_time",
       "fcstLen": "&handle_fcst_len",
       "data": "&handle_data"
@@ -161,7 +161,7 @@
       "region": "W_HRRR",
       "version": "V01",
       "subset": "METAR",
-      "fcstValidBeg": "&handle_iso_time",
+      "fcstValidISO": "&handle_iso_time",
       "fcstValidEpoch": "&handle_time",
       "fcstLen": "&handle_fcst_len",
       "data": "&handle_data"
@@ -189,7 +189,7 @@
       "region": "GtLk",
       "version": "V01",
       "subset": "METAR",
-      "fcstValidBeg": "&handle_iso_time",
+      "fcstValidISO": "&handle_iso_time",
       "fcstValidEpoch": "&handle_time",
       "fcstLen": "&handle_fcst_len",
       "data": "&handle_data"
@@ -217,7 +217,7 @@
       "region": "E_US",
       "version": "V01",
       "subset": "METAR",
-      "fcstValidBeg": "&handle_iso_time",
+      "fcstValidISO": "&handle_iso_time",
       "fcstValidEpoch": "&handle_time",
       "fcstLen": "&handle_fcst_len",
       "data": "&handle_data"
@@ -245,7 +245,7 @@
       "region": "ALL_HRRR",
       "version": "V01",
       "subset": "METAR",
-      "fcstValidBeg": "&handle_iso_time",
+      "fcstValidISO": "&handle_iso_time",
       "fcstValidEpoch": "&handle_time",
       "fcstLen": "&handle_fcst_len",
       "data": "&handle_data"
@@ -273,7 +273,7 @@
       "region": "E_HRRR",
       "version": "V01",
       "subset": "METAR",
-      "fcstValidBeg": "&handle_iso_time",
+      "fcstValidISO": "&handle_iso_time",
       "fcstValidEpoch": "&handle_time",
       "fcstLen": "&handle_fcst_len",
       "data": "&handle_data"
@@ -301,7 +301,7 @@
       "region": "W_HRRR",
       "version": "V01",
       "subset": "METAR",
-      "fcstValidBeg": "&handle_iso_time",
+      "fcstValidISO": "&handle_iso_time",
       "fcstValidEpoch": "&handle_time",
       "fcstLen": "&handle_fcst_len",
       "data": "&handle_data"
@@ -329,7 +329,7 @@
       "region": "GtLk",
       "version": "V01",
       "subset": "METAR",
-      "fcstValidBeg": "&handle_iso_time",
+      "fcstValidISO": "&handle_iso_time",
       "fcstValidEpoch": "&handle_time",
       "fcstLen": "&handle_fcst_len",
       "data": "&handle_data"

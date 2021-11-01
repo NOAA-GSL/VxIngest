@@ -61,9 +61,8 @@ import time
 from datetime import datetime, timedelta
 from multiprocessing import JoinableQueue
 from pathlib import Path
-
+import json
 import yaml
-
 from ctc_to_cb.load_spec_yaml import LoadYamlSpecFile
 from ctc_to_cb.vx_ingest_manager import VxIngestManager
 
@@ -75,7 +74,7 @@ def parse_args(args):
     begin_time = str(datetime.now())
     logging.getLogger().setLevel(logging.INFO)
     logging.info("--- *** --- Start --- *** ---")
-    logging.info("Begin a_time: %s" + begin_time)
+    logging.info("Begin a_time: %s", begin_time)
     # a_time execution
     parser = argparse.ArgumentParser()
     parser.add_argument("-s", "--spec_file", type=str,
@@ -97,6 +96,19 @@ def parse_args(args):
 
 
 class VXIngest(object):
+    """
+    This class is the commandline mechanism for using the builder.
+    This class will maintain the couchbase collection and cluster objects for all
+    the ingest managers that this thread will use. There will be VxIngestManagers started
+    to match the threadcount that is passed in. The default number of threads is one.
+
+    Args:
+        object ([dict]): [parsed cmdline arguments]
+
+    Raises:
+        _e: [general exception]
+    """
+
     def __init__(self):
         self.load_time_start = time.perf_counter()
         self.spec_file = ""
@@ -107,6 +119,42 @@ class VXIngest(object):
         # that fall between these epochs will be processed.
         self.first_last_params = None
         self.output_dir = None
+        self.load_job_id = None
+        self.load_spec = {}
+
+    def write_load_job_to_files(self):
+        """
+        write all the documents in the document_map into files in the output_dir
+        """
+        try:
+            Path(self.output_dir).mkdir(parents=True, exist_ok=True)
+            file_name = self.load_job_id + ".json"
+            complete_file_name = os.path.join(self.output_dir, file_name)
+            _f = open(complete_file_name, "w")
+            _f.write(json.dumps([self.load_spec['load_job_doc']]))
+            _f.close()
+        except Exception as _e:# pylint: disable=bare-except
+            logging.error(": *** Error writing load_job to files: %s***", str(_e))
+            raise _e
+
+    def build_load_job_doc(self):
+        """
+        This method will build a load_job document for CTCBuilder
+        """
+        self.load_job_id = "LJ:{m}:{c}:{t}".format(m=self.__module__, c=self.__class__.__name__, t=str(int(time.time())))
+        stream = os.popen('git rev-parse HEAD')
+        git_hash = stream.read().strip()
+        lj_doc = {
+            "id": self.load_job_id,
+            "subset": "metar",
+            "type": "LJ",
+            "lineageId": "",
+            "script": "__file__",
+            "scriptVersion": git_hash,
+            "loadSpec": self.spec_file,
+            "note": ""
+        }
+        return lj_doc
 
     def runit(self, args):
         """
@@ -132,54 +180,61 @@ class VXIngest(object):
             load_spec_file = LoadYamlSpecFile(
                 {'spec_file': self.spec_file})
             # read in the load_spec file
-            load_spec = dict(load_spec_file.read())
+            self.load_spec = dict(load_spec_file.read())
             # put the real credentials into the load_spec
-            load_spec['cb_connection'] = self.get_credentials(load_spec)['cb_connection']
+            self.load_spec['cb_connection'] = self.get_credentials(self.load_spec)['cb_connection']
             # stash the first_last_params because the builder will need to detrmine
             # if it needs to check for the latest validEpoch from the database (first_epoch == 0)
-            load_spec['first_last_params'] = self.first_last_params
+            self.load_spec['first_last_params'] = self.first_last_params
+            # stash the load_job
+            self.load_spec['load_job_doc'] = self.build_load_job_doc()
         except (RuntimeError, TypeError, NameError, KeyError):
             logging.error(
-                "*** %s occurred in Main reading load_spec " +
-                self.spec_file + " ***",
-                sys.exc_info())
+                "*** %s occurred in Main reading load_spec %s ***",
+                sys.exc_info(), self.spec_file)
             sys.exit("*** Error reading load_spec: " + self.spec_file)
 
 
         # get all the ingest_document_ids and put them into a my_queue
         # load the my_queue with
         # Constructor for an infinite size  FIFO my_queue
-        q = JoinableQueue()
-        for f in load_spec['ingest_document_ids']:
-            q.put(f)
+        _q = JoinableQueue()
+        for f in self.load_spec['ingest_document_ids']:
+            _q.put(f)
         # instantiate data_type_manager pool - each data_type_manager is a
         # thread that uses builders to process a file
         # Make the Pool of data_type_managers
         _dtm_list = []
-        for _threadCount in range(int(self.thread_count)):
+        for _thread_count in range(int(self.thread_count)):
             # noinspection PyBroadException
             try:
                 dtm_thread = VxIngestManager(
-                    "VXIngestManager-" + str(_threadCount), load_spec, q, self.output_dir)
+                    "VXIngestManager-" + str(_thread_count), self.load_spec, _q, self.output_dir)
                 _dtm_list.append(dtm_thread)
                 dtm_thread.start()
-            except:
-                logging.error(
-                    "*** Error in  VXIngestGSL ***" + str(sys.exc_info()))
+            except: # pylint: disable=bare-except
+                logging.error("*** Error in  VXIngestGSL ***%s", str(sys.exc_info()))
         # be sure to join all the threads to wait on them
-        [proc.join() for proc in _dtm_list]
+        finished = [proc.join() for proc in _dtm_list]
+        self.write_load_job_to_files()
         logging.info("finished starting threads")
         load_time_end = time.perf_counter()
         load_time = timedelta(seconds=load_time_end - self.load_time_start)
-        logging.info("    >>> Total load a_time: %s" + str(load_time))
-        logging.info("End a_time: %s" + str(datetime.now()))
+        logging.info(" finished %s", str(finished))
+        logging.info("    >>> Total load a_time: %s", str(load_time))
+        logging.info("End a_time: %s", str(datetime.now()))
         logging.info("--- *** --- End  --- *** ---")
 
     def get_credentials(self, load_spec):
-        #
-        #  Read the credentials
-        #
-        logging.debug("credentials filename is %s" + self.credentials_file)
+        """get credentials from a credentials file and puts them into the load_spec
+
+        Args:
+            load_spec (dict): [this is generated from the load spec file]
+
+        Returns:
+            [dict]: [the new load_spec with the credentials]
+        """
+        logging.debug("credentials filename is %s", self.credentials_file)
         try:
             # check for existence of file
             if not Path(self.credentials_file).is_file():
@@ -197,7 +252,10 @@ class VXIngest(object):
             sys.exit("*** Parsing error(s) in load_spec file!")
 
     def main(self):
-        logging.info("PYTHONPATH: " + os.environ['PYTHONPATH'])
+        """
+        This is the entry for run_ingest_threads
+        """
+        logging.info("PYTHONPATH: %s", os.environ['PYTHONPATH'])
         args = parse_args(sys.argv[1:])
         self.runit(vars(args))
         sys.exit("*** FINISHED ***")

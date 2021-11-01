@@ -65,8 +65,10 @@ def getWindTheta(grb, lon):
         dlon = elonv-lon
         rotation = math.sin(math.radians(alattan))
 
-        if lon > 180: lon-=360
-        if lon <-180: lon+=360
+        if lon > 180:
+            lon -= 360
+        if lon < -180:
+            lon += 360
         theta = -rotation*dlon
 
     else:

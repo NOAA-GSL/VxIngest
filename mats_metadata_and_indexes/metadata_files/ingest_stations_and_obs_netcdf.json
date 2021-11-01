@@ -1,6 +1,6 @@
 [
   {
-    "builder_type": "NetcdfObsBuilderV01",
+    "builder_type": "NetcdfMetarObsBuilderV01",
     "validTimeInterval": 3600,
     "validTimeDelta": 1800,
     "docType": "ingest",
@@ -16,10 +16,10 @@
         "*stationName": {
           "Ceiling": "&ceiling_transform|*skyCover,*skyLayerBase",
           "DewPoint": "&kelvin_to_farenheight|*dewpoint",
-          "Reported Time": "&interpolate_time|*timeObs",
+          "Reported Time": "&umask_value_transform|*timeObs",
           "Surface Pressure": "&handle_pressure|*altimeter",
           "Temperature": "&kelvin_to_farenheight|*temperature",
-          "Visibility": "&umask_value_transform|*visibility",
+          "Visibility": "&handle_visibility|*visibility",
           "WD": "&umask_value_transform|*windDir",
           "WS": "&meterspersecond_to_milesperhour|*windSpeed",
           "name": "&handle_station|*stationName"
@@ -37,9 +37,9 @@
       },
       "dataSourceId": "MADIS",
       "docType": "obs",
-      "fcstValidBeg": "&interpolate_time_iso|*timeObs",
-      "fcstValidEpoch": "&interpolate_time|*timeObs",
-      "id": "DD:V01:METAR:obs:&interpolate_time|*timeObs",
+      "fcstValidISO": "&derive_valid_time_iso|%Y%m%d_%H%M",
+      "fcstValidEpoch": "&derive_valid_time_epoch|%Y%m%d_%H%M",
+      "id": "DD:V01:METAR:obs:&derive_valid_time_epoch|%Y%m%d_%H%M",
       "subset": "METAR",
       "type": "DD",
       "version": "V01"

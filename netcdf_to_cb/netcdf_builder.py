@@ -8,80 +8,112 @@ Colorado, NOAA/OAR/ESRL/GSL
 
 import calendar
 import copy
-import datetime as dt
+import cProfile
 import logging
 import math
-import os.path
 import re
-import sys
+import os
+from pstats import Stats
+
 import time
+import traceback
 from datetime import datetime, timedelta
 
 import netCDF4 as nc
 import numpy.ma as ma
 
-TS_OUT_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
-
 
 def convert_to_iso(an_epoch):
+    """
+    convert an epoch to ISO format
+    """
     if not isinstance(an_epoch, int):
         an_epoch = int(an_epoch)
-    valid_time_str = dt.datetime.utcfromtimestamp(
-        an_epoch).strftime(TS_OUT_FORMAT)
+    valid_time_str = datetime.utcfromtimestamp(an_epoch).strftime("%Y-%m-%dT%H:%M:%SZ")
     return valid_time_str
 
 
 def initialize_data(doc):
-    """ initialize the data by just making sure the template data element has been removed.
+    """initialize the data by just making sure the template data element has been removed.
     All the data elements are going to be top level elements"""
-    if 'data' in doc.keys():
-        del doc['data']
+    if "data" in doc.keys():
+        del doc["data"]
     return doc
 
 
-class NetcdfBuilder:
+class NetcdfBuilder:  # pylint disable=too-many-instance-attributes
+    """parent class for netcdf builders"""
+
     def __init__(self, load_spec, ingest_document, cluster, collection):
-        self.template = ingest_document['template']
+        self.ingest_document = ingest_document
+        self.template = ingest_document["template"]
         self.load_spec = load_spec
         self.cluster = cluster
         self.collection = collection
-        self.id = None
+        self.an_id = None
         self.document_map = {}
         self.ncdf_data_set = None
         self.station_names = []
+        self.file_name = None
+        # self.do_profiling = True  # set to True to enable build_document profiling
+        self.do_profiling = False
 
-    def load_data(self, doc, key, element):
+    def initialize_document_map(self):  # pylint: disable=missing-function-docstring
         pass
 
-    def get_document_map(self):
+    def load_data(
+        self, doc, key, element
+    ):  # pylint: disable=missing-function-docstring
         pass
 
-    def handle_recNum(self, row):
+    def get_document_map(self):  # pylint: disable=missing-function-docstring
         pass
 
-    def derive_id(self, template_id, recNum):
-        # Private method to derive a document id from the current recNum,
-        # substituting *values from the corresponding netcdf fields as necessary.
-        # noinspection PyBroadException
+    def handle_recNum(
+        self, row
+    ):  # pylint: disable=missing-function-docstring, disable=invalid-name
+        pass
+
+    def build_datafile_doc(
+        self, file_name, data_file_id
+    ):  # pylint: disable=missing-function-docstring
+        pass
+
+    def create_data_file_id(
+        self, file_name
+    ):  # pylint: disable=missing-function-docstring
+        pass
+
+    def derive_id(self, template_id, rec_num):
+        """
+        This is a private method to derive a document id from the current recNum,
+        substituting *values from the corresponding grib fields as necessary. A *field
+        represents a direct substitution and a &function|params...
+        represents a handler function.
+        Args:
+            template_id (string): this is an id template string
+        Returns:
+            [string]: The processed id with substitutions made for elements in the id template
+        """
         try:
-            parts = template_id.split(':')
+            parts = template_id.split(":")
             new_parts = []
             for part in parts:
-                if part.startswith('&'):
-                    value = str(self.handle_named_function(part, recNum))
+                if part.startswith("&"):
+                    value = str(self.handle_named_function(part, rec_num))
                 else:
                     if part.startswith("*"):
-                        value = str(self.translate_template_item(part, recNum))
+                        value = str(self.translate_template_item(part, rec_num))
                     else:
                         value = str(part)
                 new_parts.append(value)
             new_id = ":".join(new_parts)
             return new_id
-        except:
-            e = sys.exc_info()
-            logging.error("NetcdfBuilder.derive_id: Exception  error: %s", str(e))
+        except Exception as _e:  # pylint:disable=broad-except
+            logging.error("NetcdfBuilder.derive_id: Exception  error: %s", str(_e))
+            return None
 
-    def translate_template_item(self, variable, recNum):
+    def translate_template_item(self, variable, rec_num):
         """
         This method translates template replacements (*item).
         It can translate keys or values.
@@ -93,34 +125,36 @@ class NetcdfBuilder:
         # noinspection PyBroadException
         try:
             if isinstance(variable, str):
-                replacements = variable.split('*')[1:]
-            # skip the first replacement, its never
-            # really a replacement. It is either '' or not a
-            # replacement
-
+                replacements = variable.split("*")[1:]
+            if len(replacements) == 0:
+                # it is a literal, not a replacement (doesn't start with *)
+                return variable
             make_str = False
             value = variable
-            Smatch = re.compile(".*S.*")
-            Umatch = re.compile(".*U.*")
+            Smatch = re.compile(".*S.*")  # pylint:disable=invalid-name
+            Umatch = re.compile(".*U.*")  # pylint:disable=invalid-name
             if len(replacements) > 0:
-                for ri in replacements:
-                    vtype = str(self.ncdf_data_set.variables[ri].dtype)
+                for _ri in replacements:
+                    vtype = str(self.ncdf_data_set.variables[_ri].dtype)
                     if Smatch.match(vtype) or Umatch.match(vtype):
                         make_str = True
                         chartostring = True
                         break
-                for ri in replacements:
-                    if ri.startswith("{ISO}"):
+                for _ri in replacements:
+                    if _ri.startswith("{ISO}"):
                         variable = value.replace("*{ISO}", "")
                         if chartostring:
                             # for these we have to convert the character array AND convert to ISO (it is probably a string date)
                             value = convert_to_iso(
                                 # pylint: disable=maybe-no-member
-                                "*{ISO}" + nc.chartostring(self.ncdf_data_set[variable][recNum]))
+                                "*{ISO}"
+                                + nc.chartostring(self.ncdf_data_set[variable][rec_num])
+                            )
                         else:
                             # for these we have to convert convert to ISO (it is probably an epoch)
                             value = convert_to_iso(
-                                "*{ISO}" + self.ncdf_data_set[variable][recNum])
+                                "*{ISO}" + self.ncdf_data_set[variable][rec_num]
+                            )
                     else:
                         variable = value.replace("*", "")
                         if make_str:
@@ -128,18 +162,25 @@ class NetcdfBuilder:
                                 # it is a char array of something
                                 value = value.replace(
                                     # pylint: disable=maybe-no-member
-                                    '*' + ri, str(nc.chartostring(self.ncdf_data_set[variable][recNum])))
+                                    "*" + _ri,
+                                    str(
+                                        nc.chartostring(
+                                            self.ncdf_data_set[variable][rec_num]
+                                        )
+                                    ),
+                                )
                                 return value
                             else:
                                 # it is probably a number
-                                value = str(
-                                    self.ncdf_data_set[variable][recNum])
+                                value = str(self.ncdf_data_set[variable][rec_num])
                                 return value
                         else:
                             # it desn't need to be a string
-                            return self.ncdf_data_set[variable][recNum]
-        except Exception as e:
-            logging.error("NetcdfBuilder.translate_template_item: Exception  error: %s", str(e))
+                            return self.ncdf_data_set[variable][rec_num]
+        except Exception as _e:  # pylint:disable=broad-except
+            logging.error(
+                "NetcdfBuilder.translate_template_item: Exception  error: %s", str(_e)
+            )
         return value
 
     def handle_document(self):
@@ -149,29 +190,39 @@ class NetcdfBuilder:
         # noinspection PyBroadException
         try:
             new_document = copy.deepcopy(self.template)
-            recNum_data_size = self.ncdf_data_set.dimensions['recNum'].size
-            if recNum_data_size == 0:
+            rec_num_data_size = self.ncdf_data_set.dimensions["recNum"].size
+            if rec_num_data_size == 0:
                 return
             # make a copy of the template, which will become the new document
             # once all the translations have occured
             new_document = initialize_data(new_document)
-            for recNum in range(recNum_data_size):
+            for rec_num in range(rec_num_data_size):
                 for key in self.template.keys():
                     if key == "data":
-                        new_document = self.handle_data(new_document, recNum)
+                        new_document = self.handle_data(new_document, rec_num)
                         continue
-                    new_document = self.handle_key(new_document, recNum, key)
+                    new_document = self.handle_key(new_document, rec_num, key)
             # put document into document map
-            if new_document['id']:
-                logging.info("NetcdfBuilder.handle_document - adding document %s", new_document['id'])
-                self.document_map[new_document['id']] = new_document
+            if new_document["id"]:
+                logging.info(
+                    "NetcdfBuilder.handle_document - adding document %s",
+                    new_document["id"],
+                )
+                self.document_map[new_document["id"]] = new_document
             else:
-                logging.info("NetcdfBuilder.handle_document - cannot add document with key %s", str(new_document['id']))
-        except Exception as e:
-            logging.error("NetcdfBuilder.handle_document: Exception instantiating builder: %s error: %s", self.__class__.__name__,  str(e))
-            raise e
+                logging.info(
+                    "NetcdfBuilder.handle_document - cannot add document with key %s",
+                    str(new_document["id"]),
+                )
+        except Exception as _e:  # pylint:disable=broad-except
+            logging.error(
+                "NetcdfBuilder.handle_document: Exception instantiating builder: %s error: %s",
+                self.__class__.__name__,
+                str(_e),
+            )
+            raise _e
 
-    def handle_key(self, doc, _recNum, key):
+    def handle_key(self, doc, _rec_num, key):
         """
         This routine handles keys by substituting
         the netcdf variables that correspond to the key into the values
@@ -183,28 +234,35 @@ class NetcdfBuilder:
         """
         # noinspection PyBroadException
         try:
-            if key == 'id':
-                an_id = self.derive_id(self.template['id'], _recNum)
-                if not an_id == doc['id']:
-                    doc['id'] = an_id
+            if key == "id":
+                an_id = self.derive_id(self.template["id"], _rec_num)
+                if not an_id in doc:
+                    doc["id"] = an_id
                 return doc
             if isinstance(doc[key], dict):
                 # process an embedded dictionary
                 tmp_doc = copy.deepcopy(self.template[key])
-                for _sub_key in tmp_doc.keys():
-                    tmp_doc = self.handle_key(
-                        tmp_doc, _recNum, _sub_key)  # recursion
+                for sub_key in tmp_doc.keys():
+                    tmp_doc = self.handle_key(tmp_doc, _rec_num, sub_key)  # recursion
                 doc[key] = tmp_doc
-            if not isinstance(doc[key], dict) and isinstance(doc[key], str) and doc[key].startswith('&'):
-                doc[key] = self.handle_named_function(doc[key], _recNum)
+            if (
+                not isinstance(doc[key], dict)
+                and isinstance(doc[key], str)
+                and doc[key].startswith("&")
+            ):
+                doc[key] = self.handle_named_function(doc[key], _rec_num)
             else:
-                doc[key] = self.translate_template_item(doc[key], _recNum)
+                doc[key] = self.translate_template_item(doc[key], _rec_num)
             return doc
-        except Exception as e:
-            logging.error("%s NetcdfBuilder.handle_key: Exception in builder:  error: %s", self.__class__.__name__, str(e))
+        except Exception as _e:  # pylint:disable=broad-except
+            logging.error(
+                "%s NetcdfBuilder.handle_key: Exception in builder:  error: %s",
+                self.__class__.__name__,
+                str(_e),
+            )
         return doc
 
-    def handle_named_function(self, named_function_def, _recNum):
+    def handle_named_function(self, named_function_def, rec_num):
         """
         This routine processes a named function entry from a template.
         :param _named_function_def - this can be either a template key or a template value.
@@ -221,47 +279,68 @@ class NetcdfBuilder:
         """
         # noinspection PyBroadException
         try:
-            func = named_function_def.split('|')[0].replace('&', '')
-            params = named_function_def.split('|')[1].split(',')
-            dict_params = {"recNum": _recNum}
+            func = named_function_def.split("|")[0].replace("&", "")
+            params = named_function_def.split("|")[1].split(",")
+            dict_params = {"recNum": rec_num}
             for _p in params:
                 # be sure to slice the * off of the front of the param
-                dict_params[_p[1:]] = self.translate_template_item(_p, _recNum)
+                dict_params[_p[1:]] = self.translate_template_item(_p, rec_num)
             # call the named function using getattr
             replace_with = getattr(self, func)(dict_params)
-        except Exception as e:
-            logging.error("%s handle_named_function: Exception instantiating builder:  error: %s", self.__class__.__name__, str(e))
+        except Exception as _e:  # pylint:disable=broad-except
+            logging.error(
+                "%s handle_named_function: Exception instantiating builder:  error: %s",
+                self.__class__.__name__,
+                str(_e),
+            )
         return replace_with
 
-    def handle_data(self, doc, recNum):
-        # noinspection PyBroadException
+    def handle_data(self, doc, rec_num):
+        """This method iterates the template entries, deciding for each entry to either
+        handle_named_function (if the entry starts with a '&') or to translate_template_item
+        if it starts with an '*'. It handles both keys and values for each template entry.
+        Args:
+            doc (Object): this is the data document that is being built
+        Returns:
+            (Object): this is the data document that is being built
+        """
         try:
             data_elem = {}
-            data_key = next(iter(self.template['data']))
-            data_template = self.template['data'][data_key]
+            data_key = next(iter(self.template["data"]))
+            data_template = self.template["data"][data_key]
             for key in data_template.keys():
                 try:
                     value = data_template[key]
                     # values can be null...
-                    if value and value.startswith('&'):
-                        value = self.handle_named_function(value, recNum)
+                    if value and value.startswith("&"):
+                        value = self.handle_named_function(value, rec_num)
                     else:
-                        value = self.translate_template_item(value, recNum)
-                except Exception as e:
+                        value = self.translate_template_item(value, rec_num)
+                except Exception as _e:  # pylint:disable=broad-except
                     value = None
-                    logging.warning("%s NetcdfBuilder.handle_data - value is None", self.__class__.__name__)
+                    logging.warning(
+                        "%s NetcdfBuilder.handle_data - value is None",
+                        self.__class__.__name__,
+                    )
                 data_elem[key] = value
-            if data_key.startswith('&'):
-                data_key = self.handle_named_function(data_key, recNum)
+            if data_key.startswith("&"):
+                data_key = self.handle_named_function(data_key, rec_num)
             else:
-                data_key = self.translate_template_item(data_key, recNum)
+                data_key = self.translate_template_item(data_key, rec_num)
             if data_key is None:
-                logging.warning("%s NetcdfBuilder.handle_data - _data_key is None", self.__class__.__name__)
+                logging.warning(
+                    "%s NetcdfBuilder.handle_data - _data_key is None",
+                    self.__class__.__name__,
+                )
             # pylint: disable=assignment-from-no-return
             doc = self.load_data(doc, data_key, data_elem)
             return doc
-        except Exception as e:
-            logging.error("%s handle_data: Exception instantiating builder:  error: %s", self.__class__.__name__, str(e))
+        except Exception as _e:  # pylint:disable=broad-except
+            logging.error(
+                "%s handle_data: Exception instantiating builder:  error: %s",
+                self.__class__.__name__,
+                str(_e),
+            )
         return doc
 
     def build_document(self, file_name):
@@ -274,42 +353,60 @@ class NetcdfBuilder:
         """
         # noinspection PyBroadException
         try:
+            # stash the file_name so that it can be used later
+            self.file_name = file_name
             # pylint: disable=no-member
             self.ncdf_data_set = nc.Dataset(file_name)
             if len(self.station_names) == 0:
-                result = self.cluster.query("""SELECT raw name FROM mdata
+                result = self.cluster.query(
+                    """SELECT raw name FROM mdata
                     WHERE
                     type = 'MD'
                     AND docType = 'station'
                     AND subset = 'METAR'
                     AND version = 'V01';
-                """)
+                """
+                )
                 self.station_names = list(result)
-
-            if self.load_spec['first_last_params']['first_epoch'] == 0:
-                # need to find first_epoch from the database - only do this once for all the files
-                result = self.cluster.query(
-                    "SELECT raw max(mdata.fcstValidEpoch) FROM mdata WHERE type='DD' AND docType='obs' AND version='V01' AND subset='METAR';")
-                epoch = list(result)[0]
-                if epoch is not None:
-                    self.load_spec['first_last_params']['first_epoch'] = epoch
-            file_utc_time = datetime.strptime(
-                os.path.basename(file_name), self.load_spec['fmask'])
-            file_time = (file_utc_time - datetime(1970, 1, 1)).total_seconds()
-            # check to see if it is within first and last epoch (default is 0 and maxsize)
-            if file_time >= float(self.load_spec['first_last_params']['first_epoch']):
-                logging.info("%s building documents for file %s", self.__class__.__name__, file_name)
+            self.initialize_document_map()
+            logging.info(
+                "%s building documents for file %s", self.__class__.__name__, file_name
+            )
+            if self.do_profiling:
+                with cProfile.Profile() as _pr:
+                    self.handle_document()
+                    with open("profiling_stats.txt", "w") as stream:
+                        stats = Stats(_pr, stream=stream)
+                        stats.strip_dirs()
+                        stats.sort_stats("time")
+                        stats.dump_stats("profiling_stats.prof")
+                        stats.print_stats()
+            else:
                 self.handle_document()
             # pylint: disable=assignment-from-no-return
             document_map = self.get_document_map()
+            data_file_id = self.create_data_file_id(file_name=file_name)
+            data_file_doc = self.build_datafile_doc(
+                file_name=file_name,
+                data_file_id=data_file_id,
+            )
+            document_map[data_file_doc["id"]] = data_file_doc
             return document_map
-        except Exception as e:
-            logging.error("%s: Exception with builder build_document: error: %s", self.__class__.__name__, str(e))
+        except Exception as _e:  # pylint:disable=broad-except
+            logging.error(
+                "%s: Exception with builder build_document: error: %s",
+                self.__class__.__name__,
+                str(_e),
+            )
             return {}
 
 
 # Concrete builders
-class NetcdfObsBuilderV01(NetcdfBuilder):
+class NetcdfMetarObsBuilderV01(NetcdfBuilder):
+    """
+    This is the builder for observation data that is ingested from netcdf (madis) files
+    """
+
     def __init__(self, load_spec, ingest_document, cluster, collection):
         """
         This builder creates a set of V01 obs documents using the V01 station documents.
@@ -324,17 +421,53 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
         :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
         :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
         """
-        NetcdfBuilder.__init__(
-            self, load_spec, ingest_document, cluster, collection)
+        NetcdfBuilder.__init__(self, load_spec, ingest_document, cluster, collection)
         self.cluster = cluster
         self.collection = collection
         self.same_time_rows = []
         self.time = 0
         self.interpolated_time = 0
-        self.delta = ingest_document['validTimeDelta']
-        self.cadence = ingest_document['validTimeInterval']
-        self.variableList = ingest_document['variableList']
-        self.template = ingest_document['template']
+        self.delta = ingest_document["validTimeDelta"]
+        self.cadence = ingest_document["validTimeInterval"]
+        self.template = ingest_document["template"]
+        # self.do_profiling = True  # set to True to enable build_document profiling
+        self.do_profiling = False  # set to True to enable build_document profiling
+
+    def create_data_file_id(self, file_name):
+        """
+        This method creates a metar netcdf_to_cb datafile id from the parameters
+        """
+        base_name = os.path.basename(file_name)
+        an_id = "DF:metar:obs:netcdf:{n}".format(n=base_name)
+        return an_id
+
+    def build_datafile_doc(self, file_name, data_file_id):
+        """
+        This method will build a dataFile document for GribBuilder. The dataFile
+        document will represent the file that is ingested by the GribBuilder. The document
+        is intended to be added to the output folder and imported with the other documents.
+        The VxIngest will examine the existing dataFile documents to determine if a psecific file
+        has already been ingested.
+        """
+        df_doc = {
+            "id": data_file_id,
+            "subset": "metar",
+            "type": "DF",
+            "fileType": "netcdf",
+            "originType": "file",
+            "loadJobId": self.load_spec["load_job_doc"]["id"],
+            "dataSourceId": "madis3",
+            "url": file_name,
+            "projection": "lambert_conformal_conic",
+            "interpolation": "nearest 4 weighted average",
+        }
+        return df_doc
+
+    def initialize_document_map(self):
+        """
+        reset the document_map for a new file
+        """
+        self.document_map = {}
 
     def get_document_map(self):
         """
@@ -346,18 +479,29 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
                 self.handle_document()
             # convert data map to a list
             # document_map might be None
-            if self.document_map and (type(self.document_map) == dict):
-                for d in self.document_map.values():
+            if self.document_map and isinstance(self.document_map, dict):
+                for _d in self.document_map.values():
                     try:
-                        if 'data' in d.keys() and type(d['data']) == dict:
-                            data_map = d['data']
+                        if "data" in _d.keys() and isinstance(_d["data"], dict):
+                            data_map = _d["data"]
                             data_list = list(data_map.values())
-                            d['data'] = sorted(data_list, key=lambda data_elem: data_elem['name'])
-                    except Exception as e1:
-                        logging.error("%s get_document_map list conversion: Exception processing%s:  error: %s", self.__class__.__name__, str(d['data']), str(e1))
+                            _d["data"] = sorted(
+                                data_list, key=lambda data_elem: data_elem["name"]
+                            )
+                    except Exception as _e1:  # pylint:disable=broad-except
+                        logging.error(
+                            "%s get_document_map list conversion: Exception processing%s:  error: %s",
+                            self.__class__.__name__,
+                            str(_d["data"]),
+                            str(_e1),
+                        )
             return self.document_map
-        except Exception:
-            logging.exception("%s get_document_map: Exception in get_document_map", self.__class__.__name__)
+        except Exception as _e:  # pylint:disable=broad-except
+            logging.exception(
+                "%s get_document_map: Exception in get_document_map: %s",
+                self.__class__.__name__,
+                str(_e),
+            )
 
     def load_data(self, doc, key, element):
         """
@@ -371,216 +515,394 @@ class NetcdfObsBuilderV01(NetcdfBuilder):
         :param element: the observation data
         :return: the document being created
         """
-        if 'data' not in doc.keys() or doc['data'] is None:
-            doc['data'] = {}
-        if element['name'] not in doc['data'].keys():
+        if "data" not in doc.keys() or doc["data"] is None:
+            doc["data"] = {}
+        if element["name"] not in doc["data"].keys():
             # we only want the closest record (to match the legacy data)
-            doc['data'][element['name']] = element
+            doc["data"][element["name"]] = element
         else:
             # is this one closer to the target time?
-            top_of_hour = doc['fcstValidEpoch']
-            if abs(top_of_hour - element['Reported Time']) < abs(top_of_hour - doc['data'][element['name']]['Reported Time']):
-                doc['data'][element['name']] = element
+            top_of_hour = doc["fcstValidEpoch"]
+            if abs(top_of_hour - element["Reported Time"]) < abs(
+                top_of_hour - doc["data"][element["name"]]["Reported Time"]
+            ):
+                doc["data"][element["name"]] = element
         return doc
 
     # named functions
-    # TODO - may not need this - checking
     def meterspersecond_to_milesperhour(self, params_dict):
+        """Converts meters per second to mile per hour performing any translations that are necessary
+        Args:
+            params_dict (dict): named function parameters
+        Returns:
+            [type]: [description]
+        """
         # Meters/second to miles/hour
         try:
             value = self.umask_value_transform(params_dict)
             if value is not None and value != "":
                 value = value * 2.237
             return value
-        except Exception as e:
-            logging.error("%s handle_data: Exception in named function meterspersecond_to_milesperhour:  error: %s", self.__class__.__name__, str(e))
+        except Exception as _e:  # pylint:disable=broad-except
+            logging.error(
+                "%s handle_data: Exception in named function meterspersecond_to_milesperhour:  error: %s",
+                self.__class__.__name__,
+                str(_e),
+            )
+            return None
 
     def ceiling_transform(self, params_dict):
+        """retrieves skyCover and skyLayerBase data and transforms it into a Ceiling value
+        Args:
+            params_dict (dict): named function parameters
+        Returns:
+            [type]: [description]
+        """
         try:
-            skyCover = params_dict['skyCover']
-            skyLayerBase = params_dict['skyLayerBase']
-            # code clear as 60,000 ft 
-            mCLR = re.compile('.*CLR.*')
-            mSKC = re.compile('.*SKC.*')
-            mNSC = re.compile('.*NSC.*')
-            mFEW = re.compile('.*FEW.*')
-            mSCT = re.compile('.*SCT.*')
-            mBKN = re.compile('.*BKN.*')  # Broken
-            mOVC = re.compile('.*OVC.*')  # Overcast
-            mVV = re.compile('.*VV.*')  # Vertical Visibility
+            skyCover = params_dict["skyCover"]  # pylint:disable=invalid-name
+            skyLayerBase = params_dict["skyLayerBase"]  # pylint:disable=invalid-name
+            # code clear as 60,000 ft
+            mCLR = re.compile(".*CLR.*")  # pylint:disable=invalid-name
+            mSKC = re.compile(".*SKC.*")  # pylint:disable=invalid-name
+            mNSC = re.compile(".*NSC.*")  # pylint:disable=invalid-name
+            mFEW = re.compile(".*FEW.*")  # pylint:disable=invalid-name
+            mSCT = re.compile(".*SCT.*")  # pylint:disable=invalid-name
+            mBKN = re.compile(".*BKN.*")  # Broken pylint:disable=invalid-name
+            mOVC = re.compile(".*OVC.*")  # Overcast pylint:disable=invalid-name
+            mVV = re.compile(".*VV.*")  # Vertical Visibility pylint:disable=invalid-name
             mask_array = ma.getmaskarray(skyLayerBase)
-            skyCover_array = skyCover[1:-1].replace("'", "").split(" ")
+            skyCover_array = ( # pylint:disable=invalid-name
+                skyCover[1:-1].replace("'", "").split(" ")
+            )
             # check for unmasked ceiling values - broken, overcast, vertical visibility - return associated skyLayerBase
-            #name = str(nc.chartostring(self.ncdf_data_set['stationName'][params_dict['recNum']]))
-            for index in range(len(skyCover_array)):
+            # name = str(nc.chartostring(self.ncdf_data_set['stationName'][params_dict['recNum']]))
+            for index in range(  # pylint:disable=consider-using-enumerate
+                len(skyCover_array)
+            ):
                 # also convert meters to feet (* 3.281)
-                if (not mask_array[index]) and (mBKN.match(skyCover_array[index]) or mOVC.match(skyCover_array[index]) or mVV.match(skyCover_array[index])):
-                    return math.floor(skyLayerBase[index] * 3.281)
+                if (not mask_array[index]) and (
+                    mBKN.match(skyCover_array[index])
+                    or mOVC.match(skyCover_array[index])
+                    or mVV.match(skyCover_array[index])
+                ):
+                    return math.floor(
+                        skyLayerBase[index] * 3.281
+                    )  # pylint:disable=c-extension-no-member
             # check for unmasked ceiling values - all the others - CLR, SKC, NSC, FEW, SCT - return 60000
-            for index in range(len(skyCover_array)):
+            for index in range(
+                len(skyCover_array)
+            ):  # pylint:disable=consider-using-enumerate
                 # 60000 is aldready feet
-                if (not mask_array[index]) and (mCLR.match(skyCover_array[index]) or mSKC.match(skyCover_array[index]) or mNSC.match(skyCover_array[index]) or mFEW.match(skyCover_array[index]) or mSCT.match(skyCover_array[index])):
+                if (not mask_array[index]) and (
+                    mCLR.match(skyCover_array[index])
+                    or mSKC.match(skyCover_array[index])
+                    or mNSC.match(skyCover_array[index])
+                    or mFEW.match(skyCover_array[index])
+                    or mSCT.match(skyCover_array[index])
+                ):
                     return 60000
-            # nothing was unmasked - return None
+            # nothing was unmasked - return 60000 if there is a ceiling value in skycover array (legacy)
+            for index in range(
+                len(skyCover_array)
+            ):  # pylint:disable=consider-using-enumerate
+                if (
+                    mCLR.match(skyCover_array[index])
+                    or mSKC.match(skyCover_array[index])
+                    or mNSC.match(skyCover_array[index])
+                    or mFEW.match(skyCover_array[index])
+                    or mSCT.match(skyCover_array[index])
+                ):
+                    return 60000
+            #  masked and no ceiling value in skyCover_array
             return None
-        except Exception as e:
-            logging.error("%s handle_data: Exception in named function ceiling_transform:  error: %s", self.__class__.__name__, str(e))
+        except Exception as _e:  # pylint:disable=broad-except
+            logging.error(
+                "%s handle_data: Exception in named function ceiling_transform:  error: %s",
+                self.__class__.__name__,
+                str(_e),
+            )
+            logging.error(
+                "ceiling_transform skyCover_array: %s skyLayerBase %s",
+                str(skyCover_array),
+                str(skyLayerBase),
+            )
+            logging.error(
+                "ceiling_transform stacktrace %s", str(traceback.format_exc())
+            )
+            return None
 
     def kelvin_to_farenheight(self, params_dict):
+        """Converts kelvin to farenheight performing any translations that are necessary
+        Args:
+            params_dict (dict): named function parameters
+        Returns:
+            [type]: [description]
+        """
         try:
             value = self.umask_value_transform(params_dict)
             if value is not None and value != "":
                 value = (float(value) - 273.15) * 1.8 + 32
             return value
-        except Exception as e:
-            logging.error("%s handle_data: Exception in named function kelvin_to_farenheight:  error: %s", self.__class__.__name__, str(e))
+        except Exception as _e:  # pylint:disable=broad-except
+            logging.error(
+                "%s handle_data: Exception in named function kelvin_to_farenheight:  error: %s",
+                self.__class__.__name__,
+                str(_e),
+            )
 
     def umask_value_transform(self, params_dict):
+        """Retrieves a netcdf value, checking for masking and retrieves the value as a float
+        Args:
+            params_dict (dict): named function parameters
+        Returns:
+            float: the corresponding value
+        """
         # Probably need more here....
         try:
             key = None
-            recNum = params_dict['recNum']
+            rec_num = params_dict["recNum"]
             for key in params_dict.keys():
                 if key != "recNum":
                     break
-            ncValue = self.ncdf_data_set[key][recNum]
-            if not ma.getmask(ncValue):
-                value = ma.compressed(ncValue)[0]
+            nc_value = self.ncdf_data_set[key][rec_num]
+            if not ma.getmask(nc_value):
+                value = ma.compressed(nc_value)[0]
                 return float(value)
             else:
                 return None
-        except Exception as e:
-            logging.error("%s umask_value_transform: Exception in named function umask_value_transform for key %s:  error: %s", self.__class__.__name__, key, str(e))
+        except Exception as _e:  # pylint:disable=broad-except
+            logging.error(
+                "%s umask_value_transform: Exception in named function umask_value_transform for key %s:  error: %s",
+                self.__class__.__name__,
+                key,
+                str(_e),
+            )
+            return None
 
     def handle_pressure(self, params_dict):
+        """Retrieves a pressure value and converts it to millibars from pascals
+        Args:
+            params_dict (dict): named function parameters
+        Returns:
+            float: the pressure in millibars
+        """
         try:
             value = self.umask_value_transform(params_dict)
             if value is not None:
                 # convert to millibars (from pascals) and round
                 value = float(value) / 100
             return value
-        except Exception as e:
-            logging.error("%s handle_pressure: Exception in named function:  error: %s", self.__class__.__name__, str(e))
+        except Exception as _e:  # pylint:disable=broad-except
+            logging.error(
+                "%s handle_pressure: Exception in named function:  error: %s",
+                self.__class__.__name__,
+                str(_e),
+            )
+            return None
 
     def handle_visibility(self, params_dict):
-        #vis_sm = vis_m / 1609.344
+        """Retrieves a visibility value and performs data transformations
+        Args:
+            params_dict (dict): named function parameters
+        Returns:
+            float: the visibility in miles
+        """
+        # vis_sm = vis_m / 1609.344
         try:
             value = self.umask_value_transform(params_dict)
             if value is not None:
                 value = float(value) / 1609.344
             return value
-        except Exception as e:
-            logging.error("%s handle_visibility: Exception in named function:  error: %s", self.__class__.__name__, str(e))
+        except Exception as _e:  # pylint:disable=broad-except
+            logging.error(
+                "%s handle_visibility: Exception in named function:  error: %s",
+                self.__class__.__name__,
+                str(_e),
+            )
+            return None
+
+    def derive_valid_time_iso(self, params_dict):
+        """
+        This routine accepts a pattern parameter like '%Y%m%d_%H%M'
+        which it applies against the current file name to derive the
+        expected validTime and convert it to an iso
+        """
+        # convert the file name to an epoch using the mask
+        try:
+            key = None
+            for key in params_dict.keys():
+                if key != "recNum":
+                    break
+            _file_utc_time = datetime.strptime(self.file_name, params_dict[key])
+            epoch = (_file_utc_time - datetime(1970, 1, 1)).total_seconds()
+            iso = convert_to_iso(epoch)
+            return iso
+        except Exception as _e:  # pylint:disable=broad-except
+            logging.error(
+                "%s : Exception in named function derive_valid_time_iso:  error: %s",
+                self.__class__.__name__,
+                str(_e),
+            )
+        return None
+
+    def derive_valid_time_epoch(self, params_dict):
+        """
+        This routine accepts a pattern parameter like '%Y%m%d_%H%M'
+        which it applies against the current file name to derive the
+        expected validTeime and convert it to an epoch
+        """
+        # convert the file name to an epoch using the mask
+        try:
+            key = None
+            for key in params_dict.keys():
+                if key != "recNum":
+                    break
+            _file_utc_time = datetime.strptime(self.file_name, params_dict[key])
+            epoch = (_file_utc_time - datetime(1970, 1, 1)).total_seconds()
+            return epoch
+        except Exception as _e:  # pylint:disable=broad-except
+            logging.error(
+                "%s : Exception in named function derive_valid_time_epoch:  error: %s",
+                self.__class__.__name__,
+                str(_e),
+            )
+        return None
 
     def interpolate_time(self, params_dict):
         """
-        Rounds to nearest hour by adding a timedelta hour if minute >= 30
+        Rounds to nearest hour by adding a timedelta hour if minute >= delta (from the template)
         """
         try:
-            time = None
-            timeObs = params_dict['timeObs']
-            if not ma.getmask(timeObs):
-                time = int(ma.compressed(timeObs)[0])
+            _thistime = None
+            _time_obs = params_dict["timeObs"]
+            if not ma.getmask(_time_obs):
+                _thistime = int(ma.compressed(_time_obs)[0])
             else:
                 return ""
-            time = datetime.fromtimestamp(time)
-            time = time.replace(second=0, microsecond=0, minute=0,
-                                hour=time.hour) + timedelta(hours=time.minute//30)
-            return calendar.timegm(time.timetuple())
-        except Exception as e:
-            logging.error("%s handle_data: Exception in named function interpolate_time:  error: %s", self.__class__.__name__, str(e))
+            # if I get here process the _thistime
+            delta_minutes = self.delta / 60
+            _ret_time = datetime.fromtimestamp(_thistime)
+            _ret_time = _ret_time.replace(
+                second=0, microsecond=0, minute=0, hour=_ret_time.hour
+            ) + timedelta(hours=_ret_time.minute // delta_minutes)
+            return calendar.timegm(_ret_time.timetuple())
+
+        except Exception as _e:  # pylint:disable=broad-except
+            logging.error(
+                "%s handle_data: Exception in named function interpolate_time:  error: %s",
+                self.__class__.__name__,
+                str(_e),
+            )
 
     def interpolate_time_iso(self, params_dict):
         """
-        Rounds to nearest hour by adding a timedelta hour if minute >= 30
+        Rounds to nearest hour by adding a timedelta hour if minute >= delta_minutes
         """
         try:
-            time = None
-            timeObs = params_dict['timeObs']
-            if not ma.getmask(timeObs):
-                time = int(ma.compressed(timeObs)[0])
+            _time = None
+            time_obs = params_dict["timeObs"]
+            delta_minutes = self.delta / 60
+            if not ma.getmask(time_obs):
+                _time = int(ma.compressed(time_obs)[0])
             else:
                 return ""
-            time = datetime.fromtimestamp(time)
-            time = time.replace(second=0, microsecond=0, minute=0,
-                                hour=time.hour) + timedelta(hours=time.minute//30)
+            _time = datetime.fromtimestamp(_time)
+            _time = _time.replace(
+                second=0, microsecond=0, minute=0, hour=_time.hour
+            ) + timedelta(hours=_time.minute // delta_minutes)
             # convert this iso
-            return str(time.isoformat())
-        except Exception as e:
-            logging.error("%s handle_data: Exception in named function interpolate_time_iso:  error: %s", self.__class__.__name__, str(e))
+            return str(_time.isoformat())
+        except Exception as _e:  # pylint:disable=broad-except
+            logging.error(
+                "%s handle_data: Exception in named function interpolate_time_iso:  error: %s",
+                self.__class__.__name__,
+                str(_e),
+            )
 
-    def fill_from_netcdf(self, _recNum, netcdf):
+    def fill_from_netcdf(self, rec_num, netcdf):
         """
         Used by handle_station to get the records from netcdf for comparing with the
         records from the database.
         """
         netcdf = {}
-        if not ma.getmask(self.ncdf_data_set['latitude'][_recNum]):
-            netcdf['latitude'] = ma.compressed(
-                self.ncdf_data_set['latitude'][_recNum])[0]
+        if not ma.getmask(self.ncdf_data_set["latitude"][rec_num]):
+            netcdf["latitude"] = ma.compressed(self.ncdf_data_set["latitude"][rec_num])[
+                0
+            ]
         else:
-            netcdf['latitude'] = None
-        if not ma.getmask(self.ncdf_data_set['longitude'][_recNum]):
-            netcdf['longitude'] = ma.compressed(
-                self.ncdf_data_set['longitude'][_recNum])[0]
+            netcdf["latitude"] = None
+        if not ma.getmask(self.ncdf_data_set["longitude"][rec_num]):
+            netcdf["longitude"] = ma.compressed(
+                self.ncdf_data_set["longitude"][rec_num]
+            )[0]
         else:
-            netcdf['longitude'] = None
-        if not ma.getmask(self.ncdf_data_set['elevation'][_recNum]):
-            netcdf['elevation'] = ma.compressed(
-                self.ncdf_data_set['elevation'][_recNum])[0]
+            netcdf["longitude"] = None
+        if not ma.getmask(self.ncdf_data_set["elevation"][rec_num]):
+            netcdf["elevation"] = ma.compressed(
+                self.ncdf_data_set["elevation"][rec_num]
+            )[0]
         else:
-            netcdf['elevation'] = None
+            netcdf["elevation"] = None
         # pylint: disable=no-member
-        netcdf['description'] = str(nc.chartostring(
-            self.ncdf_data_set['locationName'][_recNum]))
-        netcdf['name'] = str(nc.chartostring(
-            self.ncdf_data_set['stationName'][_recNum]))
+        netcdf["description"] = str(
+            nc.chartostring(self.ncdf_data_set["locationName"][rec_num])
+        )
+        netcdf["name"] = str(
+            nc.chartostring(self.ncdf_data_set["stationName"][rec_num])
+        )
         return netcdf
 
     def handle_station(self, params_dict):
         """
-         This method uses the station name in the params_dict
-         to find a station with that name.
-         If the station does not exist it will be created with data from the
-         netcdf file.
-         :param params_dict: {station_name:a_station_name}
-         :return:
-         """
-        recNum = params_dict['recNum']
-        station_name = params_dict['stationName']
-        id = None
+        This method uses the station name in the params_dict
+        to find a station with that name.
+        If the station does not exist it will be created with data from the
+        netcdf file.
+        :param params_dict: {station_name:a_station_name}
+        :return:
+        """
+        rec_num = params_dict["recNum"]
+        station_name = params_dict["stationName"]
+        an_id = None
         netcdf = {}
 
         # noinspection PyBroadException
         try:
             if station_name not in self.station_names:
                 # get the netcdf fields for comparing or adding new
-                netcdf = self.fill_from_netcdf(recNum, netcdf)
-                logging.info("netcdfObsBuilderV01.handle_station - adding station %s", netcdf['name'])
-                id = "MD:V01:METAR:station:" + netcdf['name']
+                netcdf = self.fill_from_netcdf(rec_num, netcdf)
+                logging.info(
+                    "netcdfObsBuilderV01.handle_station - adding station %s",
+                    netcdf["name"],
+                )
+                an_id = "MD:V01:METAR:station:" + netcdf["name"]
                 new_station = {
-                    "id": "MD:V01:METAR:station:" + netcdf['name'],
-                    "description": netcdf['description'],
+                    "id": "MD:V01:METAR:station:" + netcdf["name"],
+                    "description": netcdf["description"],
                     "docType": "station",
                     "firstTime": 0,
                     "geo": {
-                        "elev": round(float(netcdf['elevation']), 4),
-                        "lat": round(float(netcdf['latitude']), 4),
-                        "lon": round(float(netcdf['longitude']), 4)
+                        "elev": round(float(netcdf["elevation"]), 4),
+                        "lat": round(float(netcdf["latitude"]), 4),
+                        "lon": round(float(netcdf["longitude"]), 4),
                     },
                     "lastTime": 0,
-                    "name": netcdf['name'],
+                    "name": netcdf["name"],
                     "subset": "METAR",
                     "type": "MD",
                     "updateTime": int(time.time()),
-                    "version": "V01"
+                    "version": "V01",
                 }
                 # add the station to the document map
-                if not id in self.document_map.keys():
-                    self.document_map[id] = new_station
+                if not an_id in self.document_map.keys():
+                    self.document_map[an_id] = new_station
                 self.station_names.append(station_name)
-            return params_dict['stationName']
-        except Exception as e:
-            logging.error("%s netcdfObsBuilderV01.handle_station: Exception finding or creating station to match station_name error: %s params: %s", self.__class__.__name__,
-                str(e), str(params_dict))
+            return params_dict["stationName"]
+        except Exception as _e:  # pylint:disable=broad-except
+            logging.error(
+                "%s netcdfObsBuilderV01.handle_station: Exception finding or creating station to match station_name error: %s params: %s",
+                self.__class__.__name__,
+                str(_e),
+                str(params_dict),
+            )
             return ""

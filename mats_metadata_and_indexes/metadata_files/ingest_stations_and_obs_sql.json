@@ -17,7 +17,7 @@
       "correctedTime": "",
       "dataSourceId": "MADIS3",
       "docType": "obs",
-      "fcstValidBeg": "*{ISO}time",
+      "fcstValidISO": "*{ISO}time",
       "fcstValidEpoch": "*time",
       "id": "DD:V01:METAR:obs:sql:*time",
       "subset": "METAR",

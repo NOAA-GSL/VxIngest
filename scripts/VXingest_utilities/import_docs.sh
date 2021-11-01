@@ -10,7 +10,7 @@ function usage() {
   echo "The jason files in 'full_path_to_json_files_directory' will be seperated into (number_of_files / num_processes)"
   echo "groups and imported simultaneously. Output is written to 'logdir/cbimport_n.log' where n is the instance number."
   echo "sample invocation...."
-  echo '/home/pierce/VXingest/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p /data/grib2_to_cb/output -n 8 -l /home/pierce/VXingest/logs'
+  echo "${HOME}VXingest/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p /data/grib2_to_cb/output -n 8 -l ${HOME}/VXingest/logs"
   exit 1
 }
 number_of_processes=1
@@ -90,7 +90,7 @@ do_import() {
   sleep 10
   cat ${file_list} | while read f; do
     #echo 'cbimport json --cluster couchbase://${host} --bucket mdata --username ${user} --password ${pwd} --format list --generate-key %id% --dataset file:///${f}'
-    cbimport json --cluster couchbase://${host} --bucket mdata --username ${user} --password ${pwd} --format list --generate-key %id% --dataset file:///${f}
+    /opt/couchbase/bin/cbimport json --cluster couchbase://${host} --bucket mdata --username ${user} --password ${pwd} --format list --generate-key %id% --dataset file:///${f}
   done
 }
 
@@ -112,3 +112,7 @@ wait
 echo "cbimport commands submitted, done waiting"
 cd ${curdir}
 rm -rf ${tmp_dir}
+grep -i successfully ${log_dir}/x* | awk '{print $2}' | awk 'BEGIN { FS="file:///" }; {print $2}' | tr -d "\`" | while read f
+do
+rm -rf $f
+done

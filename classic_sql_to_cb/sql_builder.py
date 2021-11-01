@@ -70,7 +70,7 @@ class SqlBuilder:
         self.id = None
         self.document_map = {}
         self.statement_replacement_params = statement_replacement_params
-        
+
         try:
             mysql_credentials = self.load_spec['mysql_connection']
             host = mysql_credentials['host']
@@ -98,13 +98,13 @@ class SqlBuilder:
 
     def load_data(self, doc, key, element):
         pass
-    
+
     def get_name(self, params_dict):
         pass
-    
+
     def get_document_map(self):
         pass
-    
+
     @staticmethod
     def translate_template_item(value, row, interpolated_time):
         """
@@ -151,7 +151,7 @@ class SqlBuilder:
         except Exception as e:
             logging.error("SqlBuilder.translate_template_item: Exception  error: " + str(e))
         return value
-    
+
     def handle_row(self, row):
         """
         This is the entry point from the IngestManager.
@@ -161,7 +161,7 @@ class SqlBuilder:
         :return:
         """
         pass
-    
+
     def handle_document(self, interpolated_time, rows):
         """
         :param interpolated_time: The time field in a row, if there is one,
@@ -198,7 +198,7 @@ class SqlBuilder:
             logging.error(self.__class__.__name__ + "SqlBuilder.handle_document: Exception instantiating "
                                                     "builder: " + self.__class__.__name__ + " error: " + str(e))
             raise e
-        
+
     def handle_key(self, doc, row, key, interpolated_time):
         """
         This routine handles keys by substituting row fields into the values
@@ -230,14 +230,14 @@ class SqlBuilder:
             logging.error(
                 self.__class__.__name__ + "SqlBuilder.handle_key: Exception in builder:  error: " + str(e))
         return doc
-    
+
     def handle_named_function(self, _data_key, interpolated_time, row):
         """
         This routine processes a named function entry from a template.
         :param _data_key - this can be either a template key or a template value.
         The template entry looks like "&named_function:*field1:*field2:*field3..."
         It is expected that field1, field2, and field3 etc are all valid fields in row.
-        Each field will be translated with the interpolated_time and the row into value1, value2 etc. 
+        Each field will be translated with the interpolated_time and the row into value1, value2 etc.
         The method "named_function" will be called like..
         named_function({field1:value1, field2:value2, field3:value3}) and the return value from named_function
         will be substituted into the document.
@@ -262,7 +262,7 @@ class SqlBuilder:
             logging.error(
                 self.__class__.__name__ + "handle_named_function: Exception instantiating builder:  error: " + str(e))
         return _data_key
-    
+
     def handle_data(self, doc, row, interpolated_time):
         # noinspection PyBroadException
         try:
@@ -285,11 +285,11 @@ class SqlBuilder:
                 logging.warning(self.__class__.__name__ + "SqlBuilder.handle_data - _data_key is None")
             doc = self.load_data(doc, _data_key, _data_elem)
             return doc
-        
+
         except Exception as e:
             logging.error(self.__class__.__name__ + "handle_data: Exception instantiating builder:  error: " + str(e))
         return doc
-    
+
     def build_document(self, _ingest_document):
         _statement = ""
         # noinspection PyBroadException
@@ -365,7 +365,7 @@ class SqlObsBuilderV01(SqlBuilder):
         else:
             _t = a_time - _remainder_time + self.cadence
         return _t
-    
+
     def handle_row(self, row):
         """
         This is the entry point from the IngestManager.
@@ -384,7 +384,7 @@ class SqlObsBuilderV01(SqlBuilder):
             self.time = 0
             self.same_time_rows = []
         self.same_time_rows.append(row)
-    
+
     def get_document_map(self):
         """
         In case there are leftovers we have to process them first.
@@ -393,7 +393,7 @@ class SqlObsBuilderV01(SqlBuilder):
         if len(self.same_time_rows) != 0:
             self.handle_document(self.interpolated_time, self.same_time_rows)
         return self.document_map
-    
+
     def get_name(self, params_dict):
         """
          This method uses the lat and lon that are in the params_dict
@@ -419,7 +419,7 @@ class SqlObsBuilderV01(SqlBuilder):
             self.__class__.__name__ + "SqlObsBuilderV02.get_name: No station found to match lat and lon for " + str(
                 params_dict))
         return None
-    
+
     def load_data(self, doc, key, element):
         """
         This method appends an observation to the data array
@@ -452,7 +452,7 @@ class SqlModelBuilderV01(SqlBuilder):
         self.interpolated_time = 0
         self.delta = ingest_document['validTimeDelta']
         self.cadence = ingest_document['validTimeInterval']
-        
+
     def interpolate_time(self, a_time):
         _remainder_time = a_time % self.cadence
         _cadence_time = a_time / self.cadence * self.cadence
@@ -461,7 +461,7 @@ class SqlModelBuilderV01(SqlBuilder):
         else:
             _t = a_time - _remainder_time + self.cadence
         return _t
-    
+
     def handle_row(self, row):
         """
         This is the entry point from the IngestManager.
@@ -535,7 +535,7 @@ class SqlCtcBuilderV01(SqlModelBuilderV01):
             doc['data'] = {}
         doc['data'][key] = element
         return doc
-        
+
 
 class SqlStationsBuilderV01(SqlBuilder):
     def __init__(self, load_spec, statement_replacement_params, ingest_document, cluster, collection):
@@ -551,14 +551,14 @@ class SqlStationsBuilderV01(SqlBuilder):
         """
         SqlBuilder.__init__(self, load_spec, statement_replacement_params, ingest_document, cluster, collection)
         self.same_time_rows = []
-    
+
     def get_document_map(self):
         """
         singleDocument builders (each row becomes a document) never have leftovers
         :return:  the document_map
         """
         return self.document_map
-    
+
     def handle_row(self, row):
         """
         This is the entry point from the IngestManager.

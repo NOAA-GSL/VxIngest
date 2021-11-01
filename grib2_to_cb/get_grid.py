@@ -57,7 +57,8 @@ def getAttributes(grib2_file):
 
 def getWindTheta(grb,lon):
     theta = 0
-
+    if lon < 0:
+        lon = lon + 360
     proj = grb.projparams['proj']
 
     if proj == 'lcc':

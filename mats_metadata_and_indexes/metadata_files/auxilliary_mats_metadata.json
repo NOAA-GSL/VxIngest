@@ -1079,7 +1079,7 @@
         "500": "500 (ceiling <500 ft)",
         "1000": "1000 (ceiling <1000 ft)",
         "3000": "3000 (ceiling <3000 ft)",
-        "6000": "60000 (ceiling <60000 ft -- any cloud)"
+        "60000": "60000 (ceiling <60000 ft -- any cloud)"
       }
     }
   }

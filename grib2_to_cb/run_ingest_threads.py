@@ -373,6 +373,7 @@ class VXIngest:
                 )
             _f = open(self.credentials_file)
             _yaml_data = yaml.load(_f, yaml.SafeLoader)
+            load_spec["cb_connection"] = {}
             load_spec["cb_connection"]["host"] = _yaml_data["cb_host"]
             load_spec["cb_connection"]["user"] = _yaml_data["cb_user"]
             load_spec["cb_connection"]["password"] = _yaml_data["cb_password"]

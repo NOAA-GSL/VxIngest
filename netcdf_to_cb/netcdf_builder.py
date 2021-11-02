@@ -344,12 +344,15 @@ class NetcdfBuilder:  # pylint disable=too-many-instance-attributes
         return doc
 
     def build_document(self, file_name):
-        """
-        This is the entry point for the NetcfBuilders from the ingestManager.
+        """This is the entry point for the NetcfBuilders from the ingestManager.
         These documents are id'd by fcstValidEpoch. The data section is an array
         each element of which contains variable data and a station name. To process this
         file we need to itterate the document by recNum and process the station name along
         with all the other variables in the variableList.
+        Args:
+            file_name (str): the name of the file being processed
+        Returns:
+            [dict]: document
         """
         # noinspection PyBroadException
         try:
@@ -749,7 +752,7 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
         """
         This routine accepts a pattern parameter like '%Y%m%d_%H%M'
         which it applies against the current file name to derive the
-        expected validTeime and convert it to an epoch
+        expected validTime and convert it to an epoch
         """
         # convert the file name to an epoch using the mask
         try:
@@ -759,7 +762,7 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
                     break
             _file_utc_time = datetime.strptime(self.file_name, params_dict[key])
             epoch = (_file_utc_time - datetime(1970, 1, 1)).total_seconds()
-            return epoch
+            return int(epoch)
         except Exception as _e:  # pylint:disable=broad-except
             logging.error(
                 "%s : Exception in named function derive_valid_time_epoch:  error: %s",

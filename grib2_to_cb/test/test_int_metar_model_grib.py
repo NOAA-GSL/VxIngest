@@ -953,9 +953,6 @@ class TestGribBuilderV01(unittest.TestCase):
             list_of_input_files = glob('/opt/public/data/grids/hrrr/conus/wrfprs/grib2/*')
             latest_input_file = max(list_of_input_files, key=os.path.getctime)
             file_utc_time = datetime.datetime.strptime(os.path.basename(latest_input_file), '%y%j%H%f')
-            latest_input_file_time = int((file_utc_time - datetime.datetime(1970, 1, 1)).total_seconds())
-            first_epoch = round(latest_input_file_time) - 100
-            last_epoch = round(latest_input_file_time) + 100
             cwd = os.getcwd()
             self.credentials_file = os.environ['HOME'] + '/adb-cb1-credentials'
             self.spec_file = cwd + '/grib2_to_cb/test/test_load_spec_grib_metar_hrrr_ops_V01.yaml'

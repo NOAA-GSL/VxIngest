@@ -6,13 +6,13 @@ import pymysql
 from pymysql.constants import CLIENT
 import numpy as np
 from unittest import TestCase
-from netcdf_to_cb.run_ingest_threads import VXIngest
+from grib2_to_cb.run_ingest_threads import VXIngest
 from pathlib import Path
 from couchbase.cluster import Cluster, ClusterOptions
 from couchbase_core.cluster import PasswordAuthenticator
-from netcdf_to_cb.load_spec_yaml import LoadYamlSpecFile
-from netcdf_to_cb.netcdf_builder import NetcdfMetarObsBuilderV01
-class TestNetcdfObsBuilderV01Unit(TestCase):
+from grib2_to_cb.load_spec_yaml import LoadYamlSpecFile
+
+class TestGribBuilderV01Unit(TestCase):
 
     def setup_connection(self):
         """test setup
@@ -20,7 +20,7 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
         try:
             cwd = os.getcwd()
             _vx_ingest = VXIngest()
-            _vx_ingest.spec_file = cwd + "/netcdf_to_cb/test/test_load_spec_netcdf_metar_obs_V01.yaml"
+            _vx_ingest.spec_file = cwd + "/grib2_to_cb/test/test_load_spec_grib_metar_hrrr_ops_V01.yaml"
             _vx_ingest.credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
             _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
             _load_spec_file = LoadYamlSpecFile({"spec_file": _vx_ingest.spec_file})
@@ -81,30 +81,7 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             vx_ingest.load_spec["load_job_doc"] = {"test":"a line of text"}
             vx_ingest.spec_file = "/tmp/test_file"
             ljd = vx_ingest.build_load_job_doc()
-            self.assertTrue(ljd['id'].startswith('LJ:netcdf_to_cb.run_ingest_threads:VXIngest'))
-        except Exception as _e: #pylint:disable=broad-except
-            self.fail("test_build_load_job_doc Exception failure: " + str(_e))
-        finally:
-            vx_ingest.close_cb()
-
-    def test_derive_valid_time_epoch(self):
-        """test the derive_valid_time_epoch
-        requires self.file_name which should match the format for grib2 hrr_ops files
-        i.e. "20210920_1700", and params_dict['file_name_mask'] = "%Y%m%d_%H%M"
-        """
-        try:
-            vx_ingest = self.setup_connection()
-            cluster = vx_ingest.cluster
-            collection = vx_ingest.collection
-            load_spec = vx_ingest.load_spec
-            ingest_document_id = vx_ingest.load_spec["ingest_document_id"]
-            ingest_document = collection.get(ingest_document_id).content
-            builder = NetcdfMetarObsBuilderV01(load_spec, ingest_document, cluster, collection)
-            builder.file_name = "20210920_1700"
-            params_dict = {}
-            params_dict['file_name_mask'] = "%Y%m%d_%H%M"
-            epoch = builder.derive_valid_time_epoch(params_dict)
-            self.assertTrue(epoch == 1632157200)
+            self.assertTrue(ljd['id'].startswith('LJ:grib2_to_cb.run_ingest_threads:VXIngest'))
         except Exception as _e: #pylint:disable=broad-except
             self.fail("test_build_load_job_doc Exception failure: " + str(_e))
         finally:

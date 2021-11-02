@@ -923,14 +923,14 @@ class TestGribBuilderV01(unittest.TestCase):
             self.credentials_file = os.environ['HOME'] + '/adb-cb1-credentials'
             self.spec_file = cwd + '/grib2_to_cb/test/test_load_spec_grib_metar_hrrr_ops_V01.yaml'
             # remove output files
-            for _f in glob('/opt/data/grib2_to_cb/output/test1/*.json'):
+            for _f in glob('/opt/data/grib2_to_cb/output/test2/*.json'):
                 os.remove(_f)
             vxIngest = VXIngest()
             vxIngest.runit({'spec_file': self.spec_file,
                             'credentials_file': self.credentials_file,
                             'path': '/opt/public/data/grids/hrrr/conus/wrfprs/grib2',
                             'file_name_mask': '%y%j%H%f',
-                            'output_dir': '/opt/data/grib2_to_cb/output/test1',
+                            'output_dir': '/opt/data/grib2_to_cb/output/test2',
                             'threads': 2,
                             'file_pattern': '21287230000[0123456789]?'
                             })
@@ -940,7 +940,7 @@ class TestGribBuilderV01(unittest.TestCase):
                       str(sys.exc_info()[0]))
         finally:
             # remove output files
-            for _f in glob('/opt/data/grib2_to_cb/output/test1/*.json'):
+            for _f in glob('/opt/data/grib2_to_cb/output/test2/*.json'):
                 os.remove(_f)
 
 
@@ -948,9 +948,9 @@ class TestGribBuilderV01(unittest.TestCase):
         # noinspection PyBroadException
         try:
                         # remove output files
-            for _f in glob('/opt/data/grib2_to_cb/output/test1/*.json'):
+            for _f in glob('/opt/data/grib2_to_cb/output/test3/*.json'):
                 os.remove(_f)
-            list_of_input_files = glob.glob('/opt/public/data/grids/hrrr/conus/wrfprs/grib2/*')
+            list_of_input_files = glob('/opt/public/data/grids/hrrr/conus/wrfprs/grib2/*')
             latest_input_file = max(list_of_input_files, key=os.path.getctime)
             file_utc_time = datetime.datetime.strptime(os.path.basename(latest_input_file), '%y%j%H%f')
             latest_input_file_time = int((file_utc_time - datetime.datetime(1970, 1, 1)).total_seconds())
@@ -964,13 +964,12 @@ class TestGribBuilderV01(unittest.TestCase):
                             'credentials_file': self.credentials_file,
                             'path': '/opt/public/data/grids/hrrr/conus/wrfprs/grib2',
                             'file_name_mask': '%y%j%H%f',
-                            'output_dir': '/opt/data/grib2_to_cb/output',
+                            'output_dir': '/opt/data/grib2_to_cb/output/test3',
                             'threads': 1,
-                            'number_stations': 3,  # only process 3 stations
-                            'first_epoch': first_epoch,
-                            'last_epoch': last_epoch
+                            'number_stations': 3,
+                            'file_pattern': '21287230000[0123456789]?'
                             })
-            list_of_output_files = glob.glob('/opt/data/grib2_to_cb/output/*')
+            list_of_output_files = glob('/opt/data/grib2_to_cb/output/test3/*')
             latest_output_file = max(
                 list_of_output_files, key=os.path.getctime)
             # Opening JSON file

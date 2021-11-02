@@ -354,7 +354,7 @@ class NetcdfBuilder:  # pylint disable=too-many-instance-attributes
         # noinspection PyBroadException
         try:
             # stash the file_name so that it can be used later
-            self.file_name = file_name
+            self.file_name = os.path.basename(file_name)
             # pylint: disable=no-member
             self.ncdf_data_set = nc.Dataset(file_name)
             if len(self.station_names) == 0:

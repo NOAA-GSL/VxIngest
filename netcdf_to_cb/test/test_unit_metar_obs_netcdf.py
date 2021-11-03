@@ -3,8 +3,9 @@ import os
 from glob import glob
 import yaml
 import pymysql
-from pymysql.constants import CLIENT
 import numpy as np
+from netCDF4 import Dataset
+from pymysql.constants import CLIENT
 from unittest import TestCase
 from netcdf_to_cb.run_ingest_threads import VXIngest
 from pathlib import Path
@@ -109,3 +110,46 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             self.fail("test_build_load_job_doc Exception failure: " + str(_e))
         finally:
             vx_ingest.close_cb()
+
+    def test_umask_value_transform(self):
+        """test the derive_valid_time_epoch
+        requires self.file_name which should match the format for grib2 hrr_ops files
+        i.e. "20210920_1700", and params_dict['file_name_mask'] = "%Y%m%d_%H%M"
+        """
+        try:
+            # first we have to create a netcdf dataset and a temperature variable
+            _nc = Dataset('inmemory.nc', format="NETCDF3_CLASSIC", mode='w',memory=1028,fill_value=3.402823e+38)
+            _d = _nc.createDimension('recNum',None)
+            """	float temperature(recNum) ;
+        		temperature:long_name = "temperature" ;
+                temperature:units = "kelvin" ;
+                temperature:_FillValue = 3.402823e+38f ;
+                temperature:standard_name = "air_temperature" ;
+`            """
+            _v = _nc.createVariable('temperature',np.float,("recNum"))
+            _v.units = "kelvin"
+            _v.standard_name = "air_temperature"
+            _v[0] = 250.15
+
+            vx_ingest = self.setup_connection()
+            cluster = vx_ingest.cluster
+            collection = vx_ingest.collection
+            load_spec = vx_ingest.load_spec
+            ingest_document_id = vx_ingest.load_spec["ingest_document_id"]
+            ingest_document = collection.get(ingest_document_id).content
+            builder = NetcdfMetarObsBuilderV01(load_spec, ingest_document, cluster, collection)
+            builder.file_name = "20210920_1700"
+            # assign our temporary in-memory dataset to the builder
+            builder.ncdf_data_set = _nc
+            #assign our handler parameters
+            params_dict = {}
+            params_dict["recNum"] = 0
+            params_dict['temperature'] = "temperature"
+            # call the handler
+            temp = builder.umask_value_transform(params_dict)
+            self.assertTrue(temp == 250.15)
+        except Exception as _e: #pylint:disable=broad-except
+            self.fail("test_build_load_job_doc Exception failure: " + str(_e))
+        finally:
+            vx_ingest.close_cb()
+            _nc.close() # close returns memoryview

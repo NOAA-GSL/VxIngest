@@ -438,7 +438,7 @@ class GribBuilder:  # pylint: disable=too-many-arguments
                         continue
                 except Exception as _e:  # pylint: disable=broad-except
                     logging.error(
-                        "%s: Exception with builder build_document: error: %s",
+                        "%s: Exception with builder build_document processing station: error: %s",
                         self.__class__.__name__,
                         str(_e),
                     )
@@ -465,6 +465,9 @@ class GribBuilder:  # pylint: disable=too-many-arguments
             data_file_id = self.create_data_file_id(
                 model=self.template["model"], file_name=file_name
             )
+            if data_file_id is None:
+                logging.error(
+                "%s: Failed to create DataFile ID:", self.__class__.__name__)
             data_file_doc = self.build_datafile_doc(
                 model=self.template["model"],
                 file_name=file_name,
@@ -532,9 +535,17 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
         """
         This method creates a metar grib_to_cb datafile id from the parameters
         """
-        base_name = os.path.basename(file_name)
-        an_id = "DF:metar:grib2:{m}:{n}".format(m=model, n=base_name)
-        return an_id
+        try:
+            base_name = os.path.basename(file_name)
+            an_id = "DF:metar:grib2:{m}:{n}".format(m=model, n=base_name)
+            return an_id
+        except Exception as e:
+            logging.error(
+                "%s create_data_file_id: Exception: %s",
+                self.__class__.__name__,
+                str(e),
+            )
+            return None
 
     def build_datafile_doc(self, model, file_name, data_file_id):
         """

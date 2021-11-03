@@ -33,7 +33,7 @@ class LoadBackupIngestDocs:
     LoadBackupIngestDocs reads a backup file and multi-upserts it into couchbase.
     This class receives connection credentials for couchbase.
     """
-    
+
     def __init__(self):
         # The Constructor for the RunCB class.
         self.cb_credentials = {}
@@ -78,11 +78,11 @@ class LoadBackupIngestDocs:
         finally:
             # close any mysql connections
             self.close_cb()
-        
+
     def close_cb(self):
         if self.cluster:
             self.cluster.disconnect()
-    
+
     def connect_cb(self):
         # get a reference to our cluster
         # noinspection PyBroadException

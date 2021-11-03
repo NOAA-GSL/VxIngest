@@ -191,7 +191,10 @@ class GribBuilder:  # pylint: disable=too-many-arguments
             ]
         except Exception as _e:  # pylint: disable=broad-except
             logging.error(
-                "GribBuilder.translate_template_item: Exception  error: %s", str(_e)
+                "GribBuilder.translate_template_item for variable %s: replacements: %s: Exception  error: %s",
+                str(variable),
+                str(replacements),
+                str(_e)
             )
 
     def handle_document(self):
@@ -309,8 +312,10 @@ class GribBuilder:  # pylint: disable=too-many-arguments
             replace_with = getattr(self, func)(dict_params)
         except Exception as _e:  # pylint:disable=broad-except
             logging.error(
-                "handle_named_function: %s Exception instantiating builder:  error: %s",
+                "%s - handle_named_function: %s params: %s Exception instantiating builder:  error: %s",
                 self.__class__.__name__,
+                func,
+                params,
                 str(_e),
             )
         return replace_with

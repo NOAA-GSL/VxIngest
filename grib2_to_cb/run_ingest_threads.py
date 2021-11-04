@@ -244,6 +244,54 @@ class VXIngest:
             logging.error("*** %s in connect_cb ***", str(_e))
             sys.exit("*** Error when connecting to mysql database: ")
 
+    def get_file_list(self, df_query, directory, file_pattern):
+        """This method accepts a file path (directory), a query statement (df_query),
+        and a file pattern (file_pattern). It uses the df_query statement to retrieve a
+        list of file {url:file_url, mtime:mtime} records from DataFile
+        objects and compares the file names in the directory that match the file_pattern (using glob)
+        to the file url list that is returned from the df_query.
+        Any file names that are not in the returned url list are added and any files
+        that are in the list but have newer mtime entries are also added.
+        Args:
+            df_query (string): this is a query statement that should return a list of {url:file_url, mtime:mtime}
+            directory (string): The full path to a directory that contains files to be ingested
+            file_pattern (string): A file glob pattern that matches the files desired.
+        Raises:
+            Exception: general exception
+        """
+        file_names = []
+        try:
+            result = self.cluster.query(df_query)
+            df_elements = list(result)
+            df_full_names = [ element['url'] for element in df_elements ]
+            if os.path.exists(directory) and os.path.isdir(directory):
+                file_list = sorted(glob(directory + os.path.sep + file_pattern), key=os.path.getmtime)
+                for filename in file_list:
+                    try:
+                        # check to see if this file has already been ingested
+                        # (if it is not in the df_full_names - add it)
+                        if filename not in df_full_names:
+                            file_names.append(filename)
+                        else:
+                            # it was already processed so check to see if the mtime of the
+                            # file is greater than the mtime in the database entry, if so then add it
+                            df_entry = next(element for element in df_elements if element["url"] == filename)
+                            if os.path.getmtime(filename) > int(df_entry['mtime']):
+                                file_names.append(filename)
+                    except Exception as _e:  # pylint:disable=broad-except
+                        # don't care, it just means it wasn't a properly formatted file per the mask
+                        continue
+            if len(file_names) == 0:
+                raise Exception("No files to Process!")
+            return file_names
+        except Exception as e:
+            logging.error(
+                "%s get_file_list Error: %s",
+                self.__class__.__name__,
+                str(e),
+            )
+            return file_names
+
     def runit(self, args):  # pylint:disable=too-many-locals
         """
         This is the entry point for run_ingest_threads.py
@@ -292,35 +340,21 @@ class VXIngest:
         # (do not have associated datafile documents)
         # Constructor for an infinite size  FIFO my_queue
         _q = JoinableQueue()
-        file_names = []
         model = self.ingest_document["model"]
         # get the urls (full_file_names) from all the datafiles for this type of ingest
-        result = self.cluster.query(
-            """
-        SELECT url
-        FROM mdata
-        WHERE
-        subset='metar'
-        AND type='DF'
-        AND fileType='grib2'
-        AND originType='model'
-        AND model='{model}';
-        """.format(
+        file_query = """
+                SELECT url, mtime
+                FROM mdata
+                WHERE
+                subset='metar'
+                AND type='DF'
+                AND fileType='grib2'
+                AND originType='model'
+                AND model='{model}' order by url;
+                """.format(
                 model=model
             )
-        )
-        df_full_names = list(result)
-        if os.path.exists(self.path) and os.path.isdir(self.path):
-            for entry in glob(self.path + os.path.sep + self.file_pattern):
-                try:
-                    # check to see if this file has already been processed (if it is in the df_full_names)
-                    if entry not in df_full_names:
-                        file_names.append(entry)
-                except Exception as _e:  # pylint:disable=broad-except
-                    # don't care, it just means it wasn't a properly formatted file per the mask
-                    continue
-        if len(file_names) == 0:
-            raise Exception("No files to Process!")
+        file_names = self.get_file_list(file_query, self.path, self.file_pattern)
         for _f in file_names:
             _q.put(_f)
 

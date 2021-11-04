@@ -452,12 +452,14 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
         The VxIngest will examine the existing dataFile documents to determine if a psecific file
         has already been ingested.
         """
+        mtime = os.path.getmtime(file_name)
         df_doc = {
             "id": data_file_id,
+            "mtime": mtime,
             "subset": "metar",
             "type": "DF",
             "fileType": "netcdf",
-            "originType": "file",
+            "originType": "madis",
             "loadJobId": self.load_spec["load_job_doc"]["id"],
             "dataSourceId": "madis3",
             "url": file_name,
@@ -588,11 +590,11 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
                     or mOVC.match(skyCover_array[index])
                     or mVV.match(skyCover_array[index])
                 ):
-                    return math.floor(
+                    return math.floor( # pylint: disable=c-extension-no-member
                         skyLayerBase[index] * 3.281
                     )  # pylint:disable=c-extension-no-member
             # check for unmasked ceiling values - all the others - CLR, SKC, NSC, FEW, SCT - return 60000
-            for index in range(
+            for index in range( #pylint:disable=consider-using-enumerate
                 len(skyCover_array)
             ):  # pylint:disable=consider-using-enumerate
                 # 60000 is aldready feet
@@ -605,7 +607,7 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
                 ):
                     return 60000
             # nothing was unmasked - return 60000 if there is a ceiling value in skycover array (legacy)
-            for index in range(
+            for index in range( #pylint:disable=consider-using-enumerate
                 len(skyCover_array)
             ):  # pylint:disable=consider-using-enumerate
                 if (

@@ -8,7 +8,6 @@ Colorado, NOAA/OAR/ESRL/GSL
 
 import copy
 import cProfile
-import datetime
 import logging
 import math
 import sys
@@ -18,7 +17,7 @@ from pstats import Stats
 import numpy
 import pygrib
 import pyproj
-
+from datetime import datetime
 import grib2_to_cb.get_grid as gg
 
 
@@ -28,9 +27,7 @@ def convert_to_iso(an_epoch):
     """
     if not isinstance(an_epoch, int):
         an_epoch = int(an_epoch)
-    valid_time_str = datetime.datetime.utcfromtimestamp(an_epoch).strftime(
-        "%Y-%m-%dT%H:%M:%SZ"
-    )
+    valid_time_str = datetime.utcfromtimestamp(an_epoch).strftime("%Y-%m-%dT%H:%M:%SZ")
     return valid_time_str
 
 
@@ -482,8 +479,9 @@ class GribBuilder:  # pylint: disable=too-many-arguments
             return document_map
         except Exception as _e:  # pylint:disable=broad-except
             logging.error(
-                "%s: Exception with builder build_document: error: %s",
+                "%s: Exception with builder build_document: file_name: %s error: %s",
                 self.__class__.__name__,
+                file_name,
                 str(_e),
             )
             return {}
@@ -560,8 +558,10 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
         The VxIngest will examine the existing dataFile documents to determine if a psecific file
         has already been ingested.
         """
+        mtime = os.path.getmtime(file_name)
         df_doc = {
             "id": data_file_id,
+            "mtime": mtime,
             "subset": "metar",
             "type": "DF",
             "fileType": "grib2",

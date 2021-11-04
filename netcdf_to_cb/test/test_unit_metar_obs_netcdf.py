@@ -1,10 +1,11 @@
 import sys
 import os
+import shutil
 from glob import glob
 import yaml
 import pymysql
 import numpy as np
-from netCDF4 import Dataset
+import netCDF4 as nc
 from pymysql.constants import CLIENT
 from unittest import TestCase
 from netcdf_to_cb.run_ingest_threads import VXIngest
@@ -118,7 +119,7 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
         """
         try:
             # first we have to create a netcdf dataset and a temperature variable
-            _nc = Dataset('inmemory.nc', format="NETCDF3_CLASSIC", mode='w',memory=1028,fill_value=3.402823e+38)
+            _nc = nc.Dataset('inmemory.nc', format="NETCDF3_CLASSIC", mode='w',memory=1028,fill_value=3.402823e+38) #pylint:disable=no-member
             _d = _nc.createDimension('recNum',None)
             """	float temperature(recNum) ;
         		temperature:long_name = "temperature" ;
@@ -153,3 +154,37 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
         finally:
             vx_ingest.close_cb()
             _nc.close() # close returns memoryview
+
+    def test_vxingest_get_file_list(self):
+        """test the vxingest get_file_list
+        """
+        try:
+            vx_ingest = self.setup_connection()
+            vx_ingest.load_job_id = "test_id"
+            if os.path.exists("/tmp/test"):
+                shutil.rmtree("/tmp/test")
+            os.mkdir("/tmp/test")
+            # order is important to see if the files are getting returned sorted by mtime
+            Path('/tmp/test/f_fred_01').touch()
+            Path('/tmp/test/f_fred_02').touch()
+            Path('/tmp/test/f_fred_04').touch()
+            Path('/tmp/test/f_fred_05').touch()
+            Path('/tmp/test/f_fred_03').touch()
+            Path('/tmp/test/f_1_fred_01').touch()
+            Path('/tmp/test/f_2_fred_01').touch()
+            Path('/tmp/test/f_3_fred_01').touch()
+            query = """ SELECT url, mtime
+                FROM mdata
+                WHERE
+                subset='metar'
+                AND type='DF'
+                AND fileType='grib2'
+                AND originType='model'
+                AND model='HRRR_OPS' order by url;"""
+            files = vx_ingest.get_file_list(query,"/tmp/test","f_fred_*")
+            self.assertListEqual(files,['/tmp/test/f_fred_01','/tmp/test/f_fred_02','/tmp/test/f_fred_04','/tmp/test/f_fred_05','/tmp/test/f_fred_03'], "get_file_list wrong list")
+        except Exception as _e: #pylint:disable=broad-except
+            self.fail("test_build_load_job_doc Exception failure: " + str(_e))
+        finally:
+            shutil.rmtree("/tmp/test")
+            vx_ingest.close_cb()

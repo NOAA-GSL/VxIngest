@@ -552,7 +552,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                             try:
                                 self.assertEqual(self.mysql_model_obs_data[r]['model_value'],self.cb_model_obs_data[r]['model'])
                             except:
-                                print (r, "model", self.mysql_model_obs_data[r]['time'], self.mysql_model_obs_data[r]['fcst_len'], self.cb_model_obs_data[r]['thrsh'], self.mysql_model_obs_data[r]['name'], self.mysql_model_obs_data[r]['model_value'] * 10,self.cb_model_obs_data[r]['name'], self.cb_model_obs_data[r]['model'])
+                                print (r, "model", self.mysql_model_obs_data[r]['time'], self.mysql_model_obs_data[r]['fcst_len'], self.cb_model_obs_data[r]['thrsh'], self.mysql_model_obs_data[r]['name'], self.mysql_model_obs_data[r]['model_value'] * 10, self.cb_model_obs_data[r]['model'])
                         else:
                             # find the delta between the two, mysql must be multiplied by 10
                             delta = round((self.mysql_model_obs_data[r]['model_value'] * 10 + self.cb_model_obs_data[r]['model']) * 0.05)
@@ -560,12 +560,12 @@ class TestCTCBuilderV01(unittest.TestCase):
                                 # do the model values match within 5% ?
                                 self.assertAlmostEqual(self.mysql_model_obs_data[r]['model_value'] * 10, self.cb_model_obs_data[r]['model'],msg="mysql and cb model values differ", delta = delta)
                             except:
-                                print (r, "model", self.mysql_model_obs_data[r]['time'], self.mysql_model_obs_data[r]['fcst_len'], self.cb_model_obs_data[r]['thrsh'], self.mysql_model_obs_data[r]['name'], self.mysql_model_obs_data[r]['model_value'] * 10,self.cb_model_obs_data[r]['name'], self.cb_model_obs_data[r]['model'], delta)
+                                print (r, "model", self.mysql_model_obs_data[r]['time'], self.mysql_model_obs_data[r]['fcst_len'], self.cb_model_obs_data[r]['thrsh'], self.mysql_model_obs_data[r]['name'], self.mysql_model_obs_data[r]['model_value'] * 10, self.cb_model_obs_data[r]['model'], delta)
                             try:
                                 # do the obs match within 5%
                                 self.assertAlmostEqual(self.mysql_model_obs_data[r]['obs_value'] * 10, self.cb_model_obs_data[r]['obs'],msg="mysql and cb obs values differ", delta = delta)
                             except:
-                                print (r, "obs", self.mysql_model_obs_data[r]['time'], self.mysql_model_obs_data[r]['fcst_len'], self.cb_model_obs_data[r]['thrsh'], self.mysql_model_obs_data[r]['name'], self.mysql_model_obs_data[r]['obs_value'] * 10 ,self.cb_model_obs_data[r]['name'], self.cb_model_obs_data[r]['obs'], delta)
+                                print (r, "obs", self.mysql_model_obs_data[r]['time'], self.mysql_model_obs_data[r]['fcst_len'], self.cb_model_obs_data[r]['thrsh'], self.mysql_model_obs_data[r]['name'], self.mysql_model_obs_data[r]['obs_value'] * 10, self.cb_model_obs_data[r]['obs'], delta)
 
         except:
             self.fail("TestCTCBuilderV01 Exception failure: " + str(sys.exc_info()[0]))

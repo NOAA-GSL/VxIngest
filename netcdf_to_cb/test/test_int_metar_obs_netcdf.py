@@ -346,8 +346,8 @@ class TestNetcdfObsBuilderV01(TestCase):
             self.assertTrue(len(glob("/opt/data/netcdf_to_cb/output/test1/[0123456789]???????_[0123456789]???.json")) > 0,msg="There are no output files")
             self.assertTrue(len(glob("/opt/data/netcdf_to_cb/output/test1/LJ:netcdf_to_cb.run_ingest_threads:VXIngest:*.json")) == 1, msg="there is no load job output file")
             # use file globbing to see if we got one output file for each input file plus one load job file
-            self.assertTrue(len(glob("/opt/data/netcdf_to_cb/output/test1/*.json")) ==
-                len(glob("/opt/data/netcdf_to_cb/input_files/20210919*")) + 1, msg="number of output files is incorrect")
+            self.assertTrue(len(glob("/opt/data/netcdf_to_cb/output/test1/20210919*.json")) ==
+                len(glob("/opt/data/netcdf_to_cb/input_files/20210919*")), msg="number of output files is incorrect")
             # teardown remove output files
             for _f in glob('/opt/data/netcdf_to_cb/output/test1/*.json'):
                 os.remove(_f)
@@ -378,8 +378,9 @@ class TestNetcdfObsBuilderV01(TestCase):
             self.assertTrue(len(glob("/opt/data/netcdf_to_cb/output/test2/[0123456789]???????_[0123456789]???.json")) > 0,msg="There are no output files")
             self.assertTrue(len(glob("/opt/data/netcdf_to_cb/output/test2/LJ:netcdf_to_cb.run_ingest_threads:VXIngest:*.json")) == 1, msg="there is no load job output file")
             # use file globbing to see if we got one output file for each input file plus one load job file
-            self.assertTrue(len(glob("/opt/data/netcdf_to_cb/output/test2/*.json")) ==
-                len(glob("/opt/data/netcdf_to_cb/input_files/20210919*")) + 1, msg="number of output files is incorrect")
+            self.assertTrue(len(glob("/opt/data/netcdf_to_cb/output/test2/20210919*.json")) ==
+                len(glob("/opt/data/netcdf_to_cb/input_files/20210919*")), msg="number of output files is incorrect")
+
             # teardown remove output files
             for _f in glob('/opt/data/netcdf_to_cb/output/test2/*.json'):
                 os.remove(_f)
@@ -414,8 +415,9 @@ class TestNetcdfObsBuilderV01(TestCase):
             self.assertTrue(len(glob("/opt/data/netcdf_to_cb/output/test3/[0123456789]???????_[0123456789]???.json")) > 0,msg="There are no output files")
             self.assertTrue(len(glob("/opt/data/netcdf_to_cb/output/test3/LJ:netcdf_to_cb.run_ingest_threads:VXIngest:*.json")) == 1, msg="there is no load job output file")
             # use file globbing to see if we got one output file for each input file plus one load job file
-            self.assertTrue(len(glob("/opt/data/netcdf_to_cb/output/test3/*.json")) ==
-                len(glob("/opt/data/netcdf_to_cb/input_files/[0123456789]???????_[0123456789]???")) + 1, msg="number of output files is incorrect")
+            self.assertTrue(len(glob("/opt/data/netcdf_to_cb/output/test3/[0123456789]???????_[0123456789]???.json")) ==
+                len(glob("/opt/data/netcdf_to_cb/input_files/[0123456789]???????_[0123456789]???")), msg="number of output files is incorrect")
+
             # teardown remove output files
             for _f in glob('/opt/data/netcdf_to_cb/output/test3/*.json'):
                 os.remove(_f)
@@ -451,8 +453,9 @@ class TestNetcdfObsBuilderV01(TestCase):
             self.assertTrue(len(glob("/opt/data/netcdf_to_cb/output/test4/[0123456789]???????_[0123456789]???.json")) > 0,msg="There are no output files")
             self.assertTrue(len(glob("/opt/data/netcdf_to_cb/output/test4/LJ:netcdf_to_cb.run_ingest_threads:VXIngest:*.json")) == 1, msg="there is no load job output file")
             # use file globbing to see if we got one output file for each input file plus one load job file
-            self.assertTrue(len(glob("/opt/data/netcdf_to_cb/output/test4/*.json")) ==
-                len(glob("/opt/data/netcdf_to_cb/input_files/[0123456789]???????_[0123456789]???")) + 1, msg="number of output files is incorrect")
+            self.assertTrue(len(glob("/opt/data/netcdf_to_cb/output/test4/[0123456789]???????_[0123456789]???.json")) ==
+                len(glob("/opt/data/netcdf_to_cb/input_files/[0123456789]???????_[0123456789]???")), msg="number of output files is incorrect")
+
             # teardown remove output files
             for _f in glob('/opt/data/netcdf_to_cb/output/test4/*.json'):
                 os.remove(_f)

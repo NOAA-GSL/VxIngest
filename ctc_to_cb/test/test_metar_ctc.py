@@ -372,13 +372,13 @@ class TestCTCBuilderV01(unittest.TestCase):
                     if mysql_ctc_loop == None:
                         print ("mysql_ctc_loop is None for threshold {thrsh}- contunuing".format(thrsh=str(t)))
                         continue
-                    #mysql_ctc = self.calculate_mysql_ctc(epoch=elem['fcstValidEpoch'], fcst_len=i, threshold=int(t) / 10, model="HRRR_OPS", region="ALL_HRRR")
+                    mysql_ctc = self.calculate_mysql_ctc(epoch=elem['fcstValidEpoch'], fcst_len=i, threshold=int(t) / 10, model="HRRR_OPS", region="ALL_HRRR")
                     # are the station names the same?
                     mysql_names = [elem['name'] for elem in self.mysql_model_obs_data]
                     cb_names = [elem['name'] for elem in self.cb_model_obs_data]
                     name_diffs = [i for i in cb_names + mysql_names if i not in cb_names or i not in mysql_names]
                     self.assertGreater(len(name_diffs),0,"There are differences between the mysql and CB station names")
-                    cb_ctc_nodiffs = self.calculate_cb_ctc(epoch=elem['fcstValidEpoch'], fcst_len=i, threshold=int(t), model="HRRR_OPS", region="ALL_HRRR", station_diffs=name_diffs)
+                    #cb_ctc_nodiffs = self.calculate_cb_ctc(epoch=elem['fcstValidEpoch'], fcst_len=i, threshold=int(t), model="HRRR_OPS", region="ALL_HRRR", station_diffs=name_diffs)
                     self.assertEqual(len(self.mysql_model_obs_data), len(self.cb_model_obs_data), "model_obs_data are not the same length")
                     for r in range(len(self.mysql_model_obs_data)):
                         delta = round((self.mysql_model_obs_data[r]['model_value'] * 10 + self.cb_model_obs_data[r]['model']) * 0.05)
@@ -488,7 +488,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                 time""".format(model="HRRR_OPS", region="ALL_HRRR", first_epoch=first_epoch, last_epoch=last_epoch))
             mysql_common_fcst_valid_epochs = [o['time'] for o in cursor.fetchall()]
             common_fcst_valid_epochs = [val for val in cb_common_fcst_valid_epochs if val in set(mysql_common_fcst_valid_epochs)]
-            
+
             # choose one sort of near the end to be sure that all the data is present and that
             # it won't get its raw data migrated away
             rindex = min(len (common_fcst_valid_epochs), 15) * -1
@@ -526,12 +526,12 @@ class TestCTCBuilderV01(unittest.TestCase):
                     print ("Asserting mysql derived CTC for fcstValidEpoch: {epoch} model: {model} region: {region} fcst_len: {fcst_len} threshold: {thrsh}".format(model="HRRR_OPS", region="ALL_HRRR", epoch=fcst_valid_epoch, thrsh=t, fcst_len=i))
                     # calculate_cb_ctc derives the cb data for the compare
                     cb_ctc = self.calculate_cb_ctc(model="HRRR_OPS", region="ALL_HRRR", epoch=fcst_valid_epoch, fcst_len=i, threshold=int(t))
-                    if cb_ctc == None:
+                    if cb_ctc is None:
                         print ("mysql_ctc_loop is None for threshold {thrsh}- contunuing".format(thrsh=str(t)))
                         continue
                     # calculate_mysql_ctc_loop derives the mysql data for the compare
                     mysql_ctc_loop = self.calculate_mysql_ctc_loop(model="HRRR_OPS", region="ALL_HRRR", epoch=fcst_valid_epoch, fcst_len=i, threshold=int(t) / 10)
-                    if mysql_ctc_loop == None:
+                    if mysql_ctc_loop is None:
                         print ("mysql_ctc_loop is None for threshold {thrsh}- contunuing".format(thrsh=str(t)))
                         continue
                     #mysql_ctc = self.calculate_mysql_ctc(model="HRRR_OPS", region="ALL_HRRR", epoch=fcst_valid_epoch, fcst_len=i, threshold=int(t) / 10)
@@ -552,17 +552,20 @@ class TestCTCBuilderV01(unittest.TestCase):
                             try:
                                 self.assertEqual(self.mysql_model_obs_data[r]['model_value'],self.cb_model_obs_data[r]['model'])
                             except:
-                                print (r, "model", self.mysql_model_obs_data[r]['time'], self.mysql_model_obs_data[r]['fcst_len'], self.cb_model_obs_data[r]['thrsh'], self.mysql_model_obs_data[r]['name'], self.mysql_model_obs_data[r]['model_value'] * 10,self.cb_model_obs_data[r]['name'], self.cb_model_obs_data[r]['model'])
+                                print (r, "model", self.mysql_model_obs_data[r]['time'], self.mysql_model_obs_data[r]['fcst_len'], self.cb_model_obs_data[r]['thrsh'], self.mysql_model_obs_data[r]['name'], self.mysql_model_obs_data[r]['model_value'] * 10, self.cb_model_obs_data[r]['model'])
                         else:
+                            # find the delta between the two, mysql must be multiplied by 10
                             delta = round((self.mysql_model_obs_data[r]['model_value'] * 10 + self.cb_model_obs_data[r]['model']) * 0.05)
                             try:
+                                # do the model values match within 5% ?
                                 self.assertAlmostEqual(self.mysql_model_obs_data[r]['model_value'] * 10, self.cb_model_obs_data[r]['model'],msg="mysql and cb model values differ", delta = delta)
                             except:
-                                print (r, "model", self.mysql_model_obs_data[r]['time'], self.mysql_model_obs_data[r]['fcst_len'], self.cb_model_obs_data[r]['thrsh'], self.mysql_model_obs_data[r]['name'], self.mysql_model_obs_data[r]['model_value'] * 10,self.cb_model_obs_data[r]['name'], self.cb_model_obs_data[r]['model'], delta)
+                                print (r, "model", self.mysql_model_obs_data[r]['time'], self.mysql_model_obs_data[r]['fcst_len'], self.cb_model_obs_data[r]['thrsh'], self.mysql_model_obs_data[r]['name'], self.mysql_model_obs_data[r]['model_value'] * 10, self.cb_model_obs_data[r]['model'], delta)
                             try:
+                                # do the obs match within 5%
                                 self.assertAlmostEqual(self.mysql_model_obs_data[r]['obs_value'] * 10, self.cb_model_obs_data[r]['obs'],msg="mysql and cb obs values differ", delta = delta)
                             except:
-                                print (r, "obs", self.mysql_model_obs_data[r]['time'], self.mysql_model_obs_data[r]['fcst_len'], self.cb_model_obs_data[r]['thrsh'], self.mysql_model_obs_data[r]['name'], self.mysql_model_obs_data[r]['obs_value'] * 10 ,self.cb_model_obs_data[r]['name'], self.cb_model_obs_data[r]['obs'], delta)
+                                print (r, "obs", self.mysql_model_obs_data[r]['time'], self.mysql_model_obs_data[r]['fcst_len'], self.cb_model_obs_data[r]['thrsh'], self.mysql_model_obs_data[r]['name'], self.mysql_model_obs_data[r]['obs_value'] * 10, self.cb_model_obs_data[r]['obs'], delta)
 
         except:
             self.fail("TestCTCBuilderV01 Exception failure: " + str(sys.exc_info()[0]))
@@ -575,7 +578,7 @@ class TestCTCBuilderV01(unittest.TestCase):
         This test is a comprehensive test of the ctcBuilder data. It will retrieve CTC documents
         for a specific fcstValidEpoch from couchbase and the legacy mysql database.
         It determines an appropriate fcstValidEpoch that exists in both datasets, then
-        a common set of fcst_len values. It then compares the data with assertions. The intent is to 
+        a common set of fcst_len values. It then compares the data with assertions. The intent is to
         demonstrate that the data transformation from input model obs pairs is being done
         the same for couchbase as it is for the legacy ingest system.
         """

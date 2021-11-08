@@ -950,9 +950,9 @@ class TestGribBuilderV01(unittest.TestCase):
                         # remove output files
             for _f in glob('/opt/data/grib2_to_cb/output/test3/*.json'):
                 os.remove(_f)
-            list_of_input_files = glob('/opt/public/data/grids/hrrr/conus/wrfprs/grib2/*')
-            latest_input_file = max(list_of_input_files, key=os.path.getctime)
-            file_utc_time = datetime.datetime.strptime(os.path.basename(latest_input_file), '%y%j%H%f')
+            #list_of_input_files = glob('/opt/public/data/grids/hrrr/conus/wrfprs/grib2/*')
+            #latest_input_file = max(list_of_input_files, key=os.path.getctime)
+            #file_utc_time = datetime.datetime.strptime(os.path.basename(latest_input_file), '%y%j%H%f')
             cwd = os.getcwd()
             self.credentials_file = os.environ['HOME'] + '/adb-cb1-credentials'
             self.spec_file = cwd + '/grib2_to_cb/test/test_load_spec_grib_metar_hrrr_ops_V01.yaml'
@@ -963,10 +963,9 @@ class TestGribBuilderV01(unittest.TestCase):
                             'file_name_mask': '%y%j%H%f',
                             'output_dir': '/opt/data/grib2_to_cb/output/test3',
                             'threads': 1,
-                            'number_stations': 3,
                             'file_pattern': '21287230000[0123456789]?'
                             })
-            list_of_output_files = glob('/opt/data/grib2_to_cb/output/test3/*')
+            list_of_output_files = glob('/opt/data/grib2_to_cb/output/test3/[0123456789]????????????.json')
             latest_output_file = max(
                 list_of_output_files, key=os.path.getctime)
             # Opening JSON file
@@ -976,7 +975,6 @@ class TestGribBuilderV01(unittest.TestCase):
             vxIngest_output_data = json.load(f)
             # Closing file
             f.close()
-            output_station_data = {}
             expected_station_data = {}
 
             f = open(self.credentials_file)
@@ -989,7 +987,7 @@ class TestGribBuilderV01(unittest.TestCase):
             self.collection = self.cluster.bucket("mdata").default_collection()
 
             # Grab the projection information from the test file
-
+            latest_input_file = "/opt/public/data/grids/hrrr/conus/wrfprs/grib2/" + os.path.basename("/opt/data/grib2_to_cb/output/test3/2128723000018.json").split('.')[0]
             self.projection = gg.getGrid(latest_input_file)
             self.grbs = pygrib.open(latest_input_file)
             self.grbm = self.grbs.message(1)
@@ -1024,12 +1022,10 @@ class TestGribBuilderV01(unittest.TestCase):
                 station['name'] = station_name
                 self.domain_stations.append(station)
 
-            expected_station_data['fcstValidEpoch'] = round(
-                self.grbm.validDate.timestamp())
+            expected_station_data['fcstValidEpoch'] = round(self.grbm.validDate.timestamp())
             self.assertEqual(expected_station_data['fcstValidEpoch'], vxIngest_output_data[0]['fcstValidEpoch'],
                              "expected fcstValidEpoch and derived fcstValidEpoch are not the same")
-            expected_station_data['fcstValidISO'] = self.grbm.validDate.isoformat(
-            )
+            expected_station_data['fcstValidISO'] = self.grbm.validDate.isoformat()
             self.assertEqual(expected_station_data['fcstValidISO'], vxIngest_output_data[0]['fcstValidISO'],
                              "expected fcstValidISO and derived fcstValidISO are not the same")
             expected_station_data['id'] = "DD-TEST:V01:METAR:HRRR_OPS:" + str(expected_station_data['fcstValidEpoch']) + ":" + str(
@@ -1129,6 +1125,11 @@ class TestGribBuilderV01(unittest.TestCase):
                 theta = gg.getWindTheta(vwind_message, station['lon'])
                 radians = math.atan2(uwind_ms, vwind_ms)
                 wd = (radians*57.2958) + theta + 180
+                # adjust for outliers
+                if wd < 0:
+                    wd = wd + 360
+                if wd > 360:
+                    wd = wd - 360
 
                 expected_station_data['data'][i]['WD'] = wd if not np.ma.is_masked(wd) else None
 

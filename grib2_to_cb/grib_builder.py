@@ -408,7 +408,7 @@ class GribBuilder:  # pylint: disable=too-many-arguments
             self.domain_stations = []
             limit_clause = ""
             if self.number_stations != sys.maxsize:
-                limit_clause = "limit {l}".format(l=self.number_stations)
+                limit_clause = " limit {l}".format(l=self.number_stations)
             result = self.cluster.query(
                 """SELECT mdata.geo.lat, mdata.geo.lon, name
                     from mdata

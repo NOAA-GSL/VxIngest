@@ -1,4 +1,5 @@
-# Test instructions.
+# Test instructions
+
 You need a .vscode/settings.json that looks something like this....
 {
     "python.pythonPath": "/usr/local/bin/python3",

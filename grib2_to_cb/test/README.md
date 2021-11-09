@@ -223,11 +223,11 @@ You need to choose the python interpreter. To do this do a cmd->Shift->P and scr
 
 You can use the pytest module to invoke a test from the command line. For example...
 
-```python3 -m pytest -s -v  ${HOME}/PycharmProjects/VXingest/ctc_to_cb/test/test_int_metar_ctc.py::TestCTCBuilderV01::test_ctc_builder_hrrr_ops_all_hrrr_compare_model_obs_data > test_result_ctc_compare.txt```
+```python3 -m pytest -s -v  /Users/randy.pierce/PycharmProjects/VXingest/ctc_to_cb/test/test_int_metar_ctc.py::TestCTCBuilderV01::test_ctc_builder_hrrr_ops_all_hrrr_compare_model_obs_data > test_result_ctc_compare.txt```
 
 would execute the integration test 'test_ctc_builder_hrrr_ops_all_hrrr_compare_model_obs_data' integration test method from the 'TestCTCBuilderV01' test class in the /Users/randy.pierce/PycharmProjects/VXingest/ctc_to_cb/test/test_metar_ctc.py python file and it would redirect the output of this integration test into a file 'test_result_ctc_compare.txt'.
 
-The invocation ... ``` python3 -m pytest -s -v  ${HOME}/PycharmProjects/VXingest/netcdf_to_cb/test/test_unit_metar_obs_netcdf.py ```
+The invocation ... ``` python3 -m pytest -s -v  /Users/randy.pierce/PycharmProjects/VXingest/netcdf_to_cb/test/test_unit_metar_obs_netcdf.py ```
 would execute all of the unit tests in  '/Users/randy.pierce/PycharmProjects/VXingest/netcdf_to_cb/test/test_unit_metar_obs_netcdf.py' and give the test output on the command line.
 Example:
 

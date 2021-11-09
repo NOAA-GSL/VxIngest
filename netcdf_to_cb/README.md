@@ -5,8 +5,8 @@ that has been developed by the GSL AVID model verification team.
 ##Environment
 These programs require python3, and couchbase sdk 3.0 (see [couchbase sdk](https://docs.couchbase.com/python-sdk/current/hello-world/start-using-sdk.html) )
 
-You can see a list of installed python packages that is known to satisfy requirements
-in the python_packages.md file in this directory.
+In the test directory README netcdf_to_cb/test/README.md you will find instructions for setting up the environment and for running the tests.
+
 
 ##Approach
 These programs use a load_spec YAML file and a credentials file.

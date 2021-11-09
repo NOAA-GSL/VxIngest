@@ -1,5 +1,85 @@
 # Test instructions
 
+You need a properly working python3 interpreter installed. we have seen issues where the python3 installation was a problem.
+
+You need credential files in your home directory which can be retrieved (if you have permission) like this if you have cd'd into your home directory.
+
+```scp www-data@model-vxtest.gsd.esrl.noaa.gov:~/adb-cb* .```
+
+You also have to export the PYTHONPATH to be the top level VxIngest directory (the directory where you cloned the repo).
+for bash...
+```cd the_clone_dir_for_VxIngest; export PYTHONPATH=\`pwd\'```
+
+## environment
+
+You can create a python virtual environment in the test_env directory of this repo.
+To create and activate the virtual environment ...
+
+- ```cd top_level_of_repo  (like ~/VxIngest) - where you cloned the repo.```
+- ```python3 -m venv test_venv```
+- ```source test_env/bin/activate```
+
+If you have difficulty refer to <https://docs.python.org/3/tutorial/venv.html>
+
+Once you hacve sourced the environment you can load all of the necessary packages with
+
+- ```pip install -r requirements.txt```
+
+## tests
+
+There are two kinds of tests in each test directory.
+
+- integration - tests are named like grib2_to_cb/test/test_int_metar_model_grib.py
+- unit - tests are named like grib2_to_cb/test/test_unit_metar_model_grib.py
+
+Notice the ***test_int_*** and the ***test_unit*** in the names.
+Unit tests are relatively independent, do not require external test data, and run quickly. These tests are for testing methods or functions independantly. Integration tests require external data and configuration, are not independant, and may be long running. These tests are for testing a working system, or components of a working system that are interacting.
+
+## vscode
+
+We use several extensions in vscode. This is a sample list of useful extensions. This list can be used directly to install extensions on a different machine. This list is also checked into the test_env directory in the file ```vscode_extensions.sh```. You can install all of the extensions in that list by executing that file. You can also sinstall them individually by picking and choosing from the list.
+
+``` sh
+code --install-extension alefragnani.project-manager
+code --install-extension alexkrechik.cucumberautocomplete
+code --install-extension cweijan.vscode-mysql-client2
+code --install-extension DavidAnson.vscode-markdownlint
+code --install-extension dbaeumer.vscode-eslint
+code --install-extension eamodio.gitlens
+code --install-extension esbenp.prettier-vscode
+code --install-extension foxundermoon.shell-format
+code --install-extension GitHub.vscode-pull-request-github
+code --install-extension hashicorp.terraform
+code --install-extension hbenl.vscode-test-explorer
+code --install-extension hbenl.vscode-test-explorer-liveshare
+code --install-extension HookyQR.beautify
+code --install-extension isudox.vscode-jetbrains-keybindings
+code --install-extension ivanhofer.git-assistant
+code --install-extension littlefoxteam.vscode-python-test-adapter
+code --install-extension mhutchie.git-graph
+code --install-extension ms-azuretools.vscode-docker
+code --install-extension ms-python.python
+code --install-extension ms-python.vscode-pylance
+code --install-extension ms-toolsai.jupyter
+code --install-extension ms-toolsai.jupyter-keymap
+code --install-extension ms-toolsai.jupyter-renderers
+code --install-extension ms-vscode-remote.remote-containers
+code --install-extension ms-vscode-remote.remote-ssh
+code --install-extension ms-vscode-remote.remote-ssh-edit
+code --install-extension ms-vscode.test-adapter-converter
+code --install-extension ms-vsliveshare.vsliveshare
+code --install-extension msjsdiag.debugger-for-chrome
+code --install-extension naumovs.color-highlight
+code --install-extension njpwerner.autodocstring
+code --install-extension ramonitor.meteorhelper
+code --install-extension shardulm94.trailing-spaces
+code --install-extension walkme.Meteor-extension-pack
+code --install-extension xyz.local-history
+code --install-extension yzhang.markdown-all-in-one
+```
+
+### vscode settings
+
 You need a .vscode/settings.json that looks something like this....
 {
     "python.pythonPath": "/usr/local/bin/python3",
@@ -132,75 +212,10 @@ You also need a .vscode/launch.json that looks something like
     ]
 }
 
-## environment
+### vscode interptreter
 
-### You need python 3
-
-You can create a python virtual environment in the test_env directory of this repo.
-To create and activate the virtual environment ...
-
-- ```cd top_level_of_repo  (like ~/VxIngest) - where you cloned the repo.```
-- ```python3 -m venv test_venv```
-- ```source test_env/bin/activate```
-
-If you have difficulty refer to <https://docs.python.org/3/tutorial/venv.html>
-
-Once you hacve sourced the environment you can load all of the necessary packages with
-
-- ```pip install -r requirements.txt```
-
-## tests
-
-There are two kinds of tests in each test directory.
-
-- integration - tests are named like grib2_to_cb/test/test_int_metar_model_grib.py
-- unit - tests are named like grib2_to_cb/test/test_unit_metar_model_grib.py
-
-Notice the ***test_int_*** and the ***test_unit*** in the names.
-Unit tests are relatively independent, do not require external test data, and run quickly. These tests are for testing methods or functions independantly. Integration tests require external data and configuration, are not independant, and may be long running. These tests are for testing a working system, or components of a working system that are interacting.
-
-## vscode
-
-We use several extensions in vscode. This is a sample list of useful extensions. This list can be used directly to install extensions on a different machine. This list is also checked into the test_env directory in the file ```vscode_extensions.sh```. You can install all of the extensions in that list by executing that file. You can also sinstall them individually by picking and choosing from the list.
-
-``` sh
-code --install-extension alefragnani.project-manager
-code --install-extension alexkrechik.cucumberautocomplete
-code --install-extension cweijan.vscode-mysql-client2
-code --install-extension DavidAnson.vscode-markdownlint
-code --install-extension dbaeumer.vscode-eslint
-code --install-extension eamodio.gitlens
-code --install-extension esbenp.prettier-vscode
-code --install-extension foxundermoon.shell-format
-code --install-extension GitHub.vscode-pull-request-github
-code --install-extension hashicorp.terraform
-code --install-extension hbenl.vscode-test-explorer
-code --install-extension hbenl.vscode-test-explorer-liveshare
-code --install-extension HookyQR.beautify
-code --install-extension isudox.vscode-jetbrains-keybindings
-code --install-extension ivanhofer.git-assistant
-code --install-extension littlefoxteam.vscode-python-test-adapter
-code --install-extension mhutchie.git-graph
-code --install-extension ms-azuretools.vscode-docker
-code --install-extension ms-python.python
-code --install-extension ms-python.vscode-pylance
-code --install-extension ms-toolsai.jupyter
-code --install-extension ms-toolsai.jupyter-keymap
-code --install-extension ms-toolsai.jupyter-renderers
-code --install-extension ms-vscode-remote.remote-containers
-code --install-extension ms-vscode-remote.remote-ssh
-code --install-extension ms-vscode-remote.remote-ssh-edit
-code --install-extension ms-vscode.test-adapter-converter
-code --install-extension ms-vsliveshare.vsliveshare
-code --install-extension msjsdiag.debugger-for-chrome
-code --install-extension naumovs.color-highlight
-code --install-extension njpwerner.autodocstring
-code --install-extension ramonitor.meteorhelper
-code --install-extension shardulm94.trailing-spaces
-code --install-extension walkme.Meteor-extension-pack
-code --install-extension xyz.local-history
-code --install-extension yzhang.markdown-all-in-one
-```
+You need to choose the python interpreter. To do this do a cmd->Shift->P and scroll to
+"select python interpreter" and choose the one for your test_venv.
 
 ## test execution
 

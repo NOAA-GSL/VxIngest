@@ -72,6 +72,139 @@ code --install-extension yzhang.markdown-all-in-one
 
 ## test execution
 
+You need a .vscode/settings.json that looks something like this....
+{
+    "python.pythonPath": "/usr/local/bin/python3",
+    "python.testing.unittestArgs": [
+        "-v",
+        "-s",
+        "./test",
+        "-p",
+        "*test*.py"
+    ],
+    "python.testing.pytestEnabled": true,
+    "python.testing.nosetestsEnabled": false,
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestArgs": [
+        "-s",
+        "-v",
+        "grib2_to_cb/test",
+        "netcdf_to_cb/test",
+        "ctc_to_cb/test"
+    ],
+    "python.linting.pylintEnabled": true,
+    "python.linting.enabled": true
+}
+
+You also need a .vscode/launch.json that looks something like
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: delta_models_hist",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/netcdf_to_cb/test/delta_hist.py",
+            "cwd": "${workspaceFolder}/netcdf_to_cb",
+            "args": [
+                "-f", "~/model-mysql-cb-comp.txt"
+            ],
+            "console": "integratedTerminal",
+        },
+        {
+            "name": "Python: delta_obs_hist",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/netcdf_to_cb/test/delta_hist.py",
+            "cwd": "${workspaceFolder}/netcdf_to_cb",
+            "args": [
+                "-f", "~/obs-mysql-cb-comp.txt"
+            ],
+            "console": "integratedTerminal",
+        },
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/netcdf_to_cb",
+            "env": {
+                "PYTHONPATH": "${cwd}"
+            }
+        },
+        {
+            "name": "Run gsd ingest netcdf metars V01",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/netcdf_to_cb/run_ingest_threads.py",
+            "args": ["-s ${workspaceFolder}/netcdf_to_cb/test/load_spec_netcdf_metar_obs_V01.yaml",
+                "-c ${env:HOME}/adb-cb1-credentials",
+                "-p ${workspaceFolder}/netcdf_to_cb/test",
+                "-m %Y%m%d_%H%M",
+                "-o /tmp"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/netcdf_to_cb",
+            "env": {
+                "PYTHONPATH": "${cwd}"
+            }
+        },
+        {
+            "name": "Run gsd ingest grib files V01",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/grib2_to_cb/run_ingest_threads.py",
+            "args": ["-s ${workspaceFolder}/grib2_to_cb/test/load_spec_grib_metar_hrrr_ops_V01.yaml",
+                "-c ${env:HOME}/adb-cb1-credentials",
+                "-p /opt/public/data/grids/hrrr/conus/wrfprs/grib2",
+                "-m %y%j%H%f",
+                "-o /opt/public/data/output/"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/grib2_to_cb",
+            "env": {
+                "PYTHONPATH": "${cwd}"
+            }
+        },
+        {
+            "name": "Run gsd ingest grib files V01 - test2",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/grib2_to_cb/run_ingest_threads.py",
+            "args": ["-s /opt/data/grib2_to_cb/load_specs/load_spec_grib_metar_hrrr_ops_V01.yaml",
+                "-c ${env:HOME}/adb-cb1-credentials",
+                "-p /opt/data/grib2_to_cb/input_files",
+                "-m %y%j%H%f",
+                "-o /opt/public/data/output"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/grib2_to_cb",
+            "env": {
+                "PYTHONPATH": "${cwd}"
+            }
+        },
+        {
+            "name": "Debug Tests",
+            "type": "python",
+            "request": "test",
+            "console": "integratedTerminal",
+            "justMyCode": false
+        }
+    ]
+}
+
+
 ### command line
 
 You can use the pytest module to invoke a test from the command line. For example...

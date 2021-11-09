@@ -3,6 +3,7 @@
 .history/
 [Ll]ogs/
 venv/
+test_venv/
 __pycache__/
 .DS_Store
 grib2_to_cb_test/test/2119312000003

@@ -218,13 +218,46 @@ You need to choose the python interpreter. To do this do a cmd->Shift->P and scr
 
 ## test execution
 
+If you want to run unit tests it is easy. there is a test for netcdf i.e. test_unit_metar_obs_netcdf.py. This test has several unit tests in it and it has no external dependencies. To run this in the vscode UI just click on either the bug (in the test flask page) or the arrow. THe tests all run quickly and in reality they just test individual methods. You can run them on the command line as well.
+
 ### command line
 
 You can use the pytest module to invoke a test from the command line. For example...
 
-```python3 -m pytest -s -v  /Users/randy.pierce/PycharmProjects/VXingest/netcdf_to_cb/test/test_int_metar_ctc.py::TestCTCBuilderV01::test_ctc_builder_hrrr_ops_all_hrrr_compare_model_obs_data```
+```python3 -m pytest -s -v  /Users/randy.pierce/PycharmProjects/VXingest/netcdf_to_cb/test/test_unit_metar_obs_netcdf.py::TestNetcdfObsBuilderV01::test_one_thread_spedicfy_file_pattern```
 
-would execute the integration test 'test_ctc_builder_hrrr_ops_all_hrrr_compare_model_obs_data' integration test method from the 'TestCTCBuilderV01' test class in the /Users/randy.pierce/PycharmProjects/VXingest/ctc_to_cb/test/test_metar_ctc.py python file and it would redirect the output of this integration test into a file 'test_result_ctc_compare.txt'.
+#### Integration Test
+
+This test is very useful for debugging the netcdf builder. It does require preliminary setup. Here are the steps to prepare this test to run.
+1 identify the data that you want to use for the test.
+   For example: I ran the test_ctc_builder_hrrr_ops_all_hrrr_compare_model_obs_data integration test which relies only on the database and I got some failures of a suspicous nature. Specifically there were failures for a specific epoch on all the fcstLen values. The epoch in question was 1636390800. I used an epoch converter to find the date of this epoch (Monday, November 8, 2021 17:00:00) and from that date I could look on adb-cb1 in the /public/data/madis/point/metar/netcdf/ directory (the public netcdf data for ingest) to find a netcdf file that encapsulates that date. I chose 20211105_0600.
+2 Next copy the input file to /opt/data/netcdf_to_cb/input_files ON YOUR LOCAL TEST COMPUTER because that is where the test case is looking for input data. We know this because this is the constructor of the top level run_ingest_threads program for the netcdf builder.
+
+``` python
+from netcdf_to_cb.run_ingest_threads import VXIngest
+...
+vx_ingest = VXIngest()
+            vx_ingest.runit(
+                {
+                    "spec_file": self.spec_file,
+                    "credentials_file": os.environ["HOME"] + "/adb-cb1-credentials",
+                    "path": "/opt/data/netcdf_to_cb/input_files",
+                    "file_name_mask": "%Y%m%d_%H%M",
+                    "output_dir": "/opt/data/netcdf_to_cb/output/test1",
+                    "threads": 1,
+                    "file_pattern": "20211105_0600*"
+                }
+            )
+```
+
+3 Modify the test case to capture the file pattern of the file that we want to debug. In this case I changed the file_pattern value to 20211105_0600*.
+
+4 Set a breakpoint in the builder class. For example if I know that I want to debug the ceiling transformation I would set a breakpoint in the netcdf_builder.py program in the ceiling_transform method of the NetcdfMetarObsBuilderV01 class.
+5 Run the debugger. This is easies done by clicking the bug next to the test case in the Test Explorer panel.
+The debugger should stop on your breakpoint.
+```python3 -m pytest -s -v  /Users/randy.pierce/PycharmProjects/VXingest/netcdf_to_cb/test/test_int_metar_obs_netcdf.py::TestNetcdfObsBuilderV01::test_one_thread_spedicfy_file_pattern```
+
+#### Unit Test
 
 The invocation ... ``` python3 -m pytest -s -v  /Users/randy.pierce/PycharmProjects/VXingest/netcdf_to_cb/test/test_unit_metar_obs_netcdf.py ```
 would execute all of the unit tests in  '/Users/randy.pierce/PycharmProjects/VXingest/netcdf_to_cb/test/test_unit_metar_obs_netcdf.py' and give the test output on the command line.

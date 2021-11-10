@@ -14,6 +14,7 @@ from couchbase.cluster import Cluster, ClusterOptions
 from couchbase_core.cluster import PasswordAuthenticator
 from netcdf_to_cb.load_spec_yaml import LoadYamlSpecFile
 from netcdf_to_cb.netcdf_builder import NetcdfMetarObsBuilderV01
+from datetime import datetime
 class TestNetcdfObsBuilderV01Unit(TestCase):
 
     def setup_connection(self):
@@ -188,3 +189,75 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
         finally:
             shutil.rmtree("/tmp/test")
             vx_ingest.close_cb()
+
+    def test_interpolate_time(self):
+        """test the interpolate time routine in netcdf_builder
+        """
+        try:
+            vx_ingest = self.setup_connection()
+            _cluster = vx_ingest.cluster
+            _collection = vx_ingest.collection
+            _load_spec = vx_ingest.load_spec
+            _ingest_document_id = vx_ingest.load_spec["ingest_document_id"]
+            _ingest_document = _collection.get(_ingest_document_id).content
+            _builder = NetcdfMetarObsBuilderV01(_load_spec, _ingest_document, _cluster, _collection)
+            for delta in [1799, -1799, 511, -511]:
+                _t = np.array([1636390800 - delta])
+                _t.view(np.ma.MaskedArray)
+                t_interpolated = _builder.interpolate_time({"timeObs":_t})
+                self.assertEqual(1636390800,t_interpolated,"{t} interpolated to {it} is not equal".format(t=1636390800 - delta, it=t_interpolated))
+        except Exception as _e: #pylint:disable=broad-except
+            self.fail("test_interpolate_time Exception failure: " + str(_e))
+
+    def test_interpolate_time_iso(self):
+        """test the interpolate time routine in netcdf_builder
+        """
+        try:
+            vx_ingest = self.setup_connection()
+            _cluster = vx_ingest.cluster
+            _collection = vx_ingest.collection
+            load_spec = vx_ingest.load_spec
+            ingest_document_id = vx_ingest.load_spec["ingest_document_id"]
+            ingest_document = _collection.get(ingest_document_id).content
+            _builder = NetcdfMetarObsBuilderV01(load_spec, ingest_document, _cluster, _collection)
+            for delta in [1799, -1799, 511, -511]:
+                _t = np.array([1636390800 - delta])
+                _t.view(np.ma.MaskedArray)
+                t_interpolated = _builder.interpolate_time_iso({"timeObs":_t})
+                self.assertEqual((datetime.utcfromtimestamp(1636390800).isoformat()),t_interpolated,"{t} interpolated to {it} is not equal".format(t=1636390800 - delta, it=t_interpolated))
+        except Exception as _e: #pylint:disable=broad-except
+            self.fail("test_interpolate_time_iso Exception failure: " + str(_e))
+
+    def test_derive_valid_time_epoch(self):
+        """test the derive_valid_time_epoch routine in netcdf_builder
+        """
+        try:
+            vx_ingest = self.setup_connection()
+            _cluster = vx_ingest.cluster
+            _collection = vx_ingest.collection
+            load_spec = vx_ingest.load_spec
+            ingest_document_id = vx_ingest.load_spec["ingest_document_id"]
+            ingest_document = _collection.get(ingest_document_id).content
+            _builder = NetcdfMetarObsBuilderV01(load_spec, ingest_document, _cluster, _collection)
+            _builder.file_name = "20211108_0000"
+            derived_epoch = _builder.derive_valid_time_epoch({"file_name_pattern":"%Y%m%d_%H%M"})
+            self.assertEqual(1636329600,derived_epoch,"derived epoch {de} is not equal to 1636390800".format(de=derived_epoch))
+        except Exception as _e: #pylint:disable=broad-except
+            self.fail("test_derive_valid_time_epoch Exception failure: " + str(_e))
+
+    def test_derive_valid_time_iso(self):
+        """test the derive_valid_time_iso routine in netcdf_builder
+        """
+        try:
+            vx_ingest = self.setup_connection()
+            _cluster = vx_ingest.cluster
+            _collection = vx_ingest.collection
+            load_spec = vx_ingest.load_spec
+            ingest_document_id = vx_ingest.load_spec["ingest_document_id"]
+            ingest_document = _collection.get(ingest_document_id).content
+            _builder = NetcdfMetarObsBuilderV01(load_spec, ingest_document, _cluster, _collection)
+            _builder.file_name = "20211108_0000"
+            derived_epoch = _builder.derive_valid_time_iso({"file_name_pattern":"%Y%m%d_%H%M"})
+            self.assertEqual("2021-11-08T00:00:00Z",derived_epoch,"derived epoch {de} is not equal to 1636390800".format(de=derived_epoch))
+        except Exception as _e: #pylint:disable=broad-except
+            self.fail("test_derive_valid_time_epoch Exception failure: " + str(_e))

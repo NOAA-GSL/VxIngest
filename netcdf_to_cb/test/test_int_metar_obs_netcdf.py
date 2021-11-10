@@ -340,7 +340,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                     "file_name_mask": "%Y%m%d_%H%M",
                     "output_dir": "/opt/data/netcdf_to_cb/output/test1",
                     "threads": 1,
-                    "file_pattern": "20210919*"
+                    "file_pattern": "20211108_0000"
                 }
             )
             self.assertTrue(len(glob("/opt/data/netcdf_to_cb/output/test1/[0123456789]???????_[0123456789]???.json")) > 0,msg="There are no output files")

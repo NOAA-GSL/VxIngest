@@ -786,7 +786,7 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
                 return ""
             # if I get here process the _thistime
             delta_minutes = self.delta / 60
-            _ret_time = datetime.fromtimestamp(_thistime)
+            _ret_time = datetime.utcfromtimestamp(_thistime)
             _ret_time = _ret_time.replace(
                 second=0, microsecond=0, minute=0, hour=_ret_time.hour
             ) + timedelta(hours=_ret_time.minute // delta_minutes)
@@ -811,7 +811,7 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
                 _time = int(ma.compressed(time_obs)[0])
             else:
                 return ""
-            _time = datetime.fromtimestamp(_time)
+            _time = datetime.utcfromtimestamp(_time)
             _time = _time.replace(
                 second=0, microsecond=0, minute=0, hour=_time.hour
             ) + timedelta(hours=_time.minute // delta_minutes)

@@ -90,29 +90,6 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
         finally:
             vx_ingest.close_cb()
 
-    def test_derive_valid_time_epoch(self):
-        """test the derive_valid_time_epoch
-        requires self.file_name which should match the format for grib2 hrr_ops files
-        i.e. "20210920_1700", and params_dict['file_name_mask'] = "%Y%m%d_%H%M"
-        """
-        try:
-            vx_ingest = self.setup_connection()
-            cluster = vx_ingest.cluster
-            collection = vx_ingest.collection
-            load_spec = vx_ingest.load_spec
-            ingest_document_id = vx_ingest.load_spec["ingest_document_id"]
-            ingest_document = collection.get(ingest_document_id).content
-            builder = NetcdfMetarObsBuilderV01(load_spec, ingest_document, cluster, collection)
-            builder.file_name = "20210920_1700"
-            params_dict = {}
-            params_dict['file_name_mask'] = "%Y%m%d_%H%M"
-            epoch = builder.derive_valid_time_epoch(params_dict)
-            self.assertTrue(epoch == 1632157200)
-        except Exception as _e: #pylint:disable=broad-except
-            self.fail("test_build_load_job_doc Exception failure: " + str(_e))
-        finally:
-            vx_ingest.close_cb()
-
     def test_umask_value_transform(self):
         """test the derive_valid_time_epoch
         requires self.file_name which should match the format for grib2 hrr_ops files
@@ -240,8 +217,11 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             ingest_document = _collection.get(ingest_document_id).content
             _builder = NetcdfMetarObsBuilderV01(load_spec, ingest_document, _cluster, _collection)
             _builder.file_name = "20211108_0000"
-            derived_epoch = _builder.derive_valid_time_epoch({"file_name_pattern":"%Y%m%d_%H%M"})
-            self.assertEqual(1636329600,derived_epoch,"derived epoch {de} is not equal to 1636390800".format(de=derived_epoch))
+            _pattern = "%Y%m%d_%H%M"
+            _file_utc_time = datetime.strptime(_builder.file_name, _pattern)
+            expected_epoch = (_file_utc_time - datetime(1970, 1, 1)).total_seconds()
+            derived_epoch = _builder.derive_valid_time_epoch({"file_name_pattern":_pattern})
+            self.assertEqual(expected_epoch,derived_epoch,"derived epoch {de} is not equal to 1636329600".format(de=derived_epoch))
         except Exception as _e: #pylint:disable=broad-except
             self.fail("test_derive_valid_time_epoch Exception failure: " + str(_e))
 

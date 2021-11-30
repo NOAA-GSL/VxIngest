@@ -33,6 +33,12 @@ python netcdf_to_cb/run_ingest_threads.py -s /data/netcdf_to_cb/load_specs/load_
 ${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p /data/netcdf_to_cb/output -n 8 -l ${clonedir}/logs
 
 echo "*************************************"
+echo "netcdf legacy obs and stations"
+rm -rf /data/netcdf_to_cb-legacy/output/*
+python netcdf_to_cb/run_ingest_threads.py -s /data/netcdf_to_cb/load_specs/load_spec_netcdf_metar_legacy_obs_V01.yaml -c ~/adb-cb1-credentials -p /public/data/madis/point/metar/netcdf -m %Y%m%d_%H%M -o /data/netcdf_to_cb-legacy/output -t8
+${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p /data/netcdf_to_cb-legacy/output -n 8 -l ${clonedir}/logs
+
+echo "*************************************"
 echo "models"
 echo "hrrr_ops"
 rm -rf /data/grib2_to_cb/hrrr_ops/output/*

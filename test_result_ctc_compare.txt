@@ -1,0 +1,622 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.9.5, pytest-6.2.4, py-1.10.0, pluggy-0.13.1 -- /Users/randy.pierce/PycharmProjects/VXingest/test_venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /Users/randy.pierce/PycharmProjects/VXingest
+collecting ... collected 1 item
+
+ctc_to_cb/test/test_int_metar_ctc.py::TestCTCBuilderV01::test_ctc_builder_hrrr_ops_all_hrrr_compare_model_obs_data ..
+cb fcst_lens: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+mysql fcst_lens: [0, 1, 3, 6, 9, 12, 15, 18, 21]
+common fcst_lens: [0, 1, 3, 6, 9, 12]
+Asserting mysql derived CTC for fcstValidEpoch: 1636513200 model: HRRR_OPS region: ALL_HRRR fcst_len: 0 threshold: 500
+18 model 1636513200 0 500 CYHM 9110 124.3966523475647 462
+30 model 1636513200 0 500 CYOY 22980 20599.067027347566 2179
+61 model 1636513200 0 500 CYWH 60000 4327.255121097565 3216
+63 model 1636513200 0 500 CYXE 16430 14443.500902347565 1544
+73 model 1636513200 0 500 CYYJ 2700 12330.331839847566 752
+127 obs 1636513200 0 500 KACB 60000 None 6000
+484 model 1636513200 0 500 KDEN 19870 17714.350308597564 1879
+485 model 1636513200 0 500 KDEQ 130 2118.1168085975646 112
+637 model 1636513200 0 500 KFGN 1980 60000 3099
+684 model 1636513200 0 500 KFWN 22730 60000 4136
+688 model 1636513200 0 500 KFZY 6490 7745.852058597565 712
+708 model 1636513200 0 500 KGEZ 21360 60000 4068
+987 model 1636513200 0 500 KLHM 910 2088.280214847565 150
+1084 obs 1636513200 0 500 KMFV 60000 None 6000
+1119 model 1636513200 0 500 KMLP 1870 60000 3094
+1187 model 1636513200 0 500 KMZZ 20690 60000 4034
+1216 model 1636513200 0 500 KNSI 560 129.0105585975647 34
+1287 model 1636513200 0 500 KOUN 2100 60000 3105
+1437 obs 1636513200 0 500 KRNP 500 None 6000
+1449 model 1636513200 0 500 KRQE 17460 19634.863152347567 1855
+1657 model 1636513200 0 500 KTYS 30210 60000 4510
+1659 model 1636513200 0 500 KUAO 6430 60000 3322
+1670 model 1636513200 0 500 KUNO 60000 2083.768839847565 3104
+1747 obs 1636513200 0 500 MMAN 60000 2001 6000
+1755 obs 1636513200 0 500 MMML 60000 None 6000
+1756 obs 1636513200 0 500 MMMY 60000 2493 6000
+1759 model 1636513200 0 500 MUVR 60000 None
+Asserting mysql derived CTC for fcstValidEpoch: 1636513200 model: HRRR_OPS region: ALL_HRRR fcst_len: 0 threshold: 1000
+18 model 1636513200 0 1000 CYHM 9110 124.3966523475647 462
+30 model 1636513200 0 1000 CYOY 22980 20599.067027347566 2179
+61 model 1636513200 0 1000 CYWH 60000 4327.255121097565 3216
+63 model 1636513200 0 1000 CYXE 16430 14443.500902347565 1544
+73 model 1636513200 0 1000 CYYJ 2700 12330.331839847566 752
+127 obs 1636513200 0 1000 KACB 60000 None 6000
+484 model 1636513200 0 1000 KDEN 19870 17714.350308597564 1879
+485 model 1636513200 0 1000 KDEQ 130 2118.1168085975646 112
+637 model 1636513200 0 1000 KFGN 1980 60000 3099
+684 model 1636513200 0 1000 KFWN 22730 60000 4136
+688 model 1636513200 0 1000 KFZY 6490 7745.852058597565 712
+708 model 1636513200 0 1000 KGEZ 21360 60000 4068
+987 model 1636513200 0 1000 KLHM 910 2088.280214847565 150
+1084 obs 1636513200 0 1000 KMFV 60000 None 6000
+1119 model 1636513200 0 1000 KMLP 1870 60000 3094
+1187 model 1636513200 0 1000 KMZZ 20690 60000 4034
+1216 model 1636513200 0 1000 KNSI 560 129.0105585975647 34
+1287 model 1636513200 0 1000 KOUN 2100 60000 3105
+1437 obs 1636513200 0 1000 KRNP 500 None 6000
+1449 model 1636513200 0 1000 KRQE 17460 19634.863152347567 1855
+1657 model 1636513200 0 1000 KTYS 30210 60000 4510
+1659 model 1636513200 0 1000 KUAO 6430 60000 3322
+1670 model 1636513200 0 1000 KUNO 60000 2083.768839847565 3104
+1747 obs 1636513200 0 1000 MMAN 60000 2001 6000
+1755 obs 1636513200 0 1000 MMML 60000 None 6000
+1756 obs 1636513200 0 1000 MMMY 60000 2493 6000
+1759 model 1636513200 0 1000 MUVR 60000 None
+Asserting mysql derived CTC for fcstValidEpoch: 1636513200 model: HRRR_OPS region: ALL_HRRR fcst_len: 0 threshold: 3000
+18 model 1636513200 0 3000 CYHM 9110 124.3966523475647 462
+30 model 1636513200 0 3000 CYOY 22980 20599.067027347566 2179
+61 model 1636513200 0 3000 CYWH 60000 4327.255121097565 3216
+63 model 1636513200 0 3000 CYXE 16430 14443.500902347565 1544
+73 model 1636513200 0 3000 CYYJ 2700 12330.331839847566 752
+127 obs 1636513200 0 3000 KACB 60000 None 6000
+484 model 1636513200 0 3000 KDEN 19870 17714.350308597564 1879
+485 model 1636513200 0 3000 KDEQ 130 2118.1168085975646 112
+637 model 1636513200 0 3000 KFGN 1980 60000 3099
+684 model 1636513200 0 3000 KFWN 22730 60000 4136
+688 model 1636513200 0 3000 KFZY 6490 7745.852058597565 712
+708 model 1636513200 0 3000 KGEZ 21360 60000 4068
+987 model 1636513200 0 3000 KLHM 910 2088.280214847565 150
+1084 obs 1636513200 0 3000 KMFV 60000 None 6000
+1119 model 1636513200 0 3000 KMLP 1870 60000 3094
+1187 model 1636513200 0 3000 KMZZ 20690 60000 4034
+1216 model 1636513200 0 3000 KNSI 560 129.0105585975647 34
+1287 model 1636513200 0 3000 KOUN 2100 60000 3105
+1437 obs 1636513200 0 3000 KRNP 500 None 6000
+1449 model 1636513200 0 3000 KRQE 17460 19634.863152347567 1855
+1657 model 1636513200 0 3000 KTYS 30210 60000 4510
+1659 model 1636513200 0 3000 KUAO 6430 60000 3322
+1670 model 1636513200 0 3000 KUNO 60000 2083.768839847565 3104
+1747 obs 1636513200 0 3000 MMAN 60000 2001 6000
+1755 obs 1636513200 0 3000 MMML 60000 None 6000
+1756 obs 1636513200 0 3000 MMMY 60000 2493 6000
+1759 model 1636513200 0 3000 MUVR 60000 None
+Asserting mysql derived CTC for fcstValidEpoch: 1636513200 model: HRRR_OPS region: ALL_HRRR fcst_len: 0 threshold: 60000
+18 model 1636513200 0 60000 CYHM 9110 124.3966523475647 462
+30 model 1636513200 0 60000 CYOY 22980 20599.067027347566 2179
+61 model 1636513200 0 60000 CYWH 60000 4327.255121097565 3216
+63 model 1636513200 0 60000 CYXE 16430 14443.500902347565 1544
+73 model 1636513200 0 60000 CYYJ 2700 12330.331839847566 752
+127 obs 1636513200 0 60000 KACB 60000 None 6000
+484 model 1636513200 0 60000 KDEN 19870 17714.350308597564 1879
+485 model 1636513200 0 60000 KDEQ 130 2118.1168085975646 112
+637 model 1636513200 0 60000 KFGN 1980 60000 3099
+684 model 1636513200 0 60000 KFWN 22730 60000 4136
+688 model 1636513200 0 60000 KFZY 6490 7745.852058597565 712
+708 model 1636513200 0 60000 KGEZ 21360 60000 4068
+987 model 1636513200 0 60000 KLHM 910 2088.280214847565 150
+1084 obs 1636513200 0 60000 KMFV 60000 None 6000
+1119 model 1636513200 0 60000 KMLP 1870 60000 3094
+1187 model 1636513200 0 60000 KMZZ 20690 60000 4034
+1216 model 1636513200 0 60000 KNSI 560 129.0105585975647 34
+1287 model 1636513200 0 60000 KOUN 2100 60000 3105
+1437 obs 1636513200 0 60000 KRNP 500 None 6000
+1449 model 1636513200 0 60000 KRQE 17460 19634.863152347567 1855
+1657 model 1636513200 0 60000 KTYS 30210 60000 4510
+1659 model 1636513200 0 60000 KUAO 6430 60000 3322
+1670 model 1636513200 0 60000 KUNO 60000 2083.768839847565 3104
+1747 obs 1636513200 0 60000 MMAN 60000 2001 6000
+1755 obs 1636513200 0 60000 MMML 60000 None 6000
+1756 obs 1636513200 0 60000 MMMY 60000 2493 6000
+1759 model 1636513200 0 60000 MUVR 60000 None
+Asserting mysql derived CTC for fcstValidEpoch: 1636513200 model: HRRR_OPS region: ALL_HRRR fcst_len: 1 threshold: 500
+51 model 1636513200 1 500 CYTR 7750 10798.303756980897 927
+57 model 1636513200 1 500 CYVR 12900 10618.463944480896 1176
+111 model 1636513200 1 500 K5SM 860 1298.168256980896 108
+127 obs 1636513200 1 500 KACB 60000 None 6000
+140 model 1636513200 1 500 KAEJ 15320 17118.637600730897 1622
+355 model 1636513200 1 500 KCDA 8980 60000 3449
+393 model 1636513200 1 500 KCKV 60000 23162.752256980897 4158
+485 model 1636513200 1 500 KDEQ 60000 1489.9016944808961 3074
+561 model 1636513200 1 500 KEFK 17680 60000 3884
+650 model 1636513200 1 500 KFLP 60000 2108.780319480896 3105
+666 model 1636513200 1 500 KFRG 24290 60000 4214
+684 model 1636513200 1 500 KFWN 60000 22373.056569480897 4119
+707 model 1636513200 1 500 KGEY 12130 9802.930381980896 1097
+751 model 1636513200 1 500 KGSP 31560 60000 4578
+768 model 1636513200 1 500 KGYH 29000 60000 4450
+987 model 1636513200 1 500 KLHM 940 1467.447350730896 120
+1084 obs 1636513200 1 500 KMFV 60000 None 6000
+1098 model 1636513200 1 500 KMIA 4590 3683.865381980896 414
+1187 model 1636513200 1 500 KMZZ 60000 21262.130475730897 4063
+1188 model 1636513200 1 500 KNAK 130 60000 3006
+1231 model 1636513200 1 500 KOBE 4580 60000 3229
+1437 obs 1636513200 1 500 KRNP 500 None 6000
+1556 model 1636513200 1 500 KSPB 5310 6417.040913230896 586
+1747 obs 1636513200 1 500 MMAN 60000 2001 6000
+1755 obs 1636513200 1 500 MMML 60000 None 6000
+1756 obs 1636513200 1 500 MMMY 60000 2493 6000
+1759 model 1636513200 1 500 MUVR 60000 None
+Asserting mysql derived CTC for fcstValidEpoch: 1636513200 model: HRRR_OPS region: ALL_HRRR fcst_len: 1 threshold: 1000
+51 model 1636513200 1 1000 CYTR 7750 10798.303756980897 927
+57 model 1636513200 1 1000 CYVR 12900 10618.463944480896 1176
+111 model 1636513200 1 1000 K5SM 860 1298.168256980896 108
+127 obs 1636513200 1 1000 KACB 60000 None 6000
+140 model 1636513200 1 1000 KAEJ 15320 17118.637600730897 1622
+355 model 1636513200 1 1000 KCDA 8980 60000 3449
+393 model 1636513200 1 1000 KCKV 60000 23162.752256980897 4158
+485 model 1636513200 1 1000 KDEQ 60000 1489.9016944808961 3074
+561 model 1636513200 1 1000 KEFK 17680 60000 3884
+650 model 1636513200 1 1000 KFLP 60000 2108.780319480896 3105
+666 model 1636513200 1 1000 KFRG 24290 60000 4214
+684 model 1636513200 1 1000 KFWN 60000 22373.056569480897 4119
+707 model 1636513200 1 1000 KGEY 12130 9802.930381980896 1097
+751 model 1636513200 1 1000 KGSP 31560 60000 4578
+768 model 1636513200 1 1000 KGYH 29000 60000 4450
+987 model 1636513200 1 1000 KLHM 940 1467.447350730896 120
+1084 obs 1636513200 1 1000 KMFV 60000 None 6000
+1098 model 1636513200 1 1000 KMIA 4590 3683.865381980896 414
+1187 model 1636513200 1 1000 KMZZ 60000 21262.130475730897 4063
+1188 model 1636513200 1 1000 KNAK 130 60000 3006
+1231 model 1636513200 1 1000 KOBE 4580 60000 3229
+1437 obs 1636513200 1 1000 KRNP 500 None 6000
+1556 model 1636513200 1 1000 KSPB 5310 6417.040913230896 586
+1747 obs 1636513200 1 1000 MMAN 60000 2001 6000
+1755 obs 1636513200 1 1000 MMML 60000 None 6000
+1756 obs 1636513200 1 1000 MMMY 60000 2493 6000
+1759 model 1636513200 1 1000 MUVR 60000 None
+Asserting mysql derived CTC for fcstValidEpoch: 1636513200 model: HRRR_OPS region: ALL_HRRR fcst_len: 1 threshold: 3000
+FAILED
+
+=================================== FAILURES ===================================
+_ TestCTCBuilderV01.test_ctc_builder_hrrr_ops_all_hrrr_compare_model_obs_data __
+
+self = <test_int_metar_ctc.TestCTCBuilderV01 testMethod=test_ctc_builder_hrrr_ops_all_hrrr_compare_model_obs_data>
+
+    def test_ctc_builder_hrrr_ops_all_hrrr_compare_model_obs_data(self):
+        """
+        This test verifies that data is returned for each fcstLen and each threshold.
+        It can be used to debug the builder by putting a specific epoch for first_epoch.
+        By default it will build all unbuilt CTC objects and put them into the output folder.
+        Then it takes the last output json file and loads that file.
+        Then the test  derives the same CTC in three ways.
+        1) it calculates the CTC using couchbase data for input.
+        2) It calculates the CTC using mysql data for input.
+        3) It uses the mysql legacy query with the embeded calculation.
+        The two mysql derived CTC's are compared and asserted, and then the couchbase CTC
+        is compared and asserted against the mysql CTC.
+        """
+        # noinspection PyBroadException
+        try:
+            credentials_file = os.environ['HOME'] + '/adb-cb1-credentials'
+            self.assertTrue(Path(credentials_file).is_file(),"credentials_file Does not exist")
+            cf = open(credentials_file)
+            yaml_data = yaml.load(cf, yaml.SafeLoader)
+            host = yaml_data['cb_host']
+            user = yaml_data['cb_user']
+            password = yaml_data['cb_password']
+            cf.close()
+            options = ClusterOptions(PasswordAuthenticator(user, password))
+            cluster = Cluster('couchbase://' + host, options)
+    
+            host = yaml_data["mysql_host"]
+            user = yaml_data["mysql_user"]
+            passwd = yaml_data["mysql_password"]
+            connection = pymysql.connect(
+                host=host,
+                user=user,
+                passwd=passwd,
+                local_infile=True,
+                autocommit=True,
+                charset="utf8mb4",
+                cursorclass=pymysql.cursors.SSDictCursor,
+                client_flag=CLIENT.MULTI_STATEMENTS,
+            )
+            cursor = connection.cursor(pymysql.cursors.SSDictCursor)
+            # get the ceiling thresholds from the metadata
+            result = cluster.query("""
+                SELECT RAW mdata.thresholdDescriptions
+                FROM mdata
+                WHERE type="MD"
+                    AND docType="matsAux"
+                """, read_only=True)
+            thresholds = list(map(int, list((list(result)[0])['ceiling'].keys())))
+    
+            # get the model fcstValidEpoch list from couchbase
+            result = cluster.query(
+                """SELECT RAW fcstValidEpoch
+                    FROM mdata
+                    WHERE type='DD'
+                        AND docType='model'
+                        AND mdata.model='{model}'
+                        AND mdata.version='V01'
+                        AND mdata.subset='METAR'""".format(model="HRRR_OPS"))
+            cb_model_fcst_valid_epochs = list(result)
+            # get the obs fcstValidEpoch list from couchbase
+            result = cluster.query(
+                """SELECT raw mdata.fcstValidEpoch
+                    FROM mdata
+                    WHERE mdata.type='DD'
+                        AND mdata.docType='obs'
+                        AND mdata.subset='METAR'
+                        AND mdata.version='V01'""")
+            cb_obs_fcst_valid_epochs = list(result)
+            cb_common_fcst_valid_epochs = [val for val in cb_obs_fcst_valid_epochs if val in set(cb_model_fcst_valid_epochs)]
+            # get available fcstValidEpochs for  legacy
+            first_epoch = cb_common_fcst_valid_epochs[0]
+            last_epoch = cb_common_fcst_valid_epochs[-1]
+            cursor.execute("""
+                select DISTINCT
+                1 * 3600 * floor((o.time + 1800) /(1 * 3600)) as time
+                from
+                ceiling2.{model} as m,
+                madis3.metars,
+                ceiling2.obs as o
+                where
+                1 = 1
+                and m.madis_id = madis3.metars.madis_id
+                and m.madis_id = o.madis_id
+                and m.fcst_len = 1
+                and m.time = o.time
+                and find_in_set("{region}", reg) > 0
+                and o.time >= {first_epoch} - 1800
+                and o.time < {last_epoch} + 1800
+                and m.time >= {first_epoch} - 1800
+                and m.time < {last_epoch} + 1800
+                order by
+                time""".format(model="HRRR_OPS", region="ALL_HRRR", first_epoch=first_epoch, last_epoch=last_epoch))
+            mysql_common_fcst_valid_epochs = [o['time'] for o in cursor.fetchall()]
+            common_fcst_valid_epochs = [val for val in cb_common_fcst_valid_epochs if val in set(mysql_common_fcst_valid_epochs)]
+    
+            # choose one sort of near the end to be sure that all the data is present and that
+            # it won't get its raw data migrated away
+            rindex = min(len (common_fcst_valid_epochs), 15) * -1
+            fcst_valid_epoch = common_fcst_valid_epochs[rindex]
+            result = cluster.query("""
+                SELECT RAW fcstLen
+                FROM mdata
+                WHERE mdata.type="DD"
+                    AND mdata.docType="model"
+                    AND mdata.model='{model}'
+                    AND mdata.version='V01'
+                    AND mdata.subset='METAR'
+                    AND mdata.fcstValidEpoch={fcst_valid_epoch}""".format(model="HRRR_OPS", fcst_valid_epoch=fcst_valid_epoch))
+            cb_fcst_lens = list(result)
+            cursor.execute("""
+                select DISTINCT fcst_len
+                from
+                ceiling2.{model} as m,
+                madis3.metars
+                where
+                    1 = 1
+                    and find_in_set("{region}", reg) > 0
+                    and m.time >= {epoch} - 1800
+                    and m.time < {epoch} + 1800""".format(model="HRRR_OPS", region="ALL_HRRR", epoch=fcst_valid_epoch))
+            mysql_fcst_lens_result = cursor.fetchall()
+            mysql_fcst_lens = [o['fcst_len'] for o in mysql_fcst_lens_result]
+            fcst_lens = [fcst_len for fcst_len in mysql_fcst_lens if fcst_len in set(cb_fcst_lens)]
+            print("..")
+            print("cb fcst_lens:", cb_fcst_lens)
+            print("mysql fcst_lens:", mysql_fcst_lens)
+            print("common fcst_lens:", fcst_lens)
+            for i in fcst_lens:
+                for t in thresholds:
+                    # process all the thresholds
+                    print ("Asserting mysql derived CTC for fcstValidEpoch: {epoch} model: {model} region: {region} fcst_len: {fcst_len} threshold: {thrsh}".format(model="HRRR_OPS", region="ALL_HRRR", epoch=fcst_valid_epoch, thrsh=t, fcst_len=i))
+                    # calculate_cb_ctc derives the cb data for the compare
+>                   cb_ctc = self.calculate_cb_ctc(model="HRRR_OPS", region="ALL_HRRR", epoch=fcst_valid_epoch, fcst_len=i, threshold=int(t))
+
+ctc_to_cb/test/test_int_metar_ctc.py:528: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <test_int_metar_ctc.TestCTCBuilderV01 testMethod=test_ctc_builder_hrrr_ops_all_hrrr_compare_model_obs_data>
+epoch = 1636513200, fcst_len = 1, threshold = 3000, model = 'HRRR_OPS'
+region = 'ALL_HRRR', station_diffs = []
+
+    def calculate_cb_ctc(self, epoch, fcst_len, threshold, model, region, station_diffs = []):
+        credentials_file = os.environ['HOME'] + '/adb-cb1-credentials'
+        self.assertTrue(Path(credentials_file).is_file(), "credentials_file Does not exist")
+        f = open(credentials_file)
+        yaml_data = yaml.load(f, yaml.SafeLoader)
+        host = yaml_data['cb_host']
+        user = yaml_data['cb_user']
+        password = yaml_data['cb_password']
+        f.close()
+        options = ClusterOptions(PasswordAuthenticator(user, password))
+        cluster = Cluster('couchbase://' + host, options)
+        collection = cluster.bucket("mdata").default_collection()
+        cwd = os.getcwd()
+        spec_file = cwd + '/ctc_to_cb/test/test_load_spec_metar_hrrr_ops_all_hrrr_ctc_V01.yaml'
+        load_spec_file = LoadYamlSpecFile({'spec_file': spec_file})
+        load_spec = dict(load_spec_file.read())
+>       ingest_document_result = collection.get("MD:V01:METAR:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest")
+
+ctc_to_cb/test/test_int_metar_ctc.py:248: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = CBCollection of <couchbase_core.client.Bucket bucket=mdata, nodes=['137.75.164.72:8091'] at 0x10a254e50>
+args = ('MD:V01:METAR:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest',), kwargs = {}
+
+    @ wraps(func)
+    def wrapped(self,  # type: CBCollection
+                *args,  # type: Any
+                **kwargs  # type:  Any
+                ):
+        # type: (...)->Any
+        self._inject_scope_collection_kwargs(kwargs)
+>       return func(self, *args, **kwargs)
+
+test_venv/lib/python3.9/site-packages/couchbase/collection.py:293: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+args = (CBCollection of <couchbase_core.client.Bucket bucket=mdata, nodes=['137.75.164.72:8091'] at 0x10a254e50>, 'MD:V01:METAR:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest')
+kwargs = {}
+
+    @wraps(func)
+    def wrapped(*args, **kwargs):
+>       x, options = func(*args, **kwargs)
+
+test_venv/lib/python3.9/site-packages/couchbase/result.py:544: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = CBCollection of <couchbase_core.client.Bucket bucket=mdata, nodes=['137.75.164.72:8091'] at 0x10a254e50>
+key = 'MD:V01:METAR:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest', options = ()
+kwargs = {}
+
+    @_get_result_and_inject
+    def get(self,
+            key,        # type: str
+            *options,   # type: GetOptions
+            **kwargs    # type: Any
+            ):
+        # type: (...) -> GetResult
+        """Obtain an object stored in Couchbase by given key.
+    
+        :param key: The key to fetch. The type of key is the same
+            as mentioned in :meth:`upsert`
+        :param: GetOptions options: The options to use for this get request.
+        :param: Any kwargs: Override corresponding value in options.
+    
+        :raise: :exc:`.DocumentNotFoundException` if the key does not exist
+    
+        Simple get::
+    
+            value = cb.get('key').content_as[str]
+    
+        Inspect CAS value::
+    
+            rv = cb.get("key")
+            value, cas = rv.content_as[str], rv.cas
+    
+        Request the expiry::
+            rv = cb.get("key", GetOptions(with_expiry=True))
+            value, expiry = rv.content_as[str], rv.expiry
+        """
+>       return self._get_generic(key, kwargs, options)
+
+test_venv/lib/python3.9/site-packages/couchbase/collection.py:521: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = CBCollection of <couchbase_core.client.Bucket bucket=mdata, nodes=['137.75.164.72:8091'] at 0x10a254e50>
+key = 'MD:V01:METAR:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest', kwargs = {}
+options = ()
+
+    def _get_generic(self, key, kwargs, options):
+        opts = forward_args(kwargs, *options)
+        opts.pop('key', None)
+        project = opts.pop('project', [])
+        with_expiry = opts.pop('with_expiry', False)
+        if project or with_expiry:
+            spec = gen_projection_spec(project, with_expiry)
+            x = CoreClient.lookup_in(self.bucket, key, spec, **opts)
+        else:
+>           x = CoreClient.get(self.bucket, key, **opts)
+
+test_venv/lib/python3.9/site-packages/couchbase/collection.py:484: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <couchbase_core.client.Bucket bucket=mdata, nodes=['137.75.164.72:8091'] at 0x10a254e50>
+args = ('MD:V01:METAR:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest',), kwargs = {}
+
+    def get(self, *args, **kwargs):
+>       return super(Client, self).get(*args, **kwargs)
+E       couchbase.exceptions.TimeoutException: <Key='MD:V01:METAR:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest', RC=0xC9[LCB_ERR_TIMEOUT (201)], Operational Error, Results=1, C Source=(src/multiresult.c,332), Context={'status_code': 4, 'opaque': 0, 'cas': 0, 'key': 'MD:V01:METAR:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest', 'bucket': 'mdata', 'collection': '_default', 'scope': '_default', 'context': '', 'ref': '', 'endpoint': '137.75.164.72:11210', 'type': 'KVErrorContext'}, Tracing Output={"MD:V01:METAR:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest": {"debug_info": {"FILE": "src/callbacks.c", "FUNC": "value_callback", "LINE": 848}}}>
+
+test_venv/lib/python3.9/site-packages/couchbase_core/client.py:409: TimeoutException
+
+During handling of the above exception, another exception occurred:
+
+self = <test_int_metar_ctc.TestCTCBuilderV01 testMethod=test_ctc_builder_hrrr_ops_all_hrrr_compare_model_obs_data>
+
+    def test_ctc_builder_hrrr_ops_all_hrrr_compare_model_obs_data(self):
+        """
+        This test verifies that data is returned for each fcstLen and each threshold.
+        It can be used to debug the builder by putting a specific epoch for first_epoch.
+        By default it will build all unbuilt CTC objects and put them into the output folder.
+        Then it takes the last output json file and loads that file.
+        Then the test  derives the same CTC in three ways.
+        1) it calculates the CTC using couchbase data for input.
+        2) It calculates the CTC using mysql data for input.
+        3) It uses the mysql legacy query with the embeded calculation.
+        The two mysql derived CTC's are compared and asserted, and then the couchbase CTC
+        is compared and asserted against the mysql CTC.
+        """
+        # noinspection PyBroadException
+        try:
+            credentials_file = os.environ['HOME'] + '/adb-cb1-credentials'
+            self.assertTrue(Path(credentials_file).is_file(),"credentials_file Does not exist")
+            cf = open(credentials_file)
+            yaml_data = yaml.load(cf, yaml.SafeLoader)
+            host = yaml_data['cb_host']
+            user = yaml_data['cb_user']
+            password = yaml_data['cb_password']
+            cf.close()
+            options = ClusterOptions(PasswordAuthenticator(user, password))
+            cluster = Cluster('couchbase://' + host, options)
+    
+            host = yaml_data["mysql_host"]
+            user = yaml_data["mysql_user"]
+            passwd = yaml_data["mysql_password"]
+            connection = pymysql.connect(
+                host=host,
+                user=user,
+                passwd=passwd,
+                local_infile=True,
+                autocommit=True,
+                charset="utf8mb4",
+                cursorclass=pymysql.cursors.SSDictCursor,
+                client_flag=CLIENT.MULTI_STATEMENTS,
+            )
+            cursor = connection.cursor(pymysql.cursors.SSDictCursor)
+            # get the ceiling thresholds from the metadata
+            result = cluster.query("""
+                SELECT RAW mdata.thresholdDescriptions
+                FROM mdata
+                WHERE type="MD"
+                    AND docType="matsAux"
+                """, read_only=True)
+            thresholds = list(map(int, list((list(result)[0])['ceiling'].keys())))
+    
+            # get the model fcstValidEpoch list from couchbase
+            result = cluster.query(
+                """SELECT RAW fcstValidEpoch
+                    FROM mdata
+                    WHERE type='DD'
+                        AND docType='model'
+                        AND mdata.model='{model}'
+                        AND mdata.version='V01'
+                        AND mdata.subset='METAR'""".format(model="HRRR_OPS"))
+            cb_model_fcst_valid_epochs = list(result)
+            # get the obs fcstValidEpoch list from couchbase
+            result = cluster.query(
+                """SELECT raw mdata.fcstValidEpoch
+                    FROM mdata
+                    WHERE mdata.type='DD'
+                        AND mdata.docType='obs'
+                        AND mdata.subset='METAR'
+                        AND mdata.version='V01'""")
+            cb_obs_fcst_valid_epochs = list(result)
+            cb_common_fcst_valid_epochs = [val for val in cb_obs_fcst_valid_epochs if val in set(cb_model_fcst_valid_epochs)]
+            # get available fcstValidEpochs for  legacy
+            first_epoch = cb_common_fcst_valid_epochs[0]
+            last_epoch = cb_common_fcst_valid_epochs[-1]
+            cursor.execute("""
+                select DISTINCT
+                1 * 3600 * floor((o.time + 1800) /(1 * 3600)) as time
+                from
+                ceiling2.{model} as m,
+                madis3.metars,
+                ceiling2.obs as o
+                where
+                1 = 1
+                and m.madis_id = madis3.metars.madis_id
+                and m.madis_id = o.madis_id
+                and m.fcst_len = 1
+                and m.time = o.time
+                and find_in_set("{region}", reg) > 0
+                and o.time >= {first_epoch} - 1800
+                and o.time < {last_epoch} + 1800
+                and m.time >= {first_epoch} - 1800
+                and m.time < {last_epoch} + 1800
+                order by
+                time""".format(model="HRRR_OPS", region="ALL_HRRR", first_epoch=first_epoch, last_epoch=last_epoch))
+            mysql_common_fcst_valid_epochs = [o['time'] for o in cursor.fetchall()]
+            common_fcst_valid_epochs = [val for val in cb_common_fcst_valid_epochs if val in set(mysql_common_fcst_valid_epochs)]
+    
+            # choose one sort of near the end to be sure that all the data is present and that
+            # it won't get its raw data migrated away
+            rindex = min(len (common_fcst_valid_epochs), 15) * -1
+            fcst_valid_epoch = common_fcst_valid_epochs[rindex]
+            result = cluster.query("""
+                SELECT RAW fcstLen
+                FROM mdata
+                WHERE mdata.type="DD"
+                    AND mdata.docType="model"
+                    AND mdata.model='{model}'
+                    AND mdata.version='V01'
+                    AND mdata.subset='METAR'
+                    AND mdata.fcstValidEpoch={fcst_valid_epoch}""".format(model="HRRR_OPS", fcst_valid_epoch=fcst_valid_epoch))
+            cb_fcst_lens = list(result)
+            cursor.execute("""
+                select DISTINCT fcst_len
+                from
+                ceiling2.{model} as m,
+                madis3.metars
+                where
+                    1 = 1
+                    and find_in_set("{region}", reg) > 0
+                    and m.time >= {epoch} - 1800
+                    and m.time < {epoch} + 1800""".format(model="HRRR_OPS", region="ALL_HRRR", epoch=fcst_valid_epoch))
+            mysql_fcst_lens_result = cursor.fetchall()
+            mysql_fcst_lens = [o['fcst_len'] for o in mysql_fcst_lens_result]
+            fcst_lens = [fcst_len for fcst_len in mysql_fcst_lens if fcst_len in set(cb_fcst_lens)]
+            print("..")
+            print("cb fcst_lens:", cb_fcst_lens)
+            print("mysql fcst_lens:", mysql_fcst_lens)
+            print("common fcst_lens:", fcst_lens)
+            for i in fcst_lens:
+                for t in thresholds:
+                    # process all the thresholds
+                    print ("Asserting mysql derived CTC for fcstValidEpoch: {epoch} model: {model} region: {region} fcst_len: {fcst_len} threshold: {thrsh}".format(model="HRRR_OPS", region="ALL_HRRR", epoch=fcst_valid_epoch, thrsh=t, fcst_len=i))
+                    # calculate_cb_ctc derives the cb data for the compare
+                    cb_ctc = self.calculate_cb_ctc(model="HRRR_OPS", region="ALL_HRRR", epoch=fcst_valid_epoch, fcst_len=i, threshold=int(t))
+                    if cb_ctc is None:
+                        print ("mysql_ctc_loop is None for threshold {thrsh}- contunuing".format(thrsh=str(t)))
+                        continue
+                    # calculate_mysql_ctc_loop derives the mysql data for the compare
+                    mysql_ctc_loop = self.calculate_mysql_ctc_loop(model="HRRR_OPS", region="ALL_HRRR", epoch=fcst_valid_epoch, fcst_len=i, threshold=int(t) / 10)
+                    if mysql_ctc_loop is None:
+                        print ("mysql_ctc_loop is None for threshold {thrsh}- contunuing".format(thrsh=str(t)))
+                        continue
+                    #mysql_ctc = self.calculate_mysql_ctc(model="HRRR_OPS", region="ALL_HRRR", epoch=fcst_valid_epoch, fcst_len=i, threshold=int(t) / 10)
+                    # are the station names the same?
+                    mysql_names = [elem['name'] for elem in self.mysql_model_obs_data]
+                    cb_names = [elem['name'] for elem in self.cb_model_obs_data]
+                    name_diffs = [i for i in cb_names + mysql_names if i not in cb_names or i not in mysql_names]
+                    # Fix This when we sort out why there are differences
+                    self.assertGreater(len(name_diffs),0,"There are differences between the mysql and CB station names")
+                    cb_ctc_nodiffs = self.calculate_cb_ctc(model="HRRR_OPS", region="ALL_HRRR", epoch=fcst_valid_epoch, fcst_len=i, threshold=int(t), station_diffs=name_diffs)
+                    try:
+                        self.assertEqual(len(self.mysql_model_obs_data), len(self.cb_model_obs_data), "model_obs_data are not the same length")
+                    except:
+                        print ("model_obs_data are not the same length", len(self.mysql_model_obs_data), len(self.cb_model_obs_data))
+                    min_length = min(len(self.mysql_model_obs_data), len(self.cb_model_obs_data))
+                    for r in range(min_length):
+                        if self.cb_model_obs_data[r]['model'] is None:
+                            try:
+                                self.assertEqual(self.mysql_model_obs_data[r]['model_value'],self.cb_model_obs_data[r]['model'])
+                            except:
+                                print (r, "model", self.mysql_model_obs_data[r]['time'], self.mysql_model_obs_data[r]['fcst_len'], self.cb_model_obs_data[r]['thrsh'], self.mysql_model_obs_data[r]['name'], self.mysql_model_obs_data[r]['model_value'] * 10, self.cb_model_obs_data[r]['model'])
+                        else:
+                            # find the delta between the two, mysql must be multiplied by 10
+                            delta = round((self.mysql_model_obs_data[r]['model_value'] * 10 + self.cb_model_obs_data[r]['model']) * 0.05)
+                            try:
+                                # do the model values match within 5% ?
+                                self.assertAlmostEqual(self.mysql_model_obs_data[r]['model_value'] * 10, self.cb_model_obs_data[r]['model'],msg="mysql and cb model values differ", delta = delta)
+                            except:
+                                print (r, "model", self.mysql_model_obs_data[r]['time'], self.mysql_model_obs_data[r]['fcst_len'], self.cb_model_obs_data[r]['thrsh'], self.mysql_model_obs_data[r]['name'], self.mysql_model_obs_data[r]['model_value'] * 10, self.cb_model_obs_data[r]['model'], delta)
+                            try:
+                                # do the obs match within 5%
+                                self.assertAlmostEqual(self.mysql_model_obs_data[r]['obs_value'] * 10, self.cb_model_obs_data[r]['obs'],msg="mysql and cb obs values differ", delta = delta)
+                            except:
+                                print (r, "obs", self.mysql_model_obs_data[r]['time'], self.mysql_model_obs_data[r]['fcst_len'], self.cb_model_obs_data[r]['thrsh'], self.mysql_model_obs_data[r]['name'], self.mysql_model_obs_data[r]['obs_value'] * 10, self.cb_model_obs_data[r]['obs'], delta)
+    
+        except:
+>           self.fail("TestCTCBuilderV01 Exception failure: " + str(sys.exc_info()[0]))
+E           AssertionError: TestCTCBuilderV01 Exception failure: <class 'couchbase.exceptions.TimeoutException'>
+
+ctc_to_cb/test/test_int_metar_ctc.py:571: AssertionError
+=========================== short test summary info ============================
+FAILED ctc_to_cb/test/test_int_metar_ctc.py::TestCTCBuilderV01::test_ctc_builder_hrrr_ops_all_hrrr_compare_model_obs_data
+============================== 1 failed in 34.05s ==============================

@@ -46,5 +46,53 @@
     },
     "type": "MD",
     "version": "V01"
+  },
+  {
+    "builder_type": "NetcdfMetarLegacyObsBuilderV01",
+    "validTimeInterval": 3600,
+    "validTimeDelta": 1800,
+    "docType": "ingest",
+    "subDocType": "netcdf",
+    "id": "MD:V01:METAR-LEGACY:obs:ingest:netcdf",
+    "requires_time_interpolation": true,
+    "variableList": "stationName, locationName, latitude, longitude, elevation, timeObs, temperature, dewpoint, altimeter, windDir, windSpeed, skyCover, skyLayerBase, visibility",
+    "subType": "obs",
+    "subset": "METAR-LEGACY",
+    "template": {
+      "correctedTime": "",
+      "data": {
+        "*stationName": {
+          "Ceiling": "&ceiling_transform|*skyCover,*skyLayerBase",
+          "DewPoint": "&kelvin_to_farenheight|*dewpoint",
+          "Reported Time": "&umask_value_transform|*timeObs",
+          "Surface Pressure": "&handle_pressure|*altimeter",
+          "Temperature": "&kelvin_to_farenheight|*temperature",
+          "Visibility": "&handle_visibility|*visibility",
+          "WD": "&umask_value_transform|*windDir",
+          "WS": "&meterspersecond_to_milesperhour|*windSpeed",
+          "name": "&handle_station|*stationName"
+        }
+      },
+      "units": {
+        "Ceiling": "ft",
+        "DewPoint": "deg F",
+        "Surface Pressure": "mb",
+        "Temperature": "deg F",
+        "Visibility": "miles",
+        "RH": "percent",
+        "WD": "degrees",
+        "WS": "mph"
+      },
+      "dataSourceId": "MADIS",
+      "docType": "obs",
+      "fcstValidISO": "&derive_valid_time_iso|%Y%m%d_%H%M",
+      "fcstValidEpoch": "&derive_valid_time_epoch|%Y%m%d_%H%M",
+      "id": "DD:V01:METAR-LEGACY:obs:&derive_valid_time_epoch|%Y%m%d_%H%M",
+      "subset": "METAR-LEGACY",
+      "type": "DD",
+      "version": "V01"
+    },
+    "type": "MD",
+    "version": "V01"
   }
 ]

@@ -178,11 +178,17 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             _ingest_document_id = vx_ingest.load_spec["ingest_document_id"]
             _ingest_document = _collection.get(_ingest_document_id).content
             _builder = NetcdfMetarObsBuilderV01(_load_spec, _ingest_document, _cluster, _collection)
-            for delta in [1799, -1799, 511, -511]:
-                _t = np.array([1636390800 - delta])
+            for delta in [0, -1, 1, -1799, 1799, -1800, 1800, -1801, 1801, -3599, 3599, -3600, 3600, -3601, 3601]:
+                _t = np.array([1636390800 + delta])
                 _t.view(np.ma.MaskedArray)
                 t_interpolated = _builder.interpolate_time({"timeObs":_t})
-                self.assertEqual(1636390800,t_interpolated,"{t} interpolated to {it} is not equal".format(t=1636390800 - delta, it=t_interpolated))
+                print ("for an offset: " + str(delta) + " results in interpolation: " + str(t_interpolated))
+                if delta >= -1800 and delta <= 1799:
+                    self.assertEqual(1636390800,t_interpolated,"{t} interpolated to {it} is not equal".format(t=1636390800 - delta, it=t_interpolated))
+                if delta <= -1801:
+                    self.assertEqual(1636390800 - 3600,t_interpolated,"{t} interpolated to {it} is not equal".format(t=1636390800 - delta, it=t_interpolated))
+                if delta >= 1800:
+                    self.assertEqual(1636390800 + 3600,t_interpolated,"{t} interpolated to {it} is not equal".format(t=1636390800 - delta, it=t_interpolated))
         except Exception as _e: #pylint:disable=broad-except
             self.fail("test_interpolate_time Exception failure: " + str(_e))
 
@@ -197,11 +203,16 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             ingest_document_id = vx_ingest.load_spec["ingest_document_id"]
             ingest_document = _collection.get(ingest_document_id).content
             _builder = NetcdfMetarObsBuilderV01(load_spec, ingest_document, _cluster, _collection)
-            for delta in [1799, -1799, 511, -511]:
-                _t = np.array([1636390800 - delta])
+            for delta in [0, -1, 1, -1799, 1799, -1800, 1800, -1801, 1801, -3599, 3599, -3600, 3600, -3601, 3601]:
+                _t = np.array([1636390800 + delta])
                 _t.view(np.ma.MaskedArray)
                 t_interpolated = _builder.interpolate_time_iso({"timeObs":_t})
-                self.assertEqual((datetime.utcfromtimestamp(1636390800).isoformat()),t_interpolated,"{t} interpolated to {it} is not equal".format(t=1636390800 - delta, it=t_interpolated))
+                if delta >= -1800 and delta <= 1799:
+                    self.assertEqual((datetime.utcfromtimestamp(1636390800).isoformat()),t_interpolated,"{t} interpolated to {it} is not equal".format(t=1636390800 - delta, it=t_interpolated))
+                if delta <= -1801:
+                    self.assertEqual((datetime.utcfromtimestamp(1636390800 - 3600).isoformat()),t_interpolated,"{t} interpolated to {it} is not equal".format(t=1636390800 - delta, it=t_interpolated))
+                if delta >= 1800:
+                    self.assertEqual((datetime.utcfromtimestamp(1636390800 + 3600).isoformat()),t_interpolated,"{t} interpolated to {it} is not equal".format(t=1636390800 - delta, it=t_interpolated))
         except Exception as _e: #pylint:disable=broad-except
             self.fail("test_interpolate_time_iso Exception failure: " + str(_e))
 

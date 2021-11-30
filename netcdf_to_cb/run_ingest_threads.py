@@ -192,9 +192,11 @@ class VXIngest:
         )
         stream = os.popen("git rev-parse HEAD")
         git_hash = stream.read().strip()
+        ingest_document_id = self.load_spec['ingest_document_id']
+        subset = ingest_document_id.split(":")[2]
         lj_doc = {
             "id": self.load_job_id,
-            "subset": "metar",
+            "subset": subset,
             "type": "LJ",
             "lineageId": "madis",
             "script": __file__,
@@ -331,11 +333,11 @@ class VXIngest:
             SELECT url, mtime
             FROM mdata
             WHERE
-            subset='metar'
+            subset={subset}
             AND type='DF'
             AND fileType='netcdf'
             AND originType='madis' order by url;
-            """
+            """.format(subset=self.ingest_document['subset'])
         file_names = self.get_file_list(file_query, self.path, self.file_pattern)
         for _f in file_names:
             _q.put(_f)

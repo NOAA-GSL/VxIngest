@@ -93,10 +93,10 @@ class TestNetcdfMetarLegacyObsBuilderV01(TestCase):
             )
             cursor = connection.cursor(pymysql.cursors.SSDictCursor)
             statement = """SELECT DISTINCT floor((o.time+1800)/(3600))*3600 AS time
-                            FROM   madis3.obs AS o,
+                            FROM   ceiling2.obs AS o,
                             madis3.metars AS s
                             WHERE  s.name = %s
-                            AND s.madis_id = o.sta_id
+                            AND s.madis_id = o.madis_id
                             AND o.time <= %s
                             AND o.time >= %s order by o.time; """
             cursor.execute(
@@ -317,7 +317,7 @@ class TestNetcdfMetarLegacyObsBuilderV01(TestCase):
                     np.testing.assert_allclose(
                         intersect_data_dict["mysql"]["wd"],
                         intersect_data_dict["cb"]["WD"],
-                        atol=500,
+                        atol=10,
                         rtol=0,
                         err_msg="MYSQL wd and CB WD are not approximately equal",
                         verbose=True,
@@ -344,7 +344,7 @@ class TestNetcdfMetarLegacyObsBuilderV01(TestCase):
                     np.testing.assert_allclose(
                         intersect_data_dict["mysql"]["ceiling"],
                         intersect_data_dict["cb"]["Ceiling"],
-                        atol=60000,
+                        atol=30,
                         rtol=0,
                         err_msg="MYSQL Ceiling and CB Ceiling are not approximately equal",
                         verbose=True,
@@ -403,10 +403,10 @@ class TestNetcdfObsBuilderV01(TestCase):
             )
             cursor = connection.cursor(pymysql.cursors.SSDictCursor)
             statement = """SELECT DISTINCT floor((o.time+1800)/(3600))*3600 AS time
-                            FROM   madis3.obs AS o,
+                            FROM   ceiling2.obs AS o,
                             madis3.metars AS s
                             WHERE  s.name = %s
-                            AND s.madis_id = o.sta_id
+                            AND s.madis_id = o.madis_id
                             AND o.time <= %s
                             AND o.time >= %s order by o.time; """
             cursor.execute(
@@ -627,7 +627,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                     np.testing.assert_allclose(
                         intersect_data_dict["mysql"]["wd"],
                         intersect_data_dict["cb"]["WD"],
-                        atol=500,
+                        atol=10,
                         rtol=0,
                         err_msg="MYSQL wd and CB WD are not approximately equal",
                         verbose=True,
@@ -654,7 +654,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                     np.testing.assert_allclose(
                         intersect_data_dict["mysql"]["ceiling"],
                         intersect_data_dict["cb"]["Ceiling"],
-                        atol=60000,
+                        atol=30,
                         rtol=0,
                         err_msg="MYSQL Ceiling and CB Ceiling are not approximately equal",
                         verbose=True,

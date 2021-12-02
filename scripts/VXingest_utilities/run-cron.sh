@@ -57,5 +57,8 @@ rm -rf /data/ctc_to_cb/output/*
 python ctc_to_cb/run_ingest_threads.py -s /data/ctc_to_cb/load_specs/load_spec_metar_ctc_V01.yaml  -c ~/adb-cb1-credentials -o /data/ctc_to_cb/output -t8
 ${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p /data/ctc_to_cb/output -n 8 -l ${clonedir}/logs
 
-echo "FINISHED" 
+echo "*************************************"
+echo "update metadata"
+${clonedir}/mats_metadata_and_indexes/metadata_files/update_ceiling_mats_metadata.sh ~/adb-cb1-credentials
+echo "FINISHED"
 date

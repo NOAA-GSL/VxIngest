@@ -10,6 +10,7 @@ import time
 import unittest
 import yaml
 import pymysql
+from datetime import datetime
 from pymysql.constants import CLIENT
 from pathlib import Path
 from couchbase.cluster import Cluster, ClusterOptions
@@ -33,6 +34,38 @@ class TestCTCBuilderV01(unittest.TestCase):
         self.mysql_model_obs_data = []
         self.stations = []
         self.mysql_not_in_stations = []
+
+    def test_check_fcstValidEpoch_fcstValidIso(self):
+        try:
+            credentials_file = os.environ['HOME'] + '/adb-cb1-credentials'
+            self.assertTrue(Path(credentials_file).is_file(),
+                            "credentials_file Does not exist")
+            f = open(credentials_file)
+            yaml_data = yaml.load(f, yaml.SafeLoader)
+            host = yaml_data['cb_host']
+            user = yaml_data['cb_user']
+            password = yaml_data['cb_password']
+            f.close()
+            options = ClusterOptions(PasswordAuthenticator(user, password))
+            cluster = Cluster('couchbase://' + host, options)
+            result = cluster.query ("""SELECT m0.fcstValidEpoch fve, fcstValidISO fvi
+                FROM mdata m0
+                WHERE
+                    m0.type='DD'
+                    AND m0.docType='CTC'
+                    AND m0.subset='METAR'
+                    AND m0.version='V01'
+                    AND m0.model='HRRR_OPS'
+                    AND m0.region='ALL_HRRR'
+            """)
+            for row in result:
+                fve = row['fve']
+                utc_time = datetime.strptime(row['fvi'], "%Y-%m-%dT%H:%M:%S")
+                epoch_time = int((utc_time - datetime(1970, 1, 1)).total_seconds())
+                self.assertEqual(fve,epoch_time, "fcstValidEpoch and fcstValidIso are not the same time")
+                self.assertTrue((fve % 3600) == 0, "fcstValidEpoch is not at top of hour")
+        except Exception as e:
+            self.fail("TestGsdIngestManager.test_check_fcstValidEpoch_fcstValidIso Exception failure: " + str(e))
 
     def test_get_stations_geo_search(self):
         """
@@ -303,7 +336,7 @@ class TestCTCBuilderV01(unittest.TestCase):
         ctc = {'fcst_valid_epoch':epoch, 'fcst_len':fcst_len, 'threshold':threshold, 'hits':hits, 'misses':misses, 'false_alarms':false_alarms, 'correct_negatives':correct_negatives, 'none_count': none_count}
         return ctc
 
-    def test_ctc_builder_hrrr_ops_all_hrrr(self):
+    def test_ctc_builder_hrrr_ops_all_hrrr(self): #pylint: disable=too-many-locals
         """
         This test verifies that data is returned for each fcstLen and each threshold.
         It can be used to debug the builder by putting a specific epoch for first_epoch.
@@ -394,6 +427,100 @@ class TestCTCBuilderV01(unittest.TestCase):
         except:
             self.fail("TestCTCBuilderV01 Exception failure: " + str(sys.exc_info()[0]))
         return
+
+    def test_ctc_builder_hrrr_ops_all_hrrr_legacy(self): #pylint: disable=too-many-locals
+        """
+        This test verifies that data is returned for each fcstLen and each threshold,
+        using the METAR-LEGACY data and that the model name is modified to have "-legacy" appended.
+        It can be used to debug the builder by putting a specific epoch for first_epoch.
+        By default it will build all unbuilt CTC objects and put them into the output folder.
+        Then it takes the last output json file and loads that file.
+        Then the test  derives the same CTC in three ways.
+        1) it calculates the CTC using couchbase data for input.
+        2) It calculates the CTC using mysql data for input.
+        3) It uses the mysql legacy query with the embeded calculation.
+        The two mysql derived CTC's are compared and asserted, and then the couchbase CTC
+        is compared and asserted against the mysql CTC.
+        """
+        # noinspection PyBroadException
+        try:
+            cwd = os.getcwd()
+            credentials_file = os.environ['HOME'] + '/adb-cb1-credentials'
+            spec_file = cwd + '/ctc_to_cb/test/test_load_spec_metar_hrrr_ops_all_hrrr_ctc_V01-legacy.yaml'
+            outdir = '/opt/data/ctc_to_cb/output'
+            filepaths =  outdir + "/*.json"
+            files = glob.glob(filepaths)
+            for f in files:
+                try:
+                    os.remove(f)
+                except OSError as e:
+                    self.fail("Error: %s : %s" % (f, e.strerror))
+            vx_ingest = VXIngest()
+            vx_ingest.runit({'spec_file': spec_file,
+                            'credentials_file': credentials_file,
+                            'output_dir': outdir,
+                            'threads': 1,
+                            'first_epoch': 100
+                            })
+            list_of_output_files = glob.glob('/opt/data/ctc_to_cb/output/*')
+            #latest_output_file = max(list_of_output_files, key=os.path.getctime)
+            latest_output_file = min(list_of_output_files, key=os.path.getctime)
+            try:
+                # Opening JSON file
+                output_file = open(latest_output_file)
+                # returns JSON object as a dictionary
+                vx_ingest_output_data = json.load(output_file)
+                # get the last fcstValidEpochs
+                fcst_valid_epochs = {doc['fcstValidEpoch'] for doc in vx_ingest_output_data}
+                # take a fcstValidEpoch in the middle of the list
+                fcst_valid_epoch = list(fcst_valid_epochs)[int(len(fcst_valid_epochs) / 2)]
+                thresholds = ["500", "1000", "3000", "60000"]
+                # get all the documents that have the chosen fcstValidEpoch
+                docs = [doc for doc in vx_ingest_output_data if doc['fcstValidEpoch'] == fcst_valid_epoch]
+                # get all the fcstLens for those docs
+                fcst_lens = []
+                for elem in docs:
+                    fcst_lens.append(elem['fcstLen'])
+                output_file.close()
+            except:
+                self.fail("TestCTCBuilderV01 Exception failure opening output: " + str(sys.exc_info()[0]))
+            for i in fcst_lens:
+                elem = None
+                # find the document for this fcst_len
+                for elem in docs:
+                    if elem['fcstLen'] == i:
+                        break
+                # process all the thresholds
+                for t in thresholds:
+                    print ("Asserting mysql derived CTC for fcstValidEpoch: {epoch} model: HRRR_OPS region: ALL_HRRR fcst_len: {fcst_len} threshold: {thrsh}".format(epoch=elem['fcstValidEpoch'], thrsh=t, fcst_len=i))
+                    cb_ctc = self.calculate_cb_ctc(epoch=elem['fcstValidEpoch'], fcst_len=i, threshold=int(t), model="HRRR_OPS", region="ALL_HRRR")
+                    mysql_ctc_loop = self.calculate_mysql_ctc_loop(epoch=elem['fcstValidEpoch'], fcst_len=i, threshold=int(t) / 10, model="HRRR_OPS", region="ALL_HRRR")
+                    if mysql_ctc_loop == None:
+                        print ("mysql_ctc_loop is None for threshold {thrsh}- contunuing".format(thrsh=str(t)))
+                        continue
+                    mysql_ctc = self.calculate_mysql_ctc(epoch=elem['fcstValidEpoch'], fcst_len=i, threshold=int(t) / 10, model="HRRR_OPS", region="ALL_HRRR")
+                    # are the station names the same?
+                    mysql_names = [elem['name'] for elem in self.mysql_model_obs_data]
+                    cb_names = [elem['name'] for elem in self.cb_model_obs_data]
+                    name_diffs = [i for i in cb_names + mysql_names if i not in cb_names or i not in mysql_names]
+                    self.assertGreater(len(name_diffs),0,"There are differences between the mysql and CB station names")
+                    #cb_ctc_nodiffs = self.calculate_cb_ctc(epoch=elem['fcstValidEpoch'], fcst_len=i, threshold=int(t), model="HRRR_OPS", region="ALL_HRRR", station_diffs=name_diffs)
+                    self.assertEqual(len(self.mysql_model_obs_data), len(self.cb_model_obs_data), "model_obs_data are not the same length")
+                    for r in range(len(self.mysql_model_obs_data)):
+                        delta = round((self.mysql_model_obs_data[r]['model_value'] * 10 + self.cb_model_obs_data[r]['model']) * 0.05)
+                        try:
+                            self.assertAlmostEqual(self.mysql_model_obs_data[r]['model_value'] * 10, self.cb_model_obs_data[r]['model'],msg="mysql and cb model values differ", delta = delta)
+                        except:
+                            print (i, "model", self.mysql_model_obs_data[r]['time'], self.mysql_model_obs_data[r]['fcst_len'], self.cb_model_obs_data[r]['thrsh'], self.mysql_model_obs_data[r]['name'], self.mysql_model_obs_data[r]['model_value'] * 10,self.cb_model_obs_data[r]['name'], self.cb_model_obs_data[r]['model'], delta)
+                        try:
+                            self.assertAlmostEqual(self.mysql_model_obs_data[r]['obs_value'] * 10, self.cb_model_obs_data[r]['obs'],msg="mysql and cb obs values differ", delta = delta)
+                        except:
+                            print (i, "obs", self.mysql_model_obs_data[r]['time'], self.mysql_model_obs_data[r]['fcst_len'], self.cb_model_obs_data[r]['thrsh'], self.mysql_model_obs_data[r]['name'], self.mysql_model_obs_data[r]['obs_value'] * 10 ,self.cb_model_obs_data[r]['name'], self.cb_model_obs_data[i]['obs'], delta)
+
+        except:
+            self.fail("TestCTCBuilderV01 Exception failure: " + str(sys.exc_info()[0]))
+        return
+
     def test_ctc_builder_hrrr_ops_all_hrrr_compare_model_obs_data(self):
         """
         This test verifies that data is returned for each fcstLen and each threshold.

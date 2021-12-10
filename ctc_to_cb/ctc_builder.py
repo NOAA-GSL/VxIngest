@@ -108,8 +108,9 @@ class CTCBuilder:  # pylint:disable=too-many-instance-attributes
         self.an_id = None
         self.document_map = {}
         self.domain_stations = []
-        self.model = self.template["model"]
-        self.region = self.template["region"]
+        self.model = ingest_document["model"]
+        self.region = ingest_document["region"]
+        self.subset = ingest_document["subset"]
         self.sub_doc_type = self.template["subDocType"]
         self.model_fcst_valid_epochs = []
         self.model_data = (
@@ -412,7 +413,16 @@ class CTCBuilder:  # pylint:disable=too-many-instance-attributes
             self.initialize_document_map()
             self.not_found_station_count = 0
             try:
-                self.domain_stations = self.get_legacy_stations_for_region(self.region)
+                full_station_name_list = self.get_legacy_stations_for_region(self.region)
+                if self.subset == "METAR-LEGACY":
+                    # get the reject station list - legacy station list has to have rejected stations removed.
+                    results = self.collection.get("MD-TEST:V01:LEGACY_REJECTED_STATIONS").content
+                    rejected_stations = results['stations']
+                    rejected_station_names = [s['name'] for s in rejected_stations]
+                    # prune out the rejected stations
+                    self.domain_stations = [s for s in full_station_name_list if s not in rejected_station_names]
+                else:
+                    self.domain_stations = full_station_name_list
             except Exception as _e:  # pylint: disable=broad-except
                 logging.error(
                     "%s: Exception with builder build_document: error: %s",
@@ -430,10 +440,11 @@ class CTCBuilder:  # pylint:disable=too-many-instance-attributes
                     AND model=$model
                     AND region=$region
                     AND version='V01'
-                    AND subset='METAR'""",
+                    AND subset=$subset""",
                 model=self.model,
                 region=self.region,
                 subDocType=self.sub_doc_type,
+                subset=self.subset,
                 read_only=True,
             )
             max_ctc_fcst_valid_epochs = self.load_spec["first_last_params"][
@@ -446,6 +457,7 @@ class CTCBuilder:  # pylint:disable=too-many-instance-attributes
             # model and the obs for all fcstValidEpochs greater than the first_epoch ctc
             # and less than the last_epoch.
             # this could be done with implicit join but this seems to be faster when the results are large.
+            # model query is always METAR (only obs have METAR-LEGACY)
             result = self.cluster.query(
                 """SELECT fve.fcstValidEpoch, fve.fcstLen, meta().id
                     FROM mdata fve
@@ -453,28 +465,33 @@ class CTCBuilder:  # pylint:disable=too-many-instance-attributes
                         AND fve.docType='model'
                         AND fve.model=$model
                         AND fve.version='V01'
-                        AND fve.subset='METAR'
+                        AND fve.subset="METAR"
                         AND fve.fcstValidEpoch >= $first_epoch
                         AND fve.fcstValidEpoch <= $last_epoch
                     ORDER BY fve.fcstValidEpoch, fcstLen""",
                 model=self.model,
                 first_epoch=self.load_spec["first_last_params"]["first_epoch"],
                 last_epoch=self.load_spec["first_last_params"]["last_epoch"],
+                subset=self.subset,
+                read_only=True
             )
             _tmp_model_fve = list(result)
 
+            # observations might have a special subset (METAR-LEGACY)
             result1 = self.cluster.query(
                 """SELECT raw obs.fcstValidEpoch
                         FROM mdata obs
                         WHERE obs.type='DD'
                             AND obs.docType='obs'
                             AND obs.version='V01'
-                            AND obs.subset='METAR'
+                            AND obs.subset=$subset
                             AND obs.fcstValidEpoch >= $max_fcst_epoch
                             AND obs.fcstValidEpoch <= $last_epoch
                     ORDER BY obs.fcstValidEpoch""",
                 max_fcst_epoch=max_ctc_fcst_valid_epochs,
                 last_epoch=self.load_spec["first_last_params"]["last_epoch"],
+                subset=self.subset,
+                read_only=True
             )
             _tmp_obs_fve = list(result1)
 
@@ -520,15 +537,19 @@ class CTCBuilder:  # pylint:disable=too-many-instance-attributes
         """
         try:
             result = self.cluster.query(
-                """SELECT geo.bottom_right.lat as br_lat, geo.bottom_right.lon as br_lon, geo.top_left.lat as tl_lat, geo.top_left.lon as tl_lon
-            FROM mdata
-            WHERE type='MD'
-            and docType='region'
-            and subset='COMMON'
-            and version='V01'
-            and name=$region""",
-                region=region_name,
-                read_only=True,
+                """SELECT
+                    geo.bottom_right.lat as br_lat,
+                    geo.bottom_right.lon as br_lon,
+                    geo.top_left.lat as tl_lat,
+                    geo.top_left.lon as tl_lon
+                    FROM mdata
+                    WHERE type='MD'
+                    and docType='region'
+                    and subset='COMMON'
+                    and version='V01'
+                    and name=$region""",
+                    region=region_name,
+                    read_only=True,
             )
             _boundingbox = list(result)[0]
             _domain_stations = []
@@ -584,21 +605,32 @@ class CTCBuilder:  # pylint:disable=too-many-instance-attributes
         # get the bounding box for this region
         try:
             result = self.cluster.query(
-                """SELECT  geo.bottom_right.lat as br_lat, geo.bottom_right.lon as br_lon, geo.top_left.lat as tl_lat, geo.top_left.lon as tl_lon 
-                FROM mdata
-                WHERE type='MD'
-                and docType='region'
-                and subset='COMMON'
-                and version='V01'
-                and name=$region""",
-                region=region_name,
-                read_only=True,
+                """SELECT  geo.bottom_right.lat as br_lat,
+                    geo.bottom_right.lon as br_lon,
+                    geo.top_left.lat as tl_lat,
+                    geo.top_left.lon as tl_lon
+                    FROM mdata
+                    WHERE type='MD'
+                    and docType='region'
+                    and subset='COMMON'
+                    and version='V01'
+                    and name=$region""",
+                    region=region_name,
+                    read_only=True,
             )
             _boundingbox = list(result)[0]
             _domain_stations = []
-            # get the stations that are within this boundingbox
+            # get the stations that are within this boundingbox - this metadata is always subset METAR
             result = self.cluster.query(
-                "SELECT mdata.geo.lat, mdata.geo.lon, name from mdata where type='MD' and docType='station' and subset='METAR' and version='V01'",
+                """SELECT
+                    mdata.geo.lat,
+                    mdata.geo.lon,
+                    name
+                    from mdata
+                    where type='MD'
+                    and docType='station'
+                    and subset='METAR'
+                    and version='V01'""",
                 read_only=True,
             )
             for row in result:
@@ -810,6 +842,15 @@ class CTCModelObsBuilderV01(CTCBuilder):
             int: a fcst lead time in hours
         """
         return self.model_data["fcstLen"]
+
+    def handle_legacy_model(self, params_dict):  # pylint: disable=unused-argument
+        """return the model name with -legacy attached for the current model in epoch
+        Args:
+            params_dict (dict): contains named_function parameters
+        Returns:
+            string: model_name + "-legacy"
+        """
+        return self.model + "-legacy"
 
         # How CTC tables are derived....
         # ARRAY_SUM(ARRAY CASE WHEN (pair.modelValue < 300

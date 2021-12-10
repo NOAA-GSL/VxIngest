@@ -1,0 +1,228 @@
+[
+{
+  "id": "MD-TEST:V01:LEGACY_REJECTED_STATIONS",
+  "type": "MD-TEST",
+  "docType": "reject_stations",
+  "version": "V01",
+  "subset": "COMMON",
+  "description": "rejected legacy station list - these are stations that do not match the new projection exactly",
+  "stations": [
+    {
+      "name": "KT82",
+      "id": "66",
+      "legacy_grid": {
+        "x": "853",
+        "y": "222"
+      },
+      "new_grid": {
+        "x": "854",
+        "y": "222"
+      }
+    },
+    {
+      "name": "K4BM",
+      "id": "675",
+      "legacy_grid": {
+        "x": "668",
+        "y": "559"
+      },
+      "new_grid": {
+        "x": "669",
+        "y": "559"
+      }
+    },
+    {
+      "name": "KBAD",
+      "id": "775",
+      "legacy_grid": {
+        "x": "1019",
+        "y": "309"
+      },
+      "new_grid": {
+        "x": "1020",
+        "y": "309"
+      }
+    },
+    {
+      "name": "KCIC",
+      "id": "918",
+      "legacy_grid": {
+        "x": "213",
+        "y": "668"
+      },
+      "new_grid": {
+        "x": "214",
+        "y": "668"
+      }
+    },
+    {
+      "name": "CYYF",
+      "id": "1423",
+      "legacy_grid": {
+        "x": "361",
+        "y": "1003"
+      },
+      "new_grid": {
+        "x": "362",
+        "y": "1003"
+      }
+    },
+    {
+      "name": "CWNK",
+      "id": "2088",
+      "legacy_grid": {
+        "x": "886",
+        "y": "939"
+      },
+      "new_grid": {
+        "x": "886",
+        "y": "940"
+      }
+    },
+    {
+      "name": "KBLF",
+      "id": "2495",
+      "legacy_grid": {
+        "x": "1377",
+        "y": "527"
+      },
+      "new_grid": {
+        "x": "1378",
+        "y": "527"
+      }
+    },
+    {
+      "name": "KNAK",
+      "id": "2881",
+      "legacy_grid": {
+        "x": "1500",
+        "y": "615"
+      },
+      "new_grid": {
+        "x": "1500",
+        "y": "616"
+      }
+    },
+    {
+      "name": "KCMY",
+      "id": "2929",
+      "legacy_grid": {
+        "x": "1080",
+        "y": "738"
+      },
+      "new_grid": {
+        "x": "1080",
+        "y": "739"
+      }
+    },
+    {
+      "name": "KOZW",
+      "id": "2949",
+      "legacy_grid": {
+        "x": "1268",
+        "y": "709"
+      },
+      "new_grid": {
+        "x": "1268",
+        "y": "710"
+      }
+    },
+    {
+      "name": "CWQH",
+      "id": "3344",
+      "legacy_grid": {
+        "x": "1564",
+        "y": "878"
+      },
+      "new_grid": {
+        "x": "1565",
+        "y": "878"
+      }
+    },
+    {
+      "name": "CXHM",
+      "id": "3435",
+      "legacy_grid": {
+        "x": "1372",
+        "y": "752"
+      },
+      "new_grid": {
+        "x": "1373",
+        "y": "752"
+      }
+    },
+    {
+      "name": "CWHV",
+      "id": "3446",
+      "legacy_grid": {
+        "x": "1581",
+        "y": "915"
+      },
+      "new_grid": {
+        "x": "1582",
+        "y": "915"
+      }
+    },
+    {
+      "name": "KDZJ",
+      "id": "39296",
+      "legacy_grid": {
+        "x": "1309",
+        "y": "423"
+      },
+      "new_grid": {
+        "x": "1309",
+        "y": "424"
+      }
+    },
+    {
+      "name": "KCDA",
+      "id": "39398",
+      "legacy_grid": {
+        "x": "1567",
+        "y": "848"
+      },
+      "new_grid": {
+        "x": "1568",
+        "y": "848"
+      }
+    },
+    {
+      "name": "KTVI",
+      "id": "52857",
+      "legacy_grid": {
+        "x": "1334",
+        "y": "279"
+      },
+      "new_grid": {
+        "x": "1335",
+        "y": "279"
+      }
+    },
+    {
+      "name": "KPOV",
+      "id": "108891",
+      "legacy_grid": {
+        "x": "1351",
+        "y": "669"
+      },
+      "new_grid": {
+        "x": "1351",
+        "y": "670"
+      }
+    },
+    {
+      "name": "CVAS",
+      "id": "146606",
+      "legacy_grid": {
+        "x": null,
+        "y": "NaN (outside domain)"
+      },
+      "new_grid": {
+        "x": "334",
+        "y": "1058"
+      }
+    }
+  ]
+}
+]

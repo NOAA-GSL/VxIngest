@@ -848,9 +848,9 @@ class CTCModelObsBuilderV01(CTCBuilder):
         Args:
             params_dict (dict): contains named_function parameters
         Returns:
-            string: model_name + "-legacy"
+            string: model_name + "_LEGACY"
         """
-        return self.model + "-legacy"
+        return self.model + "_LEGACY"
 
         # How CTC tables are derived....
         # ARRAY_SUM(ARRAY CASE WHEN (pair.modelValue < 300

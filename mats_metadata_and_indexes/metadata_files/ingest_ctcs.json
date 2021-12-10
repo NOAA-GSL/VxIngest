@@ -224,7 +224,35 @@
     }
   },
   {
-    "id": "MD:V01:METAR-LEGACY:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest",
+    "id": "MD:V01:METAR-LEGACY:HRRR_OPS_LEGACY:E_US:CTC:CEILING:ingest",
+    "builder_type": "CTCModelObsBuilderV01",
+    "docType": "ingest",
+    "type": "MD",
+    "version": "V01",
+    "subset": "METAR-LEGACY",
+    "subType": "CTC",
+    "subDocType": "CEILING",
+    "model": "HRRR_OPS",
+    "region": "E_US",
+    "template": {
+      "dataFileId": "DF_id",
+      "dataSourceId": "DS_id",
+      "id": "DD:V01:METAR-LEGACY:HRRR_OPS_LEGACY:E_US:CTC:CEILING:&handle_time:&handle_fcst_len",
+      "type": "DD",
+      "docType": "CTC",
+      "subDocType": "CEILING",
+      "model": "HRRR_OPS",
+      "region": "E_US",
+      "version": "V01",
+      "subset": "METAR-LEGACY",
+      "fcstValidISO": "&handle_iso_time",
+      "fcstValidEpoch": "&handle_time",
+      "fcstLen": "&handle_fcst_len",
+      "data": "&handle_data"
+    }
+  },
+  {
+    "id": "MD:V01:METAR-LEGACY:HRRR_OPS_LEGACY:ALL_HRRR:CTC:CEILING:ingest",
     "builder_type": "CTCModelObsBuilderV01",
     "docType": "ingest",
     "type": "MD",
@@ -237,7 +265,7 @@
     "template": {
       "dataFileId": "DF_id",
       "dataSourceId": "DS_id",
-      "id": "DD:V01:METAR-LEGACY:HRRR_OPS:ALL_HRRR:CTC:CEILING:&handle_time:&handle_fcst_len",
+      "id": "DD:V01:METAR-LEGACY:HRRR_OPS_LEGACY:ALL_HRRR:CTC:CEILING:&handle_time:&handle_fcst_len",
       "type": "DD",
       "docType": "CTC",
       "subDocType": "CEILING",
@@ -252,7 +280,7 @@
     }
   },
   {
-    "id": "MD:V01:METAR-LEGACY:HRRR_OPS:E_HRRR:CTC:CEILING:ingest",
+    "id": "MD:V01:METAR-LEGACY:HRRR_OPS_LEGACY:E_HRRR:CTC:CEILING:ingest",
     "builder_type": "CTCModelObsBuilderV01",
     "docType": "ingest",
     "type": "MD",
@@ -265,7 +293,7 @@
     "template": {
       "dataFileId": "DF_id",
       "dataSourceId": "DS_id",
-      "id": "DD:V01:METAR-LEGACY:HRRR_OPS:E_HRRR:CTC:CEILING:&handle_time:&handle_fcst_len",
+      "id": "DD:V01:METAR-LEGACY:HRRR_OPS_LEGACY:E_HRRR:CTC:CEILING:&handle_time:&handle_fcst_len",
       "type": "DD",
       "docType": "CTC",
       "subDocType": "CEILING",
@@ -280,7 +308,7 @@
     }
   },
   {
-    "id": "MD-TEST:V01:METAR-LEGACY:HRRR_OPS:E_HRRR:CTC:CEILING:ingest",
+    "id": "MD-TEST:V01:METAR-LEGACY:HRRR_OPS_LEGACY:E_HRRR:CTC:CEILING:ingest",
     "builder_type": "CTCModelObsBuilderV01",
     "docType": "ingest",
     "type": "MD-TEST",
@@ -293,7 +321,7 @@
     "template": {
       "dataFileId": "DF_id",
       "dataSourceId": "DS_id",
-      "id": "DD-TEST:V01:METAR-LEGACY:HRRR_OPS:E_HRRR:CTC:CEILING:&handle_time:&handle_fcst_len",
+      "id": "DD-TEST:V01:METAR-LEGACY:HRRR_OPS_LEGACY:E_HRRR:CTC:CEILING:&handle_time:&handle_fcst_len",
       "type": "DD-TEST",
       "docType": "CTC",
       "subDocType": "CEILING",
@@ -308,7 +336,7 @@
     }
   },
   {
-    "id": "MD-TEST:V01:METAR-LEGACY:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest",
+    "id": "MD-TEST:V01:METAR-LEGACY:HRRR_OPS_LEGACY:ALL_HRRR:CTC:CEILING:ingest",
     "builder_type": "CTCModelObsBuilderV01",
     "docType": "ingest",
     "type": "MD-TEST",
@@ -321,7 +349,7 @@
     "template": {
       "dataFileId": "DF_id",
       "dataSourceId": "DS_id",
-      "id": "DD-TEST:V01:METAR-LEGACY:HRRR_OPS:ALL_HRRR:CTC:CEILING:&handle_time:&handle_fcst_len",
+      "id": "DD-TEST:V01:METAR-LEGACY:HRRR_OPS_LEGACY:ALL_HRRR:CTC:CEILING:&handle_time:&handle_fcst_len",
       "type": "DD-TEST",
       "docType": "CTC",
       "subDocType": "CEILING",
@@ -336,7 +364,7 @@
     }
   },
   {
-    "id": "MD:V01:METAR-LEGACY:HRRR_OPS:W_HRRR:CTC:CEILING:ingest",
+    "id": "MD:V01:METAR-LEGACY:HRRR_OPS_LEGACY:W_HRRR:CTC:CEILING:ingest",
     "builder_type": "CTCModelObsBuilderV01",
     "docType": "ingest",
     "type": "MD",
@@ -349,7 +377,7 @@
     "template": {
       "dataFileId": "DF_id",
       "dataSourceId": "DS_id",
-      "id": "DD:V01:METAR-LEGACY:HRRR_OPS:W_HRRR:CTC:CEILING:&handle_time:&handle_fcst_len",
+      "id": "DD:V01:METAR-LEGACY:HRRR_OPS_LEGACY:W_HRRR:CTC:CEILING:&handle_time:&handle_fcst_len",
       "type": "DD",
       "docType": "CTC",
       "subDocType": "CEILING",
@@ -364,7 +392,7 @@
     }
   },
   {
-    "id": "MD:V01:METAR-LEGACY:HRRR_OPS:GtLk:CTC:CEILING:ingest",
+    "id": "MD:V01:METAR-LEGACY:HRRR_OPS_LEGACY:GtLk:CTC:CEILING:ingest",
     "builder_type": "CTCModelObsBuilderV01",
     "docType": "ingest",
     "type": "MD",
@@ -377,7 +405,7 @@
     "template": {
       "dataFileId": "DF_id",
       "dataSourceId": "DS_id",
-      "id": "DD:V01:METAR-LEGACY:HRRR_OPS:GtLk:CTC:CEILING:&handle_time:&handle_fcst_len",
+      "id": "DD:V01:METAR-LEGACY:HRRR_OPS_LEGACY:GtLk:CTC:CEILING:&handle_time:&handle_fcst_len",
       "type": "DD",
       "docType": "CTC",
       "subDocType": "CEILING",

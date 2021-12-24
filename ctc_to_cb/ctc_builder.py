@@ -413,16 +413,8 @@ class CTCBuilder:  # pylint:disable=too-many-instance-attributes
             self.initialize_document_map()
             self.not_found_station_count = 0
             try:
-                full_station_name_list = self.get_legacy_stations_for_region(self.region)
-                if self.subset == "METAR-LEGACY":
-                    # get the reject station list - legacy station list has to have rejected stations removed.
-                    results = self.collection.get("MD-TEST:V01:LEGACY_REJECTED_STATIONS").content
-                    rejected_stations = results['stations']
-                    rejected_station_names = [s['name'] for s in rejected_stations]
-                    # prune out the rejected stations
-                    self.domain_stations = [s for s in full_station_name_list if s not in rejected_station_names]
-                else:
-                    self.domain_stations = full_station_name_list
+                full_station_name_list = self.get_stations_for_region_by_geosearch(self.region)
+                self.domain_stations = full_station_name_list
             except Exception as _e:  # pylint: disable=broad-except
                 logging.error(
                     "%s: Exception with builder build_document: error: %s",
@@ -445,7 +437,7 @@ class CTCBuilder:  # pylint:disable=too-many-instance-attributes
                 region=self.region,
                 subDocType=self.sub_doc_type,
                 subset=self.subset,
-                read_only=True,
+                read_only=True
             )
             max_ctc_fcst_valid_epochs = self.load_spec["first_last_params"][
                 "first_epoch"
@@ -457,40 +449,37 @@ class CTCBuilder:  # pylint:disable=too-many-instance-attributes
             # model and the obs for all fcstValidEpochs greater than the first_epoch ctc
             # and less than the last_epoch.
             # this could be done with implicit join but this seems to be faster when the results are large.
-            # model query is always METAR (only obs have METAR-LEGACY)
             result = self.cluster.query(
                 """SELECT fve.fcstValidEpoch, fve.fcstLen, meta().id
                     FROM mdata fve
                     WHERE fve.type='DD'
                         AND fve.docType='model'
-                        AND fve.model=$model
+                        AND fve.model='{model}'
                         AND fve.version='V01'
-                        AND fve.subset="METAR"
-                        AND fve.fcstValidEpoch >= $first_epoch
-                        AND fve.fcstValidEpoch <= $last_epoch
-                    ORDER BY fve.fcstValidEpoch, fcstLen""",
-                model=self.model,
-                first_epoch=self.load_spec["first_last_params"]["first_epoch"],
-                last_epoch=self.load_spec["first_last_params"]["last_epoch"],
-                subset=self.subset,
-                read_only=True
+                        AND fve.subset='{subset}'
+                        AND fve.fcstValidEpoch >= {first_epoch}
+                        AND fve.fcstValidEpoch <= {last_epoch}
+                    ORDER BY fve.fcstValidEpoch, fcstLen""".format(
+                        model=self.model,
+                        subset=self.subset,
+                        first_epoch=self.load_spec["first_last_params"]["first_epoch"],
+                        last_epoch=self.load_spec["first_last_params"]["last_epoch"]),
+              read_only=True
             )
             _tmp_model_fve = list(result)
-
-            # observations might have a special subset (METAR-LEGACY)
             result1 = self.cluster.query(
                 """SELECT raw obs.fcstValidEpoch
                         FROM mdata obs
                         WHERE obs.type='DD'
                             AND obs.docType='obs'
                             AND obs.version='V01'
-                            AND obs.subset=$subset
-                            AND obs.fcstValidEpoch >= $max_fcst_epoch
-                            AND obs.fcstValidEpoch <= $last_epoch
-                    ORDER BY obs.fcstValidEpoch""",
+                            AND obs.subset='{subset}'
+                            AND obs.fcstValidEpoch >= {max_fcst_epoch}
+                            AND obs.fcstValidEpoch <= {last_epoch}
+                    ORDER BY obs.fcstValidEpoch""".format(
                 max_fcst_epoch=max_ctc_fcst_valid_epochs,
                 last_epoch=self.load_spec["first_last_params"]["last_epoch"],
-                subset=self.subset,
+                subset=self.subset ),
                 read_only=True
             )
             _tmp_obs_fve = list(result1)
@@ -576,6 +565,7 @@ class CTCBuilder:  # pylint:disable=too-many-instance-attributes
 
     def get_legacy_stations_for_region(self, region_name):
         """Using the corresponding legacy list from a document return all the stations within the defined region
+        NOTE: this has nothing to do with "-LEGACY" subset obs or CTC's.
         Args:
             region_name (string): the name of the region.
         Returns:
@@ -843,15 +833,6 @@ class CTCModelObsBuilderV01(CTCBuilder):
         """
         return self.model_data["fcstLen"]
 
-    def handle_legacy_model(self, params_dict):  # pylint: disable=unused-argument
-        """return the model name with -legacy attached for the current model in epoch
-        Args:
-            params_dict (dict): contains named_function parameters
-        Returns:
-            string: model_name + "_LEGACY"
-        """
-        return self.model + "_LEGACY"
-
         # How CTC tables are derived....
         # ARRAY_SUM(ARRAY CASE WHEN (pair.modelValue < 300
         #         AND pair.observationValue < 300) THEN 1 ELSE 0 END FOR pair IN pairs END) AS hits,
@@ -861,3 +842,269 @@ class CTCModelObsBuilderV01(CTCBuilder):
         #         AND pair.observationValue < 300) THEN 1 ELSE 0 END FOR pair IN pairs END) AS misses,
         # ARRAY_SUM(ARRAY CASE WHEN (NOT pair.modelValue < 300
         #         AND NOT pair.observationValue < 300) THEN 1 ELSE 0 END FOR pair IN pairs END) AS correct_negatives
+
+class CTCModelObsBuilderLegacyV01(CTCModelObsBuilderV01):
+    """This builder creates a set of V01 ctc documents using the data from associated
+        model and obs data for the model and the region defined in the ingest document.
+        Each document is indexed by the &handle_time:&handle_fcst_len" where the
+        handle_time returns the valid time of a model and the handle_fcst_len returns the
+        fcst_len of the model.
+        The minimum valid time that is available to be ingested for the specified model
+        and the minimum valid time for the obs that is available to be ingested,
+        where both are greater than what already exists in the database,
+        will be matched against the prescribed thresholds from the ingest metadata in
+        the MD:matsAux:COMMON:V01 metadata document in the thresholdDescriptions map.
+        This class extends the CTCModelObsBuilderV01 by allowing for regions that have
+        problematic stations deleted and also use the METAR-LEGACY obs.
+        The problematic stations are stations that get projected to
+        grid points differently than the legacy projection, making them get different model values
+        from the legacy sql ingest. The "METAR-LEGACY" obs are ones that use the closest ceiling value
+        to the fcstValidEpoch that is not None even if the reported time is not the same fcstValidTime.
+        So, a "METAR-LEGACY" subset CTC
+        1) is derived from "METAR-LEGACY" subset obs that have the closest non-None ceiling values
+        regardless of the fcstValidEpoch that corresponds to the ceiling value reported time.
+        and
+        2) is derived from a domain (region) that has a rejected station list stripped out of the domain
+        in order to accomodate a projection discrepancy for a limited set of stations.
+        3) use the legacy station list which is an explicit list from a document that has been manually derived
+        in order to exactly match the station list that the legacy SQL code uses.
+    Args:
+        CTCModelObsBuilderV01 (Class): parent class CTCModelObsBuilderV01
+    """
+
+    def handle_legacy_model(self, params_dict):  # pylint: disable=unused-argument
+        """return the model name with -legacy attached for the current model in epoch
+        Args:
+            params_dict (dict): contains named_function parameters
+        Returns:
+            string: model_name + "_LEGACY"
+        """
+        return self.model + "_LEGACY"
+
+    def handle_fcstValidEpochs(self):  # pylint: disable=invalid-name
+        """iterate through all the fcstValidEpochs for which we have both model data and observation data.
+        For each entry in the data section, i.e for each station build a data element that
+        has model and observation data, then handle the document.
+        """
+        try:  # pylint: disable=too-many-nested-blocks
+            _obs_data = {}
+            for fve in self.model_fcst_valid_epochs:
+                try:
+                    self.obs_data = {}
+                    self.obs_station_names = []
+                    # get the models and obs for this fve
+                    # remove the fcstLen part
+                    obs_id = re.sub(":" + str(fve["fcstLen"]) + "$", "", fve["id"])
+                    # substitute the model part for obs (if it is a LEGACY model for CTC's remove the -LEGACY part)
+                    # LEGACY CTC's have to do with the CTC regions, the model data is all the same
+                    # there are no special LEGACY model values - only LEGACY regions that have a rejected
+                    # station list removed from the region because of projection problems related to the
+                    # stations in the LEGACY rejected station list - and LEGACY obs.
+                    # To differentiate regular CTC documents from LEGACY CTC documents we use a model name
+                    # FOR THE CTC's ONLY that has the "_LEGACY" appended. To retieve the actual model data
+                    # or related elements, or ids we need to strip the "_LEGACY" off.
+                    model_str = self.model.replace('_LEGACY','')
+                    obs_id = re.sub(model_str, "obs", obs_id)
+                    logging.info("Looking up model document: %s", fve["id"])
+                    try:
+                        _model_doc = self.collection.get(fve["id"])
+                        self.model_data = _model_doc.content
+                    except Exception as _e:  # pylint: disable=broad-except
+                        logging.error(
+                            "%s Error getting model document: %s",
+                            self.__class__.__name__,
+                            str(_e),
+                        )
+
+                    logging.info("Looking up observation document: %s", obs_id)
+                    try:
+                        # I don't really know how I can get here with _obs_data AND
+                        # _obs_data['id'] != obs_id and still no self.obs_data
+                        # but it does happen and it results in documents
+                        # that have 0 hits, misses, false_alarms etc
+                        # It might be from duplicate ids but it must be handled
+                        # so  "or not self.obs_data"
+                        if (
+                            not _obs_data
+                            or (_obs_data["id"] != obs_id)
+                            or not self.obs_data
+                        ):
+                            _obs_doc = self.collection.get(obs_id)
+                            _obs_data = _obs_doc.content
+                            for entry in _obs_data["data"]:
+                                self.obs_data[entry["name"]] = entry
+                                self.obs_station_names.append(entry["name"])
+                            self.obs_station_names.sort()
+                        self.handle_document()
+                    except Exception as _e:  # pylint: disable=broad-except
+                        logging.error(
+                            "%s Error getting obs document: %s",
+                            self.__class__.__name__,
+                            str(_e),
+                        )
+
+                except DocumentNotFoundException:
+                    logging.info(
+                        "%s handle_fcstValidEpochs: document %s was not found! ",
+                        self.__class__.__name__,
+                        fve["id"],
+                    )
+        except Exception as _e:  # pylint: disable=broad-except
+            logging.error(
+                "%s handle_fcstValidEpochs: Exception instantiating builder:  error: %s",
+                self.__class__.__name__,
+                str(_e),
+            )
+
+    def build_document(self):
+        """
+        This is the entry point for the ctcBuilders from the ingestManager.
+        These documents are id'd by fcstValidEpoch and fcstLen. The data section is an array
+        each element of which contains a map keyed by thresholds. The values are the
+        hits, misses, false_alarms, adn correct_negatives for the stations in the region
+        that is specified in the ingest_document.
+        To process this file we need to itterate the list of valid fcstValidEpochs
+        and process the region station list for each fcstValidEpoch and fcstLen.
+
+        1) get stations from couchbase and filter them so that we retain only the ones for this models region
+        2) get the latest fcstValidEpoch for the ctc's for this model and region.
+        3) get the intersection of the fcstValidEpochs that correspond for this model and the obs
+        for all fcstValidEpochs greater than the first ctc.
+        4) if we have asked for profiling go ahead and do it
+        5) iterate the fcstValidEpochs an get the models and obs for each fcstValidEpoch
+        6) Within the fcstValidEpoch loop iterate the model fcstLen's and handle a document for each
+        fcstValidEpoch and fcstLen. This will result in a document for each fcstLen within a fcstValidEpoch.
+        5) and 6) are enclosed in the handle_document()
+
+        So, a "METAR-LEGACY" subset CTC
+        1) is derived from "METAR-LEGACY" subset obs that have the closest non-None ceiling values
+        regardless of the fcstValidEpoch that corresponds to the ceiling value reported time.
+        and
+        2) is derived from a domain (region) that has a rejected station list stripped out of the domain
+        in order to accomodate a projection discrepancy for a limited set of stations.
+        3) use the legacy station list which is an explicit list from a document that has been manually derived
+        in order to exactly match the station list that the legacy SQL code uses.
+        """
+        # noinspection PyBroadException
+        try:
+            logging.getLogger().setLevel(logging.INFO)
+            # reset the builders document_map for a new file
+            self.initialize_document_map()
+            self.not_found_station_count = 0
+            try:
+                full_station_name_list = self.get_legacy_stations_for_region(self.region)
+                # get the reject station list - legacy station list has to have rejected stations removed.
+                results = self.collection.get("MD-TEST:V01:LEGACY_REJECTED_STATIONS").content
+                rejected_stations = results['stations']
+                rejected_station_names = [s['name'] for s in rejected_stations]
+                # prune out the rejected stations
+                self.domain_stations = [s for s in full_station_name_list if s not in rejected_station_names]
+            except Exception as _e:  # pylint: disable=broad-except
+                logging.error(
+                    "%s: Exception with builder build_document: error: %s",
+                    self.__class__.__name__,
+                    str(_e),
+                )
+
+            # First get the latest fcstValidEpoch for the ctc's for this model and region.
+            # LEGACY CTC's should have model values and subset values (and therefore ids) that have "-LEGACY"
+            # appended to the subset, and "_LEGACY" appended to the model. This happens when the "LEGACY" CTC is built.
+            result = self.cluster.query(
+                """SELECT RAW MAX(mdata.fcstValidEpoch)
+                    FROM mdata
+                    WHERE type='DD'
+                    AND docType='CTC'
+                    AND subDocType=$subDocType
+                    AND model=$model
+                    AND region=$region
+                    AND version='V01'
+                    AND subset=$subset""",
+                model=self.model,
+                region=self.region,
+                subDocType=self.sub_doc_type,
+                subset=self.subset,
+                read_only=True
+            )
+            max_ctc_fcst_valid_epochs = self.load_spec["first_last_params"][
+                "first_epoch"
+            ]
+            if list(result)[0] is not None:
+                max_ctc_fcst_valid_epochs = list(result)[0]
+
+            # Second get the intersection of the fcstValidEpochs that correspond for this
+            # model and the obs for all fcstValidEpochs greater than the first_epoch
+            # and less than the last_epoch for the model and obs that support the ctc documents.
+            # The model data are not the model name from the ingest document. There are no model data
+            # that ends in "_LEGACY" or has a subset ending with "-LEGACY". LEGACY CTC's get those when the CTC is built
+            # and they only serve the purpose to differentiate them from regular CTC's.
+            # so the "_LEGACY" and -LEGACY" must be stripped to get the underlying model name.
+            # This could be done with implicit join but this way seems to be faster when the results are large.
+            result = self.cluster.query(
+                """SELECT fve.fcstValidEpoch, fve.fcstLen, meta().id
+                    FROM mdata fve
+                    WHERE fve.type='DD'
+                        AND fve.docType='model'
+                        AND fve.model='{model}'
+                        AND fve.version='V01'
+                        AND fve.subset='{subset}'
+                        AND fve.fcstValidEpoch >= {first_epoch}
+                        AND fve.fcstValidEpoch <= {last_epoch}
+                    ORDER BY fve.fcstValidEpoch, fcstLen""".format(
+                model=self.model.replace('_LEGACY',''), # always remove the LEGACY part - CB models are not LEGACY - only CTC's
+                subset=self.subset.replace('-LEGACY',''), # always remove the LEGACY part - CB models are not LEGACY - only CTC's
+                first_epoch=self.load_spec["first_last_params"]["first_epoch"],
+                last_epoch=self.load_spec["first_last_params"]["last_epoch"]),
+                read_only=True
+            )
+            _tmp_model_fve = list(result)
+
+            # METAR-LEGACY observations should have a special subset (METAR-LEGACY), we want that.
+            result1 = self.cluster.query(
+                """SELECT raw obs.fcstValidEpoch
+                        FROM mdata obs
+                        WHERE obs.type='DD'
+                            AND obs.docType='obs'
+                            AND obs.version='V01'
+                            AND obs.subset='{subset}'
+                            AND obs.fcstValidEpoch >= {max_fcst_epoch}
+                            AND obs.fcstValidEpoch <= {last_epoch}
+                    ORDER BY obs.fcstValidEpoch""".format(
+                max_fcst_epoch=max_ctc_fcst_valid_epochs,
+                last_epoch=self.load_spec["first_last_params"]["last_epoch"],
+                subset=self.subset ),
+                read_only=True
+            )
+            _tmp_obs_fve = list(result1)
+
+            # this will give us a list of {fcstValidEpoch:fve, fcslLen:fl, id:an_id}
+            # where we know that each entry has a corresponding valid observation
+            for fve in _tmp_model_fve:
+                if fve["fcstValidEpoch"] in _tmp_obs_fve:
+                    self.model_fcst_valid_epochs.append(fve)
+
+            # if we have asked for profiling go ahead and do it
+            # pylint: disable=no-member
+            if self.do_profiling:
+                with cProfile.Profile() as _pr:
+                    self.handle_fcstValidEpochs()
+                    with open("profiling_stats.txt", "w") as stream:
+                        stats = Stats(_pr, stream=stream)
+                        stats.strip_dirs()
+                        stats.sort_stats("time")
+                        stats.dump_stats("profiling_stats.prof")
+                        stats.print_stats()
+            else:
+                self.handle_fcstValidEpochs()
+            # pylint: disable=assignment-from-no-return
+            logging.info(
+                "There were %s stations not found", self.not_found_station_count
+            )
+            document_map = self.get_document_map()
+            return document_map
+        except Exception as _e:  # pylint: disable=broad-except
+            logging.error(
+                "%s: Exception with builder build_document: error: %s",
+                self.__class__.__name__,
+                str(_e),
+            )
+            return {}

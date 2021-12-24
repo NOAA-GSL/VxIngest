@@ -59,6 +59,25 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
         finally:
             vx_ingest.close_cb()
 
+    def test_compare_stations_to_mysql(self):
+        """test are couchbase stations the same as mysql
+        """
+        try:
+            vx_ingest = self.setup_connection()
+            cluster = vx_ingest.cluster
+            result = cluster.query("""SELECT raw array(name, geo.lat, geo.lon)
+                FROM mdata
+                WHERE
+                    docType='station'
+                    AND type='MD'
+                    AND version='V01'
+                    AND subset='METAR'""")
+            stations = list(result)
+        except Exception as _e: #pylint:disable=broad-except
+            self.fail("test_compare_stations_to_mysql Exception failure: " + str(_e))
+        finally:
+            vx_ingest.close_cb()
+
     def test_write_load_job_to_files(self):
         """test write the load job
         """

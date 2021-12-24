@@ -22,6 +22,9 @@ from datetime import datetime, timedelta
 import netCDF4 as nc
 import numpy.ma as ma
 
+def truncate(n, decimals=0):
+    multiplier = 10 ** decimals
+    return int(n * multiplier) / multiplier
 
 def convert_to_iso(an_epoch):
     """
@@ -885,9 +888,9 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder): # pylint: disable=too-many-instan
                     "docType": "station",
                     "firstTime": 0,
                     "geo": {
-                        "elev": round(float(netcdf["elevation"]), 4),
-                        "lat": round(float(netcdf["latitude"]), 4),
-                        "lon": round(float(netcdf["longitude"]), 4),
+                        "elev": truncate(float(netcdf["elevation"]), 5),
+                        "lat": truncate(float(netcdf["latitude"]), 5),
+                        "lon": truncate(float(netcdf["longitude"]), 5),
                     },
                     "lastTime": 0,
                     "name": netcdf["name"],

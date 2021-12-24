@@ -1,6 +1,6 @@
 load_spec:
   email: "randy.pierce@noaa.gov"
-  ingest_document_ids: ["MD:V01:METAR-LEGACY:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest"]
+  ingest_document_ids: ["MD:V01:METAR-LEGACY:HRRR_OPS_LEGACY:ALL_HRRR:CTC:CEILING:ingest"]
   cb_connection:
     management_system: "cb"
     host: "cb_host"

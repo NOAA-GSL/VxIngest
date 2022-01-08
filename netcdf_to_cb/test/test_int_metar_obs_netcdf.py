@@ -353,6 +353,214 @@ class TestNetcdfMetarLegacyObsBuilderV01(TestCase):
             print(str(sys.exc_info()))
             self.fail("TestGsdIngestManager Exception failure: " + str(sys.exc_info()))
 
+    def print_retro_delta(self, variable, retro_vals, legacy_vals, units, station):
+        if retro_vals[variable] is not None and legacy_vals[variable] is not None:
+            delta = retro_vals[variable] - legacy_vals[variable]
+        else:
+            delta = None
+        print(
+            "var - {0}\t\t{1}\t\t{2}\t\t\t{3}\t\t\t{4}\t\t\t{5}".format(
+                variable,
+                retro_vals[variable],
+                legacy_vals[variable],
+                delta, units[variable], station)
+        )
+
+    def test_compare_legacy_obs_to_metar_retro(self):
+        """This test attempts to find recent metar-legacy and metar-retro observations that match
+        in the couchbase database and compare them. This test isn't likely to succeed unless both the legacy
+        ingest and the VxIngest have recently run.
+        """
+        try:
+            credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
+            self.assertTrue(
+                Path(credentials_file).is_file(), "credentials_file Does not exist"
+            )
+
+            f = open(credentials_file)
+            yaml_data = yaml.load(f, yaml.SafeLoader)
+            host = yaml_data["cb_host"]
+            user = yaml_data["cb_user"]
+            password = yaml_data["cb_password"]
+            options = ClusterOptions(PasswordAuthenticator(user, password))
+            cluster = Cluster("couchbase://" + host, options)
+            result = cluster.query(
+                """SELECT raw fcstValidEpoch
+                FROM mdata
+                WHERE type='DD'
+                AND docType="obs"
+                AND version='V01'
+                AND subset='METAR-LEGACY'
+                ORDER BY fcstValidEpoch DESC
+                """
+            )
+            cb_legacy_obs_fcst_valid_epochs = list(result)
+
+            result = cluster.query(
+                """SELECT raw fcstValidEpoch
+                FROM mdata
+                WHERE type='DD'
+                AND docType="obs"
+                AND version='V01'
+                AND subset='METAR-RETRO'
+                ORDER BY fcstValidEpoch DESC
+                """
+            )
+            cb_retro_obs_fcst_valid_epochs = list(result)
+
+            valid_times = [
+                value
+                for value in cb_retro_obs_fcst_valid_epochs
+                if value in cb_legacy_obs_fcst_valid_epochs
+            ]
+            # units are the same for all the stations
+            result = cluster.query(
+                """SELECT raw mdata.units
+                    FROM mdata
+                    UNNEST mdata.data AS data_item
+                    WHERE mdata.type='DD'
+                        AND mdata.docType="obs"
+                        AND mdata.version='V01'
+                        AND mdata.subset='METAR-LEGACY'
+                        AND data_item.name="KPDX" limit 1;""")
+            units = list(result)[0]
+            # get the station list
+            result = cluster.query("""SELECT raw name
+                        FROM mdata
+                        WHERE mdata.type='MD'
+                            AND mdata.docType="station"
+                            AND mdata.version='V01'
+                            AND mdata.subset='METAR';""")
+            stations = list(result)
+            for station in stations:
+                for time in valid_times:
+                    retry = 0
+                    while retry < 3:
+                        try:
+                            result = cluster.query(
+                                """SELECT raw data_item
+                                    FROM mdata
+                                    UNNEST mdata.data AS data_item
+                                    WHERE mdata.type='DD'
+                                        AND mdata.docType="obs"
+                                        AND mdata.version='V01'
+                                        AND mdata.subset='METAR-LEGACY'
+                                        AND data_item.name=$station
+                                        AND mdata.fcstValidEpoch=$time""",
+                                time=time, station=station
+                            )
+                            retry = 3
+                        except:
+                            print("#Exception " + sys.exc_info()[0] + " sleeping 500ms")
+                            retry = retry + 1
+                            time.sleep(0.5)
+                    if len(list(result)) == 0:
+                        continue
+                    cb_legacy_obs_values = list(result)[0]
+
+                    retry = 0
+                    while retry < 3:
+                        try:
+                            result = cluster.query(
+                                """SELECT raw data_item
+                                    FROM mdata
+                                    UNNEST mdata.data AS data_item
+                                    WHERE mdata.type='DD'
+                                        AND mdata.docType="obs"
+                                        AND mdata.version='V01'
+                                        AND mdata.subset='METAR-RETRO'
+                                        AND data_item.name=$station
+                                        AND mdata.fcstValidEpoch=$time""",
+                                time=time, station=station
+                            )
+                            retry = 3
+                        except:
+                            print("#Exception " + sys.exc_info()[0] + " sleeping 500ms")
+                            retry = retry + 1
+                            time.sleep(0.5)
+                    if len(list(result)) == 0:
+                        continue
+                    cb_retro_obs_values = list(result)[0]
+                    # generate deltas for histogram
+                    print("\n")
+                    self.print_retro_delta("Surface Pressure",cb_retro_obs_values,cb_legacy_obs_values,units,station)
+                    self.print_retro_delta("Temperature",cb_retro_obs_values,cb_legacy_obs_values,units,station)
+                    self.print_retro_delta("DewPoint",cb_retro_obs_values,cb_legacy_obs_values,units,station)
+                    self.print_retro_delta("WD",cb_retro_obs_values,cb_legacy_obs_values,units,station)
+                    self.print_retro_delta("WS",cb_retro_obs_values,cb_legacy_obs_values,units,station)
+                    self.print_retro_delta("Visibility",cb_retro_obs_values,cb_legacy_obs_values,units,station)
+                    self.print_retro_delta("Ceiling",cb_retro_obs_values,cb_legacy_obs_values,units,station)
+                    continue
+
+                    # now we have values for this time for each fcst_len, iterate the fcst_len and assert each value
+                    print("--")
+                    if  cb_retro_obs_values["Surface Pressure"] is not None and cb_legacy_obs_values["Surface Pressure"] is not None:
+                        np.testing.assert_allclose(
+                            cb_retro_obs_values["Surface Pressure"],
+                            cb_legacy_obs_values["Surface Pressure"],
+                            atol=1,
+                            rtol=0,
+                            err_msg="RETRO Surface Pressure and CB Surface Pressure are not approximately equal",
+                            verbose=True,
+                        )
+                    if  cb_retro_obs_values["Temperature"] is not None and cb_legacy_obs_values["Temperature"] is not None:
+                        np.testing.assert_allclose(
+                            cb_retro_obs_values["Temperature"],
+                            cb_legacy_obs_values["Temperature"],
+                            atol=3,
+                            rtol=0,
+                            err_msg="RETRO Temperature and Legacy Temperature are not approximately equal",
+                            verbose=True,
+                        )
+                    if  cb_retro_obs_values["DewPoint"] is not None and cb_legacy_obs_values["DewPoint"] is not None:
+                        np.testing.assert_allclose(
+                            cb_retro_obs_values["DewPoint"],
+                            cb_legacy_obs_values["DewPoint"],
+                            atol=2.0,
+                            rtol=0,
+                            err_msg="RETRO Dew Point and Legacy Dew Point are not approximately equal",
+                            verbose=True,
+                        )
+                    if  cb_retro_obs_values["WD"] is not None and cb_legacy_obs_values["WD"] is not None:
+                        np.testing.assert_allclose(
+                            cb_retro_obs_values["WD"],
+                            cb_legacy_obs_values["WD"],
+                            atol=10,
+                            rtol=0,
+                            err_msg="RETRO WD and CB WD are not approximately equal",
+                            verbose=True,
+                        )
+                    if  cb_retro_obs_values["WS"] is not None and cb_legacy_obs_values["WS"] is not None:
+                        np.testing.assert_allclose(
+                            cb_retro_obs_values["WS"],
+                            cb_legacy_obs_values["WS"],
+                            atol=10,
+                            rtol=0,
+                            err_msg="RETRO WS and CB WS are not approximately equal",
+                            verbose=True,
+                        )
+                    if  cb_retro_obs_values["Visibility"] is not None and cb_legacy_obs_values["Visibility"] is not None:
+                        np.testing.assert_allclose(
+                            cb_retro_obs_values["Visibility"],
+                            cb_legacy_obs_values["Visibility"],
+                            atol=10,
+                            rtol=0,
+                            err_msg="RETRO Visibility and CB Visibility are not approximately equal",
+                            verbose=True,
+                        )
+                    if  cb_retro_obs_values["Ceiling"] is not None and cb_legacy_obs_values["Ceiling"] is not None:
+                        np.testing.assert_allclose(
+                            cb_retro_obs_values["Ceiling"],
+                            cb_legacy_obs_values["Ceiling"],
+                            atol=30,
+                            rtol=0,
+                            err_msg="RETRO Ceiling and CB Ceiling are not approximately equal",
+                            verbose=True,
+                        )
+        except:
+            print(str(sys.exc_info()))
+            self.fail("TestGsdIngestManager Exception failure: " + str(sys.exc_info()))
+
 class TestNetcdfObsBuilderV01(TestCase):
 
     def test_compare_obs_to_mysql(self):

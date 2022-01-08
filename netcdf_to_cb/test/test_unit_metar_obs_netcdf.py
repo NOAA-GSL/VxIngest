@@ -15,7 +15,29 @@ from couchbase_core.cluster import PasswordAuthenticator
 from netcdf_to_cb.load_spec_yaml import LoadYamlSpecFile
 from netcdf_to_cb.netcdf_builder import NetcdfMetarObsBuilderV01
 from datetime import datetime
+
 class TestNetcdfObsBuilderV01Unit(TestCase):
+
+    def setup_mysql_connection(self):
+        _credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
+        _f = open(_credentials_file)
+        _yaml_data = yaml.load(_f, yaml.SafeLoader)
+        _f.close()
+        host = _yaml_data["mysql_host"]
+        user = _yaml_data["mysql_user"]
+        passwd = _yaml_data["mysql_password"]
+        connection = pymysql.connect(
+            host=host,
+            user=user,
+            passwd=passwd,
+            local_infile=True,
+            autocommit=True,
+            charset="utf8mb4",
+            cursorclass=pymysql.cursors.SSDictCursor,
+            client_flag=CLIENT.MULTI_STATEMENTS,
+        )
+        _cursor = connection.cursor(pymysql.cursors.SSDictCursor)
+        return _cursor
 
     def setup_connection(self):
         """test setup
@@ -65,14 +87,37 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
         try:
             vx_ingest = self.setup_connection()
             cluster = vx_ingest.cluster
-            result = cluster.query("""SELECT raw array(name, geo.lat, geo.lon)
+            result = cluster.query("""SELECT name, geo.lat lat, geo.lon lon
                 FROM mdata
                 WHERE
                     docType='station'
                     AND type='MD'
                     AND version='V01'
                     AND subset='METAR'""")
-            stations = list(result)
+            cb_station_list = list(result)
+            cb_stations = {x['name']: x for x in cb_station_list}
+            cursor = self.setup_mysql_connection()
+            cursor.execute("""select s.name, l.lat / 182 as lat, l.lon / 182 as lon
+                from
+                madis3.stations as s,
+                madis3.locations as l,
+                madis3.obs as o
+                where
+                1 = 1
+                and o.time >= 1641168000 - 1800
+                and o.time < 1641168000 + 1800
+                and s.id = o.sta_id
+                and o.loc_id = l.id
+                and s.net = 'METAR'
+                ORDER BY s.name;""")
+            mysql_station_list = cursor.fetchall()
+            mysql_stations = {x['name']: x for x in mysql_station_list}
+            cb_station_names = cb_stations.keys()
+            mysql_station_names = mysql_stations.keys()
+            common_station_names = [value for value in cb_station_names if value in mysql_station_names]
+            for station_name in common_station_names:
+                self.assertAlmostEqual(cb_stations[station_name]['lat'],float(mysql_stations[station_name]['lat']),2,"mysql lat does not equal cb lat for station {s}".format(s=station_name))
+                self.assertAlmostEqual(cb_stations[station_name]['lon'],float(mysql_stations[station_name]['lon']),2,"mysql lon does not equal cb lon for station {s}".format(s=station_name))
         except Exception as _e: #pylint:disable=broad-except
             self.fail("test_compare_stations_to_mysql Exception failure: " + str(_e))
         finally:

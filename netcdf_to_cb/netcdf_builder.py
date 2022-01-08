@@ -22,7 +22,15 @@ from datetime import datetime, timedelta
 import netCDF4 as nc
 import numpy.ma as ma
 
-def truncate(n, decimals=0):
+def truncate_round(n, decimals=0):
+    """
+    Round a float to a specific number of places in an expected manner
+    Args:
+        n (int): the number of decimal places to use as a multiplier and divider
+        decimals (int, optional): [description]. Defaults to 0.
+    Returns:
+        float: The number multiplied by n and then divided by n
+    """
     multiplier = 10 ** decimals
     return int(n * multiplier) / multiplier
 
@@ -888,9 +896,9 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder): # pylint: disable=too-many-instan
                     "docType": "station",
                     "firstTime": 0,
                     "geo": {
-                        "elev": truncate(float(netcdf["elevation"]), 5),
-                        "lat": truncate(float(netcdf["latitude"]), 5),
-                        "lon": truncate(float(netcdf["longitude"]), 5),
+                        "elev": truncate_round(float(netcdf["elevation"]), 5),
+                        "lat": truncate_round(float(netcdf["latitude"]), 5),
+                        "lon": truncate_round(float(netcdf["longitude"]), 5),
                     },
                     "lastTime": 0,
                     "name": netcdf["name"],

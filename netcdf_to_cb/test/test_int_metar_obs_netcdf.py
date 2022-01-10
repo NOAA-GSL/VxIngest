@@ -360,7 +360,7 @@ class TestNetcdfMetarLegacyObsBuilderV01(TestCase):
             delta = None
         print(
             "var - {0}\t\t{1}\t\t{2}\t\t\t{3}\t\t\t{4}\t\t\t{5}\t\t\t{6}".format(
-                variable,
+                variable.replace(' ','_'),
                 retro_vals[variable],
                 legacy_vals[variable],
                 delta, units[variable], station, time)

@@ -363,7 +363,7 @@ class TestNetcdfMetarLegacyObsBuilderV01(TestCase):
                 variable.replace(' ','_'),
                 retro_vals[variable],
                 legacy_vals[variable],
-                delta, units[variable], station, time)
+                delta, units[variable].replace(' ','_'), station, time)
         )
 
     def test_compare_legacy_obs_to_metar_retro(self):

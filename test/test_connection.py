@@ -32,7 +32,7 @@ class TestConnection(TestCase):
             # access a bucket in that cluster
             bucket = cluster.bucket('mdata')
             collection = bucket.default_collection()
-            ingest_document_result = collection.get("MD:V01:METAR:stations_ingest")
+            ingest_document_result = collection.get("MD:V01:METAR:stations:ingest")
             print("test_adb_cb1_connection_no_cert: successfully read ", ingest_document_result.content)
         except:
             self.fail("test_adb_cb1_connection_no_cert: TestConnection.test_connection Exception failure: " +
@@ -53,7 +53,7 @@ class TestConnection(TestCase):
             # access a bucket in that cluster
             bucket = cluster.bucket('mdata')
             collection = bucket.default_collection()
-            ingest_document_result = collection.get("MD:V01:METAR:stations_ingest")
+            ingest_document_result = collection.get("MD:V01:METAR:stations:ingest")
             print("test_adb_cb4_connection_no_cert: successfully read ", ingest_document_result.content)
         except:
             self.fail("test_adb_cb4_connection_no_cert: TestConnection.test_connection Exception failure: " +

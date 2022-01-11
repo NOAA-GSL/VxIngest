@@ -23,7 +23,7 @@ cb_user=$(grep cb_user ${credentials} | awk '{print $2}')
 cb_pwd=$(grep cb_password ${credentials} | awk '{print $2}')
 cred="${cb_user}:${cb_pwd}"
 
-for model in HRRR HRRR_OPS RAP_OPS HRRR HRRR_OPS_LEGACY RAP_OPS
+for model in HRRR HRRR_OPS HRRR HRRR_OPS_LEGACY HRRR_OPS_RETRO
   do
   cmd=$(cat <<-%EODupdatemetadata
     UPDATE mdata

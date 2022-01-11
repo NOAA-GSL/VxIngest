@@ -37,11 +37,11 @@ class HistBuilder():
             f=open(self.delta_file,"r")
             lines=f.readlines()
             for x in lines:
-                if x.startswith("'"):
+                if x.startswith("var"):
                     columns = x.split()
-                    field = columns[0]
-                    delta = columns[3]
-                    units = columns[4]
+                    field = columns[2]
+                    delta = columns[5]
+                    units = columns[6]
                     if field not in datasets.keys():
                         datasets[field] = []
                     if delta == 'None':
@@ -51,7 +51,7 @@ class HistBuilder():
             f.close()
             keys=datasets.keys()
             for field in keys:
-                fig = px.histogram(x=datasets[field], nbins=20, title=self.delta_file + " - " + field.replace("'","").upper(), labels={"x":unitset[field]})
+                fig = px.histogram(x=datasets[field], nbins=20, title=self.delta_file + " - " + field.upper(), labels={"x":unitset[field]})
                 fig.show()
         except:
             print(

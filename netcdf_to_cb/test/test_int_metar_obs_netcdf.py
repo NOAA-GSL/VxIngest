@@ -428,7 +428,22 @@ class TestNetcdfMetarLegacyObsBuilderV01(TestCase):
                         AND mdata.subset='METAR-LEGACY'
                         AND data_item.name="KPDX" limit 1;""")
             units = list(result)[0]
-            stations = ctc_builder.get_stations_for_region_by_geosearch("ALL_HRRR")
+
+            try:
+                full_station_name_list = ctc_builder.get_stations_for_region_by_geosearch("ALL_HRRR")
+                # get the reject station list - legacy station list has to have rejected stations removed.
+                results = collection.get("MD-TEST:V01:LEGACY_REJECTED_STATIONS").content
+                rejected_stations = results['stations']
+                rejected_station_names = [s['name'] for s in rejected_stations]
+                # prune out the rejected stations
+                stations = [s for s in full_station_name_list if s not in rejected_station_names]
+            except Exception as _e:  # pylint: disable=broad-except
+                print(
+                    "%s: Exception getting station list: error: %s",
+                    self.__class__.__name__,
+                    str(_e),
+                )
+
             for time in valid_times:
                 try:
                     retry = 0

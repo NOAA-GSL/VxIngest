@@ -536,6 +536,101 @@ class TestCTCBuilderV01(unittest.TestCase):
         except:
             self.fail("TestCTCBuilderV01 Exception failure: " + str(sys.exc_info()[0]))
         return
+    def test_ctc_builder_hrrr_ops_all_hrrr_retro(self): #pylint: disable=too-many-locals
+        """
+        This test verifies that data is returned for each fcstLen and each threshold,
+        using the METAR-LEGACY data and that the model name is modified to have "-retro" appended.
+        It can be used to debug the builder by putting a specific epoch for first_epoch.
+        By default it will build all unbuilt CTC objects and put them into the output folder.
+        Then it takes the last output json file and loads that file.
+        Then the test  derives the same CTC in three ways.
+        1) it calculates the CTC using couchbase data for input.
+        2) It calculates the CTC using mysql data for input.
+        3) It uses the mysql retro query with the embeded calculation.
+        The two mysql derived CTC's are compared and asserted, and then the couchbase CTC
+        is compared and asserted against the mysql CTC.
+        """
+        # noinspection PyBroadException
+        try:
+            cwd = os.getcwd()
+            credentials_file = os.environ['HOME'] + '/adb-cb1-credentials'
+            spec_file = cwd + '/ctc_to_cb/test/test_load_spec_metar_hrrr_ops_all_hrrr_ctc_V01-retro.yaml'
+            outdir = '/opt/data/ctc_to_cb-retro/output'
+            filepaths =  outdir + "/*.json"
+            files = glob.glob(filepaths)
+            for f in files:
+                try:
+                    os.remove(f)
+                except OSError as e:
+                    self.fail("Error: %s : %s" % (f, e.strerror))
+            vx_ingest = VXIngest()
+            vx_ingest.runit({'spec_file': spec_file,
+                            'credentials_file': credentials_file,
+                            'output_dir': outdir,
+                            'threads': 1,
+                            'first_epoch': 100
+                            })
+            list_of_output_files = glob.glob('/opt/data/ctc_to_cb-retro/output/*')
+            #latest_output_file = max(list_of_output_files, key=os.path.getctime)
+            latest_output_file = min(list_of_output_files, key=os.path.getctime)
+            try:
+                # Opening JSON file
+                output_file = open(latest_output_file)
+                # returns JSON object as a dictionary
+                vx_ingest_output_data = json.load(output_file)
+                # get the last fcstValidEpochs
+                fcst_valid_epochs = {doc['fcstValidEpoch'] for doc in vx_ingest_output_data}
+                # take a fcstValidEpoch in the middle of the list
+                fcst_valid_epoch = list(fcst_valid_epochs)[int(len(fcst_valid_epochs) / 2)]
+                thresholds = ["500", "1000", "3000", "60000"]
+                # get all the documents that have the chosen fcstValidEpoch
+                docs = [doc for doc in vx_ingest_output_data if doc['fcstValidEpoch'] == fcst_valid_epoch]
+                # get all the fcstLens for those docs
+                fcst_lens = []
+                for elem in docs:
+                    fcst_lens.append(elem['fcstLen'])
+                output_file.close()
+            except:
+                self.fail("TestCTCBuilderV01 Exception failure opening output: " + str(sys.exc_info()[0]))
+            for i in fcst_lens:
+                elem = None
+                # find the document for this fcst_len
+                for elem in docs:
+                    if elem['fcstLen'] == i:
+                        break
+                # process all the thresholds
+                for t in thresholds:
+                    print ("Asserting mysql derived CTC for fcstValidEpoch: {epoch} model: HRRR_OPS_LEGACY region: ALL_HRRR fcst_len: {fcst_len} threshold: {thrsh}".format(epoch=elem['fcstValidEpoch'], thrsh=t, fcst_len=i))
+                    # populate the self.cb_model_obs_data
+                    cb_ctc = self.calculate_cb_ctc(spec_file_name=spec_file, epoch=elem['fcstValidEpoch'], fcst_len=i, threshold=int(t), model="HRRR_OPS_LEGACY", subset="METAR-LEGACY", region="ALL_HRRR")
+                    mysql_ctc_loop = self.calculate_mysql_ctc_loop(epoch=elem['fcstValidEpoch'], fcst_len=i, threshold=int(t) / 10, model="HRRR_OPS_LEGACY", region="ALL_HRRR")
+                    if mysql_ctc_loop == None:
+                        print ("mysql_ctc_loop is None for threshold {thrsh}- contunuing".format(thrsh=str(t)))
+                        continue
+                    # populate the self.mysql_model_obs_data
+                    mysql_ctc = self.calculate_mysql_ctc(epoch=elem['fcstValidEpoch'], fcst_len=i, threshold=int(t) / 10, model="HRRR_OPS_LEGACY", region="ALL_HRRR")
+                    # are the station names the same?
+                    mysql_names = [elem['name'] for elem in self.mysql_model_obs_data]
+                    cb_names = [elem['name'] for elem in self.cb_model_obs_data]
+                    # name_diffs = [i for i in cb_names + mysql_names if i not in cb_names or i not in mysql_names]
+                    #self.assertGreater(len(name_diffs),0,"There are differences between the mysql and CB station names")
+                    #cb_ctc_nodiffs = self.calculate_cb_ctc(spec_file_name=spec_file, epoch=elem['fcstValidEpoch'], fcst_len=i, threshold=int(t), model="HRRR_OPS_LEGACY", subset="METAR-LEGACY", region="ALL_HRRR", station_diffs=name_diffs)
+                    #self.assertEqual(len(self.mysql_model_obs_data), len(self.cb_model_obs_data), "model_obs_data are not the same length")
+                    max_range = max (len(self.mysql_model_obs_data), len(self.cb_model_obs_data))
+                    for r in range(max_range):
+                        delta = round((self.mysql_model_obs_data[r]['model_value'] * 10 + self.cb_model_obs_data[r]['model']) * 0.05)
+                        try:
+                            self.assertAlmostEqual(self.mysql_model_obs_data[r]['model_value'] * 10, self.cb_model_obs_data[r]['model'],msg="mysql and cb model values differ", delta = delta)
+                        except:
+                            print (i, "model", self.mysql_model_obs_data[r]['time'], self.mysql_model_obs_data[r]['fcst_len'], self.cb_model_obs_data[r]['thrsh'], self.mysql_model_obs_data[r]['name'], self.mysql_model_obs_data[r]['model_value'] * 10,self.cb_model_obs_data[r]['name'], self.cb_model_obs_data[r]['model'], delta)
+                        try:
+                            self.assertAlmostEqual(self.mysql_model_obs_data[r]['obs_value'] * 10, self.cb_model_obs_data[r]['obs'],msg="mysql and cb obs values differ", delta = delta)
+                        except:
+                            print (i, "obs", self.mysql_model_obs_data[r]['time'], self.mysql_model_obs_data[r]['fcst_len'], self.cb_model_obs_data[r]['thrsh'], self.mysql_model_obs_data[r]['name'], self.mysql_model_obs_data[r]['obs_value'] * 10 ,self.cb_model_obs_data[r]['name'], self.cb_model_obs_data[i]['obs'], delta)
+
+        except:
+            self.fail("TestCTCBuilderV01 Exception failure: " + str(sys.exc_info()[0]))
+        return
 
     def test_ctc_builder_hrrr_ops_all_hrrr_compare_model_obs_data(self):
         """

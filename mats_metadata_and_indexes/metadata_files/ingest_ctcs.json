@@ -225,7 +225,7 @@
   },
   {
     "id": "MD:V01:METAR-LEGACY:HRRR_OPS_LEGACY:E_US:CTC:CEILING:ingest",
-    "builder_type": "CTCModelObsBuilderV01",
+    "builder_type": "CTCModelObsBuilderLegacyV01",
     "docType": "ingest",
     "type": "MD",
     "version": "V01",
@@ -253,7 +253,7 @@
   },
   {
     "id": "MD:V01:METAR-LEGACY:HRRR_OPS_LEGACY:ALL_HRRR:CTC:CEILING:ingest",
-    "builder_type": "CTCModelObsBuilderV01",
+    "builder_type": "CTCModelObsBuilderLegacyV01",
     "docType": "ingest",
     "type": "MD",
     "version": "V01",
@@ -281,7 +281,7 @@
   },
   {
     "id": "MD:V01:METAR-LEGACY:HRRR_OPS_LEGACY:E_HRRR:CTC:CEILING:ingest",
-    "builder_type": "CTCModelObsBuilderV01",
+    "builder_type": "CTCModelObsBuilderLegacyV01",
     "docType": "ingest",
     "type": "MD",
     "version": "V01",
@@ -309,7 +309,7 @@
   },
   {
     "id": "MD-TEST:V01:METAR-LEGACY:HRRR_OPS_LEGACY:E_HRRR:CTC:CEILING:ingest",
-    "builder_type": "CTCModelObsBuilderV01",
+    "builder_type": "CTCModelObsBuilderLegacyV01",
     "docType": "ingest",
     "type": "MD-TEST",
     "version": "V01",
@@ -337,7 +337,7 @@
   },
   {
     "id": "MD-TEST:V01:METAR-LEGACY:HRRR_OPS_LEGACY:ALL_HRRR:CTC:CEILING:ingest",
-    "builder_type": "CTCModelObsBuilderV01",
+    "builder_type": "CTCModelObsBuilderLegacyV01",
     "docType": "ingest",
     "type": "MD-TEST",
     "version": "V01",
@@ -365,7 +365,7 @@
   },
   {
     "id": "MD:V01:METAR-LEGACY:HRRR_OPS_LEGACY:W_HRRR:CTC:CEILING:ingest",
-    "builder_type": "CTCModelObsBuilderV01",
+    "builder_type": "CTCModelObsBuilderLegacyV01",
     "docType": "ingest",
     "type": "MD",
     "version": "V01",
@@ -393,7 +393,7 @@
   },
   {
     "id": "MD:V01:METAR-LEGACY:HRRR_OPS_LEGACY:GtLk:CTC:CEILING:ingest",
-    "builder_type": "CTCModelObsBuilderV01",
+    "builder_type": "CTCModelObsBuilderLegacyV01",
     "docType": "ingest",
     "type": "MD",
     "version": "V01",
@@ -419,11 +419,9 @@
       "data": "&handle_data"
     }
   },
-
-
   {
     "id": "MD:V01:METAR-RETRO:HRRR_OPS_RETRO:E_US:CTC:CEILING:ingest",
-    "builder_type": "CTCModelObsBuilderV01",
+    "builder_type": "CTCModelObsBuilderLegacyV01",
     "docType": "ingest",
     "type": "MD",
     "version": "V01",
@@ -451,7 +449,7 @@
   },
   {
     "id": "MD:V01:METAR-RETRO:HRRR_OPS_RETRO:ALL_HRRR:CTC:CEILING:ingest",
-    "builder_type": "CTCModelObsBuilderV01",
+    "builder_type": "CTCModelObsBuilderLegacyV01",
     "docType": "ingest",
     "type": "MD",
     "version": "V01",
@@ -479,7 +477,7 @@
   },
   {
     "id": "MD:V01:METAR-RETRO:HRRR_OPS_RETRO:E_HRRR:CTC:CEILING:ingest",
-    "builder_type": "CTCModelObsBuilderV01",
+    "builder_type": "CTCModelObsBuilderLegacyV01",
     "docType": "ingest",
     "type": "MD",
     "version": "V01",
@@ -507,7 +505,7 @@
   },
   {
     "id": "MD-TEST:V01:METAR-RETRO:HRRR_OPS_RETRO:E_HRRR:CTC:CEILING:ingest",
-    "builder_type": "CTCModelObsBuilderV01",
+    "builder_type": "CTCModelObsBuilderLegacyV01",
     "docType": "ingest",
     "type": "MD-TEST",
     "version": "V01",
@@ -535,7 +533,7 @@
   },
   {
     "id": "MD-TEST:V01:METAR-RETRO:HRRR_OPS_RETRO:ALL_HRRR:CTC:CEILING:ingest",
-    "builder_type": "CTCModelObsBuilderV01",
+    "builder_type": "CTCModelObsBuilderLegacyV01",
     "docType": "ingest",
     "type": "MD-TEST",
     "version": "V01",
@@ -563,7 +561,7 @@
   },
   {
     "id": "MD:V01:METAR-RETRO:HRRR_OPS_RETRO:W_HRRR:CTC:CEILING:ingest",
-    "builder_type": "CTCModelObsBuilderV01",
+    "builder_type": "CTCModelObsBuilderLegacyV01",
     "docType": "ingest",
     "type": "MD",
     "version": "V01",
@@ -591,7 +589,7 @@
   },
   {
     "id": "MD:V01:METAR-RETRO:HRRR_OPS_RETRO:GtLk:CTC:CEILING:ingest",
-    "builder_type": "CTCModelObsBuilderV01",
+    "builder_type": "CTCModelObsBuilderLegacyV01",
     "docType": "ingest",
     "type": "MD",
     "version": "V01",
@@ -617,8 +615,6 @@
       "data": "&handle_data"
     }
   },
-
-
   {
     "id": "MD:V01:METAR:RAP_OPS_130:E_US:CTC:CEILING:ingest",
     "builder_type": "CTCModelObsBuilderV01",

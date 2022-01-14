@@ -1039,6 +1039,11 @@ class CTCModelObsBuilderLegacyV01(CTCModelObsBuilderV01):
             # and they only serve the purpose to differentiate them from regular CTC's.
             # so the "_LEGACY" and -LEGACY" must be stripped to get the underlying model name.
             # This could be done with implicit join but this way seems to be faster when the results are large.
+            strp_model=self.model.replace('_LEGACY','') # always remove the LEGACY part - CB models are not LEGACY - only CTC's
+            strp_subset=self.subset.replace('-LEGACY','') # always remove the RETRO part - CB models are not LEGACY - only CTC's
+            strp_model=strp_model.replace('_RETRO','') # always remove the LEGACY part - CB models are not LEGACY - only CTC's
+            strp_subset=strp_subset.replace('-RETRO','') # always remove the RETRO part - CB models are not LEGACY - only CTC's
+
             result = self.cluster.query(
                 """SELECT fve.fcstValidEpoch, fve.fcstLen, meta().id
                     FROM mdata fve
@@ -1050,10 +1055,8 @@ class CTCModelObsBuilderLegacyV01(CTCModelObsBuilderV01):
                         AND fve.fcstValidEpoch >= {first_epoch}
                         AND fve.fcstValidEpoch <= {last_epoch}
                     ORDER BY fve.fcstValidEpoch, fcstLen""".format(
-                model=self.model.replace('_LEGACY',''), # always remove the LEGACY part - CB models are not LEGACY - only CTC's
-                model=self.model.replace('_RETRO',''), # always remove the LEGACY part - CB models are not LEGACY - only CTC's
-                subset=self.subset.replace('-LEGACY',''), # always remove the RETRO part - CB models are not LEGACY - only CTC's
-                subset=self.subset.replace('-RETRO',''), # always remove the RETRO part - CB models are not LEGACY - only CTC's
+                model=strp_model, # always remove the LEGACY part - CB models are not LEGACY - only CTC's
+                subset=strp_subset, # always remove the RETRO part - CB models are not LEGACY - only CTC's
                 first_epoch=self.load_spec["first_last_params"]["first_epoch"],
                 last_epoch=self.load_spec["first_last_params"]["last_epoch"]),
                 read_only=True

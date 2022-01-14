@@ -1051,7 +1051,9 @@ class CTCModelObsBuilderLegacyV01(CTCModelObsBuilderV01):
                         AND fve.fcstValidEpoch <= {last_epoch}
                     ORDER BY fve.fcstValidEpoch, fcstLen""".format(
                 model=self.model.replace('_LEGACY',''), # always remove the LEGACY part - CB models are not LEGACY - only CTC's
-                subset=self.subset.replace('-LEGACY',''), # always remove the LEGACY part - CB models are not LEGACY - only CTC's
+                model=self.model.replace('_RETRO',''), # always remove the LEGACY part - CB models are not LEGACY - only CTC's
+                subset=self.subset.replace('-LEGACY',''), # always remove the RETRO part - CB models are not LEGACY - only CTC's
+                subset=self.subset.replace('-RETRO',''), # always remove the RETRO part - CB models are not LEGACY - only CTC's
                 first_epoch=self.load_spec["first_last_params"]["first_epoch"],
                 last_epoch=self.load_spec["first_last_params"]["last_epoch"]),
                 read_only=True

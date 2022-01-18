@@ -6,6 +6,7 @@ import yaml
 import pymysql
 import numpy as np
 import netCDF4 as nc
+import geopy.distance as geopyd
 from pymysql.constants import CLIENT
 from unittest import TestCase
 from netcdf_to_cb.run_ingest_threads import VXIngest
@@ -17,7 +18,13 @@ from netcdf_to_cb.netcdf_builder import NetcdfMetarObsBuilderV01
 from datetime import datetime
 
 class TestNetcdfObsBuilderV01Unit(TestCase):
+    """ various unit tests for the obs builder.
+        to run one of these from the command line....
+        python3 -m pytest -s -v  netcdf_to_cb/test/test_unit_metar_obs_netcdf.py::TestNetcdfObsBuilderV01Unit::test.... 
 
+    Args:
+        TestCase (): [description]
+    """
     def setup_mysql_connection(self):
         _credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
         _f = open(_credentials_file)
@@ -82,7 +89,8 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             vx_ingest.close_cb()
 
     def test_compare_stations_to_mysql(self):
-        """test are couchbase stations the same as mysql
+        """test are couchbase stations the same as mysql.
+            useful .... awk 'NF > 20 {print $(NF-5), $(NF-1), $(NF)}' ~/stations_comare.txt | sort | uniq
         """
         try:
             vx_ingest = self.setup_connection()
@@ -116,8 +124,17 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             mysql_station_names = mysql_stations.keys()
             common_station_names = [value for value in cb_station_names if value in mysql_station_names]
             for station_name in common_station_names:
-                self.assertAlmostEqual(cb_stations[station_name]['lat'],float(mysql_stations[station_name]['lat']),2,"mysql lat does not equal cb lat for station {s}".format(s=station_name))
-                self.assertAlmostEqual(cb_stations[station_name]['lon'],float(mysql_stations[station_name]['lon']),2,"mysql lon does not equal cb lon for station {s}".format(s=station_name))
+                coords_1 = (cb_stations[station_name]['lat'], cb_stations[station_name]['lon'])
+                coords_2 = (mysql_stations[station_name]['lat'], mysql_stations[station_name]['lon'])
+                distance = geopyd.distance(coords_1, coords_2).km
+                try:
+                    self.assertAlmostEqual(cb_stations[station_name]['lat'],float(mysql_stations[station_name]['lat']),4,"cb lat {c} does not equal mysql lat {m} for station {s} distance offset is {d} km".format(c=str(cb_stations[station_name]['lat']), m=str(mysql_stations[station_name]['lat']), s=station_name, d=distance))
+                except Exception as e1:
+                    print("test_compare_stations_to_mysql lat failure: " + str(e1))
+                try:
+                    self.assertAlmostEqual(cb_stations[station_name]['lon'],float(mysql_stations[station_name]['lon']),4,"cb lon {c} does not equal mysql lon {m} for station {s} distance offset is {d} km".format(c=str(cb_stations[station_name]['lon']), m=str(mysql_stations[station_name]['lon']), s=station_name, d=distance))
+                except Exception as e1:
+                    print("test_compare_stations_to_mysql lon failure: " + str(e1))
         except Exception as _e: #pylint:disable=broad-except
             self.fail("test_compare_stations_to_mysql Exception failure: " + str(_e))
         finally:

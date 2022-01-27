@@ -177,6 +177,7 @@
       "HRRR_GSD_iso": "HRRR_GSL_iso",
       "HRRR_iso": "HRRR_GSL_iso",
       "HRRR_OPS": "HRRR_OPS",
+      "HRRR_OPS_LEGACY": "HRRR_OPS_LEGACY",
       "HRRR_OPER": "HRRR_OPS",
       "HRRR_NCEP": "HRRR_OPS",
       "HRRR_OPS_iso": "HRRR_OPS_iso",
@@ -691,6 +692,9 @@
       },
       "HRRR_OPS": {
         "m_order": 370
+      },
+      "HRRR_OPS_LEGACY": {
+        "m_order": 371
       },
       "HRRR_OPS_iso": {
         "m_order": 380

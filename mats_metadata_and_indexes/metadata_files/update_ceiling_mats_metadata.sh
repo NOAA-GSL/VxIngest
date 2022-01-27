@@ -1,17 +1,17 @@
 #!/bin/sh
 gitroot=$(git rev-parse --show-toplevel)
-if [ "$gitroot" != "$(pwd)" ];then
-        echo "$(pwd) is not a git root directory: cd to the clone root of VxIngest"
-        exit
+if [ "$gitroot" != "$(pwd)" ]; then
+    echo "$(pwd) is not a git root directory: cd to the clone root of VxIngest"
+    exit
 fi
 
 if [ $# -ne 1 ]; then
-  echo "Usage $0 credentials-file"
-  exit 1
+    echo "Usage $0 credentials-file"
+    exit 1
 fi
 if [[ ! -f "$1" ]]; then
-  echo "$1 is not a valid file - exiting"
-  exit 1
+    echo "$1 is not a valid file - exiting"
+    exit 1
 fi
 
 credentials=$1
@@ -22,10 +22,23 @@ cb_host=$(grep cb_host ${credentials} | awk '{print $2}')
 cb_user=$(grep cb_user ${credentials} | awk '{print $2}')
 cb_pwd=$(grep cb_password ${credentials} | awk '{print $2}')
 cred="${cb_user}:${cb_pwd}"
+#get needed models
+models_requiring_metadata=($(curl -s -u ${cred} http://adb-cb1.gsd.esrl.noaa.gov:8093/query/service -d statement='select distinct raw model from mdata where type="DD" and docType="CTC" and subDocType="CEILING" and version="V01" order by model;' | jq -r '.results[]'))
+echo "------models_requiring metadata--${models_requiring_metadata[@]}"
+#get models having metadata but no data (remove metadata for these)
+#(note 'like %' is changed to 'like %25')
+remove_metadata_for_models=($(curl -s -u ${cred} http://adb-cb1.gsd.esrl.noaa.gov:8093/query/service -d statement='SELECT raw m FROM (SELECT RAW SPLIT(META().id,":")[3] AS model FROM mdata WHERE META().id LIKE "MD:matsGui:cb-ceiling:%25:COMMON:V01" AND type="MD" AND docType="matsGui" AND version="V01" ORDER BY model) AS m WHERE m not IN (select distinct raw model from mdata where type="DD" and docType="CTC" and subDocType="CEILING" and version="V01" order by model);' | jq -r '.results[]'))
+echo "------models not requiring metadata (remove metadata)--${remove_metadata_for_models[@]}" # process models
 
-for model in HRRR HRRR_OPS HRRR HRRR_OPS_LEGACY HRRR_OPS_RETRO
-  do
-  cmd=$(cat <<-%EODupdatemetadata
+# remove metadata for models with no data
+for model in ${remove_metadata_for_models[@]}; do
+     cmd="delete FROM mdata WHERE type='MD' AND docType='matsGui' AND subset='COMMON' AND version='V01' AND app='cb-ceiling' AND META().id='MD:matsGui:cb-ceiling:${model}:COMMON:V01'"
+    curl -s -u ${cred} http://${cb_host}:8093/query/service -d "statement=${cmd}"
+done
+
+for model in "${models_requiring_metadata[@]}"; do
+    cmd=$(
+        cat <<-%EODupdatemetadata
     UPDATE mdata
     SET thresholds = (
         SELECT DISTINCT RAW d_thresholds
@@ -102,7 +115,7 @@ for model in HRRR HRRR_OPS HRRR HRRR_OPS_LEGACY HRRR_OPS_RETRO
 %EODupdatemetadata
 )
 
-  echo "curl -s -u ${cred} http://${cb_host}:8093/query/service -d \"statement=${cmd}\""
-  curl -s -u ${cred} http://${cb_host}:8093/query/service -d "statement=${cmd}"
-  echo "---------------"
+    echo "curl -s -u ${cred} http://${cb_host}:8093/query/service -d \"statement=${cmd}\""
+    curl -s -u ${cred} http://${cb_host}:8093/query/service -d "statement=${cmd}"
+    echo "---------------"
 done

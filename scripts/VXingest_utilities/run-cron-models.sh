@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 
-echo STARTING 
+echo STARTING
 date
 if [ $# -ne 1 ]; then
         echo "Usage $0 VxIngest_clonedir";
@@ -33,5 +33,5 @@ rm -rf /data/grib2_to_cb/hrrr_ops/output/*
 python grib2_to_cb/run_ingest_threads.py -s /data/grib2_to_cb/load_specs/load_spec_grib_metar_hrrr_ops_V01.yaml -c ~/adb-cb1-credentials -p /public/data/grids/hrrr/conus/wrfprs/grib2 -m %y%j%H%f -o /data/grib2_to_cb/hrrr_ops/output -t8
 ${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p /data/grib2_to_cb/hrrr_ops/output -n 8 -l ${clonedir}/logs
 
-echo "FINISHED" 
+echo "FINISHED"
 date

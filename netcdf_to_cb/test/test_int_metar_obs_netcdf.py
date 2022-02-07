@@ -71,7 +71,7 @@ class TestNetcdfMetarLegacyObsBuilderV01(TestCase):
                 WHERE type='DD'
                 AND docType="obs"
                 AND version='V01'
-                AND subset='METAR-LEGACY'
+                AND subset='METAR_LEGACY'
                 ORDER BY fcstValidEpoch DESC
                 """
             )
@@ -117,7 +117,7 @@ class TestNetcdfMetarLegacyObsBuilderV01(TestCase):
                     WHERE mdata.type='DD'
                         AND mdata.docType="obs"
                         AND mdata.version='V01'
-                        AND mdata.subset='METAR-LEGACY'
+                        AND mdata.subset='METAR_LEGACY'
                         AND data_item.name=$station
                         AND mdata.fcstValidEpoch=$time""",
                         time=valid_times[0], station=station)
@@ -132,7 +132,7 @@ class TestNetcdfMetarLegacyObsBuilderV01(TestCase):
                         WHERE mdata.type='DD'
                             AND mdata.docType="obs"
                             AND mdata.version='V01'
-                            AND mdata.subset='METAR-LEGACY'
+                            AND mdata.subset='METAR_LEGACY'
                             AND data_item.name=$station
                             AND mdata.fcstValidEpoch=$time""",
                     time=time, station=station
@@ -385,7 +385,7 @@ class TestNetcdfMetarLegacyObsBuilderV01(TestCase):
             options = ClusterOptions(PasswordAuthenticator(user, password))
             cluster = Cluster("couchbase://" + host, options)
             collection = cluster.bucket("mdata").default_collection()
-            ingest_document = collection.get("MD:V01:METAR-LEGACY:HRRR_OPS_LEGACY:ALL_HRRR:CTC:CEILING:ingest").content
+            ingest_document = collection.get("MD:V01:METAR_LEGACY:HRRR_OPS_LEGACY:ALL_HRRR:CTC:CEILING:ingest").content
             ctc_builder = CTCBuilder(None, ingest_document, cluster, collection)
 
             result = cluster.query(
@@ -394,7 +394,7 @@ class TestNetcdfMetarLegacyObsBuilderV01(TestCase):
                 WHERE type='DD'
                 AND docType="obs"
                 AND version='V01'
-                AND subset='METAR-LEGACY'
+                AND subset='METAR_LEGACY'
                 ORDER BY fcstValidEpoch DESC
                 """
             )
@@ -406,7 +406,7 @@ class TestNetcdfMetarLegacyObsBuilderV01(TestCase):
                 WHERE type='DD'
                 AND docType="obs"
                 AND version='V01'
-                AND subset='METAR-RETRO'
+                AND subset='METAR_LEGACY_RETRO'
                 ORDER BY fcstValidEpoch DESC
                 """
             )
@@ -425,7 +425,7 @@ class TestNetcdfMetarLegacyObsBuilderV01(TestCase):
                     WHERE mdata.type='DD'
                         AND mdata.docType="obs"
                         AND mdata.version='V01'
-                        AND mdata.subset='METAR-LEGACY'
+                        AND mdata.subset='METAR_LEGACY'
                         AND data_item.name="KPDX" limit 1;""")
             units = list(result)[0]
 
@@ -449,12 +449,12 @@ class TestNetcdfMetarLegacyObsBuilderV01(TestCase):
                     retry = 0
                     while retry < 3:
                         try:
-                            result = collection.get_multi(["""DD:V01:METAR-LEGACY:obs:{0}""".format(time),"""DD:V01:METAR-RETRO:obs:{0}""".format(time)])
+                            result = collection.get_multi(["""DD:V01:METAR_LEGACY:obs:{0}""".format(time),"""DD:V01:METAR_LEGACY_RETRO:obs:{0}""".format(time)])
                             retry = 3
                         except:
                             retry = retry + 1
-                    legacy_data = result["""DD:V01:METAR-LEGACY:obs:{0}""".format(time)].content['data']
-                    retro_data = result["""DD:V01:METAR-RETRO:obs:{0}""".format(time)].content['data']
+                    legacy_data = result["""DD:V01:METAR_LEGACY:obs:{0}""".format(time)].content['data']
+                    retro_data = result["""DD:V01:METAR_LEGACY_RETRO:obs:{0}""".format(time)].content['data']
                     for station in stations:
                         cb_legacy_obs_values = next((x for x in legacy_data if x['name'] == station), None)
                         cb_retro_obs_values = next((x for x in retro_data if x['name'] == station), None)

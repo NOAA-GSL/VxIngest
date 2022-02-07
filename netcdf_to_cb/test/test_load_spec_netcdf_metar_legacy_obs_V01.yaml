@@ -1,6 +1,6 @@
 load_spec:
   email: "randy.pierce@noaa.gov"
-  ingest_document_id: "MD-TEST:V01:METAR-LEGACY:obs:ingest:netcdf"
+  ingest_document_id: "MD-TEST:V01:METAR_LEGACY:obs:ingest:netcdf"
   cb_connection:
     management_system: "cb"
     host: "cb_host"

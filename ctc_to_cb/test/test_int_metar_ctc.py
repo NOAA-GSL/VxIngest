@@ -284,7 +284,7 @@ class TestCTCBuilderV01(unittest.TestCase):
         # instantiate a ctcBuilder so we can use its get_station methods
         builder_class = getattr(ctc_builder, "CTCModelObsBuilderV01")
         builder = builder_class(load_spec, ingest_document, cluster, collection)
-        if subset == "METAR-LEGACY":
+        if subset == "METAR_LEGACY":
             full_legacy_stations = sorted(builder.get_legacy_stations_for_region(region))
             # remove the restricted stations for METAR_LEGACY calculation
             # get the reject station list - legacy station list has to have rejected stations removed.
@@ -293,13 +293,13 @@ class TestCTCBuilderV01(unittest.TestCase):
             rejected_station_names = [s['name'] for s in rejected_stations]
             # prune out the rejected stations
             legacy_stations = [s for s in full_legacy_stations if s not in rejected_station_names]
-            obs_id= "DD:V01:METAR-LEGACY:obs:{fcst_valid_epoch}".format(fcst_valid_epoch=epoch)
+            obs_id= "DD:V01:METAR_LEGACY:obs:{fcst_valid_epoch}".format(fcst_valid_epoch=epoch)
         else:
             legacy_stations = sorted(builder.get_stations_for_region_by_geosearch(region))
             obs_id= "DD:V01:METAR:obs:{fcst_valid_epoch}".format(fcst_valid_epoch=epoch)
         self.stations = sorted([station for station in legacy_stations if station not in station_diffs])
         # this is a type model document - cb model documents don't have legacy
-        model_id = "DD:V01:{subset}:{model}:{fcst_valid_epoch}:{fcst_len}".format(subset=subset.replace('-LEGACY',''), model=model.replace('_LEGACY',''),fcst_valid_epoch=epoch,fcst_len=fcst_len)
+        model_id = "DD:V01:{subset}:{model}:{fcst_valid_epoch}:{fcst_len}".format(subset=subset.replace('_LEGACY',''), model=model.replace('_LEGACY',''),fcst_valid_epoch=epoch,fcst_len=fcst_len)
         try:
             full_model_data = collection.get(model_id).content
         except:
@@ -444,7 +444,7 @@ class TestCTCBuilderV01(unittest.TestCase):
     def test_ctc_builder_hrrr_ops_all_hrrr_legacy(self): #pylint: disable=too-many-locals
         """
         This test verifies that data is returned for each fcstLen and each threshold,
-        using the METAR-LEGACY data and that the model name is modified to have "-legacy" appended.
+        using the METAR_LEGACY data and that the model name is modified to have "-legacy" appended.
         It can be used to debug the builder by putting a specific epoch for first_epoch.
         By default it will build all unbuilt CTC objects and put them into the output folder.
         Then it takes the last output json file and loads that file.
@@ -507,7 +507,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                 for t in thresholds:
                     print ("Asserting mysql derived CTC for fcstValidEpoch: {epoch} model: HRRR_OPS_LEGACY region: ALL_HRRR fcst_len: {fcst_len} threshold: {thrsh}".format(epoch=elem['fcstValidEpoch'], thrsh=t, fcst_len=i))
                     # populate the self.cb_model_obs_data
-                    cb_ctc = self.calculate_cb_ctc(spec_file_name=spec_file, epoch=elem['fcstValidEpoch'], fcst_len=i, threshold=int(t), model="HRRR_OPS_LEGACY", subset="METAR-LEGACY", region="ALL_HRRR")
+                    cb_ctc = self.calculate_cb_ctc(spec_file_name=spec_file, epoch=elem['fcstValidEpoch'], fcst_len=i, threshold=int(t), model="HRRR_OPS_LEGACY", subset="METAR_LEGACY", region="ALL_HRRR")
                     mysql_ctc_loop = self.calculate_mysql_ctc_loop(epoch=elem['fcstValidEpoch'], fcst_len=i, threshold=int(t) / 10, model="HRRR_OPS_LEGACY", region="ALL_HRRR")
                     if mysql_ctc_loop == None:
                         print ("mysql_ctc_loop is None for threshold {thrsh}- contunuing".format(thrsh=str(t)))
@@ -519,7 +519,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                     cb_names = [elem['name'] for elem in self.cb_model_obs_data]
                     # name_diffs = [i for i in cb_names + mysql_names if i not in cb_names or i not in mysql_names]
                     #self.assertGreater(len(name_diffs),0,"There are differences between the mysql and CB station names")
-                    #cb_ctc_nodiffs = self.calculate_cb_ctc(spec_file_name=spec_file, epoch=elem['fcstValidEpoch'], fcst_len=i, threshold=int(t), model="HRRR_OPS_LEGACY", subset="METAR-LEGACY", region="ALL_HRRR", station_diffs=name_diffs)
+                    #cb_ctc_nodiffs = self.calculate_cb_ctc(spec_file_name=spec_file, epoch=elem['fcstValidEpoch'], fcst_len=i, threshold=int(t), model="HRRR_OPS_LEGACY", subset="METAR_LEGACY", region="ALL_HRRR", station_diffs=name_diffs)
                     #self.assertEqual(len(self.mysql_model_obs_data), len(self.cb_model_obs_data), "model_obs_data are not the same length")
                     max_range = max (len(self.mysql_model_obs_data), len(self.cb_model_obs_data))
                     for r in range(max_range):
@@ -539,7 +539,7 @@ class TestCTCBuilderV01(unittest.TestCase):
     def test_ctc_builder_hrrr_ops_all_hrrr_retro(self): #pylint: disable=too-many-locals
         """
         This test verifies that data is returned for each fcstLen and each threshold,
-        using the METAR-LEGACY data and that the model name is modified to have "-retro" appended.
+        using the METAR_LEGACY data and that the model name is modified to have "-retro" appended.
         It can be used to debug the builder by putting a specific epoch for first_epoch.
         By default it will build all unbuilt CTC objects and put them into the output folder.
         Then it takes the last output json file and loads that file.
@@ -602,8 +602,8 @@ class TestCTCBuilderV01(unittest.TestCase):
                 for t in thresholds:
                     print ("Asserting mysql derived CTC for fcstValidEpoch: {epoch} model: HRRR_OPS_LEGACY region: ALL_HRRR fcst_len: {fcst_len} threshold: {thrsh}".format(epoch=elem['fcstValidEpoch'], thrsh=t, fcst_len=i))
                     # populate the self.cb_model_obs_data
-                    cb_ctc = self.calculate_cb_ctc(spec_file_name=spec_file, epoch=elem['fcstValidEpoch'], fcst_len=i, threshold=int(t), model="HRRR_OPS_LEGACY", subset="METAR-LEGACY", region="ALL_HRRR")
-                    mysql_ctc_loop = self.calculate_mysql_ctc_loop(epoch=elem['fcstValidEpoch'], fcst_len=i, threshold=int(t) / 10, model="HRRR_OPS_LEGACY", region="ALL_HRRR")
+                    cb_ctc = self.calculate_cb_ctc(spec_file_name=spec_file, epoch=elem['fcstValidEpoch'], fcst_len=i, threshold=int(t), model="HRRR_OPS", subset="METAR_LEGACY_RETRO", region="ALL_HRRR")
+                    mysql_ctc_loop = self.calculate_mysql_ctc_loop(epoch=elem['fcstValidEpoch'], fcst_len=i, threshold=int(t) / 10, model="HRRR_OPS_legacy_RETRO", region="ALL_HRRR")
                     if mysql_ctc_loop == None:
                         print ("mysql_ctc_loop is None for threshold {thrsh}- contunuing".format(thrsh=str(t)))
                         continue
@@ -614,7 +614,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                     cb_names = [elem['name'] for elem in self.cb_model_obs_data]
                     # name_diffs = [i for i in cb_names + mysql_names if i not in cb_names or i not in mysql_names]
                     #self.assertGreater(len(name_diffs),0,"There are differences between the mysql and CB station names")
-                    #cb_ctc_nodiffs = self.calculate_cb_ctc(spec_file_name=spec_file, epoch=elem['fcstValidEpoch'], fcst_len=i, threshold=int(t), model="HRRR_OPS_LEGACY", subset="METAR-LEGACY", region="ALL_HRRR", station_diffs=name_diffs)
+                    #cb_ctc_nodiffs = self.calculate_cb_ctc(spec_file_name=spec_file, epoch=elem['fcstValidEpoch'], fcst_len=i, threshold=int(t), model="HRRR_OPS_LEGACY", subset="METAR_LEGACY", region="ALL_HRRR", station_diffs=name_diffs)
                     #self.assertEqual(len(self.mysql_model_obs_data), len(self.cb_model_obs_data), "model_obs_data are not the same length")
                     max_range = max (len(self.mysql_model_obs_data), len(self.cb_model_obs_data))
                     for r in range(max_range):
@@ -880,7 +880,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                     FROM mdata
                     WHERE mdata.type='DD'
                         AND mdata.docType='obs'
-                        AND mdata.subset='METAR-LEGACY'
+                        AND mdata.subset='METAR_LEGACY'
                         AND mdata.version='V01'""")
             cb_obs_fcst_valid_epochs = list(result)
             cb_common_fcst_valid_epochs = [val for val in cb_obs_fcst_valid_epochs if val in set(cb_model_fcst_valid_epochs)]
@@ -946,7 +946,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                     # process all the thresholds
                     print ("Asserting mysql derived CTC for fcstValidEpoch: {epoch} model: {model} region: {region} fcst_len: {fcst_len} threshold: {thrsh}".format(model="HRRR_OPS", region="ALL_HRRR", epoch=fcst_valid_epoch, thrsh=t, fcst_len=i))
                     # calculate_cb_ctc derives the cb data for the compare
-                    cb_ctc = self.calculate_cb_ctc(spec_file_name=spec_file, epoch=fcst_valid_epoch, model="HRRR_OPS_LEGACY", subset="METAR-LEGACY", region="ALL_HRRR", fcst_len=i, threshold=int(t))
+                    cb_ctc = self.calculate_cb_ctc(spec_file_name=spec_file, epoch=fcst_valid_epoch, model="HRRR_OPS_LEGACY", subset="METAR_LEGACY", region="ALL_HRRR", fcst_len=i, threshold=int(t))
                     if cb_ctc is None:
                         print ("mysql_ctc_loop is None for threshold {thrsh}- contunuing".format(thrsh=str(t)))
                         continue
@@ -962,7 +962,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                     name_diffs = [i for i in cb_names + mysql_names if i not in cb_names or i not in mysql_names]
                     # Fix This when we sort out why there are differences
                     self.assertGreater(len(name_diffs),0,"There are differences between the mysql and CB station names")
-                    cb_ctc_nodiffs = self.calculate_cb_ctc(spec_file_name=spec_file, epoch=fcst_valid_epoch, model="HRRR_OPS_LEGACY", subset="METAR-LEGACY", region="ALL_HRRR", fcst_len=i, threshold=int(t), station_diffs=name_diffs)
+                    cb_ctc_nodiffs = self.calculate_cb_ctc(spec_file_name=spec_file, epoch=fcst_valid_epoch, model="HRRR_OPS_LEGACY", subset="METAR_LEGACY", region="ALL_HRRR", fcst_len=i, threshold=int(t), station_diffs=name_diffs)
                     try:
                         self.assertEqual(len(self.mysql_model_obs_data), len(self.cb_model_obs_data), "model_obs_data are not the same length")
                     except:
@@ -1195,7 +1195,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                     AND mdata.model='HRRR_OPS_LEGACY'
                     AND mdata.region='ALL_HRRR'
                     AND mdata.version='V01'
-                    AND mdata.subset='METAR-LEGACY'""")
+                    AND mdata.subset='METAR_LEGACY'""")
             cb_fcst_valid_epochs = list(result)
             # get available fcstValidEpochs for  legacy
             cursor.execute("select time from ceiling_sums2.HRRR_OPS_LEGACY_ALL_HRRR where time > %s AND time < %s;",
@@ -1213,7 +1213,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                     AND mdata.model='HRRR_OPS_LEGACY'
                     AND mdata.region='ALL_HRRR'
                     AND mdata.version='V01'
-                    AND mdata.subset='METAR-LEGACY'
+                    AND mdata.subset='METAR_LEGACY'
                     AND mdata.fcstValidEpoch = $time
                     order by mdata.fcstLen
                 """, time=fcst_valid_epoch)
@@ -1246,7 +1246,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                     AND mdata.model='HRRR_OPS_LEGACY'
                     AND mdata.region='ALL_HRRR'
                     AND mdata.version='V01'
-                    AND mdata.subset='METAR-LEGACY'
+                    AND mdata.subset='METAR_LEGACY'
                     AND mdata.fcstValidEpoch = {time}
                     AND mdata.fcstLen IN {intersect_fcst_lens}
                     order by mdata.fcstLen;

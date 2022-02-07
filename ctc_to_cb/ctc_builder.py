@@ -565,7 +565,7 @@ class CTCBuilder:  # pylint:disable=too-many-instance-attributes
 
     def get_legacy_stations_for_region(self, region_name):
         """Using the corresponding legacy list from a document return all the stations within the defined region
-        NOTE: this has nothing to do with "-LEGACY" subset obs or CTC's.
+        NOTE: this has nothing to do with "_LEGACY" subset obs or CTC's.
         Args:
             region_name (string): the name of the region.
         Returns:
@@ -855,13 +855,13 @@ class CTCModelObsBuilderLegacyV01(CTCModelObsBuilderV01):
         will be matched against the prescribed thresholds from the ingest metadata in
         the MD:matsAux:COMMON:V01 metadata document in the thresholdDescriptions map.
         This class extends the CTCModelObsBuilderV01 by allowing for regions that have
-        problematic stations deleted and also use the METAR-LEGACY obs.
+        problematic stations deleted and also use the METAR_LEGACY obs.
         The problematic stations are stations that get projected to
         grid points differently than the legacy projection, making them get different model values
-        from the legacy sql ingest. The "METAR-LEGACY" obs are ones that use the closest ceiling value
+        from the legacy sql ingest. The "METAR_LEGACY" obs are ones that use the closest ceiling value
         to the fcstValidEpoch that is not None even if the reported time is not the same fcstValidTime.
-        So, a "METAR-LEGACY" subset CTC
-        1) is derived from "METAR-LEGACY" subset obs that have the closest non-None ceiling values
+        So, a "METAR_LEGACY" subset CTC
+        1) is derived from "METAR_LEGACY" subset obs that have the closest non-None ceiling values
         regardless of the fcstValidEpoch that corresponds to the ceiling value reported time.
         and
         2) is derived from a domain (region) that has a rejected station list stripped out of the domain
@@ -873,13 +873,22 @@ class CTCModelObsBuilderLegacyV01(CTCModelObsBuilderV01):
     """
 
     def handle_legacy_model(self, params_dict):  # pylint: disable=unused-argument
-        """return the model name with -legacy attached for the current model in epoch
+        """return the model name with _LEGACY attached for the current model in epoch
         Args:
             params_dict (dict): contains named_function parameters
         Returns:
             string: model_name + "_LEGACY"
         """
         return self.model + "_LEGACY"
+
+    def handle_legacy_retro_model(self, params_dict):  # pylint: disable=unused-argument
+        """return the model name with _LEGACY_RETRO attached for the current model in epoch
+        Args:
+            params_dict (dict): contains named_function parameters
+        Returns:
+            string: model_name + "_LEGACY_RETRO"
+        """
+        return self.model + "_LEGACY_RETRO"
 
     def handle_fcstValidEpochs(self):  # pylint: disable=invalid-name
         """iterate through all the fcstValidEpochs for which we have both model data and observation data.
@@ -895,15 +904,18 @@ class CTCModelObsBuilderLegacyV01(CTCModelObsBuilderV01):
                     # get the models and obs for this fve
                     # remove the fcstLen part
                     obs_id = re.sub(":" + str(fve["fcstLen"]) + "$", "", fve["id"])
-                    # substitute the model part for obs (if it is a LEGACY model for CTC's remove the -LEGACY part)
-                    # LEGACY CTC's have to do with the CTC regions, the model data is all the same
-                    # there are no special LEGACY model values - only LEGACY regions that have a rejected
+                    # substitute the model part for obs (if it is a LEGACY model for CTC's remove the _LEGACY part)
+                    # LEGACY CTC's have to do with the CTC regions, the model data is all the same.
+                    # There are no special LEGACY model values - only LEGACY regions that have a rejected
                     # station list removed from the region because of projection problems related to the
-                    # stations in the LEGACY rejected station list - and LEGACY obs.
+                    # stations in the LEGACY rejected station list, and there are both LEGACY obs, which are observations
+                    # that do not have the rejected stations, and RETRO observations that come from a MAIDIS archive
+                    # which we suspect might differ from the originally ingested MADIS data.
                     # To differentiate regular CTC documents from LEGACY CTC documents we use a model name
                     # FOR THE CTC's ONLY that has the "_LEGACY" appended. To retieve the actual model data
-                    # or related elements, or ids we need to strip the "_LEGACY" off.
-                    model_str = self.model.replace('_LEGACY','')
+                    # we need to strip the "_LEGACY" part off, and the same thing goes for _LEGACY_RETRO.
+                    model_str = self.model.replace('_LEGACY','')  # remove legacy
+                    model_str = model_str.replace('_RETRO','')    # remove retro
                     obs_id = re.sub(model_str, "obs", obs_id)
                     logging.info("Looking up model document: %s", fve["id"])
                     try:
@@ -976,8 +988,8 @@ class CTCModelObsBuilderLegacyV01(CTCModelObsBuilderV01):
         fcstValidEpoch and fcstLen. This will result in a document for each fcstLen within a fcstValidEpoch.
         5) and 6) are enclosed in the handle_document()
 
-        So, a "METAR-LEGACY" subset CTC
-        1) is derived from "METAR-LEGACY" subset obs that have the closest non-None ceiling values
+        So, a "METAR_LEGACY" subset CTC
+        1) is derived from "METAR_LEGACY" subset obs that have the closest non-None ceiling values
         regardless of the fcstValidEpoch that corresponds to the ceiling value reported time.
         and
         2) is derived from a domain (region) that has a rejected station list stripped out of the domain
@@ -1007,8 +1019,10 @@ class CTCModelObsBuilderLegacyV01(CTCModelObsBuilderV01):
                 )
 
             # First get the latest fcstValidEpoch for the ctc's for this model and region.
-            # LEGACY CTC's should have model values and subset values (and therefore ids) that have "-LEGACY"
+            # LEGACY CTC's should have model values and subset values (and therefore ids) that have "_LEGACY"
             # appended to the subset, and "_LEGACY" appended to the model. This happens when the "LEGACY" CTC is built.
+            # RETRO CTC's should have model values and subset values (and therefore ids) that have "_LEGACY_RETRO"
+            # appended to the subset, and "_LEGACY_RETRO" appended to the model. This happens when the "LEGACY_RETRO" CTC is built.
             result = self.cluster.query(
                 """SELECT RAW MAX(mdata.fcstValidEpoch)
                     FROM mdata
@@ -1035,14 +1049,15 @@ class CTCModelObsBuilderLegacyV01(CTCModelObsBuilderV01):
             # model and the obs for all fcstValidEpochs greater than the first_epoch
             # and less than the last_epoch for the model and obs that support the ctc documents.
             # The model data are not the model name from the ingest document. There are no model data
-            # that ends in "_LEGACY" or has a subset ending with "-LEGACY". LEGACY CTC's get those when the CTC is built
-            # and they only serve the purpose to differentiate them from regular CTC's.
-            # so the "_LEGACY" and -LEGACY" must be stripped to get the underlying model name.
+            # that ends in "_LEGACY" or "_LEGACY_RETRO" or has a subset ending with "_LEGACY" or "_LEGACY_RETRO". 
+            # LEGACY CTC's get those when the CTC is built and they only serve the purpose to differentiate 
+            # them from regular CTC's that do not use special observations.
+            # so the "_LEGACY" and _LEGACY_RETRO" must be stripped to get the underlying model name.
             # This could be done with implicit join but this way seems to be faster when the results are large.
             strp_model=self.model.replace('_LEGACY','') # always remove the LEGACY part - CB models are not LEGACY - only CTC's
-            strp_subset=self.subset.replace('-LEGACY','') # always remove the RETRO part - CB models are not LEGACY - only CTC's
+            strp_subset=self.subset.replace('_LEGACY','') # always remove the RETRO part - CB models are not LEGACY - only CTC's
             strp_model=strp_model.replace('_RETRO','') # always remove the LEGACY part - CB models are not LEGACY - only CTC's
-            strp_subset=strp_subset.replace('-RETRO','') # always remove the RETRO part - CB models are not LEGACY - only CTC's
+            strp_subset=strp_subset.replace('_RETRO','') # always remove the RETRO part - CB models are not LEGACY - only CTC's
 
             result = self.cluster.query(
                 """SELECT fve.fcstValidEpoch, fve.fcstLen, meta().id
@@ -1055,15 +1070,16 @@ class CTCModelObsBuilderLegacyV01(CTCModelObsBuilderV01):
                         AND fve.fcstValidEpoch >= {first_epoch}
                         AND fve.fcstValidEpoch <= {last_epoch}
                     ORDER BY fve.fcstValidEpoch, fcstLen""".format(
-                model=strp_model, # always remove the LEGACY part - CB models are not LEGACY - only CTC's
-                subset=strp_subset, # always remove the RETRO part - CB models are not LEGACY - only CTC's
+                model=strp_model,
+                subset=strp_subset,
                 first_epoch=self.load_spec["first_last_params"]["first_epoch"],
                 last_epoch=self.load_spec["first_last_params"]["last_epoch"]),
                 read_only=True
             )
             _tmp_model_fve = list(result)
 
-            # METAR-LEGACY observations should have a special subset (METAR-LEGACY), we want that.
+            # METAR_LEGACY observations should have a special subset (METAR_LEGACY), we want that.
+            # and METAR_LEGACY_RETRO observations should have a special subset (METAR_LEGACY_RETRO), we want that.
             result1 = self.cluster.query(
                 """SELECT raw obs.fcstValidEpoch
                         FROM mdata obs

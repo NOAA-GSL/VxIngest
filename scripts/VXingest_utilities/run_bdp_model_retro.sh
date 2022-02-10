@@ -4,7 +4,7 @@
 # so that gdate can be used instead of date
 #
 #Example....
-#/home/amb-verif/VXingest/scripts/VXingest_utilities/run_retro.sh -y2021 -m07 -d01 -h"00,01,02,04,05,06,07,08,09,10,11,12" -t /data -c /home/amb-verif/VXingest
+#/home/amb-verif/VXingest/scripts/VXingest_utilities/run_bdp_model_retro.sh -y2021 -m07 -d01 -h"00,01,02,04,05,06,07,08,09,10,11,12" -t /data -c /home/amb-verif/VXingest
 #
 usage() { echo "Usage: $0 -y year(2 digit) -m month (2 digit) -d day (2 digit) -h hours (comma seperated list) -t target directory -c (clone directory)"1>&2; exit 1; }
 uname -a | grep -i Darwin > /dev/null

@@ -4,7 +4,7 @@
 # so that gdate can be used instead of date
 #
 #Example....
-#/home/amb-verif/VXingest/scripts/VXingest_utilities/run_bdp_model_retro.sh -y2021 -m07 -d01 -h"00,01,02,04,05,06,07,08,09,10,11,12" -t /data -c /home/amb-verif/VXingest
+#/home/amb-verif/VxIngest/scripts/VXingest_utilities/run_bdp_model_retro.sh -y2021 -m07 -d01 -h"00,01,02,04,05,06,07,08,09,10,11,12" -t /data -c /home/amb-verif/VxIingest
 #
 usage() { echo "Usage: $0 -y year(2 digit) -m month (2 digit) -d day (2 digit) -h hours (comma seperated list) -t target directory -c (clone directory)"1>&2; exit 1; }
 uname -a | grep -i Darwin > /dev/null
@@ -89,7 +89,7 @@ fi
 for hr in "${hours[@]}"; do
     for fc in $(seq -w 0 18); do
         aws s3 cp s3://noaa-hrrr-bdp-pds/hrrr.${year}${month}${day}/conus/hrrr.t${hr}z.wrfprsf${fc}.grib2 ${target_dir}/retro-hrrr-${year}${month}${day}/$(${mydate} --date=${year}${month}${day} +%y%j)${hr}0000${fc} --no-sign-request
-        scripts/VXingest_utilities/run-cron-models.sh ${HOME}/
     done
 done
+scripts/VxIngest_utilities/run-cron-models.sh ${HOME}/VxIngest
 rm -rf ${target_dir}/retro-hrrr-${year}${month}${day}

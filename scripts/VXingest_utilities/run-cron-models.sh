@@ -44,7 +44,7 @@ while getopts "t:c:o:" opt; do
 done
 shift $((OPTIND-1))
 
-if [ -z "${target_dir}" ] || [ -z "${output_dir}" || [ -z "${clonedir}" ] ; then
+if [ -z "${target_dir}" ] || [ -z "${output_dir}" ] || [ -z "${clonedir}" ] ; then
     usage
 fi
 

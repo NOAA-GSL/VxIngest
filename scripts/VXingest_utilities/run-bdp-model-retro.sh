@@ -100,7 +100,7 @@ if [ -z "${year}" ] || [ -z "${month}" ] || [ -z "${day}" ] || [ -z "${hours}" ]
 fi
 for hr in "${hours[@]}"; do
     for fc in ${fcst_hours[@]}; do
-        aws s3 cp s3://noaa-hrrr-bdp-pds/hrrr.${year}${month}${day}/conus/hrrr.t${hr}z.wrfprsf${fc}.grib2 ${target_dir}/retro-hrrr-${year}${month}${day}/$(${mydate} --date=${year}${month}${day} +%y%j)${hr}0000${fc} --no-sign-request
+        aws s3 cp s3://noaa-hrrr-bdp-pds/hrrr.${year}${month}${day}/conus/hrrr.t${hr}z.wrfprsf${fc}.grib2 ${target_dir}/retro-hrrr-${year}${month}${day}/$(${mydate} --date=${year}${month}${day} +%y%j)${hr}0000${fc} --no-sign-request --no-progress --only-show-errors
     done
 done
 ${clonedir}/scripts/VXingest_utilities/run-cron-models.sh -c ${HOME}/VxIngest -t ${target_dir}/retro-hrrr-${year}${month}${day}/ -o ${target_dir}/retro-hrrr-${year}${month}${day}-output

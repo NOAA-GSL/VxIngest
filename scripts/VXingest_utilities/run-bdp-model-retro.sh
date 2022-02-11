@@ -96,7 +96,7 @@ if [ -z "${year}" ] || [ -z "${month}" ] || [ -z "${day}" ] || [ -z "${hours}" ]
     usage
 fi
 for hr in "${hours[@]}"; do
-    for fc in ${fcast_hours[@]}); do
+    for fc in ${fcast_hours[@]}; do
         aws s3 cp s3://noaa-hrrr-bdp-pds/hrrr.${year}${month}${day}/conus/hrrr.t${hr}z.wrfprsf${fc}.grib2 ${target_dir}/retro-hrrr-${year}${month}${day}/$(${mydate} --date=${year}${month}${day} +%y%j)${hr}0000${fc} --no-sign-request
     done
 done

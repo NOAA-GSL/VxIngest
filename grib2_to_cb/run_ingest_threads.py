@@ -17,7 +17,7 @@ are included for ingesting.
 The number of threads in the thread pool is set to the -t n (or --threads n)
 argument, where n is the number of threads to start. The default is one thread.
 The optional -n number_stations will restrict the processing to n number of stations to limit run time.
-There is a file_pattern argument that allows to specify a filename pattern to which 
+There is a file_pattern argument that allows to specify a filename pattern to which
 all the files in the input directory will be matched with standard globing. Only
 matching files will be ingested if this option is used.
 
@@ -278,6 +278,8 @@ class VXIngest:
                             df_entry = next(element for element in df_elements if element["url"] == filename)
                             if os.path.getmtime(filename) > int(df_entry['mtime']):
                                 file_names.append(filename)
+                            else:
+                                logging.error("file %s has already been ingested and is not newer", filename)
                     except Exception as _e:  # pylint:disable=broad-except
                         # don't care, it just means it wasn't a properly formatted file per the mask
                         continue

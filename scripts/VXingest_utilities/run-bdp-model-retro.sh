@@ -4,9 +4,9 @@
 # so that gdate can be used instead of date
 #
 #Example....
-#/home/amb-verif/VxIngest/scripts/VXingest_utilities/run_bdp_model_retro.sh -y2021 -m07 -d01 -h"00,01,02,04,05,06,07,08,09,10,11,12" -t /data -c /home/amb-verif/VxIingest
+#/home/amb-verif/VxIngest/scripts/VXingest_utilities/run_bdp_model_retro.sh -y2021 -m07 -d01 -h"00,01,02,04,05,06,07,08,09,10,11,12" -f"00,01..." -t /data -c /home/amb-verif/VxIingest
 #
-usage() { echo "Usage: $0 -y year(2 digit) -m month (2 digit) -d day (2 digit) -h hours (comma seperated list) -t target directory -c (clone directory)"1>&2; exit 1; }
+usage() { echo "Usage: $0 -y year(2 digit) -m month (2 digit) -d day (2 digit) -h hours (comma seperated list) -f fcst_hours (comma seperated list) -t target directory -c (clone directory)"1>&2; exit 1; }
 uname -a | grep -i Darwin > /dev/null
 if [ $? -eq 0 ]
 then
@@ -34,7 +34,7 @@ check_param() {
     fi
 }
 
-while getopts "y:m:d:h:t:c:" o; do
+while getopts "y:m:d:h:f:t:c:" o; do
     case "${o}" in
         y)
             year=${OPTARG}
@@ -52,6 +52,14 @@ while getopts "y:m:d:h:t:c:" o; do
             hours_str=${OPTARG}
             IFS=',' read -ra hours <<< "$hours_str"
             for hr in "${hours[@]}"
+                do
+                  check_param $hr 2
+                done
+            ;;
+        f)
+            fcst_hours_str=${OPTARG}
+            IFS=',' read -ra fcst_hours <<< "$fcst_hours_str"
+            for hr in "${fcst_hours[@]}"
                 do
                   check_param $hr 2
                 done
@@ -84,13 +92,13 @@ while getopts "y:m:d:h:t:c:" o; do
 done
 shift $((OPTIND-1))
 
-if [ -z "${year}" ] || [ -z "${month}" ] || [ -z "${day}" ] || [ -z "${hours}" ] || [ -z "${target_dir}" ] || [ -z "${clonedir}" ] ; then
+if [ -z "${year}" ] || [ -z "${month}" ] || [ -z "${day}" ] || [ -z "${hours}" ] || [ -z "${fcst_hours}" ] || [ -z "${target_dir}" ] || [ -z "${clonedir}" ] ; then
     usage
 fi
 for hr in "${hours[@]}"; do
-    for fc in $(seq -w 0 18); do
+    for fc in ${fcast_hours[@]}); do
         aws s3 cp s3://noaa-hrrr-bdp-pds/hrrr.${year}${month}${day}/conus/hrrr.t${hr}z.wrfprsf${fc}.grib2 ${target_dir}/retro-hrrr-${year}${month}${day}/$(${mydate} --date=${year}${month}${day} +%y%j)${hr}0000${fc} --no-sign-request
     done
 done
-${clonedir}/scripts/VXingest_utilities/run-cron-models.sh -c ${HOME}/VxIngest -t ${target_dir}/retro-hrrr-${year}${month}${day} -o ${target_dir}/retro-hrrr-${year}${month}${day}/output
+${clonedir}/scripts/VXingest_utilities/run-cron-models.sh -c ${HOME}/VxIngest -t ${target_dir}/retro-hrrr-${year}${month}${day}/ -o ${target_dir}/retro-hrrr-${year}${month}${day}-output
 rm -rf ${target_dir}/retro-hrrr-${year}${month}${day}

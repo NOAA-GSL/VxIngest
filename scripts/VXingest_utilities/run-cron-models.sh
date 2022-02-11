@@ -15,8 +15,13 @@ while getopts "t:c:o:" opt; do
         o)
             output_dir=${OPTARG}
             if [[ ! -d "${output_dir}" ]]; then
-                echo "error: ${output_dir} is not a directory" >&2
-                usage
+                echo "creating ${output_dir}"
+                mkdir -p ${output_dir}
+                if [[ ! -d "${output_dir}" ]]; then
+                        echo "error: ${output_dir} is not a directory" >&2
+                        usage
+                fi
+                echo "writing output to ${output_dir}"
             fi
             ;;
         c)

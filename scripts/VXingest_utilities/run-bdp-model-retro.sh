@@ -69,6 +69,7 @@ while getopts "y:m:d:h:t:c:" o; do
                 echo "error: ${clonedir} is not a directory" >&2
                 usage
             fi
+            echo clonedir is ${clonedir}
             cd ${clonedir}
             gitroot=$(git rev-parse --show-toplevel)
             if [ "$gitroot" != "$(pwd)" ];then
@@ -83,7 +84,7 @@ while getopts "y:m:d:h:t:c:" o; do
 done
 shift $((OPTIND-1))
 
-if [ -z "${year}" ] || [ -z "${month}" ] || [ -z "${day}" ] || [ -z "${hours}" ] || [ -z "${target_dir}" ] ; then
+if [ -z "${year}" ] || [ -z "${month}" ] || [ -z "${day}" ] || [ -z "${hours}" ] || [ -z "${target_dir}" ] || [ -z "${clonedir}" ] ; then
     usage
 fi
 for hr in "${hours[@]}"; do

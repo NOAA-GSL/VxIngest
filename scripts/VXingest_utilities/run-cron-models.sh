@@ -1,11 +1,7 @@
 #!/usr/bin/env sh
+usage() { echo "Usage: $0 -t target_dir -o output_dir -c VxIngest_clonedir" 1>&2; exit 1; }
 
-echo STARTING
-date
-if [ $# -ne 1 ]; then
-        echo "Usage $0 -t target_dir -o output_dir -c VxIngest_clonedir";
-        exit 1
-fi
+echo STARTING $(date)
 
 while getopts "t:c:o:" opt; do
     case "${opt}" in
@@ -43,17 +39,18 @@ while getopts "t:c:o:" opt; do
 done
 shift $((OPTIND-1))
 
-if [ -z "${target_dir}" ] || [ -z "${output_dir}" ] ; then
+if [ -z "${target_dir}" ] || [ -z "${output_dir}" || [ -z "${clonedir}" ] ; then
     usage
 fi
 
+cd ${clonedir}
 
-if [ "$(whoami)" != "amb-verif" ]; then
-        echo "Script must be run as user: amb-verif"
-        exit 255
+if [ ! -d ${HOME}/vxingest-env ]; then
+        echo ${HOME}/vxingest-env does not exist;
+        usage
 fi
-
 source ${HOME}/vxingest-env/bin/activate
+
 
 cd ${clonedir} && export PYTHONPATH=`pwd`
 gitroot=$(git rev-parse --show-toplevel)
@@ -69,8 +66,8 @@ fi
 echo "*************************************"
 echo "models"
 echo "hrrr_ops"
-rm -rf /data/grib2_to_cb/hrrr_ops/output/*
-python grib2_to_cb/run_ingest_threads.py -s /data/grib2_to_cb/load_specs/load_spec_grib_metar_hrrr_ops_V01.yaml -c ~/adb-cb1-credentials -p ${target_dir} -m %y%j%H%f -o ${output_dir} -t8
+rm -rf ${output_dir}/*
+python ${clonedir}/grib2_to_cb/run_ingest_threads.py -s /data/grib2_to_cb/load_specs/load_spec_grib_metar_hrrr_ops_V01.yaml -c ~/adb-cb1-credentials -p ${target_dir} -m %y%j%H%f -o ${output_dir} -t8
 ${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p ${output_dir} -n 8 -l ${clonedir}/logs
 
 echo "FINISHED"

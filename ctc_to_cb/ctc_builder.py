@@ -918,6 +918,10 @@ class CTCModelObsBuilderLegacyV01(CTCModelObsBuilderV01):
                     model_str = model_str.replace('_RETRO','')    # remove retro
                     obs_id = re.sub(model_str, "obs", obs_id)
                     logging.info("Looking up model document: %s", fve["id"])
+                    # For obs we have to put the original subset back (it might be legacy or legacy_retro)
+                    obs_id_parts = obs_id.split(":")
+                    obs_id_parts[2] = self.subset
+                    obs_id = ":".join(obs_id_parts)
                     try:
                         _model_doc = self.collection.get(fve["id"])
                         self.model_data = _model_doc.content

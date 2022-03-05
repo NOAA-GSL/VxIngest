@@ -450,6 +450,442 @@ class TestGribBuilderV01(unittest.TestCase):
         except:
             print(str(sys.exc_info()))
             self.fail("TestGsdIngestManager Exception failure: " + str(sys.exc_info()))
+    def test_compare_model_to_mysql_HRRR_OPS_LEGACY_retro(self):
+        """This test attempts to find recent models that match in both the mysql and the CB
+        databases and compare them. This test isn't likely to succeed unless both the legacy
+        ingest and the VxIngest have recently run.
+        """
+        try:
+            station = ""
+            credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
+            self.assertTrue(
+               os.path.isfile(credentials_file), "credentials_file Does not exist"
+            )
+
+            f = open(credentials_file)
+            yaml_data = yaml.load(f, yaml.SafeLoader)
+            host = yaml_data["cb_host"]
+            user = yaml_data["cb_user"]
+            password = yaml_data["cb_password"]
+            options = ClusterOptions(PasswordAuthenticator(user, password))
+            cluster = Cluster("couchbase://" + host, options)
+
+            result = cluster.query(
+                """SELECT DISTINCT RAW fcstValidEpoch
+                FROM mdata
+                WHERE type='DD'
+                AND docType="model"
+                AND model="HRRR_OPS"
+                AND version='V01'
+                AND subset='METAR'
+                AND fcstValidEpoch BETWEEN  1625097600 AND 1639526400
+                ORDER BY fcstValidEpoch DESC;"""
+            )
+            cb_hrrr_ops_fcst_valid_epochs = list(result)
+            # The METAR LEGACY RETRO went from JULY 1 through 14 2021 and DECEMBER 1 through 14 2021
+            # so BETWEEN  1625097600 AND 1639526400
+            result = cluster.query(
+                """SELECT DISTINCT RAW fcstValidEpoch
+                FROM mdata
+                WHERE type='DD'
+                AND docType="obs"
+                AND version='V01'
+                AND subset='METAR_LEGACY_RETRO'
+                AND fcstValidEpoch BETWEEN  1625097600 AND 1639526400
+                ORDER BY fcstValidEpoch DESC;"""
+            )
+            cb_obs_fcst_valid_epochs = list(result)
+
+            # find the intersection of the cb models and the obs
+            intersect_cb_times = [
+                value
+                for value in cb_hrrr_ops_fcst_valid_epochs
+                if value in cb_obs_fcst_valid_epochs
+            ]
+
+            # find the mysql hrrr_ops and obs
+
+            host = yaml_data["mysql_host"]
+            user = yaml_data["mysql_user"]
+            passwd = yaml_data["mysql_password"]
+            local_infile = True
+            connection = pymysql.connect(
+                host=host,
+                user=user,
+                passwd=passwd,
+                local_infile=local_infile,
+                autocommit=True,
+                charset="utf8mb4",
+                cursorclass=pymysql.cursors.SSDictCursor,
+                client_flag=CLIENT.MULTI_STATEMENTS,
+            )
+            cursor = connection.cursor(pymysql.cursors.SSDictCursor)
+            for station in ["KPDX", "KDEN", "KFST", "KENW", "KBOS"]:
+                # this will change from madis3.HRRR_OPSqp to madis3.HRRR_OPS_LEGACY_retroqp
+                statement = """SELECT floor((m0.time+1800)/(3600))*3600 AS time
+                                FROM madis3.HRRR_OPSqp AS m0,
+                                madis3.obs_retro AS o,
+                                madis3.metars AS s
+                                WHERE  s.name = %s
+                                AND m0.time = o.time
+                                AND s.madis_id = m0.sta_id
+                                AND o.sta_id = m0.sta_id
+                                AND m0.fcst_len = 0
+                                AND m0.time <= %s
+                                AND m0.time >= %s;"""
+                cursor.execute(statement, (station, intersect_cb_times[0], intersect_cb_times[-1]))
+                intersect_mysql_times_tmp = cursor.fetchall()
+                intersect_mysql_times = [t["time"] for t in intersect_mysql_times_tmp]
+                valid_times = [
+                    value for value in intersect_mysql_times if value in intersect_cb_times
+                ]
+                # units are always the same for metars
+                result = cluster.query(
+                    """SELECT raw mdata.units
+                        FROM mdata
+                        UNNEST mdata.data AS data_item
+                        WHERE mdata.type='DD'
+                            AND mdata.docType="obs"
+                            AND mdata.version='V01'
+                            AND mdata.subset='METAR_LEGACY_RETRO'
+                            LIMIT 1""",
+                            time=valid_times[0], station=station)
+                units = list(result)[0]
+
+                for time in valid_times:
+                    # get the common fcst lengths
+                    result = cluster.query(
+                        """SELECT raw mdata.fcstLen
+                            FROM mdata
+                            UNNEST mdata.data AS data_item
+                            WHERE mdata.type='DD'
+                                AND mdata.docType="model"
+                                AND mdata.model="HRRR_OPS"
+                                AND mdata.version='V01'
+                                AND mdata.subset='METAR'
+                                AND data_item.name=$station
+                                AND mdata.fcstValidEpoch=$time
+                                ORDER BY mdata.fcstLen""",
+                                time=time, station=station)
+                    cb_model_fcst_lens = list(result)
+
+                    statement = """SELECT DISTINCT m0.fcst_len
+                            FROM   madis3.metars AS s,
+                                ceiling2.HRRR_OPS_LEGACY_retro AS m0
+                            WHERE  1 = 1
+                                AND s.madis_id = m0.madis_id
+                                AND s.NAME = "{station}"
+                                AND m0.time >= {time} - 1800
+                                AND m0.time < {time} + 1800
+                            ORDER  BY m0.fcst_len; """.format(station=station,time=time)
+                    cursor.execute(statement)
+                    mysql_model_fcst_lens_dict = cursor.fetchall()
+                    mysql_model_fcst_lens = [v["fcst_len"] for v in mysql_model_fcst_lens_dict]
+                    intersect_fcst_len = [
+                        value for value in mysql_model_fcst_lens if value in cb_model_fcst_lens
+                    ]
+                    if len(intersect_fcst_len) == 0:
+                        # no fcst_len in common
+                        continue
+
+                    result = cluster.query(
+                        """SELECT DISTINCT mdata.fcstValidEpoch,
+                            mdata.fcstLen, data_item
+                            FROM mdata
+                            UNNEST mdata.data AS data_item
+                            WHERE mdata.type='DD'
+                                AND mdata.docType="model"
+                                AND mdata.model="HRRR_OPS"
+                                AND mdata.version='V01'
+                                AND mdata.subset='METAR'
+                                AND data_item.name=$station
+                                AND mdata.fcstValidEpoch=$time
+                                AND mdata.fcstLen IN $fcst_lens
+                                ORDER BY mdata.fcstLen""",
+                        station=station, time=time, fcst_lens=intersect_fcst_len)
+                    cb_model_values = list(result)
+
+                    format_strings = ','.join(['%s'] * len(intersect_fcst_len))
+                    params = [station,time,time]
+                    params.extend(intersect_fcst_len)
+                    # this will change from madis3.HRRR_OPSqp to madis3.HRRR_OPS_LEGACY_retroqp
+                    statement = """select m0.*
+                    from  madis3.metars as s, madis3.HRRR_OPSqp as m0
+                    WHERE 1=1
+                    AND s.madis_id = m0.sta_id
+                    AND s.name = %s
+                    AND  m0.time >= %s - 1800 and m0.time < %s + 1800
+                    AND m0.fcst_len IN (""" + format_strings + ") ORDER BY m0.fcst_len;"
+                    cursor.execute(statement, tuple(params))
+                    mysql_model_values_tmp = cursor.fetchall()
+                    mysql_model_fcst_len = [v["fcst_len"] for v in mysql_model_values_tmp]
+                    mysql_model_press = [v["press"] / 10 for v in mysql_model_values_tmp]
+                    mysql_model_temp = [v["temp"] / 10 for v in mysql_model_values_tmp]
+                    mysql_model_dp = [v["dp"] / 10 for v in mysql_model_values_tmp]
+                    mysql_model_wd = [v["wd"] for v in mysql_model_values_tmp]
+                    mysql_model_ws = [v["ws"] for v in mysql_model_values_tmp]
+                    mysql_model_rh = [v["rh"] / 10 for v in mysql_model_values_tmp]
+
+                    statement = """select m0.*
+                    from  madis3.metars as s, ceiling2.HRRR_OPS_LEGACY_retro as m0
+                    WHERE 1=1
+                    AND s.madis_id = m0.madis_id
+                    AND s.name = %s
+                    AND  m0.time >= %s - 1800 and m0.time < %s + 1800
+                    AND m0.fcst_len IN (""" + format_strings + ") ORDER BY m0.fcst_len;"
+                    cursor.execute(statement, tuple(params))
+                    mysql_model_ceiling_values_tmp = cursor.fetchall()
+                    mysql_model_ceiling = (
+                        [v["ceil"] * 10 for v in mysql_model_ceiling_values_tmp]
+                        if len(mysql_model_ceiling_values_tmp) > 0
+                        else None
+                    )
+                    # this will change from visibility.HRRR_OPS to visibility.HRRR_OPS_LEGACY_retro
+                    statement = """select m0.*
+                    from  madis3.metars as s, visibility.HRRR_OPS as m0
+                    WHERE 1=1
+                    AND s.madis_id = m0.madis_id
+                    AND s.name = %s
+                    AND  m0.time >= %s - 1800 and m0.time < %s + 1800
+                    AND m0.fcst_len IN (""" + format_strings + ") ORDER BY m0.fcst_len;"
+                    cursor.execute(statement, tuple(params))
+                    mysql_model_visibility_values_tmp = cursor.fetchall()
+                    mysql_model_visibility = (
+                        [v["vis100"] / 100 for v in mysql_model_visibility_values_tmp]
+                        if len(mysql_model_visibility_values_tmp) > 0
+                        else None
+                    )
+
+                    # now we have values for this time for each fcst_len, iterate the fcst_len and assert each value
+                    intersect_data_dict = {}
+                    for i in intersect_fcst_len:
+                        intersect_data_dict[i] = {}
+                        # there is a possibility that a fcst length isn't available (if the retor isn't finished)
+                        # so ignore that case.
+                        try:
+                            mysql_index = mysql_model_fcst_len.index(i)
+                        except:
+                            continue
+                        cb = next(item for item in cb_model_values if item["fcstLen"] == i)
+                        intersect_data_dict[i]["cb"] = {}
+                        intersect_data_dict[i]["cb"]["fcstLen"] = cb["fcstLen"]
+                        intersect_data_dict[i]["cb"].update(cb["data_item"])
+                        intersect_data_dict[i]["mysql"] = {}
+                        intersect_data_dict[i]["mysql"]["fcst_len"] = mysql_model_fcst_len[mysql_index]
+                        intersect_data_dict[i]["mysql"]["press"] = mysql_model_press[mysql_index]
+                        intersect_data_dict[i]["mysql"]["temp"] = mysql_model_temp[mysql_index]
+                        intersect_data_dict[i]["mysql"]["dp"] = mysql_model_dp[mysql_index]
+                        intersect_data_dict[i]["mysql"]["rh"] = mysql_model_rh[mysql_index]
+                        intersect_data_dict[i]["mysql"]["ws"] = mysql_model_ws[mysql_index]
+                        intersect_data_dict[i]["mysql"]["wd"] = mysql_model_wd[mysql_index]
+
+                        try:
+                            if mysql_model_ceiling is None or mysql_index >= len(mysql_model_ceiling) or mysql_model_ceiling[mysql_index] is None:
+                                intersect_data_dict[i]["mysql"]["ceiling"] = None
+                            else:
+                                intersect_data_dict[i]["mysql"]["ceiling"] = mysql_model_ceiling[mysql_index]
+
+                            if mysql_model_visibility is None or mysql_index >= len(mysql_model_visibility) or mysql_model_visibility[mysql_index] is None:
+                                intersect_data_dict[i]["mysql"]["visibility"] = None
+                            else:
+                                intersect_data_dict[i]["mysql"]["visibility"] = mysql_model_visibility[mysql_index]
+                        except:
+                            self.fail(
+                            "TestGsdIngestManager Exception failure for ceiling or visibility: " + str(sys.exc_info()[0])
+                            )
+                        print(
+                            "time: {0}\t\tfcst_len: {1}\t\tstation:{2}".format(
+                                time, i, station
+                            )
+                        )
+                        print("field\t\tmysql\t\tcb\t\t\t\tdelta\t\t\tunits")
+
+                        if intersect_data_dict[i]["mysql"]["press"] is not None and intersect_data_dict[i]["cb"]["Surface Pressure"] is not None:
+                            delta = intersect_data_dict[i]["mysql"]["press"] - intersect_data_dict[i]["cb"]["Surface Pressure"]
+                        else:
+                            delta = None
+                        print(
+                            "var - 'press'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
+                                intersect_data_dict[i]["mysql"]["press"],
+                                intersect_data_dict[i]["cb"]["Surface Pressure"],
+                                delta, units['Surface Pressure']
+                            )
+                        )
+
+                        if intersect_data_dict[i]["mysql"]["temp"] is not None and intersect_data_dict[i]["cb"]["Temperature"] is not None:
+                            delta = intersect_data_dict[i]["mysql"]["temp"] - intersect_data_dict[i]["cb"]["Temperature"]
+                        else:
+                            delta = None
+                        print(
+                            "var - 'temp'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
+                                intersect_data_dict[i]["mysql"]["temp"],
+                                intersect_data_dict[i]["cb"]["Temperature"],
+                                delta, units['Temperature']
+                            )
+                        )
+
+                        if intersect_data_dict[i]["mysql"]["dp"] is not None and intersect_data_dict[i]["cb"]["DewPoint"] is not None:
+                            delta = intersect_data_dict[i]["mysql"]["dp"] - intersect_data_dict[i]["cb"]["DewPoint"]
+                        else:
+                            delta = None
+                        print(
+                            "var - 'dp'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
+                                intersect_data_dict[i]["mysql"]["dp"],
+                                intersect_data_dict[i]["cb"]["DewPoint"],
+                                delta, units['DewPoint']
+                            )
+                        )
+
+                        if intersect_data_dict[i]["mysql"]["rh"] is not None and intersect_data_dict[i]["cb"]["RH"] is not None:
+                            delta = intersect_data_dict[i]["mysql"]["rh"] - intersect_data_dict[i]["cb"]["RH"]
+                        else:
+                            delta = None
+                        print(
+                            "var - 'rh'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
+                                intersect_data_dict[i]["mysql"]["rh"],
+                                intersect_data_dict[i]["cb"]["RH"],
+                                delta, units['RH']
+                            )
+                        )
+
+                        if intersect_data_dict[i]["mysql"]["ws"] is not None and intersect_data_dict[i]["cb"]["WS"] is not None:
+                            delta = intersect_data_dict[i]["mysql"]["ws"] - intersect_data_dict[i]["cb"]["WS"]
+                        else:
+                            delta = None
+                        print(
+                            "var - 'ws'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
+                                intersect_data_dict[i]["mysql"]["ws"],
+                                intersect_data_dict[i]["cb"]["WS"],
+                                delta, units['WS']
+                            )
+                        )
+
+                        if intersect_data_dict[i]["mysql"]["wd"] is not None and intersect_data_dict[i]["cb"]["WD"] is not None:
+                            delta = intersect_data_dict[i]["mysql"]["wd"] - intersect_data_dict[i]["cb"]["WD"]
+                            if delta > 180:
+                                delta = 360 - delta
+                            if delta < -180:
+                                delta = 360 + delta
+                        else:
+                            delta = None
+                        print(
+                            "var - 'wd'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
+                                intersect_data_dict[i]["mysql"]["wd"],
+                                intersect_data_dict[i]["cb"]["WD"],
+                                delta, units['WD']
+                            )
+                        )
+
+                        if intersect_data_dict[i]["mysql"]["ceiling"] is not None and intersect_data_dict[i]["cb"]["Ceiling"] is not None:
+                            delta = intersect_data_dict[i]["mysql"]["ceiling"] - intersect_data_dict[i]["cb"]["Ceiling"]
+                        else:
+                            delta = None
+                        print(
+                            "var - 'ceiling'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
+                                intersect_data_dict[i]["mysql"]["ceiling"],
+                                intersect_data_dict[i]["cb"]["Ceiling"],
+                                delta, units['Ceiling']
+                            )
+                        )
+
+                        if intersect_data_dict[i]["mysql"]["visibility"] is not None and intersect_data_dict[i]["cb"]["Visibility"] is not None:
+                            delta = intersect_data_dict[i]["mysql"]["visibility"] - intersect_data_dict[i]["cb"]["Visibility"]
+                        else:
+                            delta = None
+                        print(
+                            "var - 'visibility'\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
+                                intersect_data_dict[i]["mysql"]["visibility"],
+                                intersect_data_dict[i]["cb"]["Visibility"],
+                                delta, units['Visibility']
+                            )
+                        )
+                        print("--")
+
+                    for i in intersect_fcst_len:
+                        if i not in intersect_data_dict.keys() or "mysql" not in intersect_data_dict[i].keys() or "cb" not in intersect_data_dict[i].keys():
+                            continue
+                        self.assertEqual(
+                            intersect_data_dict[i]["mysql"]["fcst_len"],
+                            intersect_data_dict[i]["cb"]["fcstLen"],
+                            msg="MYSQL fcst_len and CB fcstLen are not equal",
+                        )
+
+                        if intersect_data_dict[i]["mysql"]["press"] is not None and intersect_data_dict[i]["cb"]["Surface Pressure"] is not None:
+                            np.testing.assert_allclose(
+                                intersect_data_dict[i]["mysql"]["press"],
+                                intersect_data_dict[i]["cb"]["Surface Pressure"],
+                                atol=1.5,
+                                rtol=0,
+                                err_msg="MYSQL Pressure and CB Surface Pressure are not approximately equal",
+                                verbose=True,
+                            )
+                        if intersect_data_dict[i]["mysql"]["temp"] is not None and intersect_data_dict[i]["cb"]["Temperature"] is not None:
+                            np.testing.assert_allclose(
+                                intersect_data_dict[i]["mysql"]["temp"],
+                                intersect_data_dict[i]["cb"]["Temperature"],
+                                atol=3,
+                                rtol=0,
+                                err_msg="MYSQL temp and CB Temperature are not approximately equal",
+                                verbose=True,
+                            )
+                        if intersect_data_dict[i]["mysql"]["dp"] is not None and intersect_data_dict[i]["cb"]["DewPoint"] is not None:
+                            np.testing.assert_allclose(
+                                intersect_data_dict[i]["mysql"]["dp"],
+                                intersect_data_dict[i]["cb"]["DewPoint"],
+                                atol=5,
+                                rtol=0,
+                                err_msg="MYSQL dp and CB Dew Point are not approximately equal",
+                                verbose=True,
+                            )
+                        if intersect_data_dict[i]["mysql"]["rh"] is not None and intersect_data_dict[i]["cb"]["RH"] is not None:
+                            np.testing.assert_allclose(
+                                intersect_data_dict[i]["mysql"]["rh"],
+                                intersect_data_dict[i]["cb"]["RH"],
+                                atol=20,
+                                rtol=0,
+                                err_msg="MYSQL rh and CB RH are not approximately equal",
+                                verbose=True,
+                            )
+                        if intersect_data_dict[i]["mysql"]["wd"] is not None and intersect_data_dict[i]["cb"]["WD"] is not None:
+                            np.testing.assert_allclose(
+                                intersect_data_dict[i]["mysql"]["wd"],
+                                intersect_data_dict[i]["cb"]["WD"],
+                                atol=9999999,
+                                rtol=0,
+                                err_msg="MYSQL wd and CB WD are not approximately equal",
+                                verbose=True,
+                            )
+                        if intersect_data_dict[i]["mysql"]["ws"] is not None and intersect_data_dict[i]["cb"]["WS"] is not None:
+                            np.testing.assert_allclose(
+                                intersect_data_dict[i]["mysql"]["ws"],
+                                intersect_data_dict[i]["cb"]["WS"],
+                                atol=3,
+                                rtol=0,
+                                err_msg="MYSQL ws and CB WS are not approximately equal",
+                                verbose=True,
+                            )
+                        if intersect_data_dict[i]["mysql"]["visibility"] is not None and intersect_data_dict[i]["cb"]["Visibility"] is not None:
+                            np.testing.assert_allclose(
+                                intersect_data_dict[i]["mysql"]["visibility"],
+                                intersect_data_dict[i]["cb"]["Visibility"],
+                                atol=99999,
+                                rtol=0,
+                                err_msg="MYSQL Visibility and CB Visibility are not approximately equal",
+                                verbose=True,
+                            )
+                        if intersect_data_dict[i]["mysql"]["ceiling"] is not None and intersect_data_dict[i]["cb"]["Ceiling"] is not None:
+                            np.testing.assert_allclose(
+                                intersect_data_dict[i]["mysql"]["ceiling"],
+                                intersect_data_dict[i]["cb"]["Ceiling"],
+                                atol=99999,
+                                rtol=0,
+                                err_msg="MYSQL Ceiling and CB Ceiling are not approximately equal",
+                                verbose=True,
+                            )
+        except:
+            print(str(sys.exc_info()))
+            self.fail("TestGsdIngestManager Exception failure: " + str(sys.exc_info()))
+
     def test_compare_model_to_mysql_all_stations(self):
         """This test attempts to find recent models that match in both the mysql and the CB
         databases and compare them for all stations for one fcstValidEpoch.
@@ -571,11 +1007,11 @@ class TestGribBuilderV01(unittest.TestCase):
                             ceiling2.HRRR_OPS AS m0
                         WHERE  1 = 1
                             AND s.madis_id = m0.madis_id
-                            AND s.NAME = "kpdx"
+                            AND s.NAME = "%s"
                             AND m0.time >= %s - 1800
                             AND m0.time < %s + 1800
                         ORDER  BY m0.fcst_len; """
-                cursor.execute(statement, (time, time))
+                cursor.execute(statement, (station, time, time))
                 mysql_model_fcst_lens_dict = cursor.fetchall()
                 mysql_model_fcst_lens = [v["fcst_len"] for v in mysql_model_fcst_lens_dict]
                 intersect_fcst_len = [
@@ -696,7 +1132,7 @@ class TestGribBuilderV01(unittest.TestCase):
                     else:
                         delta = None
                     print(
-                        "'press'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
+                        "var - 'press'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
                             intersect_data_dict[i]["mysql"]["press"],
                             intersect_data_dict[i]["cb"]["Surface Pressure"],
                             delta, units['Surface Pressure']
@@ -708,7 +1144,7 @@ class TestGribBuilderV01(unittest.TestCase):
                     else:
                         delta = None
                     print(
-                        "'temp'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
+                        "var - 'temp'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
                             intersect_data_dict[i]["mysql"]["temp"],
                             intersect_data_dict[i]["cb"]["Temperature"],
                             delta, units['Temperature']
@@ -720,7 +1156,7 @@ class TestGribBuilderV01(unittest.TestCase):
                     else:
                         delta = None
                     print(
-                        "'dp'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
+                        "var - 'dp'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
                             intersect_data_dict[i]["mysql"]["dp"],
                             intersect_data_dict[i]["cb"]["DewPoint"],
                             delta, units['DewPoint']
@@ -732,7 +1168,7 @@ class TestGribBuilderV01(unittest.TestCase):
                     else:
                         delta = None
                     print(
-                        "'rh'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
+                        "var - 'rh'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
                             intersect_data_dict[i]["mysql"]["rh"],
                             intersect_data_dict[i]["cb"]["RH"],
                             delta, units['RH']
@@ -744,7 +1180,7 @@ class TestGribBuilderV01(unittest.TestCase):
                     else:
                         delta = None
                     print(
-                        "'ws'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
+                        "var - 'ws'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
                             intersect_data_dict[i]["mysql"]["ws"],
                             intersect_data_dict[i]["cb"]["WS"],
                             delta, units['WS']
@@ -760,7 +1196,7 @@ class TestGribBuilderV01(unittest.TestCase):
                     else:
                         delta = None
                     print(
-                        "'wd'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
+                        "var - 'wd'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
                             intersect_data_dict[i]["mysql"]["wd"],
                             intersect_data_dict[i]["cb"]["WD"],
                             delta, units['WD']
@@ -772,7 +1208,7 @@ class TestGribBuilderV01(unittest.TestCase):
                     else:
                         delta = None
                     print(
-                        "'ceiling'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
+                        "var - 'ceiling'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
                             intersect_data_dict[i]["mysql"]["ceiling"],
                             intersect_data_dict[i]["cb"]["Ceiling"],
                             delta, units['Ceiling']

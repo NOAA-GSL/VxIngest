@@ -1084,16 +1084,16 @@ class CTCModelObsBuilderLegacyV01(CTCModelObsBuilderV01):
 
             # METAR_LEGACY observations should have a special subset (METAR_LEGACY), we want that.
             # and METAR_LEGACY_RETRO observations should have a special subset (METAR_LEGACY_RETRO), we want that.
+            # This query fetches only the id's and uses the extra predicates to avoid requiring a primary key.
             result1 = self.cluster.query(
-                """SELECT raw obs.fcstValidEpoch
-                        FROM mdata obs
-                        WHERE obs.type='DD'
-                            AND obs.docType='obs'
-                            AND obs.version='V01'
-                            AND obs.subset='{subset}'
-                            AND obs.fcstValidEpoch >= {max_fcst_epoch}
-                            AND obs.fcstValidEpoch <= {last_epoch}
-                    ORDER BY obs.fcstValidEpoch""".format(
+                """SELECT RAW TONUMBER(split(meta().id,":")[4])
+                    FROM mdata
+                    WHERE meta().id BETWEEN "DD:V01:{subset}:obs:{max_fcst_epoch}"
+                        AND "DD:V01:{subset}:obs:{last_epoch}"
+                        AND type="DD"
+                        AND subset="{subset}"
+                        AND version = "V01"
+                """.format(
                 max_fcst_epoch=max_ctc_fcst_valid_epochs,
                 last_epoch=self.load_spec["first_last_params"]["last_epoch"],
                 subset=self.subset ),

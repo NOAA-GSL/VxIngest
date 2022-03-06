@@ -879,7 +879,8 @@ class CTCModelObsBuilderLegacyV01(CTCModelObsBuilderV01):
         Returns:
             string: model_name + "_LEGACY"
         """
-        return self.model + "_LEGACY"
+        #return self.model + "_LEGACY"
+        return self.model
 
     def handle_legacy_retro_model(self, params_dict):  # pylint: disable=unused-argument
         """return the model name with _LEGACY_RETRO attached for the current model in epoch
@@ -888,7 +889,8 @@ class CTCModelObsBuilderLegacyV01(CTCModelObsBuilderV01):
         Returns:
             string: model_name + "_LEGACY_RETRO"
         """
-        return self.model + "_LEGACY_RETRO"
+        #return self.model + "_LEGACY_RETRO"
+        return self.model
 
     def handle_fcstValidEpochs(self):  # pylint: disable=invalid-name
         """iterate through all the fcstValidEpochs for which we have both model data and observation data.

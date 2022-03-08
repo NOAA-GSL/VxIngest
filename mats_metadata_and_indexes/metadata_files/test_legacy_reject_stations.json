@@ -222,6 +222,18 @@
         "x": "334",
         "y": "1058"
       }
+    },
+    {
+      "name": "MUVR",
+      "id": "3131",
+      "legacy_grid": {
+        "x": null,
+        "y": "NaN (outside domain)"
+      },
+      "new_grid": {
+        "x": "null",
+        "y": "NaN (outside domain)"
+      }
     }
   ]
 }

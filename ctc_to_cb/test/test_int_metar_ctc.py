@@ -2559,8 +2559,9 @@ class TestCTCBuilderV01(unittest.TestCase):
                 (cb_fcst_valid_epochs[0], cb_fcst_valid_epochs[-1]),
             )
             common_fcst_valid_lens_result = cursor.fetchall()
-            # choose the middle one that is common
-            #fcst_valid_epoch = common_fcst_valid_lens_result[int(len(common_fcst_valid_lens_result)/2)]["time"]
+            # choose the middle one that is common reduce the array to all but one value (about a third of the way) for testing
+            single_common_fcst_valid_result = common_fcst_valid_lens_result[int(len(common_fcst_valid_lens_result)/3)]
+            common_fcst_valid_lens_result = [single_common_fcst_valid_result]
             # get all the cb fcstLen values
             for fcst_valid_epoch_result in common_fcst_valid_lens_result:
                 fcst_valid_epoch = fcst_valid_epoch_result['time']
@@ -2679,7 +2680,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                             )
                         except:
                             #print (str(sys.exc_info()[1]))
-                            print ("var - hits ", mysql_fcst_len_thrsh["hits"], cb_fcst_len_thrsh["hits"], abs(mysql_fcst_len_thrsh["hits"] - cb_fcst_len_thrsh["hits"]), "count")
+                            print ("var - hits ", mysql_fcst_len_thrsh["hits"], cb_fcst_len_thrsh["hits"], abs(mysql_fcst_len_thrsh["hits"] - cb_fcst_len_thrsh["hits"]), "count", "fcst_len:", str(fcst_len), "thrsh", str(t), "time:",str(fcst_valid_epoch))
                         try:
                             self.assertEqual(
                                 cb_fcst_len_thrsh["misses"],
@@ -2694,7 +2695,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                             )
                         except:
                             #print (str(sys.exc_info()[1]))
-                            print ("var - misses ", mysql_fcst_len_thrsh["misses"], cb_fcst_len_thrsh["misses"], abs(mysql_fcst_len_thrsh["misses"] - cb_fcst_len_thrsh["misses"]), "count")
+                            print ("var - misses ", mysql_fcst_len_thrsh["misses"], cb_fcst_len_thrsh["misses"], abs(mysql_fcst_len_thrsh["misses"] - cb_fcst_len_thrsh["misses"]), "count", "fcst_len:", str(fcst_len), "thrsh", str(t), "time:",str(fcst_valid_epoch))
 
                         try:
                             self.assertEqual(
@@ -2710,7 +2711,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                             )
                         except:
                             #print (str(sys.exc_info()[1]))
-                            print ("var -  ", mysql_fcst_len_thrsh["false_alarms"], cb_fcst_len_thrsh["false_alarms"], abs(mysql_fcst_len_thrsh["false_alarms"] - cb_fcst_len_thrsh["false_alarms"]), "count")
+                            print ("var -  ", mysql_fcst_len_thrsh["false_alarms"], cb_fcst_len_thrsh["false_alarms"], abs(mysql_fcst_len_thrsh["false_alarms"] - cb_fcst_len_thrsh["false_alarms"]), "count", "fcst_len:", str(fcst_len), "thrsh", str(t), "time:",str(fcst_valid_epoch))
                         try:
                             self.assertEqual(
                                 cb_fcst_len_thrsh["correct_negatives"],
@@ -2725,7 +2726,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                             )
                         except:
                             #print (str(sys.exc_info()[1]))
-                            print ("var -  ", mysql_fcst_len_thrsh["correct_negatives"], cb_fcst_len_thrsh["correct_negatives"], abs(mysql_fcst_len_thrsh["correct_negatives"] - cb_fcst_len_thrsh["correct_negatives"]), "count")
+                            print ("var -  ", mysql_fcst_len_thrsh["correct_negatives"], cb_fcst_len_thrsh["correct_negatives"], abs(mysql_fcst_len_thrsh["correct_negatives"] - cb_fcst_len_thrsh["correct_negatives"]), "count", "fcst_len:", str(fcst_len), "thrsh", str(t), "time:",str(fcst_valid_epoch))
 
         except:
             self.fail("TestCTCBuilderV01 Exception failure: " + str(sys.exc_info()[0]))

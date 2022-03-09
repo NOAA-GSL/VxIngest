@@ -2711,7 +2711,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                             )
                         except:
                             #print (str(sys.exc_info()[1]))
-                            print ("var -  ", mysql_fcst_len_thrsh["false_alarms"], cb_fcst_len_thrsh["false_alarms"], abs(mysql_fcst_len_thrsh["false_alarms"] - cb_fcst_len_thrsh["false_alarms"]), "count", "fcst_len:", str(fcst_len), "thrsh", str(t), "time:",str(fcst_valid_epoch))
+                            print ("var - false_alarms ", mysql_fcst_len_thrsh["false_alarms"], cb_fcst_len_thrsh["false_alarms"], abs(mysql_fcst_len_thrsh["false_alarms"] - cb_fcst_len_thrsh["false_alarms"]), "count", "fcst_len:", str(fcst_len), "thrsh", str(t), "time:",str(fcst_valid_epoch))
                         try:
                             self.assertEqual(
                                 cb_fcst_len_thrsh["correct_negatives"],
@@ -2726,7 +2726,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                             )
                         except:
                             #print (str(sys.exc_info()[1]))
-                            print ("var -  ", mysql_fcst_len_thrsh["correct_negatives"], cb_fcst_len_thrsh["correct_negatives"], abs(mysql_fcst_len_thrsh["correct_negatives"] - cb_fcst_len_thrsh["correct_negatives"]), "count", "fcst_len:", str(fcst_len), "thrsh", str(t), "time:",str(fcst_valid_epoch))
+                            print ("var - correct_negatives ", mysql_fcst_len_thrsh["correct_negatives"], cb_fcst_len_thrsh["correct_negatives"], abs(mysql_fcst_len_thrsh["correct_negatives"] - cb_fcst_len_thrsh["correct_negatives"]), "count", "fcst_len:", str(fcst_len), "thrsh", str(t), "time:",str(fcst_valid_epoch))
 
         except:
             self.fail("TestCTCBuilderV01 Exception failure: " + str(sys.exc_info()[0]))

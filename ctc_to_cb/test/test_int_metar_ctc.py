@@ -238,7 +238,7 @@ class TestCTCBuilderV01(unittest.TestCase):
         return ctc
 
     def calculate_mysql_ctc_loop(
-        self, epoch, fcst_len, threshold, model, region, obs_table
+        self, epoch, fcst_len, threshold, model, region, obs_table, reject_stations=[]
     ):
         credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
         self.assertTrue(
@@ -295,24 +295,23 @@ class TestCTCBuilderV01(unittest.TestCase):
         misses = 0
         false_alarms = 0
         correct_negatives = 0
-        none_count = 0
         self.mysql_model_obs_data = []
         while row is not None:
-            if row["name"] not in self.stations:
+            if row["name"] not in self.stations and row["name"] not in reject_stations:
                 self.mysql_not_in_stations.append(row["name"])
-            self.mysql_model_obs_data.append(row)
-            if row["model_value"] is None or row["obs_value"] is None:
-                none_count = none_count + 1
-                row = cursor.fetchone()
-                continue
-            if row["model_value"] < threshold and row["obs_value"] < threshold:
-                hits = hits + 1
-            if row["model_value"] < threshold and not row["obs_value"] < threshold:
-                false_alarms = false_alarms + 1
-            if not row["model_value"] < threshold and row["obs_value"] < threshold:
-                misses = misses + 1
-            if not row["model_value"] < threshold and not row["obs_value"] < threshold:
-                correct_negatives = correct_negatives + 1
+            else:
+                if row["model_value"] is None or row["obs_value"] is None:
+                    row = cursor.fetchone()
+                    continue
+                self.mysql_model_obs_data.append(row)
+                if row["model_value"] < threshold and row["obs_value"] < threshold:
+                    hits = hits + 1
+                if row["model_value"] < threshold and not row["obs_value"] < threshold:
+                    false_alarms = false_alarms + 1
+                if not row["model_value"] < threshold and row["obs_value"] < threshold:
+                    misses = misses + 1
+                if not row["model_value"] < threshold and not row["obs_value"] < threshold:
+                    correct_negatives = correct_negatives + 1
             row = cursor.fetchone()
 
         ctc = {
@@ -322,8 +321,7 @@ class TestCTCBuilderV01(unittest.TestCase):
             "hits": hits,
             "misses": misses,
             "false_alarms": false_alarms,
-            "correct_negatives": correct_negatives,
-            "none_count": none_count,
+            "correct_negatives": correct_negatives
         }
         return ctc
 
@@ -336,7 +334,7 @@ class TestCTCBuilderV01(unittest.TestCase):
         model,
         subset,
         region,
-        station_diffs=[],
+        reject_stations=[],
     ):
         credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
         self.assertTrue(
@@ -389,7 +387,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                 subset=subset, fcst_valid_epoch=epoch
             )
         self.stations = sorted(
-            [station for station in legacy_stations if station not in station_diffs]
+            [station for station in legacy_stations if station not in reject_stations]
         )
         # this is a type model document - cb model documents don't have legacy or retro
         model_str = model.replace("_LEGACY", "")
@@ -427,7 +425,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                     model_data = elem
                     break
             # add to model_obs_data
-            if obs_data or model_data:
+            if obs_data and model_data and obs_data['Ceiling'] and model_data['Ceiling']:
                 dat = {
                     "time": epoch,
                     "fcst_len": fcst_len,
@@ -442,10 +440,8 @@ class TestCTCBuilderV01(unittest.TestCase):
         misses = 0
         false_alarms = 0
         correct_negatives = 0
-        none_count = 0
         for elem in self.cb_model_obs_data:
             if elem["model"] is None or elem["obs"] is None:
-                none_count = none_count + 1
                 continue
             if elem["model"] < threshold and elem["obs"] < threshold:
                 hits = hits + 1
@@ -462,8 +458,7 @@ class TestCTCBuilderV01(unittest.TestCase):
             "hits": hits,
             "misses": misses,
             "false_alarms": false_alarms,
-            "correct_negatives": correct_negatives,
-            "none_count": none_count,
+            "correct_negatives": correct_negatives
         }
         return ctc
 
@@ -559,31 +554,38 @@ class TestCTCBuilderV01(unittest.TestCase):
                         threshold=int(t),
                         model="HRRR_OPS",
                         subset="METAR",
-                        region="ALL_HRRR",
+                        region="ALL_HRRR"
                     )
-                    mysql_ctc_loop = self.calculate_mysql_ctc_loop(
+                    if cb_ctc is None:
+                        print(
+                            "cb_ctc_loop is None for threshold {thrsh}- contunuing".format(
+                                thrsh=str(t)
+                            )
+                        )
+                        continue
+                    mysql_ctc = self.calculate_mysql_ctc_loop(
                         epoch=elem["fcstValidEpoch"],
                         fcst_len=i,
                         threshold=int(t) / 10,
                         model="HRRR_OPS",
                         region="ALL_HRRR",
-                        obs_table="obs",
+                        obs_table="obs"
                     )
-                    if mysql_ctc_loop == None:
+                    if mysql_ctc is None:
                         print(
                             "mysql_ctc_loop is None for threshold {thrsh}- contunuing".format(
                                 thrsh=str(t)
                             )
                         )
                         continue
-                    mysql_ctc = self.calculate_mysql_ctc(
-                        epoch=elem["fcstValidEpoch"],
-                        fcst_len=i,
-                        threshold=int(t) / 10,
-                        model="HRRR_OPS",
-                        region="ALL_HRRR",
-                        obs_table="obs",
-                    )
+                    # mysql_ctc = self.calculate_mysql_ctc(
+                    #     epoch=elem["fcstValidEpoch"],
+                    #     fcst_len=i,
+                    #     threshold=int(t) / 10,
+                    #     model="HRRR_OPS",
+                    #     region="ALL_HRRR",
+                    #     obs_table="obs",
+                    # )
                     # are the station names the same?
                     mysql_names = [elem["name"] for elem in self.mysql_model_obs_data]
                     cb_names = [elem["name"] for elem in self.cb_model_obs_data]
@@ -592,12 +594,36 @@ class TestCTCBuilderV01(unittest.TestCase):
                         for i in cb_names + mysql_names
                         if i not in cb_names or i not in mysql_names
                     ]
-                    self.assertGreater(
-                        len(name_diffs),
-                        0,
-                        "There are differences between the mysql and CB station names",
-                    )
-                    # cb_ctc_nodiffs = self.calculate_cb_ctc(spec_file_name=spec_file, epoch=elem['fcstValidEpoch'], fcst_len=i, threshold=int(t), model="HRRR_OPS", subset-"METAR", region="ALL_HRRR", station_diffs=name_diffs)
+                    try:
+                        self.assertGreater(
+                            len(name_diffs),
+                            0,
+                            "There are differences between the mysql and CB station names" + str(name_diffs)
+                        )
+                    except:
+                        # recalculate without the differences
+                        self.cb_model_obs_data = []
+                        cb_ctc = {}
+                        cb_ctc = self.calculate_cb_ctc(spec_file_name=spec_file,
+                            epoch=elem['fcstValidEpoch'],
+                            fcst_len=i,
+                            threshold=int(t),
+                            model="HRRR_OPS",
+                            subset="METAR",
+                            region="ALL_HRRR",
+                            reject_stations=name_diffs)
+                        mysql_ctc = {}
+                        self.mysql_model_obs_data = []
+                        mysql_ctc = self.calculate_mysql_ctc_loop(
+                            epoch=elem["fcstValidEpoch"],
+                            fcst_len=i,
+                            threshold=int(t) / 10,
+                            model="HRRR_OPS",
+                            region="ALL_HRRR",
+                            obs_table="obs",
+                            reject_stations=name_diffs
+                        )
+
                     self.assertEqual(
                         len(self.mysql_model_obs_data),
                         len(self.cb_model_obs_data),
@@ -770,22 +796,43 @@ class TestCTCBuilderV01(unittest.TestCase):
                             )
                         )
                         continue
-                    # populate the self.mysql_model_obs_data
-                    mysql_ctc = self.calculate_mysql_ctc(
-                        epoch=elem["fcstValidEpoch"],
-                        fcst_len=i,
-                        threshold=int(t) / 10,
-                        model="HRRR_OPS_LEGACY",
-                        region="ALL_HRRR",
-                        obs_table="obs",
-                    )
                     # are the station names the same?
                     mysql_names = [elem["name"] for elem in self.mysql_model_obs_data]
                     cb_names = [elem["name"] for elem in self.cb_model_obs_data]
-                    # name_diffs = [i for i in cb_names + mysql_names if i not in cb_names or i not in mysql_names]
-                    # self.assertGreater(len(name_diffs),0,"There are differences between the mysql and CB station names")
-                    # cb_ctc_nodiffs = self.calculate_cb_ctc(spec_file_name=spec_file, epoch=elem['fcstValidEpoch'], fcst_len=i, threshold=int(t), model="HRRR_OPS_LEGACY", subset="METAR_LEGACY", region="ALL_HRRR", station_diffs=name_diffs)
-                    # self.assertEqual(len(self.mysql_model_obs_data), len(self.cb_model_obs_data), "model_obs_data are not the same length")
+                    name_diffs = [
+                        i
+                        for i in cb_names + mysql_names
+                        if i not in cb_names or i not in mysql_names
+                    ]
+                    try:
+                        self.assertGreater(
+                            len(name_diffs),
+                            0,
+                            "There are differences between the mysql and CB station names" + str(name_diffs)
+                        )
+                    except:
+                        # recalculate without the differences
+                        self.cb_model_obs_data = []
+                        cb_ctc = {}
+                        cb_ctc = self.calculate_cb_ctc(spec_file_name=spec_file,
+                            epoch=elem['fcstValidEpoch'],
+                            fcst_len=i,
+                            threshold=int(t),
+                            model="HRRR_OPS",
+                            subset="METAR",
+                            region="ALL_HRRR",
+                            reject_stations=name_diffs)
+                        mysql_ctc = {}
+                        self.mysql_model_obs_data = []
+                        mysql_ctc = self.calculate_mysql_ctc_loop(
+                            epoch=elem["fcstValidEpoch"],
+                            fcst_len=i,
+                            threshold=int(t) / 10,
+                            model="HRRR_OPS",
+                            region="ALL_HRRR",
+                            obs_table="obs",
+                            reject_stations=name_diffs
+                        )
                     max_range = min(
                         len(self.mysql_model_obs_data), len(self.cb_model_obs_data)
                     )
@@ -949,7 +996,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                         threshold=int(t) / 10,
                         model="HRRR_OPS_legacy_RETRO",
                         region="ALL_HRRR",
-                        obs_table="obs_retro",
+                        obs_table="obs_retro"
                     )
                     if mysql_ctc_loop == None:
                         print(
@@ -958,22 +1005,43 @@ class TestCTCBuilderV01(unittest.TestCase):
                             )
                         )
                         continue
-                    # populate the self.mysql_model_obs_data
-                    mysql_ctc = self.calculate_mysql_ctc(
-                        epoch=elem["fcstValidEpoch"],
-                        fcst_len=i,
-                        threshold=int(t) / 10,
-                        model="HRRR_OPS_LEGACY",
-                        region="ALL_HRRR",
-                        obs_table="obs_retro",
-                    )
                     # are the station names the same?
                     mysql_names = [elem["name"] for elem in self.mysql_model_obs_data]
                     cb_names = [elem["name"] for elem in self.cb_model_obs_data]
-                    # name_diffs = [i for i in cb_names + mysql_names if i not in cb_names or i not in mysql_names]
-                    # self.assertGreater(len(name_diffs),0,"There are differences between the mysql and CB station names")
-                    # cb_ctc_nodiffs = self.calculate_cb_ctc(spec_file_name=spec_file, epoch=elem['fcstValidEpoch'], fcst_len=i, threshold=int(t), model="HRRR_OPS_LEGACY", subset="METAR_LEGACY", region="ALL_HRRR", station_diffs=name_diffs)
-                    # self.assertEqual(len(self.mysql_model_obs_data), len(self.cb_model_obs_data), "model_obs_data are not the same length")
+                    name_diffs = [
+                        i
+                        for i in cb_names + mysql_names
+                        if i not in cb_names or i not in mysql_names
+                    ]
+                    try:
+                        self.assertGreater(
+                            len(name_diffs),
+                            0,
+                            "There are differences between the mysql and CB station names" + str(name_diffs)
+                        )
+                    except:
+                        # recalculate without the differences
+                        self.cb_model_obs_data = []
+                        cb_ctc = {}
+                        cb_ctc = self.calculate_cb_ctc(spec_file_name=spec_file,
+                            epoch=elem['fcstValidEpoch'],
+                            fcst_len=i,
+                            threshold=int(t),
+                            model="HRRR_OPS",
+                            subset="METAR",
+                            region="ALL_HRRR",
+                            reject_stations=name_diffs)
+                        mysql_ctc = {}
+                        self.mysql_model_obs_data = []
+                        mysql_ctc = self.calculate_mysql_ctc_loop(
+                            epoch=elem["fcstValidEpoch"],
+                            fcst_len=i,
+                            threshold=int(t) / 10,
+                            model="HRRR_OPS",
+                            region="ALL_HRRR",
+                            obs_table="obs",
+                            reject_stations=name_diffs
+                        )
                     max_range = max(
                         len(self.mysql_model_obs_data), len(self.cb_model_obs_data)
                     )
@@ -1815,6 +1883,8 @@ class TestCTCBuilderV01(unittest.TestCase):
             # it won't get its raw data migrated away
             rindex = min(len(common_fcst_valid_epochs), 15) * -1
             fcst_valid_epoch = common_fcst_valid_epochs[rindex]
+            # PUT a test fcst_valid_epoch here
+            fcst_valid_epoch = 1639389600
             result = cluster.query(
                 """
                 SELECT RAW fcstLen
@@ -1852,6 +1922,8 @@ class TestCTCBuilderV01(unittest.TestCase):
                 for fcst_len in mysql_fcst_lens
                 if fcst_len in set(cb_fcst_lens)
             ]
+            # PUT a test fcst_len here...
+            fcst_lens = [0]
             print("..")
             # print("cb fcst_lens:", cb_fcst_lens)
             # print("mysql fcst_lens:", mysql_fcst_lens)
@@ -1885,8 +1957,10 @@ class TestCTCBuilderV01(unittest.TestCase):
                             )
                         )
                         continue
+                    cb_ctc['total'] = cb_ctc['hits'] + cb_ctc['misses'] + cb_ctc['false_alarms'] + cb_ctc['correct_negatives']
+
                     # calculate_mysql_ctc_loop derives the mysql data for the compare
-                    mysql_ctc_loop = self.calculate_mysql_ctc_loop(
+                    mysql_ctc = self.calculate_mysql_ctc_loop(
                         model="HRRR_OPS_LEGACY_retro",
                         region="ALL_HRRR",
                         epoch=fcst_valid_epoch,
@@ -1894,13 +1968,15 @@ class TestCTCBuilderV01(unittest.TestCase):
                         threshold=int(t) / 10,
                         obs_table="obs_retro",
                     )
-                    if mysql_ctc_loop is None:
+                    if mysql_ctc is None:
                         print(
                             "mysql_ctc_loop is None for threshold {thrsh}- contunuing".format(
                                 thrsh=str(t)
                             )
                         )
                         continue
+                    mysql_ctc['total'] = mysql_ctc['hits'] + mysql_ctc['misses'] + mysql_ctc['false_alarms'] + mysql_ctc['correct_negatives']
+
                     # mysql_ctc = self.calculate_mysql_ctc(model="HRRR_OPS", region="ALL_HRRR", epoch=fcst_valid_epoch, fcst_len=i, threshold=int(t) / 10, obs_table="obs_retro")
                     # are the station names the same?
                     mysql_names = [elem["name"] for elem in self.mysql_model_obs_data]
@@ -1910,13 +1986,35 @@ class TestCTCBuilderV01(unittest.TestCase):
                         for i in cb_names + mysql_names
                         if i not in cb_names or i not in mysql_names
                     ]
-                    # Fix This when we sort out why there are differences
-                    self.assertGreater(
-                        len(name_diffs),
-                        0,
-                        "There are differences between the mysql and CB station names",
-                    )
-                    # cb_ctc_nodiffs = self.calculate_cb_ctc(spec_file_name=spec_file, epoch=fcst_valid_epoch, model="HRRR_OPS_LEGACY_RETRO", subset="METAR_LEGACY_RETRO", region="ALL_HRRR", fcst_len=i, threshold=int(t), station_diffs=name_diffs)
+                    try:
+                        self.assertGreater(
+                            len(name_diffs),
+                            0,
+                            "There are differences between the mysql and CB station names" + str(name_diffs)
+                        )
+                    except:
+                        # recalculate without the differences
+                        self.cb_model_obs_data = []
+                        cb_ctc = {}
+                        cb_ctc = self.calculate_cb_ctc(spec_file_name=spec_file,
+                            epoch=elem['fcstValidEpoch'],
+                            fcst_len=i,
+                            threshold=int(t),
+                            model="HRRR_OPS",
+                            subset="METAR",
+                            region="ALL_HRRR",
+                            reject_stations=name_diffs)
+                        mysql_ctc = {}
+                        self.mysql_model_obs_data = []
+                        mysql_ctc = self.calculate_mysql_ctc_loop(
+                            epoch=elem["fcstValidEpoch"],
+                            fcst_len=i,
+                            threshold=int(t) / 10,
+                            model="HRRR_OPS",
+                            region="ALL_HRRR",
+                            obs_table="obs",
+                            reject_stations=name_diffs
+                        )
                     print("-- forecastLen:", i, " threshold:", t)
                     print(
                         "model/obs, thrsh, time, fcst_len, difference, feet, name, mysql_value * 10, cb_value, delta"
@@ -2565,6 +2663,8 @@ class TestCTCBuilderV01(unittest.TestCase):
             # get all the cb fcstLen values
             for fcst_valid_epoch_result in common_fcst_valid_lens_result:
                 fcst_valid_epoch = fcst_valid_epoch_result['time']
+                # overwrite the fcstValidEpoch - TAKE THIS OUT
+                fcst_valid_epoch = 1639389600
                 result = cluster.query(
                     """SELECT raw mdata.fcstLen
                     FROM mdata

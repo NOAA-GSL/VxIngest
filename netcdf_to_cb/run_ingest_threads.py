@@ -312,6 +312,8 @@ class VXIngest:
             # NOTE: in future we may make this (ingest_document_id) a list
             # and start each VxIngestManager with its own ingest_document_id
             self.ingest_document_id = self.load_spec["ingest_document_id"]
+            # stash the fmask for future use
+            self.load_spec = self.fmask
             # establish connections to cb, collection
             self.connect_cb()
         except (RuntimeError, TypeError, NameError, KeyError):

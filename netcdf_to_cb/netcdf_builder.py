@@ -22,6 +22,7 @@ from datetime import datetime, timedelta
 import netCDF4 as nc
 import numpy.ma as ma
 
+
 def truncate_round(n, decimals=0):
     """
     Round a float to a specific number of places in an expected manner
@@ -33,6 +34,7 @@ def truncate_round(n, decimals=0):
     """
     multiplier = 10 ** decimals
     return int(n * multiplier) / multiplier
+
 
 def convert_to_iso(an_epoch):
     """
@@ -64,7 +66,7 @@ class NetcdfBuilder:  # pylint disable=too-many-instance-attributes
         self.an_id = None
         self.document_map = {}
         self.ncdf_data_set = None
-        self.station_names = []
+        self.stations = []
         self.file_name = None
         # self.do_profiling = True  # set to True to enable build_document profiling
         self.do_profiling = False
@@ -371,17 +373,17 @@ class NetcdfBuilder:  # pylint disable=too-many-instance-attributes
             self.file_name = os.path.basename(file_name)
             # pylint: disable=no-member
             self.ncdf_data_set = nc.Dataset(file_name)
-            if len(self.station_names) == 0:
+            if len(self.stations) == 0:
                 result = self.cluster.query(
-                    """SELECT raw name FROM mdata
-                    WHERE
-                    type = 'MD'
+                    """SELECT mdata.*
+                    FROM mdata
+                    WHERE type = 'MD'
                     AND docType = 'station'
                     AND subset = 'METAR'
-                    AND version = 'V01';
-                """
+                    AND version = 'V01';"""
                 )
-                self.station_names = list(result)
+                self.stations = list(result)
+
             self.initialize_document_map()
             logging.info(
                 "%s building documents for file %s", self.__class__.__name__, file_name
@@ -416,7 +418,9 @@ class NetcdfBuilder:  # pylint disable=too-many-instance-attributes
 
 
 # Concrete builders
-class NetcdfMetarObsBuilderV01(NetcdfBuilder): # pylint: disable=too-many-instance-attributes
+class NetcdfMetarObsBuilderV01(
+    NetcdfBuilder
+):  # pylint: disable=too-many-instance-attributes
     """
     This is the builder for observation data that is ingested from netcdf (madis) files
     """
@@ -430,7 +434,9 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder): # pylint: disable=too-many-instan
         for a specific station.
         If a station from a metar file does not exist in the couchbase database
         a station document will be created from the metar record data and
-        the station document will be added to the document map.
+        the station document will be added to the document map. If a station location has changed
+        the geo element will be updated to have an additional geo element that has the new location
+        and time bracket for the location.
         :param ingest_document: the document from the ingest document
         :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
         :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
@@ -569,7 +575,7 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder): # pylint: disable=too-many-instan
             )
             return None
 
-    def ceiling_transform(self, params_dict): # pylint: disable=too-many-locals
+    def ceiling_transform(self, params_dict):  # pylint: disable=too-many-locals
         """retrieves skyCover and skyLayerBase data and transforms it into a Ceiling value
         Args:
             params_dict (dict): named function parameters
@@ -587,9 +593,11 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder): # pylint: disable=too-many-instan
             mSCT = re.compile(".*SCT.*")  # pylint:disable=invalid-name
             mBKN = re.compile(".*BKN.*")  # Broken pylint:disable=invalid-name
             mOVC = re.compile(".*OVC.*")  # Overcast pylint:disable=invalid-name
-            mVV = re.compile(".*VV.*")  # Vertical Visibility pylint:disable=invalid-name
+            mVV = re.compile(
+                ".*VV.*"
+            )  # Vertical Visibility pylint:disable=invalid-name
             mask_array = ma.getmaskarray(skyLayerBase)
-            skyCover_array = ( # pylint:disable=invalid-name
+            skyCover_array = (  # pylint:disable=invalid-name
                 skyCover[1:-1].replace("'", "").split(" ")
             )
             # check for unmasked ceiling values - broken, overcast, vertical visibility - return associated skyLayerBase
@@ -603,11 +611,11 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder): # pylint: disable=too-many-instan
                     or mOVC.match(skyCover_array[index])
                     or mVV.match(skyCover_array[index])
                 ):
-                    return math.floor( # pylint: disable=c-extension-no-member
+                    return math.floor(  # pylint: disable=c-extension-no-member
                         skyLayerBase[index] * 3.281
                     )  # pylint:disable=c-extension-no-member
             # check for unmasked ceiling values - all the others - CLR, SKC, NSC, FEW, SCT - return 60000
-            for index in range( #pylint:disable=consider-using-enumerate
+            for index in range(  # pylint:disable=consider-using-enumerate
                 len(skyCover_array)
             ):  # pylint:disable=consider-using-enumerate
                 # 60000 is aldready feet
@@ -620,7 +628,7 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder): # pylint: disable=too-many-instan
                 ):
                     return 60000
             # nothing was unmasked - return 60000 if there is a ceiling value in skycover array (legacy)
-            for index in range( #pylint:disable=consider-using-enumerate
+            for index in range(  # pylint:disable=consider-using-enumerate
                 len(skyCover_array)
             ):  # pylint:disable=consider-using-enumerate
                 if (
@@ -869,22 +877,37 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder): # pylint: disable=too-many-instan
     def handle_station(self, params_dict):
         """
         This method uses the station name in the params_dict
-        to find a station with that name.
+        to find a station with that name from self.stations (which are all the station documents
+        from couchbase).
         If the station does not exist it will be created with data from the
-        netcdf file.
+        netcdf file. If the station exists the lat, lon, and elev from the netcdf file
+        will be compared to that in the existing station and if an update of the geo list is required it will be updated.
+        Any modified or newly created stations get added to the document_map and automatically upserted.
         :param params_dict: {station_name:a_station_name}
         :return:
         """
-        rec_num = params_dict["recNum"]
+        rec_num = params_dict["rec_num"]
         station_name = params_dict["stationName"]
         an_id = None
         netcdf = {}
-
+        fcst_valid_epoch = self.derive_valid_time_epoch(
+            {"file_name_pattern": self.load_spec["fmask"]}
+        )
         # noinspection PyBroadException
         try:
-            if station_name not in self.station_names:
+            # get the netcdf fields for comparing or adding new
+            netcdf = self.fill_from_netcdf(rec_num, netcdf)
+            elev = truncate_round(float(netcdf["elevation"]), 5)
+            lat = truncate_round(float(netcdf["latitude"]), 5)
+            lon = truncate_round(float(netcdf["longitude"]), 5)
+            station = None
+            station_index = None
+            for station_index in range(len(self.stations)):
+                if self.stations[station_index]["name"] == station_name:
+                    station = self.stations[station_index]
+                    break
+            if station is None:
                 # get the netcdf fields for comparing or adding new
-                netcdf = self.fill_from_netcdf(rec_num, netcdf)
                 logging.info(
                     "netcdfObsBuilderV01.handle_station - adding station %s",
                     netcdf["name"],
@@ -894,23 +917,80 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder): # pylint: disable=too-many-instan
                     "id": an_id,
                     "description": netcdf["description"],
                     "docType": "station",
-                    "firstTime": 0,
-                    "geo": {
-                        "elev": truncate_round(float(netcdf["elevation"]), 5),
-                        "lat": truncate_round(float(netcdf["latitude"]), 5),
-                        "lon": truncate_round(float(netcdf["longitude"]), 5),
-                    },
-                    "lastTime": 0,
+                    "geo": [
+                        {
+                            "firstTime": fcst_valid_epoch,
+                            "elev": elev,
+                            "lat": lat,
+                            "lon": lon,
+                            "lastTime": fcst_valid_epoch,
+                        }
+                    ],
                     "name": netcdf["name"],
                     "subset": "METAR",
                     "type": "MD",
                     "updateTime": int(time.time()),
                     "version": "V01",
                 }
-                # add the station to the document map
+                # add the new station to the document map with the new id
                 if not an_id in self.document_map.keys():
                     self.document_map[an_id] = new_station
-                self.station_names.append(station_name)
+                self.stations.append(new_station)
+            else:
+                # station does exist but is there a matching geo?
+                # if there is not a matching geo create a new geo
+                # if there is a matching geo then update the matching geo time range
+                matching_location = False
+                requires_new_geo = False
+                for geo_index in range(len(self.stations[station_index]["geo"])):
+                    geo = self.stations[station_index]["geo"][geo_index]
+                    if geo["lat"] == lat and geo["lon"] == lon and geo["elev"] == elev:
+                        matching_location = True
+                        break
+                if matching_location:
+                    # this station has a matching geo but does it contain our time or can it be updated?
+                    if (
+                        fcst_valid_epoch
+                        >= self.stations[station_index]["geo"][geo_index]["firstTime"]
+                        - self.cadence
+                        and fcst_valid_epoch
+                        <= self.stations[station_index]["geo"][geo_index]["lastTime"]
+                        + self.cadence
+                    ):
+                        # extend firstTime or lastTime
+                        if (
+                            fcst_valid_epoch
+                            <= self.stations[station_index]["geo"][geo_index][
+                                "firstTime"
+                            ]
+                        ):
+                            self.stations[station_index]["geo"][geo_index][
+                                "firstTime"
+                            ] = fcst_valid_epoch
+                        else:
+                            self.stations[station_index]["geo"][geo_index][
+                                "lastTime"
+                            ] = fcst_valid_epoch
+                    else:
+                        # This station requires a new geo because there is no contiguous time that can be extended
+                        requires_new_geo = True
+                else:
+                    # This station requires a new geo because there are no matching locations i.e. the location has changed
+                    requires_new_geo = True
+                if requires_new_geo:
+                    self.stations[station_index]["geo"].append(
+                        {
+                            "firstTime": fcst_valid_epoch,
+                            "elev": elev,
+                            "lat": lat,
+                            "lon": lon,
+                            "lastTime": fcst_valid_epoch,
+                        }
+                    )
+                # add the modified station to the document map with its existing id
+                self.stations[station_index]["updateTime"] = int(time.time())
+                an_id = self.stations[station_index]["id"]
+                self.document_map[an_id] = self.stations[station_index]
             return params_dict["stationName"]
         except Exception as _e:  # pylint:disable=broad-except
             logging.error(
@@ -921,7 +1001,10 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder): # pylint: disable=too-many-instan
             )
             return ""
 
-class NetcdfMetarLegacyObsBuilderV01(NetcdfMetarObsBuilderV01):# pylint: disable=too-many-instance-attributes
+
+class NetcdfMetarLegacyObsBuilderV01(
+    NetcdfMetarObsBuilderV01
+):  # pylint: disable=too-many-instance-attributes
     """
     This is the builder for observation data that is ingested from netcdf (madis) files
     with special regard for how data is loaded. The special data loading concerns the
@@ -943,7 +1026,9 @@ class NetcdfMetarLegacyObsBuilderV01(NetcdfMetarObsBuilderV01):# pylint: disable
         :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
         :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
         """
-        NetcdfMetarObsBuilderV01.__init__(self, load_spec, ingest_document, cluster, collection)
+        NetcdfMetarObsBuilderV01.__init__(
+            self, load_spec, ingest_document, cluster, collection
+        )
         self.cluster = cluster
         self.collection = collection
         self.same_time_rows = []
@@ -1002,20 +1087,24 @@ class NetcdfMetarLegacyObsBuilderV01(NetcdfMetarObsBuilderV01):# pylint: disable
             top_of_hour = doc["fcstValidEpoch"]
             if doc["data"][element["name"]]["Ceiling"] is None:
                 # the existing one is None so use the new one
-                ceiling_value = element['Ceiling']
+                ceiling_value = element["Ceiling"]
                 ceiling_reported_time = int(element["Reported Time"])
             else:
                 # existing is not None so we have to compare
                 if element["Ceiling"] is not None and abs(
-                    top_of_hour - element["Reported Time"]) < abs(
-                        top_of_hour - doc["data"][element["name"]]["Ceiling Reported Time"]):
+                    top_of_hour - element["Reported Time"]
+                ) < abs(
+                    top_of_hour - doc["data"][element["name"]]["Ceiling Reported Time"]
+                ):
                     # new element ceiling is closer than the existing one so use the new one
                     ceiling_value = element["Ceiling"]
                     ceiling_reported_time = int(element["Reported Time"])
                 else:
                     # existing ceiling value is closer than the new one so use the existing one
                     ceiling_value = doc["data"][element["name"]]["Ceiling"]
-                    ceiling_reported_time = doc["data"][element["name"]]["Ceiling Reported Time"]
+                    ceiling_reported_time = doc["data"][element["name"]][
+                        "Ceiling Reported Time"
+                    ]
             # is this data element closer to the fcstValidEpoch?
             if abs(top_of_hour - element["Reported Time"]) < abs(
                 top_of_hour - doc["data"][element["name"]]["Reported Time"]
@@ -1026,5 +1115,7 @@ class NetcdfMetarLegacyObsBuilderV01(NetcdfMetarObsBuilderV01):# pylint: disable
             # we might be keeping the existing data element and updating the Ceiling value
             # or vice versa
             doc["data"][element["name"]]["Ceiling"] = ceiling_value
-            doc["data"][element["name"]]["Ceiling Reported Time"] = ceiling_reported_time
+            doc["data"][element["name"]][
+                "Ceiling Reported Time"
+            ] = ceiling_reported_time
         return doc

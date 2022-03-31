@@ -65,12 +65,15 @@ class TestGribStationUtils(unittest.TestCase):
             self.transformer_reverse = pyproj.Transformer.from_proj(
                 proj_from=self.out_proj, proj_to=self.in_proj)
             # get stations from couchbase
+            fcst_valid_epoch = round(self.grbm.validDate.timestamp())
             self.domain_stations = []
             result = self.cluster.query(
-                "SELECT mdata.geo.lat, mdata.geo.lon, name from mdata where type='MD' and docType='station' and subset='METAR' and version='V01'")
+                "SELECT mdata.geo, name from mdata where type='MD' and docType='station' and subset='METAR' and version='V01'")
             for row in result:
+                # choose the geo whose timeframe includes this grib file init time
+                geo_index = self.get_geo_index(fcst_valid_epoch, row['geo'])
                 x, y = self.transformer.transform(
-                    row['lon'], row['lat'], radians=False)
+                    row['geo'][geo_index]['lon'], row['geo'][geo_index]['lat'], radians=False)
                 x_stat, y_stat = x/self.spacing, y/self.spacing
                 if x_stat < 0 or x_stat > max_x or y_stat < 0 or y_stat > max_y:
                     continue
@@ -79,3 +82,19 @@ class TestGribStationUtils(unittest.TestCase):
                 result.buffered_rows), "station query result and domain_station length are the same - no filtering?")
         except Exception as e:
             self.fail("TestGsdIngestManager Exception failure: " + str(e))
+
+    def get_geo_index(self, fcst_valid_epoch, geo):
+        latest_time = 0
+        latest_index = 0
+        for geo_index in range(len(geo)):
+            if geo[geo_index]['lastTime'] > latest_time:
+                latest_time = geo[geo_index]['lastTime']
+                latest_index = geo_index
+            found = False
+            if geo[geo_index]['firstTime'] >= fcst_valid_epoch and fcst_valid_epoch <= geo[geo_index]['lastTime']:
+                found = True
+                break
+        if found:
+            return geo_index
+        else:
+            return latest_index

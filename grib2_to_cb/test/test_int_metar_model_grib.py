@@ -4,7 +4,7 @@ import json
 import math
 import os
 import sys
-import datetime
+import datetime as DT
 import unittest
 from glob import glob
 import grib2_to_cb.get_grid as gg
@@ -26,6 +26,25 @@ class TestGribBuilderV01(unittest.TestCase):
     """
     # 21 196 14 000018 %y %j %H %f  treating the last 6 decimals as microseconds even though they are not.
     # these files are two digit year, day of year, hour, and forecast lead time (6 digit ??)
+    def get_geo_index(self, fcst_valid_epoch, geo):
+        latest_time = 0
+        latest_index = 0
+        try:
+            for geo_index in range(len(geo)):
+                if geo[geo_index]['lastTime'] > latest_time:
+                    latest_time = geo[geo_index]['lastTime']
+                    latest_index = geo_index
+                found = False
+                if geo[geo_index]['firstTime'] >= fcst_valid_epoch and fcst_valid_epoch <= geo[geo_index]['lastTime']:
+                    found = True
+                    break
+            if found:
+                return geo_index
+            else:
+                return latest_index
+        except Exception as _e:  # pylint: disable=bare-except, disable=broad-except
+                print("GribBuilder.get_geo_index: Exception  error: %s", str(_e))
+                return 0
 
     def test_compare_model_to_mysql(self):
         """This test attempts to find recent models that match in both the mysql and the CB
@@ -1399,8 +1418,10 @@ class TestGribBuilderV01(unittest.TestCase):
                             'file_name_mask': '%y%j%H%f',
                             'output_dir': '/opt/data/grib2_to_cb/output/test3',
                             'threads': 1,
-                            'file_pattern': '21287230000[0123456789]?'
+                            'file_pattern': '212872300000[012]'
                             })
+                            #'file_pattern': '21287230000[0123456789]?'
+
             list_of_output_files = glob('/opt/data/grib2_to_cb/output/test3/[0123456789]????????????.json')
             latest_output_file = max(
                 list_of_output_files, key=os.path.getctime)
@@ -1423,10 +1444,11 @@ class TestGribBuilderV01(unittest.TestCase):
             self.collection = self.cluster.bucket("mdata").default_collection()
 
             # Grab the projection information from the test file
-            latest_input_file = "/opt/public/data/grids/hrrr/conus/wrfprs/grib2/" + os.path.basename("/opt/data/grib2_to_cb/output/test3/2128723000018.json").split('.')[0]
+            latest_input_file = "/opt/public/data/grids/hrrr/conus/wrfprs/grib2/" + os.path.basename("/opt/data/grib2_to_cb/output/test3/2128723000002.json").split('.')[0]
             self.projection = gg.getGrid(latest_input_file)
             self.grbs = pygrib.open(latest_input_file)
             self.grbm = self.grbs.message(1)
+            fcst_valid_epoch = round(self.grbm.validDate.timestamp())
             self.spacing, max_x, max_y = gg.getAttributes(latest_input_file)
 
             self.assertEqual(self.projection.description, 'PROJ-based coordinate operation',
@@ -1442,26 +1464,27 @@ class TestGribBuilderV01(unittest.TestCase):
             for i in vxIngest_output_data[0]['data']:
                 station_name = i['name']
                 result = self.cluster.query(
-                    "SELECT mdata.geo.lat, mdata.geo.lon from mdata where type='MD' and docType='station' and subset='METAR' and version='V01' and mdata.name = $name",
+                    "SELECT mdata.geo from mdata where type='MD' and docType='station' and subset='METAR' and version='V01' and mdata.name = $name",
                     name=station_name)
                 row = result.get_single_result()
-                i['lat'] = row['lat']
-                i['lon'] = row['lon']
+                geo_index = self.get_geo_index(fcst_valid_epoch,row['geo'])
+                i['lat'] = row['geo'][geo_index]['lat']
+                i['lon'] = row['geo'][geo_index]['lon']
                 x, y = self.transformer.transform(
-                    row['lon'], row['lat'], radians=False)
+                    row['geo'][geo_index]['lon'], row['geo'][geo_index]['lat'], radians=False)
                 x_gridpoint, y_gridpoint = x/self.spacing, y/self.spacing
                 if x_gridpoint < 0 or x_gridpoint > max_x or y_gridpoint < 0 or y_gridpoint > max_y:
                     continue
                 station = copy.deepcopy(row)
-                station['x_gridpoint'] = x_gridpoint
-                station['y_gridpoint'] = y_gridpoint
+                station['geo'][geo_index]['x_gridpoint'] = x_gridpoint
+                station['geo'][geo_index]['y_gridpoint'] = y_gridpoint
                 station['name'] = station_name
                 self.domain_stations.append(station)
 
-            expected_station_data['fcstValidEpoch'] = round(self.grbm.validDate.timestamp())
+            expected_station_data['fcstValidEpoch'] = fcst_valid_epoch
             self.assertEqual(expected_station_data['fcstValidEpoch'], vxIngest_output_data[0]['fcstValidEpoch'],
                              "expected fcstValidEpoch and derived fcstValidEpoch are not the same")
-            expected_station_data['fcstValidISO'] = self.grbm.validDate.isoformat()
+            expected_station_data['fcstValidISO'] = DT.datetime.fromtimestamp(fcst_valid_epoch).isoformat()
             self.assertEqual(expected_station_data['fcstValidISO'], vxIngest_output_data[0]['fcstValidISO'],
                              "expected fcstValidISO and derived fcstValidISO are not the same")
             expected_station_data['id'] = "DD-TEST:V01:METAR:HRRR_OPS:" + str(expected_station_data['fcstValidEpoch']) + ":" + str(
@@ -1479,10 +1502,11 @@ class TestGribBuilderV01(unittest.TestCase):
 
             for i in range(len(self.domain_stations)):
                 station = self.domain_stations[i]
+                geo_index = self.get_geo_index(fcst_valid_epoch,station['geo'])
                 surface = surface_hgt_values[round(
-                    station['y_gridpoint']), round(station['x_gridpoint'])]
+                    station['geo'][geo_index]['y_gridpoint']), round(station['geo'][geo_index]['x_gridpoint'])]
                 ceil_msl = ceil_values[round(
-                    station['y_gridpoint']), round(station['x_gridpoint'])]
+                    station['geo'][geo_index]['y_gridpoint']), round(station['geo'][geo_index]['x_gridpoint'])]
                 # Convert to ceiling AGL and from meters to tens of feet (what is currently inside SQL, we'll leave it as just feet in CB)
                 ceil_agl = (ceil_msl - surface) * 3.281
 
@@ -1499,11 +1523,12 @@ class TestGribBuilderV01(unittest.TestCase):
             values = message['values']
             for i in range(len(self.domain_stations)):
                 station = self.domain_stations[i]
-                value = values[round(station['y_gridpoint']), round(
-                    station['x_gridpoint'])]
+                geo_index = self.get_geo_index(fcst_valid_epoch,station['geo'])
+                value = values[round(station['geo'][geo_index]['y_gridpoint']), round(
+                    station['geo'][geo_index]['x_gridpoint'])]
                 # interpolated gridpoints cannot be rounded
                 interpolated_value = gg.interpGridBox(
-                    values, station['y_gridpoint'], station['x_gridpoint'])
+                    values, station['geo'][geo_index]['y_gridpoint'], station['geo'][geo_index]['x_gridpoint'])
                 pres_mb = interpolated_value / 100
                 expected_station_data['data'][i]['Surface Pressure'] = pres_mb if not np.ma.is_masked(pres_mb) else None
 
@@ -1512,8 +1537,9 @@ class TestGribBuilderV01(unittest.TestCase):
             values = message['values']
             for i in range(len(self.domain_stations)):
                 station = self.domain_stations[i]
+                geo_index = self.get_geo_index(fcst_valid_epoch,station['geo'])
                 tempk = gg.interpGridBox(
-                    values, station['y_gridpoint'], station['x_gridpoint'])
+                    values, station['geo'][geo_index]['y_gridpoint'], station['geo'][geo_index]['x_gridpoint'])
                 tempf = ((tempk-273.15)*9)/5 + 32
                 expected_station_data['data'][i]['Temperature'] = tempf if not np.ma.is_masked(tempf) else None
 
@@ -1522,8 +1548,9 @@ class TestGribBuilderV01(unittest.TestCase):
             values = message['values']
             for i in range(len(self.domain_stations)):
                 station = self.domain_stations[i]
+                geo_index = self.get_geo_index(fcst_valid_epoch,station['geo'])
                 dpk = gg.interpGridBox(
-                    values, station['y_gridpoint'], station['x_gridpoint'])
+                    values, station['geo'][geo_index]['y_gridpoint'], station['geo'][geo_index]['x_gridpoint'])
                 dpf = ((dpk-273.15)*9)/5 + 32
                 expected_station_data['data'][i]['DewPoint'] = dpf if not np.ma.is_masked(dpf) else None
 
@@ -1532,8 +1559,9 @@ class TestGribBuilderV01(unittest.TestCase):
             values = message['values']
             for i in range(len(self.domain_stations)):
                 station = self.domain_stations[i]
+                geo_index = self.get_geo_index(fcst_valid_epoch,station['geo'])
                 rh = gg.interpGridBox(
-                    values, station['y_gridpoint'], station['x_gridpoint'])
+                    values, station['geo'][geo_index]['y_gridpoint'], station['geo'][geo_index]['x_gridpoint'])
                 expected_station_data['data'][i]['RH'] = rh if not np.ma.is_masked(rh) else None
 
             # Wind Speed
@@ -1546,10 +1574,11 @@ class TestGribBuilderV01(unittest.TestCase):
 
             for i in range(len(self.domain_stations)):
                 station = self.domain_stations[i]
+                geo_index = self.get_geo_index(fcst_valid_epoch,station['geo'])
                 uwind_ms = gg.interpGridBox(
-                    uwind_values, station['y_gridpoint'], station['x_gridpoint'])
+                    uwind_values, station['geo'][geo_index]['y_gridpoint'], station['geo'][geo_index]['x_gridpoint'])
                 vwind_ms = gg.interpGridBox(
-                    vwind_values, station['y_gridpoint'], station['x_gridpoint'])
+                    vwind_values, station['geo'][geo_index]['y_gridpoint'], station['geo'][geo_index]['x_gridpoint'])
                 # Convert from U-V components to speed and direction (requires rotation if grid is not earth relative)
                 # wind speed then convert to mph
                 ws_ms = math.sqrt((uwind_ms*uwind_ms)+(vwind_ms*vwind_ms))
@@ -1558,7 +1587,7 @@ class TestGribBuilderV01(unittest.TestCase):
 
                 # wind direction   - lon is the lon of the station
                 station = self.domain_stations[i]
-                theta = gg.getWindTheta(vwind_message, station['lon'])
+                theta = gg.getWindTheta(vwind_message, station['geo'][geo_index]['lon'])
                 radians = math.atan2(uwind_ms, vwind_ms)
                 wd = (radians*57.2958) + theta + 180
                 # adjust for outliers
@@ -1574,8 +1603,9 @@ class TestGribBuilderV01(unittest.TestCase):
             values = message['values']
             for i in range(len(self.domain_stations)):
                 station = self.domain_stations[i]
-                value = values[round(station['y_gridpoint']), round(
-                    station['x_gridpoint'])]
+                geo_index = self.get_geo_index(fcst_valid_epoch,station['geo'])
+                value = values[round(station['geo'][geo_index]['y_gridpoint']), round(
+                    station['geo'][geo_index]['x_gridpoint'])]
                 expected_station_data['data'][i]['Visibility'] = value / 1609.344 if not np.ma.is_masked(value) else None
             self.grbs.close()
 

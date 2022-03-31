@@ -38,7 +38,25 @@ def initialize_data(doc):
         del doc["data"]
     return doc
 
-
+def get_geo_index(fcst_valid_epoch, geo):
+    latest_time = 0
+    latest_index = 0
+    try:
+        for geo_index in range(len(geo)):
+            if geo[geo_index]['lastTime'] > latest_time:
+                latest_time = geo[geo_index]['lastTime']
+                latest_index = geo_index
+            found = False
+            if geo[geo_index]['firstTime'] >= fcst_valid_epoch and fcst_valid_epoch <= geo[geo_index]['lastTime']:
+                found = True
+                break
+        if found:
+            return geo_index
+        else:
+            return latest_index
+    except Exception as _e:  # pylint: disable=bare-except, disable=broad-except
+            logging.error("GribBuilder.get_geo_index: Exception  error: %s", str(_e))
+            return 0
 class GribBuilder:  # pylint: disable=too-many-arguments
     """parent class for grib builders"""
 
@@ -156,12 +174,14 @@ class GribBuilder:  # pylint: disable=too-many-arguments
                     values = message["values"]
                     for station in self.domain_stations:
                         # get the individual station value and interpolated value
+                        fcst_valid_epoch = round(message.validDate.timestamp())
+                        geo_index = get_geo_index(fcst_valid_epoch,station['geo'])
                         station_value = values[
-                            round(station["y_gridpoint"]), round(station["x_gridpoint"])
+                            round(station['geo'][geo_index]["y_gridpoint"]), round(station['geo'][geo_index]["x_gridpoint"])
                         ]
                         # interpolated gridpoints cannot be rounded
                         interpolated_value = gg.interpGridBox(
-                            values, station["y_gridpoint"], station["x_gridpoint"]
+                            values, station['geo'][geo_index]["y_gridpoint"], station['geo'][geo_index]["x_gridpoint"]
                         )
                         # convert each station value to iso if necessary
                         if _ri.startswith("{ISO}"):
@@ -406,11 +426,11 @@ class GribBuilder:  # pylint: disable=too-many-arguments
             # that we retain only the ones for this models domain which is derived from the projection
             # NOTE: this is not about regions, this is about models
             self.domain_stations = []
-            limit_clause = ""
+            limit_clause = ";"
             if self.number_stations != sys.maxsize:
-                limit_clause = " limit {l}".format(l=self.number_stations)
+                limit_clause = " limit {l};".format(l=self.number_stations)
             result = self.cluster.query(
-                """SELECT mdata.geo.lat, mdata.geo.lon, name
+                """SELECT mdata.geo, name
                     from mdata
                     where type='MD'
                     and docType='station'
@@ -422,33 +442,36 @@ class GribBuilder:  # pylint: disable=too-many-arguments
                 )
             )
             for row in result:
-                if row["lat"] == -90 and row["lon"] == 180:
-                    # TODO need to fix this
-                    continue  # don't know how to transform that station
-                _x, _y = self.transformer.transform(
-                    row["lon"], row["lat"], radians=False
-                )
-                x_gridpoint, y_gridpoint = _x / self.spacing, _y / self.spacing
-                try:
-                    # pylint: disable=c-extension-no-member
-                    if (
-                        math.floor(x_gridpoint) < 0
-                        or math.ceil(x_gridpoint) >= max_x
-                        or math.floor(y_gridpoint) < 0
-                        or math.ceil(y_gridpoint) >= max_y
-                    ):
-                        continue
-                except Exception as _e:  # pylint: disable=broad-except
-                    logging.error(
-                        "%s: Exception with builder build_document processing station: error: %s",
-                        self.__class__.__name__,
-                        str(_e),
+                for geo_index in range(len(row['geo'])):
+                    lat = row['geo'][geo_index]['lat']
+                    lon = row['geo'][geo_index]['lon']
+                    if lat == -90 and lon == 180:
+                        # TODO need to fix this
+                        continue  # don't know how to transform that station
+                    _x, _y = self.transformer.transform(
+                        lon, lat, radians=False
                     )
-                    continue
-                station = copy.deepcopy(row)
-                station["x_gridpoint"] = x_gridpoint
-                station["y_gridpoint"] = y_gridpoint
-                self.domain_stations.append(station)
+                    x_gridpoint, y_gridpoint = _x / self.spacing, _y / self.spacing
+                    try:
+                        # pylint: disable=c-extension-no-member
+                        if (
+                            math.floor(x_gridpoint) < 0
+                            or math.ceil(x_gridpoint) >= max_x
+                            or math.floor(y_gridpoint) < 0
+                            or math.ceil(y_gridpoint) >= max_y
+                        ):
+                            continue
+                    except Exception as _e:  # pylint: disable=broad-except
+                        logging.error(
+                            "%s: Exception with builder build_document processing station: error: %s",
+                            self.__class__.__name__,
+                            str(_e),
+                        )
+                        continue
+                    station = copy.deepcopy(row)
+                    station['geo'][geo_index]["x_gridpoint"] = x_gridpoint
+                    station['geo'][geo_index]["y_gridpoint"] = y_gridpoint
+                    self.domain_stations.append(station)
 
             # if we have asked for profiling go ahead and do it
             if self.do_profiling:
@@ -652,20 +675,24 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
             message = self.grbs.select(name="Orography")[0]
             values = message["values"]
             surface_values = []
+            # TODO does this make sense????
+            fcst_valid_epoch = round(message.validDate.timestamp())
             for station in self.domain_stations:
-                x_gridpoint = round(station["x_gridpoint"])
-                y_gridpoint = round(station["y_gridpoint"])
+                geo_index = get_geo_index(fcst_valid_epoch, station['geo'])
+                x_gridpoint = round(station['geo'][geo_index]["x_gridpoint"])
+                y_gridpoint = round(station['geo'][geo_index]["y_gridpoint"])
                 surface_values.append(values[y_gridpoint, x_gridpoint])
 
             message = self.grbs.select(
                 name="Geopotential Height", typeOfFirstFixedSurface="215"
             )[0]
             values = message["values"]
-
+            fcst_valid_epoch = round(message.validDate.timestamp())
             ceil_msl_values = []
             for station in self.domain_stations:
-                x_gridpoint = round(station["x_gridpoint"])
-                y_gridpoint = round(station["y_gridpoint"])
+                geo_index = get_geo_index(fcst_valid_epoch, station['geo'])
+                x_gridpoint = round(station['geo'][geo_index]["x_gridpoint"])
+                y_gridpoint = round(station['geo'][geo_index]["y_gridpoint"])
                 # what do we do with a masked ceiling value?
                 if not numpy.ma.is_masked(values[y_gridpoint, x_gridpoint]):
                     ceil_msl_values.append(values[y_gridpoint, x_gridpoint])
@@ -788,18 +815,22 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
         # interpolated value cannot use rounded gridpoints
         message = self.grbs.select(name="10 metre U wind component")[0]
         values = message["values"]
+        fcst_valid_epoch = round(message.validDate.timestamp())
         uwind_ms_values = []
         for station in self.domain_stations:
-            x_gridpoint = station["x_gridpoint"]
-            y_gridpoint = station["y_gridpoint"]
+            geo_index = get_geo_index(fcst_valid_epoch, station['geo'])
+            x_gridpoint = station['geo'][geo_index]["x_gridpoint"]
+            y_gridpoint = station['geo'][geo_index]["y_gridpoint"]
             uwind_ms_values.append(gg.interpGridBox(values, y_gridpoint, x_gridpoint))
 
         message = self.grbs.select(name="10 metre V wind component")[0]
         values = message["values"]
+        fcst_valid_epoch = round(message.validDate.timestamp())
         vwind_ms_values = []
         for station in self.domain_stations:
-            x_gridpoint = station["x_gridpoint"]
-            y_gridpoint = station["y_gridpoint"]
+            geo_index = get_geo_index(fcst_valid_epoch, station['geo'])
+            x_gridpoint = station['geo'][geo_index]["x_gridpoint"]
+            y_gridpoint = station['geo'][geo_index]["y_gridpoint"]
             vwind_ms_values.append(gg.interpGridBox(values, y_gridpoint, x_gridpoint))
         # Convert from U-V components to speed and direction (requires rotation if grid is not earth relative)
         # wind speed then convert to mph
@@ -833,19 +864,23 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
         """
         uwind_message = self.grbs.select(name="10 metre U wind component")[0]
         u_values = uwind_message["values"]
+        fcst_valid_epoch = round(uwind_message.validDate.timestamp())
         uwind_ms = []
         for station in self.domain_stations:
-            x_gridpoint = station["x_gridpoint"]
-            y_gridpoint = station["y_gridpoint"]
+            geo_index = get_geo_index(fcst_valid_epoch, station['geo'])
+            x_gridpoint = station['geo'][geo_index]["x_gridpoint"]
+            y_gridpoint = station['geo'][geo_index]["y_gridpoint"]
             # interpolated value cannot use rounded gridpoints
             uwind_ms.append(gg.interpGridBox(u_values, y_gridpoint, x_gridpoint))
 
         vwind_message = self.grbs.select(name="10 metre V wind component")[0]
         v_values = vwind_message["values"]
+        fcst_valid_epoch = round(vwind_message.validDate.timestamp())
         vwind_ms = []
         for station in self.domain_stations:
-            x_gridpoint = station["x_gridpoint"]
-            y_gridpoint = station["y_gridpoint"]
+            geo_index = get_geo_index(fcst_valid_epoch, station['geo'])
+            x_gridpoint = station['geo'][geo_index]["x_gridpoint"]
+            y_gridpoint = station['geo'][geo_index]["y_gridpoint"]
             vwind_ms.append(gg.interpGridBox(v_values, y_gridpoint, x_gridpoint))
 
         _wd = []
@@ -853,7 +888,8 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
             # theta = gg.getWindTheta(vwind_message, station['lon'])
             # radians = math.atan2(uwind_ms, vwind_ms)
             # wd = (radians*57.2958) + theta + 180
-            longitude = self.domain_stations[i]["lon"]
+            geo_index = get_geo_index(fcst_valid_epoch, station['geo'])
+            longitude = self.domain_stations[i]["geo"][geo_index]["lon"]
             theta = gg.getWindTheta(vwind_message, longitude)
             radians = math.atan2(
                 uwind_ms[i], vwind_ms[i]
@@ -889,8 +925,7 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
             int: epoch
         """
         # validTime = grbs[1].validate -> 2021-07-12 15:00:00
-        valid_time = self.grbm.validDate
-        return round(valid_time.timestamp())
+        return round(self.grbm.validDate.timestamp())
 
     def handle_iso_time(self, params_dict):  # pylint: disable=unused-argument
         """return the time variable as an iso

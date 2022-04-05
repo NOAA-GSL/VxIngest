@@ -209,6 +209,7 @@ class TestGribBuilderV01(unittest.TestCase):
                 AND m0.fcst_len IN (""" + format_strings + ") ORDER BY m0.fcst_len;"
                 cursor.execute(statement, tuple(params))
                 mysql_model_values_tmp = cursor.fetchall()
+
                 mysql_model_fcst_len = [v["fcst_len"] for v in mysql_model_values_tmp]
                 mysql_model_press = [v["press"] / 10 for v in mysql_model_values_tmp]
                 mysql_model_temp = [v["temp"] / 10 for v in mysql_model_values_tmp]
@@ -246,8 +247,16 @@ class TestGribBuilderV01(unittest.TestCase):
                     if len(mysql_model_visibility_values_tmp) > 0
                     else None
                 )
-
                 # now we have values for this time for each fcst_len, iterate the fcst_len and assert each value
+                # recalculate the intersection because there may have been mysql forecast lengths that did not have values
+                # note the mysql_model_fcst_len instead of mysql_model_fcst_lens
+                intersect_fcst_len = [
+                    value for value in mysql_model_fcst_len if value in cb_model_fcst_lens
+                ]
+                if len(intersect_fcst_len) == 0:
+                    # no fcst_len in common
+                    continue
+
                 intersect_data_dict = {}
                 for i in intersect_fcst_len:
                     intersect_data_dict[i] = {}

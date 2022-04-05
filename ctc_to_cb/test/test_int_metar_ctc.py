@@ -130,14 +130,16 @@ class TestCTCBuilderV01(unittest.TestCase):
                 """
             )
             for row in result:
-                # use the builder geosearch to get the station list
+                # use the builder geosearch to get the station list - just use current epoch
                 stations = sorted(
-                    builder.get_stations_for_region_by_geosearch(row["name"])
+                    #builder.get_stations_for_region_by_geosearch(row["name"],round(time.time()))
+                    builder.get_stations_for_region_by_sort(row["name"], round(time.time()))
                 )
                 # get the legacy station list from the test document (this came from mysql)
-                classic_station_id = "MD-TEST:V01:CLASSIC_STATIONS:" + row["name"]
-                doc = collection.get(classic_station_id.strip())
-                classic_stations = sorted(doc.content["stations"])
+                #classic_station_id = "MD-TEST:V01:CLASSIC_STATIONS:" + row["name"]
+                #doc = collection.get(classic_station_id.strip())
+                #classic_stations = sorted(doc.content["stations"])
+                classic_stations = builder.get_legacy_stations_for_region(row["name"])
                 stations_difference = [
                     i
                     for i in classic_stations + stations
@@ -151,7 +153,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                     + " stations symmetric_difference is "
                     + str(stations_difference)
                 )
-                # self.assertTrue (len(stations_symmetric_difference) < 100, "symetric difference between expected and actual greater than 100")
+                self.assertTrue (len(stations_difference) < 100, "difference between expected and actual greater than 100")
         except Exception as e:
             self.fail("TestGsdIngestManager Exception failure: " + str(e))
 
@@ -382,7 +384,8 @@ class TestCTCBuilderV01(unittest.TestCase):
             )
         else:
             legacy_stations = sorted(
-                builder.get_stations_for_region_by_geosearch(region)
+#                builder.get_stations_for_region_by_geosearch(region, epoch)
+                builder.get_stations_for_region_by_sort(region, epoch)
             )
             obs_id = "DD:V01:{subset}:obs:{fcst_valid_epoch}".format(
                 subset=subset, fcst_valid_epoch=epoch
@@ -626,11 +629,11 @@ class TestCTCBuilderV01(unittest.TestCase):
                             reject_stations=name_diffs
                         )
 
-                    self.assertEqual(
-                        len(self.mysql_model_obs_data),
-                        len(self.cb_model_obs_data),
-                        "model_obs_data are not the same length",
-                    )
+                    # self.assertEqual(
+                    #     len(self.mysql_model_obs_data),
+                    #     len(self.cb_model_obs_data),
+                    #     "model_obs_data are not the same length",
+                    # )
                     for r in range(len(self.mysql_model_obs_data)):
                         delta = round(
                             (
@@ -830,7 +833,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                             epoch=elem["fcstValidEpoch"],
                             fcst_len=i,
                             threshold=int(t) / 10,
-                            model="HRRR_OPS",
+                            model="HRRR_OPS_LEGACY",
                             region="ALL_HRRR",
                             obs_table="obs",
                             reject_stations=name_diffs
@@ -930,8 +933,8 @@ class TestCTCBuilderV01(unittest.TestCase):
                     "credentials_file": credentials_file,
                     "output_dir": outdir,
                     "threads": 1,
-                    "first_epoch": 1639389600,
-                    "last_epoch": 1639389600 + 3600,
+                    "first_epoch": 1642118400,
+                    "last_epoch": 1642118400 + 3600,
                 }
             )
             list_of_output_files = glob.glob(
@@ -988,7 +991,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                         epoch=elem["fcstValidEpoch"],
                         fcst_len=i,
                         threshold=int(t),
-                        model="HRRR_OPS",
+                        model="HRRR_OPS_LEGACY_RETRO",
                         subset="METAR_LEGACY_RETRO",
                         region="ALL_HRRR",
                     )
@@ -996,7 +999,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                         epoch=elem["fcstValidEpoch"],
                         fcst_len=i,
                         threshold=int(t) / 10,
-                        model="HRRR_OPS_legacy_RETRO",
+                        model="HRRR_OPS_LEGACY_retro",
                         region="ALL_HRRR",
                         obs_table="obs_retro"
                     )
@@ -1287,7 +1290,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                         subset="METAR",
                         region="ALL_HRRR",
                         fcst_len=i,
-                        threshold=int(t),
+                        threshold=int(t)
                     )
                     if cb_ctc is None:
                         print(
@@ -1335,7 +1338,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                         region="ALL_HRRR",
                         fcst_len=i,
                         threshold=int(t),
-                        station_diffs=name_diffs,
+                        reject_stations=name_diffs
                     )
                     try:
                         self.assertEqual(
@@ -1493,7 +1496,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                         AND mdata.model='{model}'
                         AND mdata.version='V01'
                         AND mdata.subset='{subset}'""".format(
-                    model="HRRR_OPS_LEGACY", subset="METAR_LEGACY"
+                    model="HRRR_OPS", subset="METAR"
                 )
             )
             cb_model_fcst_valid_epochs = list(result)
@@ -1662,7 +1665,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                         region="ALL_HRRR",
                         fcst_len=i,
                         threshold=int(t),
-                        station_diffs=name_diffs,
+                        reject_stations=name_diffs
                     )
                     try:
                         self.assertEqual(

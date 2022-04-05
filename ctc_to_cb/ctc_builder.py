@@ -36,7 +36,25 @@ def initialize_data(doc):
         del doc["data"]
     return doc
 
-
+def get_geo_index(fcst_valid_epoch, geo):
+    latest_time = 0
+    latest_index = 0
+    try:
+        for geo_index in range(len(geo)):
+            if geo[geo_index]['lastTime'] > latest_time:
+                latest_time = geo[geo_index]['lastTime']
+                latest_index = geo_index
+            found = False
+            if geo[geo_index]['firstTime'] >= fcst_valid_epoch and fcst_valid_epoch <= geo[geo_index]['lastTime']:
+                found = True
+                break
+        if found:
+            return geo_index
+        else:
+            return latest_index
+    except Exception as _e:  # pylint: disable=bare-except, disable=broad-except
+            logging.error("GribBuilder.get_geo_index: Exception  error: %s", str(_e))
+            return 0
 class CTCBuilder:  # pylint:disable=too-many-instance-attributes
     """
     1) find all the stations for the region for this ingest (model and region)
@@ -330,6 +348,16 @@ class CTCBuilder:  # pylint:disable=too-many-instance-attributes
                 try:
                     self.obs_data = {}
                     self.obs_station_names = []
+                    try:
+                        full_station_name_list = self.get_stations_for_region_by_geosearch(self.region, fve)
+                        self.domain_stations = full_station_name_list
+                    except Exception as _e:  # pylint: disable=broad-except
+                        logging.error(
+                            "%s: Exception with builder build_document: error: %s",
+                            self.__class__.__name__,
+                            str(_e),
+                        )
+
                     # get the models and obs for this fve
                     # remove the fcstLen part
                     obs_id = re.sub(":" + str(fve["fcstLen"]) + "$", "", fve["id"])
@@ -412,15 +440,6 @@ class CTCBuilder:  # pylint:disable=too-many-instance-attributes
             # reset the builders document_map for a new file
             self.initialize_document_map()
             self.not_found_station_count = 0
-            try:
-                full_station_name_list = self.get_stations_for_region_by_geosearch(self.region)
-                self.domain_stations = full_station_name_list
-            except Exception as _e:  # pylint: disable=broad-except
-                logging.error(
-                    "%s: Exception with builder build_document: error: %s",
-                    self.__class__.__name__,
-                    str(_e),
-                )
 
             # First get the latest fcstValidEpoch for the ctc's for this model and region.
             result = self.cluster.query(
@@ -517,7 +536,9 @@ class CTCBuilder:  # pylint:disable=too-many-instance-attributes
             )
             return {}
 
-    def get_stations_for_region_by_geosearch(self, region_name):
+    def get_stations_for_region_by_geosearch(self, region_name, valid_epoch):
+        # NOTE: this is currently broken because geosearch currently does not know how to
+        # search through a collection of points
         """Using a geosearh return all the stations within the defined region
         Args:
             region_name (string): the name of the region.
@@ -585,7 +606,7 @@ class CTCBuilder:  # pylint:disable=too-many-instance-attributes
             )
             return []
 
-    def get_stations_for_region_by_sort(self, region_name):
+    def get_stations_for_region_by_sort(self, region_name, valid_epoch):
         """Using a lat/lon filter return all the stations within the defined region
         Args:
             region_name (string): the name of the region.
@@ -613,8 +634,7 @@ class CTCBuilder:  # pylint:disable=too-many-instance-attributes
             # get the stations that are within this boundingbox - this metadata is always subset METAR
             result = self.cluster.query(
                 """SELECT
-                    mdata.geo.lat,
-                    mdata.geo.lon,
+                    mdata.geo,
                     name
                     from mdata
                     where type='MD'
@@ -624,11 +644,12 @@ class CTCBuilder:  # pylint:disable=too-many-instance-attributes
                 read_only=True,
             )
             for row in result:
-                rlat = row["lat"]
+                geo_index = get_geo_index(valid_epoch, row['geo'])
+                rlat = row["geo"][geo_index]["lat"]
                 bb_br_lat = _boundingbox["br_lat"]
                 bb_tl_lat = _boundingbox["tl_lat"]
 
-                rlon = row["lon"] if row["lon"] <= 180 else row["lon"] - 360
+                rlon = row["geo"][geo_index]["lon"] if row["geo"][geo_index]["lon"] <= 180 else row["geo"][geo_index]["lon"] - 360
                 bb_br_lon = (
                     _boundingbox["br_lon"]
                     if _boundingbox["br_lon"] <= 180
@@ -925,6 +946,8 @@ class CTCModelObsBuilderLegacyV01(CTCModelObsBuilderV01):
                     obs_id_parts[2] = self.subset
                     obs_id = ":".join(obs_id_parts)
                     try:
+                        _obs_doc = self.collection.get(obs_id)
+                        self.obs_data = _obs_doc.content
                         _model_doc = self.collection.get(fve["id"])
                         self.model_data = _model_doc.content
                     except Exception as _e:  # pylint: disable=broad-except
@@ -935,31 +958,7 @@ class CTCModelObsBuilderLegacyV01(CTCModelObsBuilderV01):
                         )
 
                     logging.info("Looking up observation document: %s", obs_id)
-                    try:
-                        # I don't really know how I can get here with _obs_data AND
-                        # _obs_data['id'] != obs_id and still no self.obs_data
-                        # but it does happen and it results in documents
-                        # that have 0 hits, misses, false_alarms etc
-                        # It might be from duplicate ids but it must be handled
-                        # so  "or not self.obs_data"
-                        if (
-                            not _obs_data
-                            or (_obs_data["id"] != obs_id)
-                            or not self.obs_data
-                        ):
-                            _obs_doc = self.collection.get(obs_id)
-                            _obs_data = _obs_doc.content
-                            for entry in _obs_data["data"]:
-                                self.obs_data[entry["name"]] = entry
-                                self.obs_station_names.append(entry["name"])
-                            self.obs_station_names.sort()
-                        self.handle_document()
-                    except Exception as _e:  # pylint: disable=broad-except
-                        logging.error(
-                            "%s Error getting obs document: %s",
-                            self.__class__.__name__,
-                            str(_e),
-                        )
+                    self.handle_document()
 
                 except DocumentNotFoundException:
                     logging.info(

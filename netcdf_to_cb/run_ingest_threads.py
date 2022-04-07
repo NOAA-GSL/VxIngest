@@ -233,7 +233,7 @@ class VXIngest:
             logging.info("%s: Couchbase connection success")
         except Exception as _e:  # pylint:disable=broad-except
             logging.error("*** %s in connect_cb ***", str(_e))
-            sys.exit("*** Error when connecting to mysql database: ")
+            sys.exit("*** Error when connecting to cb database: ")
 
     def get_file_list(self, df_query, directory, file_pattern):
         """This method accepts a file path (directory), a query statement (df_query),
@@ -313,7 +313,7 @@ class VXIngest:
             # and start each VxIngestManager with its own ingest_document_id
             self.ingest_document_id = self.load_spec["ingest_document_id"]
             # stash the fmask for future use
-            self.load_spec = self.fmask
+            self.load_spec["fmask"] = self.fmask
             # establish connections to cb, collection
             self.connect_cb()
         except (RuntimeError, TypeError, NameError, KeyError):

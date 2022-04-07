@@ -101,7 +101,7 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             vx_ingest = self.setup_connection()
             cluster = vx_ingest.cluster
             result = cluster.query(
-                """SELECT name, geo.lat lat, geo.lon lon
+                """SELECT name, geo
                 FROM mdata
                 WHERE
                     docType='station'
@@ -110,7 +110,10 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
                     AND subset='METAR'"""
             )
             cb_station_list = list(result)
-            cb_stations = {x["name"]: x for x in cb_station_list}
+            cb_stations = {}
+            for s in cb_station_list:
+                cb_stations[s["name"]] = {"name":s["name"],'lat':s['geo'][0]['lat'],'lon':s['geo'][0]['lon']}
+
             cursor = self.setup_mysql_connection()
             cursor.execute(
                 """select s.name, l.lat / 182 as lat, l.lon / 182 as lon
@@ -137,11 +140,11 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             for station_name in common_station_names:
                 coords_1 = (
                     cb_stations[station_name]["lat"],
-                    cb_stations[station_name]["lon"],
+                    cb_stations[station_name]["lon"]
                 )
                 coords_2 = (
                     mysql_stations[station_name]["lat"],
-                    mysql_stations[station_name]["lon"],
+                    mysql_stations[station_name]["lon"]
                 )
                 distance = geopyd.distance(coords_1, coords_2).km
                 try:

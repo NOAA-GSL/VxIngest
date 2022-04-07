@@ -1348,6 +1348,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                     "path": "/opt/data/netcdf_to_cb/input_files",
                     "file_name_mask": "%Y%m%d_%H%M",
                     "output_dir": "/opt/data/netcdf_to_cb/output/test3",
+                    "file_pattern": "[0123456789]???????_[0123456789]???",
                     "threads": 1
                 }
             )

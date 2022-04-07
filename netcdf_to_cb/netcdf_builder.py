@@ -301,10 +301,9 @@ class NetcdfBuilder:  # pylint disable=too-many-instance-attributes
             # call the named function using getattr
             replace_with = getattr(self, func)(dict_params)
         except Exception as _e:  # pylint:disable=broad-except
-            logging.error(
-                "%s handle_named_function: Exception instantiating builder:  error: %s",
-                self.__class__.__name__,
-                str(_e),
+            logging.exception(
+                "%s handle_named_function: Exception instantiating builder:",
+                self.__class__.__name__
             )
         return replace_with
 
@@ -886,7 +885,7 @@ class NetcdfMetarObsBuilderV01(
         :param params_dict: {station_name:a_station_name}
         :return:
         """
-        rec_num = params_dict["rec_num"]
+        rec_num = params_dict["recNum"]
         station_name = params_dict["stationName"]
         an_id = None
         netcdf = {}

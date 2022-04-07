@@ -15886,7 +15886,7 @@
     "creationTS": "2020-06-11T20:11:38.363Z",
     "GUID": "930c66b0-9229-11eb-9748-dfb02b2c0e6f",
     "code": "NWP and obs data",
-    "lastModifTS": "2022-04-07T20:53:51.626Z",
+    "lastModifTS": "2022-04-07T21:15:03.086Z",
     "persistenceSchemaVersion": "4",
     "description": "",
     "comments": "",
@@ -15903,6 +15903,7 @@
     "applicationInformation": {
         "version": "4.3.13"
     },
+    "hideForeignMaster": true,
     "settings": {
         "centralPane": {
             "dbLevel": {
@@ -15910,7 +15911,7 @@
                     {
                         "GUID": "397c80e0-acaa-11ea-b509-dba22c0df611",
                         "x": 80,
-                        "y": 106.20426487093155,
+                        "y": 83.06506012865933,
                         "width": 246,
                         "height": 181,
                         "color": {}
@@ -15918,7 +15919,7 @@
                     {
                         "GUID": "49dd5370-acae-11ea-9dd6-9b3aa12441f0",
                         "x": 369.1280695721406,
-                        "y": 104.13920474227224,
+                        "y": 81.00000000000001,
                         "width": 247,
                         "height": 183,
                         "color": {}
@@ -15926,7 +15927,7 @@
                     {
                         "GUID": "a6423190-acb7-11ea-9dd6-9b3aa12441f0",
                         "x": 80,
-                        "y": 314.8271604938268,
+                        "y": 291.68795575155457,
                         "width": 246,
                         "height": 144,
                         "color": {}
@@ -15934,7 +15935,7 @@
                     {
                         "GUID": "fc4f8ae0-acb9-11ea-9dd6-9b3aa12441f0",
                         "x": 365.9071989378758,
-                        "y": 309.97357538472306,
+                        "y": 286.83437064245084,
                         "width": 262,
                         "height": 247,
                         "color": {}
@@ -15942,7 +15943,7 @@
                     {
                         "GUID": "16ae7d10-acba-11ea-9dd6-9b3aa12441f0",
                         "x": 80,
-                        "y": 480.8035914702597,
+                        "y": 457.66438672798745,
                         "width": 244,
                         "height": 143,
                         "color": {}
@@ -15950,7 +15951,7 @@
                     {
                         "GUID": "2498f540-acba-11ea-9dd6-9b3aa12441f0",
                         "x": 80,
-                        "y": 646.7957351290702,
+                        "y": 623.656530386798,
                         "width": 235,
                         "height": 145,
                         "color": {}
@@ -15958,79 +15959,79 @@
                     {
                         "GUID": "df2f8770-acba-11ea-9dd6-9b3aa12441f0",
                         "x": 366.3939570288246,
-                        "y": 584.342770515987,
+                        "y": 561.2035657737148,
                         "width": 252,
                         "height": 274,
                         "color": {}
                     },
                     {
                         "GUID": "f30a7c00-90d0-11eb-8e3d-f7c915bd922a",
-                        "x": 646,
-                        "y": 105.13920474227223,
+                        "x": 668,
+                        "y": 80,
                         "width": 305,
-                        "height": 856,
+                        "height": 509,
                         "color": {}
                     },
                     {
                         "GUID": "eb0dc410-b6b0-11ec-9edf-eb8bb4011ddc",
-                        "x": 90,
-                        "y": 1051.1392047422723,
+                        "x": 80,
+                        "y": 854.8607952577278,
                         "width": 281,
                         "height": 159,
                         "color": {}
                     },
                     {
                         "GUID": "ebbc0570-b6b0-11ec-9edf-eb8bb4011ddc",
-                        "x": 90,
-                        "y": 13940.139204742272,
+                        "x": 400,
+                        "y": 885.8607952577278,
                         "width": 250,
                         "height": 285,
                         "color": {}
                     },
                     {
                         "GUID": "ec5b0490-b6b0-11ec-9edf-eb8bb4011ddc",
-                        "x": 90,
-                        "y": 14313.139204742272,
+                        "x": 716,
+                        "y": 752.8607952577278,
                         "width": 308,
                         "height": 649,
                         "color": {}
                     },
                     {
                         "GUID": "ecf5e500-b6b0-11ec-9edf-eb8bb4011ddc",
-                        "x": 90,
-                        "y": 15050.139204742272,
+                        "x": 80,
+                        "y": 1209.8607952577277,
                         "width": 300,
                         "height": 481,
                         "color": {}
                     },
                     {
                         "GUID": "ed86da60-b6b0-11ec-9edf-eb8bb4011ddc",
-                        "x": 90,
-                        "y": 15619.139204742272,
+                        "x": 402,
+                        "y": 1218.8607952577277,
                         "width": 303,
                         "height": 467,
                         "color": {}
                     },
                     {
                         "GUID": "ee3087e0-b6b0-11ec-9edf-eb8bb4011ddc",
-                        "x": 90,
-                        "y": 16174.139204742272,
+                        "x": 466,
+                        "y": 1757.8607952577277,
                         "width": 246,
                         "height": 243,
                         "color": {}
                     },
                     {
                         "GUID": "eed26d30-b6b0-11ec-9edf-eb8bb4011ddc",
-                        "x": 90,
-                        "y": 16505.13920474227,
+                        "x": 769,
+                        "y": 1596.8607952577277,
                         "width": 234,
                         "height": 159,
                         "color": {}
                     },
                     {
                         "GUID": "ef602e40-b6b0-11ec-9edf-eb8bb4011ddc",
-                        "x": 90,
-                        "y": 16752.13920474227,
+                        "x": 92,
+                        "y": 1759.8607952577277,
                         "width": 270,
                         "height": 257,
                         "color": {}
@@ -16039,14 +16040,31 @@
                 "buckets": [
                     {
                         "x": 40,
-                        "y": 64.13920474227224,
+                        "y": 40,
                         "GUID": "c1ca0f70-ac1f-11ea-b509-dba22c0df611"
                     }
                 ],
                 "collapsedNodes": [
                     "eb0dc410-b6b0-11ec-9edf-eb8bb4011ddce1d03237-b6b0-11ec-9edf-eb8bb4011ddc",
                     "eb0dc410-b6b0-11ec-9edf-eb8bb4011ddce1cfbcf1-b6b0-11ec-9edf-eb8bb4011ddc",
-                    "eb0dc410-b6b0-11ec-9edf-eb8bb4011ddce1d14390-b6b0-11ec-9edf-eb8bb4011ddc"
+                    "eb0dc410-b6b0-11ec-9edf-eb8bb4011ddce1d14390-b6b0-11ec-9edf-eb8bb4011ddc",
+                    "f30a7c00-90d0-11eb-8e3d-f7c915bd922afb184e00-9174-11eb-8e3d-f7c915bd922a",
+                    "f30a7c00-90d0-11eb-8e3d-f7c915bd922a054967b0-9175-11eb-8e3d-f7c915bd922a",
+                    "f30a7c00-90d0-11eb-8e3d-f7c915bd922a20a02760-9175-11eb-8e3d-f7c915bd922a",
+                    "f30a7c00-90d0-11eb-8e3d-f7c915bd922a43ff7b70-9175-11eb-8e3d-f7c915bd922a",
+                    "f30a7c00-90d0-11eb-8e3d-f7c915bd922a2c6a7eb0-9175-11eb-8e3d-f7c915bd922a",
+                    "f30a7c00-90d0-11eb-8e3d-f7c915bd922a578fdfe0-9175-11eb-8e3d-f7c915bd922a",
+                    "f30a7c00-90d0-11eb-8e3d-f7c915bd922a6ef20cd0-9175-11eb-8e3d-f7c915bd922a",
+                    "f30a7c00-90d0-11eb-8e3d-f7c915bd922a0950d480-90d8-11eb-8e3d-f7c915bd922a",
+                    "f30a7c00-90d0-11eb-8e3d-f7c915bd922ac6cacd00-90d7-11eb-8e3d-f7c915bd922a",
+                    "f30a7c00-90d0-11eb-8e3d-f7c915bd922abceb2eb0-90d7-11eb-8e3d-f7c915bd922a",
+                    "f30a7c00-90d0-11eb-8e3d-f7c915bd922a8d4e9d40-90d7-11eb-8e3d-f7c915bd922a",
+                    "f30a7c00-90d0-11eb-8e3d-f7c915bd922a75bb0010-90d7-11eb-8e3d-f7c915bd922a",
+                    "f30a7c00-90d0-11eb-8e3d-f7c915bd922af534aad0-90d7-11eb-8e3d-f7c915bd922a",
+                    "f30a7c00-90d0-11eb-8e3d-f7c915bd922a158a21a0-90d5-11eb-8e3d-f7c915bd922a",
+                    "f30a7c00-90d0-11eb-8e3d-f7c915bd922a01547c80-90d5-11eb-8e3d-f7c915bd922a",
+                    "f30a7c00-90d0-11eb-8e3d-f7c915bd922af841cb20-90d4-11eb-8e3d-f7c915bd922a",
+                    "f30a7c00-90d0-11eb-8e3d-f7c915bd922af98d84c0-9173-11eb-8e3d-f7c915bd922a"
                 ],
                 "activeRelationship": "",
                 "activeRelationshipFields": {

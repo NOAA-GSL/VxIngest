@@ -181,20 +181,20 @@ class VxIngestManager(Process):  # pylint:disable=too-many-instance-attributes
                         + file_name
                     )
                     self.queue.task_done()
-                except Exception as _e:  # pylint:disable=broad-except
+                except self.queue.Empty:  # pylint:disable=broad-except
                     # should probably just catch _queue.Empty but I think Python changed the name - so to be certain catching ANY exception
                     # three strikes and your out! finished! kaput!
-                    logging.exception(
-                        "%s: IngestManager - After file processing Exception - empty count is %s",
-                        self.thread_name,
-                        str(empty_count)
-                    )
+                    # logging.exception(
+                    #     "%s: IngestManager - After file processing Exception - empty count is %s",
+                    #     self.thread_name,
+                    #     str(empty_count)
+                    # )
                     if empty_count < 3:
                         empty_count += 1
                         time.sleep(1)
                         continue
                     else:
-                        logging.exception(
+                        logging.info(
                             "%s: IngestManager - Queue empty - disconnecting couchbase",
                             self.thread_name
                         )

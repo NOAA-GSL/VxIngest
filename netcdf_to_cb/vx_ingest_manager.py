@@ -134,7 +134,7 @@ class VxIngestManager(Process):  # pylint:disable=too-many-instance-attributes
             self.collection = self.cluster.bucket("mdata").default_collection()
             logging.info("%s: Couchbase connection success")
         except Exception as _e:  # pylint:disable=broad-except
-            logging.error("*** %s in connect_cb ***", str(_e))
+            logging.exception("*** %s in connect_cb ***")
             sys.exit("*** Error when connecting to mysql database: ")
 
     # entry point of the thread. Is invoked automatically when the thread is
@@ -157,10 +157,9 @@ class VxIngestManager(Process):  # pylint:disable=too-many-instance-attributes
             try:
                 self.ingest_type_builder_name = self.ingest_document["builder_type"]
             except Exception as _e:  # pylint:disable=broad-except
-                logging.error(
-                    "%s: process_file: Exception getting ingest document: %s",
-                    self.thread_name,
-                    str(_e),
+                logging.exception(
+                    "%s: process_file: Exception getting ingest document",
+                    self.thread_name
                 )
                 sys.exit("*** Error getting ingest document ***")
             # get a connection
@@ -185,26 +184,24 @@ class VxIngestManager(Process):  # pylint:disable=too-many-instance-attributes
                 except Exception as _e:  # pylint:disable=broad-except
                     # should probably just catch _queue.Empty but I think Python changed the name - so to be certain catching ANY exception
                     # three strikes and your out! finished! kaput!
-                    logging.info(
-                        "%s: IngestManager - After file processing Exception - type %s empty count is %s",
+                    logging.exception(
+                        "%s: IngestManager - After file processing Exception - empty count is %s",
                         self.thread_name,
-                        str(type(_e)),
-                        str(empty_count),
+                        str(empty_count)
                     )
                     if empty_count < 3:
                         empty_count += 1
                         time.sleep(1)
                         continue
                     else:
-                        logging.info(
+                        logging.exception(
                             "%s: IngestManager - Queue empty - disconnecting couchbase",
-                            self.thread_name,
+                            self.thread_name
                         )
                         break
         except Exception as _e:  # pylint:disable=broad-except
-            logging.error(
-                "%s: *** %s Error in IngestManager run ***", self.thread_name, str(_e)
-            )
+            logging.exception(
+                "%s: *** Error in IngestManager run ***", self.thread_name)
             raise _e
         finally:
             self.close_cb()
@@ -235,11 +232,10 @@ class VxIngestManager(Process):  # pylint:disable=too-many-instance-attributes
             else:
                 self.write_document_to_cb(file_name, document_map)
         except Exception as _e:  # pylint:disable=broad-except
-            logging.error(
-                "%s: Exception in builder: %s error: %s ",
+            logging.exception(
+                "%s: Exception in builder: %s",
                 self.thread_name,
-                str(self.ingest_type_builder_name),
-                str(_e),
+                str(self.ingest_type_builder_name)
             )
             raise _e
         finally:
@@ -294,10 +290,9 @@ class VxIngestManager(Process):  # pylint:disable=too-many-instance-attributes
                 str(upsert_stop_time - upsert_start_time),
             )
         except Exception as _e:  # pylint:disable=broad-except
-            logging.error(
-                "%s: *** %s Error writing to Couchbase: in process_file writing document ***",
-                self.thread_name,
-                str(_e),
+            logging.exception(
+                "%s: *** Error writing to Couchbase: in process_file writing document ***",
+                self.thread_name
             )
             raise _e
 
@@ -339,9 +334,7 @@ class VxIngestManager(Process):  # pylint:disable=too-many-instance-attributes
                     _f.write(json.dumps(list(document_map.values())))
                     _f.close()
                 except Exception as _e1:  # pylint:disable=broad-except
-                    logging.info(
-                        "process_file - trying write: Got Exception - %s", str(_e1)
-                    )
+                    logging.exception("process_file - trying write: Got Exception")
             write_stop_time = int(time.time())
             logging.info(
                 "process_file - executing file write: stop time: %s",
@@ -352,9 +345,7 @@ class VxIngestManager(Process):  # pylint:disable=too-many-instance-attributes
                 str(write_stop_time - write_start_time),
             )
         except Exception as _e:  # pylint:disable=broad-except
-            logging.error(
-                ": *** %s Error writing to files: in process_file writing document %s***",
-                self.thread_name,
-                str(_e),
-            )
+            logging.exception(
+                ": *** %s Error writing to files: in process_file writing document***",
+                self.thread_name)
             raise _e

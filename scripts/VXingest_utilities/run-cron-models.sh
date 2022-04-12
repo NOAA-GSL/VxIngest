@@ -71,9 +71,10 @@ fi
 echo "*************************************"
 echo "models"
 echo "hrrr_ops"
-rm -rf ${output_dir}/*
-python ${clonedir}/grib2_to_cb/run_ingest_threads.py -s /data/grib2_to_cb/load_specs/load_spec_grib_metar_hrrr_ops_V01.yaml -c ~/adb-cb1-credentials -p ${target_dir} -m %y%j%H%f -o ${output_dir} -t8
-${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p ${output_dir} -n 8 -l ${clonedir}/logs
+pid=$$
+outdir="${output_dir}/${pid}"
+python ${clonedir}/grib2_to_cb/run_ingest_threads.py -s /data/grib2_to_cb/load_specs/load_spec_grib_metar_hrrr_ops_V01.yaml -c ~/adb-cb1-credentials -p ${target_dir} -m %y%j%H%f -o ${outdir} -t8
+${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p ${outdir} -n 8 -l ${clonedir}/logs
 
 echo "FINISHED"
 date

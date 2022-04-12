@@ -28,9 +28,10 @@ fi
 
 echo "*************************************"
 echo "retro ctc's"
-rm -rf /data/ctc_to_cb-retro/output/*
-python ctc_to_cb/run_ingest_threads.py -s /data/ctc_to_cb/load_specs/load_spec_metar_ctc_legacy_retro_V01.yaml  -c ~/adb-cb1-credentials -o /data/ctc_to_cb-retro/output -t8
-${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p /data/ctc_to_cb-retro/output -n 8 -l ${clonedir}/logs
+pid=$$
+outdir="/data/ctc_to_cb-retro/output/${pid}"
+python ctc_to_cb/run_ingest_threads.py -s /data/ctc_to_cb/load_specs/load_spec_metar_ctc_legacy_retro_V01.yaml  -c ~/adb-cb1-credentials -o $outdir -t8
+${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p $outdir -n 8 -l ${clonedir}/logs
 
 echo "FINISHED"
 date

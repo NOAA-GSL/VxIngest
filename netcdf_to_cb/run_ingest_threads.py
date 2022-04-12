@@ -16,7 +16,7 @@ If a file_pattern is provided globbing is used to qualify which filenames in the
 are included for ingesting.
 The number of threads in the thread pool is set to the -t n (or --threads n)
 argument, where n is the number of threads to start. The default is one thread.
-There is a file_pattern argument that allows to specify a filename pattern to which 
+There is a file_pattern argument that allows to specify a filename pattern to which
 all the files in the input directory will be matched with standard globing. Only
 matching files will be ingested if this option is used.
 Each thread will run a VxIngestManager which will pull filenames, one at a time,

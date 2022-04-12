@@ -37,6 +37,7 @@ import os
 import sys
 import time
 from multiprocessing import Process
+import queue
 from pathlib import Path
 
 from couchbase.cluster import Cluster, ClusterOptions
@@ -127,8 +128,7 @@ class VxIngestManager(Process):
                         + ingest_document_id
                     )
                     self.queue.task_done()
-                except Exception as _e:  # pylint: disable=broad-except
-                    # should probably just catch _queue.Empty but I think Python changed the name - so to be certain catching ANY exception
+                except queue.Empty:
                     # three strikes and your out! finished! kaput!
                     logging.info(
                         "%s: IngestManager - After file processing Exception - type %s empty count is %s",

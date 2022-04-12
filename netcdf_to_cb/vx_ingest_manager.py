@@ -40,6 +40,7 @@ import os
 import sys
 import time
 from multiprocessing import Process
+import queue
 from pathlib import Path
 from couchbase.cluster import Cluster, ClusterOptions
 from couchbase_core.cluster import PasswordAuthenticator
@@ -181,8 +182,7 @@ class VxIngestManager(Process):  # pylint:disable=too-many-instance-attributes
                         + file_name
                     )
                     self.queue.task_done()
-                except self.queue.Empty:  # pylint:disable=broad-except
-                    # should probably just catch _queue.Empty but I think Python changed the name - so to be certain catching ANY exception
+                except queue.Empty:
                     # three strikes and your out! finished! kaput!
                     # logging.exception(
                     #     "%s: IngestManager - After file processing Exception - empty count is %s",

@@ -80,7 +80,7 @@ class SqlIngestManager(Process):
     SqlIngestManager is a Thread that manages an object pool of
     GsdBuilders to ingest data from GSD databases into documents that can be
     inserted into couchbase.
-    
+
     This class will process data by collecting ingest_document_ids - one at a
     a_time - from the document_id_queue. For each ingest_document_id it
     retrieves the identified load metadata document[s] from the couchbase
@@ -101,7 +101,6 @@ class SqlIngestManager(Process):
     When the queue has been emptied the IngestManager closes its connections
     and dies.
     """
-    
     def __init__(self, name, load_spec, document_id_queue, statement_replacement_params):
         """
         :param name: (str) the thread name for this IngestManager
@@ -120,15 +119,14 @@ class SqlIngestManager(Process):
         self.builder_map = {}
         self.cluster = None
         self.collection = None
-    
     # entry point of the thread. Is invoked automatically when the thread is
     # started.
     def run(self):
         """
         This is the entry point for the SqlIngestManager thread. It runs an
-        infinite loop that only terminates when the  document_id_queue is 
-        empty. For each enqueued document id it calls 
-        process_meta_ingest_document with the document id and the couchbase 
+        infinite loop that only terminates when the  document_id_queue is
+        empty. For each enqueued document id it calls
+        process_meta_ingest_document with the document id and the couchbase
         collection to process the ingest_document.
         """
         # noinspection PyBroadException
@@ -136,7 +134,6 @@ class SqlIngestManager(Process):
             logging.basicConfig(level=logging.INFO)
             # establish connections to cb, collection
             self.connect_cb()
-            
             # infinite loop terminates when the document_id_queue is empty
             empty_count = 0
             while True:
@@ -162,11 +159,11 @@ class SqlIngestManager(Process):
             raise e
         finally:
             self.close_cb()
-    
+
     def close_cb(self):
         if self.cluster:
             self.cluster.disconnect()
-    
+
     def connect_cb(self):
         logging.info(self.threadName + ': data_type_manager - Connecting to couchbase')
         # get a reference to our cluster
@@ -180,7 +177,7 @@ class SqlIngestManager(Process):
         except Exception as e:
             logging.error("*** %s in connect_cb ***" + str(e))
             sys.exit("*** Error when connecting to mysql database: ")
-        
+
     def process_meta_ingest_document(self, document_id):
         _start_process_time = int(time.time())
         _document_id = document_id
@@ -212,7 +209,7 @@ class SqlIngestManager(Process):
             logging.error(self.threadName + ": Exception instantiating builder: " +
                           str(_ingest_type_builder_name) + " error: " + str(e))
             raise e
-        
+
         # The document_map is all built now so write all the
         # documents in the document_map into couchbase
         # noinspection PyBroadException

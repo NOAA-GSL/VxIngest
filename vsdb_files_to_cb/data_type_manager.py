@@ -92,7 +92,7 @@ class DataTypeManager(Process):
     document_map entry, or add a data_record from
     the line to an existing data_map entry.
     """
-    
+
     def __init__(self, name, connection_credentials, queue):
         # The Constructor for the RunCB class.
         Process.__init__(self)
@@ -101,11 +101,11 @@ class DataTypeManager(Process):
         # made this an instance variable because I don't know how to pass it
         # into the run method
         self.queue = queue
-        
+
         self.builder_map = {}
         self.document_map = {}
         self.database_name = ""
-    
+
     # entry point of the thread. Is invoked automatically when the thread is
     # started.
     def run(self):
@@ -131,7 +131,7 @@ class DataTypeManager(Process):
             # https://docs.couchbase.com/server/current/manage/manage
             # -security/configure-client-certificates.html#client
             # -certificate-authorized-by-a-root-certificate
-            
+
             if 'cert_path' in self.connection_credentials:
                 logging.info(
                     self.threadName + ': attempting cb connection with cert')
@@ -153,7 +153,7 @@ class DataTypeManager(Process):
                 # password='a password')  # cb = Bucket(connstr.format(
                 # 'mdata'), **credentials)  # collection =
                 # cb.default_collection()
-            
+
             else:
                 # this works but is not secure - don't provide the -c option
                 # to get here
@@ -168,7 +168,7 @@ class DataTypeManager(Process):
                         self.connection_credentials['db_password'])))
                 self.database_name = self.connection_credentials['db_name']
                 collection = cluster.bucket("mdata").default_collection()
-            
+
             logging.info(self.threadName + ': connection success')
             self.database_name = self.connection_credentials['db_name']
             # infinite loop terminates when the queue is empty
@@ -206,7 +206,7 @@ class DataTypeManager(Process):
             logging.info(
                 self.threadName + ': data_type_manager - disconnecting '
                                   'couchbase')
-    
+
     # process a file line by line
     def process_file(self, file_name, collection):
         self.document_map = {}

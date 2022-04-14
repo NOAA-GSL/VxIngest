@@ -947,32 +947,19 @@ class NetcdfMetarObsBuilderV01(
                         matching_location = True
                         break
                 if matching_location:
-                    # this station has a matching geo but does it contain our time or can it be updated?
                     if (
                         fcst_valid_epoch
-                        >= self.stations[station_index]["geo"][geo_index]["firstTime"]
-                        - self.cadence
-                        and fcst_valid_epoch
-                        <= self.stations[station_index]["geo"][geo_index]["lastTime"]
-                        + self.cadence
+                        <= self.stations[station_index]["geo"][geo_index][
+                            "firstTime"
+                        ]
                     ):
-                        # extend firstTime or lastTime
-                        if (
-                            fcst_valid_epoch
-                            <= self.stations[station_index]["geo"][geo_index][
-                                "firstTime"
-                            ]
-                        ):
-                            self.stations[station_index]["geo"][geo_index][
-                                "firstTime"
-                            ] = fcst_valid_epoch
-                        else:
-                            self.stations[station_index]["geo"][geo_index][
-                                "lastTime"
-                            ] = fcst_valid_epoch
+                        self.stations[station_index]["geo"][geo_index][
+                            "firstTime"
+                        ] = fcst_valid_epoch
                     else:
-                        # This station requires a new geo because there is no contiguous time that can be extended
-                        requires_new_geo = True
+                        self.stations[station_index]["geo"][geo_index][
+                            "lastTime"
+                        ] = fcst_valid_epoch
                 else:
                     # This station requires a new geo because there are no matching locations i.e. the location has changed
                     requires_new_geo = True

@@ -278,8 +278,6 @@ class VXIngest:
                             df_entry = next(element for element in df_elements if element["url"] == filename)
                             if os.path.getmtime(filename) > int(df_entry['mtime']):
                                 file_names.append(filename)
-                            else:
-                                logging.error("file %s has already been ingested and is not newer", filename)
                     except Exception as _e:  # pylint:disable=broad-except
                         # don't care, it just means it wasn't a properly formatted file per the mask
                         continue

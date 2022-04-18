@@ -67,6 +67,7 @@ ${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -
 #${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p $outdir -n 8 -l ${clonedir}/logs
 
 echo "--------"
+date
 echo "*************************************"
 echo "update metadata"
 ${clonedir}/mats_metadata_and_indexes/metadata_files/update_ceiling_mats_metadata.sh ~/adb-cb1-credentials

@@ -184,11 +184,6 @@ class VxIngestManager(Process):  # pylint:disable=too-many-instance-attributes
                     self.queue.task_done()
                 except queue.Empty:
                     # three strikes and your out! finished! kaput!
-                    # logging.exception(
-                    #     "%s: IngestManager - After file processing Exception - empty count is %s",
-                    #     self.thread_name,
-                    #     str(empty_count)
-                    # )
                     if empty_count < 3:
                         empty_count += 1
                         time.sleep(1)

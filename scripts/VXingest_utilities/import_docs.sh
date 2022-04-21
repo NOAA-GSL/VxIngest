@@ -100,12 +100,7 @@ cd ${tmp_dir}
 find ${input_file_path} -name "*.json" | split -d -l $(($(find ${input_file_path} -name "*.json" | wc -l) / ${number_of_processes} + 1))
 # each file is a list of files
 for f in ${tmp_dir}/*; do
-  if [ -z "$log_dir" ]; then
     do_import ${f} &
-  else
-    fname=$(basename $f)
-    do_import ${f} >${log_dir}/${fname} 2>&1 &
-  fi
 done
 echo "cbimport commands submitted, now waiting"
 wait

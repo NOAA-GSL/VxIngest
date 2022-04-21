@@ -196,34 +196,6 @@
     }
   },
   {
-    "id": "MD:V01:METAR:HRRR_OPS:E_US:CTC:CEILING:ingest",
-    "builder_type": "CTCModelObsBuilderV01",
-    "docType": "ingest",
-    "type": "MD",
-    "version": "V01",
-    "subset": "METAR",
-    "subType": "CTC",
-    "subDocType": "CEILING",
-    "model": "HRRR_OPS",
-    "region": "E_US",
-    "template": {
-      "dataFileId": "DF_id",
-      "dataSourceId": "DS_id",
-      "id": "DD:V01:METAR:HRRR_OPS:E_US:CTC:CEILING:&handle_time:&handle_fcst_len",
-      "type": "DD",
-      "docType": "CTC",
-      "subDocType": "CEILING",
-      "model": "HRRR_OPS",
-      "region": "E_US",
-      "version": "V01",
-      "subset": "METAR",
-      "fcstValidISO": "&handle_iso_time",
-      "fcstValidEpoch": "&handle_time",
-      "fcstLen": "&handle_fcst_len",
-      "data": "&handle_data"
-    }
-  },
-  {
     "id": "MD:V01:METAR_LEGACY:HRRR_OPS_LEGACY:E_US:CTC:CEILING:ingest",
     "builder_type": "CTCModelObsBuilderLegacyV01",
     "docType": "ingest",

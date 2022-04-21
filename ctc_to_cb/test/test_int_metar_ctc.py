@@ -488,7 +488,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                 cwd
                 + "/ctc_to_cb/test/test_load_spec_metar_hrrr_ops_all_hrrr_ctc_V01.yaml"
             )
-            outdir = "/opt/data/ctc_to_cb/output"
+            outdir = "/opt/data/ctc_to_cb/hrrr_ops/output"
             filepaths = outdir + "/*.json"
             files = glob.glob(filepaths)
             for f in files:

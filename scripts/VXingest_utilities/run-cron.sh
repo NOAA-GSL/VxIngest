@@ -56,8 +56,14 @@ ${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -
 echo "--------"
 echo "ctc's"
 echo "*************************************"
-outdir="/data/ctc_to_cb/output/${pid}"
-python ${clonedir}/ctc_to_cb/run_ingest_threads.py -s /data/ctc_to_cb/load_specs/load_spec_metar_ctc_V01.yaml  -c ~/adb-cb1-credentials -o $outdir -t8
+echo "hrrr_ops"
+outdir="/data/ctc_to_cb/hrrr_ops/output/${pid}"
+python ${clonedir}/ctc_to_cb/run_ingest_threads.py -s /data/ctc_to_cb/load_specs/load_spec_metar_ctc_hrrr_ops_V01.yaml  -c ~/adb-cb1-credentials -o $outdir -t8
+${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p $outdir -n 8 -l ${clonedir}/logs
+
+echo "rap_ops_130"
+outdir="/data/ctc_to_cb/rap_ops_130/output/${pid}"
+python ${clonedir}/ctc_to_cb/run_ingest_threads.py -s /data/ctc_to_cb/load_specs/load_spec_metar_ctc_rap_ops_130_V01.yaml  -c ~/adb-cb1-credentials -o $outdir -t8
 ${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p $outdir -n 8 -l ${clonedir}/logs
 
 #echo "*************************************"

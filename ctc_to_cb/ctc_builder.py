@@ -349,7 +349,9 @@ class CTCBuilder:  # pylint:disable=too-many-instance-attributes
                     self.obs_data = {}
                     self.obs_station_names = []
                     try:
-                        full_station_name_list = self.get_stations_for_region_by_geosearch(self.region, fve)
+                        # get_stations_for_region_by_geosearch is broken for geo losts untill late 2022
+                        #full_station_name_list = self.get_stations_for_region_by_geosearch(self.region, fve)
+                        full_station_name_list = self.get_stations_for_region_by_sort(self.region, fve)
                         self.domain_stations = full_station_name_list
                     except Exception as _e:  # pylint: disable=broad-except
                         logging.error(

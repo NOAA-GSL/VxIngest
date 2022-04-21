@@ -97,17 +97,23 @@ do_import() {
 curdir=$(pwd)
 tmp_dir=$(mktemp -d -t cbimport_files-XXXXXXXXXX)
 cd ${tmp_dir}
+tmp_log_dir="${tmp_dir}/logs"
+mkdir ${tmp_log_dir} 
 find ${input_file_path} -name "*.json" | split -d -l $(($(find ${input_file_path} -name "*.json" | wc -l) / ${number_of_processes} + 1))
 # each file is a list of files
 for f in ${tmp_dir}/*; do
-    do_import ${f} &
+    fname=$(basename ${f})
+    do_import ${f} > ${tmp_log_dir}/${fname} 2>&1 &
 done
 echo "cbimport commands submitted, now waiting"
 wait
 echo "cbimport commands submitted, done waiting"
 cd ${curdir}
-grep -i successfully ${tmp_dir}/x* | awk '{print $2}' | awk 'BEGIN { FS="file:///" }; {print $2}' | tr -d "\`" | while read f
+grep -i successfully ${tmp_log_dir}/x* | awk '{print $2}' | awk 'BEGIN { FS="file:///" }; {print $2}' | tr -d "\`" | while read f_input
 do
-rm -rf $f
+rm -rf $f_input
 done
+#remove empty input file_paths
+find ${input_file_path} -maxdepth 0 -empty -exec rm -rf ${input_file_path} \;
+# remove tmp_dir just to be sure
 rm -rf ${tmp_dir}

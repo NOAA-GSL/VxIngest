@@ -97,8 +97,9 @@ do_import() {
 curdir=$(pwd)
 tmp_dir=$(mktemp -d -t cbimport_files-XXXXXXXXXX)
 cd ${tmp_dir}
+# create a tmp log dir so that multiple instances will not step on each other
 tmp_log_dir="${tmp_dir}/logs"
-mkdir ${tmp_log_dir} 
+mkdir ${tmp_log_dir}
 find ${input_file_path} -name "*.json" | split -d -l $(($(find ${input_file_path} -name "*.json" | wc -l) / ${number_of_processes} + 1))
 # each file is a list of files
 for f in ${tmp_dir}/*; do
@@ -115,5 +116,6 @@ rm -rf $f_input
 done
 #remove empty input file_paths
 find ${input_file_path} -maxdepth 0 -empty -exec rm -rf ${input_file_path} \;
-# remove tmp_dir just to be sure
+# copy logs and remove tmp_dir just to be sure
+cp -a ${tmp_log_dir} ${log_dir}
 rm -rf ${tmp_dir}

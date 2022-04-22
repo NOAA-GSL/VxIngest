@@ -53,8 +53,9 @@ def get_geo_index(fcst_valid_epoch, geo):
         else:
             return latest_index
     except Exception as _e:  # pylint: disable=bare-except, disable=broad-except
-            logging.error("GribBuilder.get_geo_index: Exception  error: %s", str(_e))
+            logging.error("CTCBuilder.get_geo_index: Exception  error: %s", str(_e))
             return 0
+
 class CTCBuilder:  # pylint:disable=too-many-instance-attributes
     """
     1) find all the stations for the region for this ingest (model and region)
@@ -351,7 +352,7 @@ class CTCBuilder:  # pylint:disable=too-many-instance-attributes
                     try:
                         # get_stations_for_region_by_geosearch is broken for geo losts untill late 2022
                         #full_station_name_list = self.get_stations_for_region_by_geosearch(self.region, fve)
-                        full_station_name_list = self.get_stations_for_region_by_sort(self.region, fve)
+                        full_station_name_list = self.get_stations_for_region_by_sort(self.region, fve['fcstValidEpoch'] )
                         self.domain_stations = full_station_name_list
                     except Exception as _e:  # pylint: disable=broad-except
                         logging.error(

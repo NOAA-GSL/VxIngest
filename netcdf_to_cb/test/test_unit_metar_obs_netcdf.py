@@ -17,7 +17,7 @@ from couchbase.collection import RemoveOptions
 from couchbase_core.durability import Durability
 from couchbase.durability import ServerDurability
 from couchbase_core.cluster import PasswordAuthenticator
-from netcdf_to_cb.load_spec_yaml import LoadYamlSpecFile
+from builder_common.load_spec_yaml import LoadYamlSpecFile
 from netcdf_to_cb.netcdf_builder import NetcdfMetarObsBuilderV01
 from datetime import datetime
 
@@ -430,20 +430,14 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             self.fail("test_interpolate_time_iso Exception failure: " + str(_e))
 
     def test_handle_station(self):
-        """Tests the ability to add or update a station with three possibilities...
+        """Tests the ability to add or update a station with these possibilities...
         1) The station is new and there is no station document that yet exists so
         a new station document must be created.
         2) The corresponding station document exists but the location has changed so a
         new geo must be created.
         3) The corresponding station document exists and a matching geo exists for this
-        station but the geo time range is not contiguous so a new geo must be added for the
-        new time range.
-        4) The corresponding station document exists and a matching geo exists for this
-        station and the geo time range is contiguous with the new fcst_valid_epoch so the
-        time range gets extended later.
-        5) The corresponding station document exists and a matching geo exists for this
-        station and the geo time range is contiguous with the new fcst_valid_epoch so the
-        time range gets extended earlier.
+        station but the geo time range does not include the document validTime so the
+        geo entry must be updated for the new time range.
         """
         try:
             _station_name = "ZBAA"
@@ -481,25 +475,31 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
                 AND name = '""" + _station_name + "'").split()),
                 QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS)
             )
-            station_zbaa = list(result)[0] if len(list(result)) > 0  else None
+            if len(list(result)) > 0:
+                station_zbaa = list(result)[0]
+            else:
+                station_zbaa = None
             # keep a copy of station_zbaa around for future use
             station_zbaa_copy = deepcopy(station_zbaa)
-            self.cleanup_builder_doc(_cluster, _collection, _builder, station_zbaa_copy)
+            if station_zbaa_copy is not None:
+                self.cleanup_builder_doc(_cluster, _collection, _builder, station_zbaa_copy)
 
-            # new station test
+            # ****************
+            # 1) new station test
             # remove station station_zbaa from the database
             self.remove_station_zbaa(_station_name, _cluster, _collection, station_zbaa)
             # initialize builder with missing station_zbaa
             self.setup_builder_doc(_cluster, _collection, _builder)
             # handle_station should give us a new station_zbaa
-            _builder.handle_station({"rec_num": _rec_num, "stationName": _station_name})
+            _builder.handle_station({"recNum": _rec_num, "stationName": _station_name})
             doc_map = _builder.get_document_map()
             _collection.upsert_multi(doc_map)
             #assert for new station_zbaa
             self.assert_station(_cluster, station_zbaa_copy)
             self.cleanup_builder_doc(_cluster, _collection, _builder, station_zbaa_copy)
 
-            # changed location test
+            # ****************
+            # 2) changed location test
             new_station_zbaa = deepcopy(station_zbaa_copy)
             # add 1 to the existing lat for geo[0] and upsert the modified station_zbaa
             new_station_zbaa["geo"][0]["lat"] = station_zbaa['geo'][0]['lat'] + 1
@@ -509,88 +509,45 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             # geo[0]['lat'] and make a new geo[1]['lat'] with the netcdf original lat
             # populate the builder list with the modified station by seting up
             self.setup_builder_doc(_cluster, _collection, _builder)
-            _builder.handle_station({"rec_num": _rec_num, "stationName": _station_name})
+            _builder.handle_station({"recNum": _rec_num, "stationName": _station_name})
             doc_map = _builder.get_document_map()
             _collection.upsert_multi(doc_map)
+            # station ZBAA should now have 2 geo entries
+            self.assertTrue(len(doc_map["MD:V01:METAR:station:ZBAA"]["geo"]) == 2,msg="new station ZBAA['geo'] does not have 2 elements")
             #modify the station_zbaa to reflect what handle_station should have done
             station_zbaa['geo'][0]['lat'] = 41.06999
             station_zbaa['geo'].append({
                     "elev": 30,
-                    "firstTime": 1636329600,
-                    "lastTime": 1636329600,
+                    "firstTime": doc_map["MD:V01:METAR:station:ZBAA"]["geo"][0]['firstTime'],
+                    "lastTime": doc_map["MD:V01:METAR:station:ZBAA"]["geo"][0]['lastTime'],
                     "lat": 40.06999,
                     "lon": 116.58
             })
             self.assert_station(_cluster, station_zbaa)
             self.cleanup_builder_doc(_cluster, _collection, _builder, station_zbaa_copy)
 
-            # non contiguous requires new time range test
+            # ****************
+            # 3) update time range test
             new_station_zbaa = deepcopy(station_zbaa_copy)
+            # save the original firstTime
+            orig_first_time = new_station_zbaa["geo"][0]["firstTime"]
             # add some time to the firstTime and lastTime of new_station_zbaa
-            new_station_zbaa["geo"][0]["firstTime"] = station_zbaa['geo'][0]['firstTime'] + 2 * _builder.cadence
+            new_station_zbaa["geo"][0]["firstTime"] = station_zbaa['geo'][0]['firstTime'] + 2 *_builder.cadence
             new_station_zbaa["geo"][0]["lastTime"] = station_zbaa['geo'][0]['lastTime'] + 2 *_builder.cadence
             new_doc = {new_station_zbaa['id']:new_station_zbaa}
             _collection.upsert_multi(new_doc)
             # populate the builder list with the modified station by seting up
             self.setup_builder_doc(_cluster, _collection, _builder)
             # handle station should see that the real station_zbaa doesn't fit within
-            # the existing timeframe of geo[0] and append a new geo element with the
-            # original time (matches the fcstValidEpoch of the file)
-            _builder.handle_station({"rec_num": _rec_num, "stationName": _station_name})
+            # the existing timeframe of geo[0] and modify the geo element with the
+            # original firstTime (matches the fcstValidEpoch of the file)
+            _builder.handle_station({"recNum": _rec_num, "stationName": _station_name})
             doc_map = _builder.get_document_map()
             _collection.upsert_multi(doc_map)
             # modify the new_station_zbaa['geo'] to reflect what handle_station should have done
-            new_station_zbaa['geo'].append({
-                    "elev": 30,
-                    "firstTime": 1636329600,
-                    "lastTime": 1636329600,
-                    "lat": 40.06999,
-                    "lon": 116.58
-            })
+            new_station_zbaa['geo'][0]["firstTime"] = orig_first_time
             self.assert_station(_cluster, new_station_zbaa)
             self.cleanup_builder_doc(_cluster, _collection, _builder, station_zbaa_copy)
-
-            # earlier append time range test - contiguous to firstTime
-            new_station_zbaa = deepcopy(station_zbaa_copy)
-            # add one interval time to the new_station_zbaa and upsert that to the database
-            new_station_zbaa["geo"][0]["firstTime"] = station_zbaa['geo'][0]['firstTime'] + _builder.cadence
-            new_station_zbaa["geo"][0]["lastTime"] = station_zbaa['geo'][0]['lastTime'] + _builder.cadence
-            new_doc = {new_station_zbaa['id']:new_station_zbaa}
-            _collection.upsert_multi(new_doc)
-            # populate the builder list with the modified station by seting up
-            self.setup_builder_doc(_cluster, _collection, _builder)
-            # handle station should see that the real station_zbaa fits within
-            # the existing timeframe of geo[0] - i cadence and set the firstTime of the
-            # geo element with the original time which matches the fcstValidEpoch of the file
-            _builder.handle_station({"rec_num": _rec_num, "stationName": _station_name})
-            doc_map = _builder.get_document_map()
-            _collection.upsert_multi(doc_map)
-            # modify the new_station_zbaa['geo'] to reflect what handle_station should have done
-            new_station_zbaa['geo'][0]['firstTime'] = new_station_zbaa['geo'][0]['firstTime'] - _builder.cadence
-            self.assert_station(_cluster, new_station_zbaa)
-            self.cleanup_builder_doc(_cluster, _collection, _builder, station_zbaa_copy)
-
-            # later append time range test - contiguous to lastTime
-            new_station_zbaa = deepcopy(station_zbaa_copy)
-            # add one interval time to the new_station_zbaa and upsert that to the database
-            new_station_zbaa["geo"][0]["firstTime"] = station_zbaa['geo'][0]['firstTime'] - _builder.cadence
-            new_station_zbaa["geo"][0]["lastTime"] = station_zbaa['geo'][0]['lastTime'] - _builder.cadence
-            new_doc = {new_station_zbaa['id']:new_station_zbaa}
-            _collection.upsert_multi(new_doc)
-            # populate the builder list with the modified station by seting up
-            self.setup_builder_doc(_cluster, _collection, _builder)
-            # handle station should see that the real station_zbaa fits within
-            # the existing timeframe of geo[0] - i cadence and set the firstTime of the
-            # geo element with the original time which matches the fcstValidEpoch of the file
-            _builder.handle_station({"rec_num": _rec_num, "stationName": _station_name})
-            doc_map = _builder.get_document_map()
-            _collection.upsert_multi(doc_map)
-            # modify the new_station_zbaa['geo'] to reflect what handle_station should have done
-            new_station_zbaa['geo'][0]['lastTime'] = new_station_zbaa['geo'][0]['lastTime'] + _builder.cadence
-            self.assert_station(_cluster, new_station_zbaa)
-            self.cleanup_builder_doc(_cluster, _collection, _builder, station_zbaa_copy)
-            # later append time range test - contiguous to lastTime
-
         except Exception as _e:  # pylint:disable=broad-except
             self.fail("test_handle_station Exception failure: " + str(_e))
         finally:
@@ -599,7 +556,8 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             _collection.upsert_multi({station_zbaa_copy["id"]: station_zbaa_copy})
 
     def remove_station_zbaa(self, _station_name, _cluster, _collection, station_zbaa):
-        _collection.remove(station_zbaa["id"])
+        if station_zbaa is not None:
+            _collection.remove(station_zbaa["id"])
         result = _cluster.query(
                     " ".join(("""
                     SELECT mdata.*
@@ -610,7 +568,10 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
                     AND name = '""" + _station_name + "'").split()),
                     QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS)
                 )
-        station_zbaa = list(result)[0] if len(list(result)) > 0  else None
+        if len(list(result)) > 0:
+            station_zbaa = list(result)[0]
+        else:
+            station_zbaa = None
         check_station_zbaa = len(list(result)) == 0
         self.assertTrue(check_station_zbaa, msg="station " + _station_name + " did not get deleted")
         return station_zbaa

@@ -57,20 +57,22 @@ Copyright 2019 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of
 Colorado, NOAA/OAR/ESRL/GSL
 """
 import argparse
+import json
 import logging
 import os
 import sys
 import time
-from glob import glob
 from datetime import datetime, timedelta
+from glob import glob
 from multiprocessing import JoinableQueue
 from pathlib import Path
-import json
+
 import yaml
+from builder_common.load_spec_yaml import LoadYamlSpecFile
 from couchbase.cluster import Cluster, ClusterOptions
 from couchbase_core.cluster import PasswordAuthenticator
+
 from netcdf_to_cb.vx_ingest_manager import VxIngestManager
-from netcdf_to_cb.load_spec_yaml import LoadYamlSpecFile
 
 
 def parse_args(args):
@@ -275,11 +277,11 @@ class VXIngest:
             if len(file_names) == 0:
                 raise Exception("No files to Process!")
             return file_names
-        except Exception as e:
+        except Exception as _e: # pylint: disable=bare-except, disable=broad-except
             logging.error(
                 "%s get_file_list Error: %s",
                 self.__class__.__name__,
-                str(e),
+                str(_e),
             )
             return file_names
 

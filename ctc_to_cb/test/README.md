@@ -33,7 +33,7 @@ There are two kinds of tests in each test directory.
 - unit - tests are named like grib2_to_cb/test/test_unit_metar_model_grib.py
 
 Notice the ***test_int_*** and the ***test_unit*** in the names.
-Unit tests are relatively independent, do not require external test data, and run quickly. These tests are for testing methods or functions independantly. Integration tests require external data and configuration, are not independant, and may be long running. These tests are for testing a working system, or components of a working system that are interacting.
+Unit tests are relatively independent, require minimal external test data, and run quickly. These tests are for testing methods or functions independantly. Integration tests require external data and configuration, are not independant, and may be very long running. These tests are for testing a working system, or components of a working system that are interacting.
 
 ## vscode
 
@@ -259,3 +259,8 @@ The python test explorer will discover any tests that are in the code tree in a 
 By clicking the arrow or the bug icon to the right of the test name you can either execute or debug the test within vscode. Clicking the 'bug' will cause the debugger to stop at any breakpoints.
 
 You can also click the little page icon and that will open an editor on the individual test.
+
+From inside vscode select the flask icon and expand the test explorer test list to find the test(s) that
+you want to run. Groups of tests can be run simultaneously by selecting the proper heirarchical test.
+For example if you click on the TestCTCBuilderV01 line all of the tests in that class will be run (which is all of the CTC integration tests). Initially a blue elispis (...) shows up to the left of each test item. This icon will change to a
+red X or a green checkmark depending on whether or not the test passed.

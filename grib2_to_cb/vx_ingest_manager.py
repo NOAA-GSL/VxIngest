@@ -37,14 +37,17 @@ Colorado, NOAA/OAR/ESRL/GSD
 import json
 import logging
 import os
+import queue
 import sys
 import time
 from multiprocessing import Process
-import queue
 from pathlib import Path
+
 from couchbase.cluster import Cluster, ClusterOptions
+from couchbase.exceptions import \
+    TimeoutException  # pylint: disable=ungrouped-imports
 from couchbase_core.cluster import PasswordAuthenticator
-from couchbase.exceptions import TimeoutException  # pylint: disable=ungrouped-imports
+
 from grib2_to_cb import grib_builder
 
 

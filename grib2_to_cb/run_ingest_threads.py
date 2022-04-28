@@ -59,19 +59,21 @@ Copyright 2019 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of
 Colorado, NOAA/OAR/ESRL/GSL
 """
 import argparse
+import json
 import logging
 import os
 import sys
 import time
-from glob import glob
 from datetime import datetime, timedelta
+from glob import glob
 from multiprocessing import JoinableQueue
 from pathlib import Path
-import json
+
 import yaml
+from builder_common.load_spec_yaml import LoadYamlSpecFile
 from couchbase.cluster import Cluster, ClusterOptions
 from couchbase_core.cluster import PasswordAuthenticator
-from grib2_to_cb.load_spec_yaml import LoadYamlSpecFile
+
 from grib2_to_cb.vx_ingest_manager import VxIngestManager
 
 
@@ -263,9 +265,11 @@ class VXIngest:
         try:
             result = self.cluster.query(df_query)
             df_elements = list(result)
-            df_full_names = [ element['url'] for element in df_elements ]
+            df_full_names = [element["url"] for element in df_elements]
             if os.path.exists(directory) and os.path.isdir(directory):
-                file_list = sorted(glob(directory + os.path.sep + file_pattern), key=os.path.getmtime)
+                file_list = sorted(
+                    glob(directory + os.path.sep + file_pattern), key=os.path.getmtime
+                )
                 for filename in file_list:
                     try:
                         # check to see if this file has already been ingested
@@ -275,8 +279,12 @@ class VXIngest:
                         else:
                             # it was already processed so check to see if the mtime of the
                             # file is greater than the mtime in the database entry, if so then add it
-                            df_entry = next(element for element in df_elements if element["url"] == filename)
-                            if os.path.getmtime(filename) > int(df_entry['mtime']):
+                            df_entry = next(
+                                element
+                                for element in df_elements
+                                if element["url"] == filename
+                            )
+                            if os.path.getmtime(filename) > int(df_entry["mtime"]):
                                 file_names.append(filename)
                     except Exception as _e:  # pylint:disable=broad-except
                         # don't care, it just means it wasn't a properly formatted file per the mask
@@ -284,7 +292,7 @@ class VXIngest:
             if len(file_names) == 0:
                 raise Exception("No files to Process!")
             return file_names
-        except Exception as e:
+        except Exception as e:  # pylint: disable=bare-except, disable=broad-except
             logging.error(
                 "%s get_file_list Error: %s",
                 self.__class__.__name__,
@@ -352,8 +360,8 @@ class VXIngest:
                 AND originType='model'
                 AND model='{model}' order by url;
                 """.format(
-                model=model
-            )
+            model=model
+        )
         file_names = self.get_file_list(file_query, self.path, self.file_pattern)
         for _f in file_names:
             _q.put(_f)

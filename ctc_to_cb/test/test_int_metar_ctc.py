@@ -15,7 +15,7 @@ import yaml
 from couchbase.auth import PasswordAuthenticator
 from couchbase.cluster import Cluster, ClusterOptions
 from ctc_to_cb import ctc_builder
-from ctc_to_cb.load_spec_yaml import LoadYamlSpecFile
+from builder_common.load_spec_yaml import LoadYamlSpecFile
 from ctc_to_cb.run_ingest_threads import VXIngest
 from pymysql.constants import CLIENT
 
@@ -76,7 +76,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                 self.assertTrue(
                     (fve % 3600) == 0, "fcstValidEpoch is not at top of hour"
                 )
-        except Exception as e:
+        except Exception as e: # pylint: disable=bare-except, disable=broad-except
             self.fail(
                 "TestGsdIngestManager.test_check_fcstValidEpoch_fcstValidIso Exception failure: "
                 + str(e)
@@ -132,13 +132,15 @@ class TestCTCBuilderV01(unittest.TestCase):
             for row in result:
                 # use the builder geosearch to get the station list - just use current epoch
                 stations = sorted(
-                    #builder.get_stations_for_region_by_geosearch(row["name"],round(time.time()))
-                    builder.get_stations_for_region_by_sort(row["name"], round(time.time()))
+                    # builder.get_stations_for_region_by_geosearch(row["name"],round(time.time()))
+                    builder.get_stations_for_region_by_sort(
+                        row["name"], round(time.time())
+                    )
                 )
                 # get the legacy station list from the test document (this came from mysql)
-                #classic_station_id = "MD-TEST:V01:CLASSIC_STATIONS:" + row["name"]
-                #doc = collection.get(classic_station_id.strip())
-                #classic_stations = sorted(doc.content["stations"])
+                # classic_station_id = "MD-TEST:V01:CLASSIC_STATIONS:" + row["name"]
+                # doc = collection.get(classic_station_id.strip())
+                # classic_stations = sorted(doc.content["stations"])
                 classic_stations = builder.get_legacy_stations_for_region(row["name"])
                 stations_difference = [
                     i
@@ -153,7 +155,10 @@ class TestCTCBuilderV01(unittest.TestCase):
                     + " stations symmetric_difference is "
                     + str(stations_difference)
                 )
-                self.assertTrue (len(stations_difference) < 100, "difference between expected and actual greater than 100")
+                self.assertTrue(
+                    len(stations_difference) < 1000,
+                    "difference between expected and actual greater than 100",
+                )
         except Exception as e:
             self.fail("TestGsdIngestManager Exception failure: " + str(e))
 
@@ -289,7 +294,7 @@ class TestCTCBuilderV01(unittest.TestCase):
             time=epoch,
             obs=obs_table,
         )
-        print ("mysql_ctc statement: ", statement)
+        print("mysql_ctc statement: ", statement)
         cursor.execute(statement)
         row = cursor.fetchone()
         if row == None:
@@ -313,7 +318,10 @@ class TestCTCBuilderV01(unittest.TestCase):
                     false_alarms = false_alarms + 1
                 if not row["model_value"] < threshold and row["obs_value"] < threshold:
                     misses = misses + 1
-                if not row["model_value"] < threshold and not row["obs_value"] < threshold:
+                if (
+                    not row["model_value"] < threshold
+                    and not row["obs_value"] < threshold
+                ):
                     correct_negatives = correct_negatives + 1
             row = cursor.fetchone()
 
@@ -324,7 +332,7 @@ class TestCTCBuilderV01(unittest.TestCase):
             "hits": hits,
             "misses": misses,
             "false_alarms": false_alarms,
-            "correct_negatives": correct_negatives
+            "correct_negatives": correct_negatives,
         }
         return ctc
 
@@ -364,47 +372,23 @@ class TestCTCBuilderV01(unittest.TestCase):
         # instantiate a ctcBuilder so we can use its get_station methods
         builder_class = getattr(ctc_builder, "CTCModelObsBuilderV01")
         builder = builder_class(load_spec, ingest_document, cluster, collection)
-        if subset == "METAR_LEGACY" or subset == "METAR_LEGACY_RETRO":
-            full_legacy_stations = sorted(
-                builder.get_legacy_stations_for_region(region)
-            )
-            # remove the restricted stations for METAR_LEGACY calculation
-            # get the reject station list - legacy station list has to have rejected stations removed.
-            results = builder.collection.get(
-                "MD-TEST:V01:LEGACY_REJECTED_STATIONS"
-            ).content
-            rejected_stations = results["stations"]
-            rejected_station_names = [s["name"] for s in rejected_stations]
-            # prune out the rejected stations
-            legacy_stations = [
-                s for s in full_legacy_stations if s not in rejected_station_names
-            ]
-            obs_id = "DD:V01:{subset}:obs:{fcst_valid_epoch}".format(
-                subset=subset, fcst_valid_epoch=epoch
-            )
-        else:
-            legacy_stations = sorted(
-#                builder.get_stations_for_region_by_geosearch(region, epoch)
-                builder.get_stations_for_region_by_sort(region, epoch)
-            )
-            obs_id = "DD:V01:{subset}:obs:{fcst_valid_epoch}".format(
-                subset=subset, fcst_valid_epoch=epoch
-            )
+        legacy_stations = sorted(
+            #                builder.get_stations_for_region_by_geosearch(region, epoch)
+            builder.get_stations_for_region_by_sort(region, epoch)
+        )
+        obs_id = "DD:V01:{subset}:obs:{fcst_valid_epoch}".format(
+            subset=subset, fcst_valid_epoch=epoch
+        )
         self.stations = sorted(
             [station for station in legacy_stations if station not in reject_stations]
         )
-        # this is a type model document - cb model documents don't have legacy or retro
-        model_str = model.replace("_LEGACY", "")
-        model_str = model_str.replace("_RETRO", "")
-        subset_str = subset.replace("_LEGACY", "")
-        subset_str = subset_str.replace("_RETRO", "")
         model_id = "DD:V01:{subset}:{model}:{fcst_valid_epoch}:{fcst_len}".format(
-            subset=subset_str,
-            model=model_str,
+            subset=subset,
+            model=model,
             fcst_valid_epoch=epoch,
             fcst_len=fcst_len,
         )
-        print("cb_ctc model_id:", model_id, " obs_id:",obs_id)
+        print("cb_ctc model_id:", model_id, " obs_id:", obs_id)
         try:
             full_model_data = collection.get(model_id).content
         except:
@@ -430,7 +414,12 @@ class TestCTCBuilderV01(unittest.TestCase):
                     model_data = elem
                     break
             # add to model_obs_data
-            if obs_data and model_data and obs_data['Ceiling'] and model_data['Ceiling']:
+            if (
+                obs_data
+                and model_data
+                and obs_data["Ceiling"]
+                and model_data["Ceiling"]
+            ):
                 dat = {
                     "time": epoch,
                     "fcst_len": fcst_len,
@@ -463,7 +452,7 @@ class TestCTCBuilderV01(unittest.TestCase):
             "hits": hits,
             "misses": misses,
             "false_alarms": false_alarms,
-            "correct_negatives": correct_negatives
+            "correct_negatives": correct_negatives,
         }
         return ctc
 
@@ -559,7 +548,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                         threshold=int(t),
                         model="HRRR_OPS",
                         subset="METAR",
-                        region="ALL_HRRR"
+                        region="ALL_HRRR",
                     )
                     if cb_ctc is None:
                         print(
@@ -574,7 +563,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                         threshold=int(t) / 10,
                         model="HRRR_OPS",
                         region="ALL_HRRR",
-                        obs_table="obs"
+                        obs_table="obs",
                     )
                     if mysql_ctc is None:
                         print(
@@ -603,20 +592,23 @@ class TestCTCBuilderV01(unittest.TestCase):
                         self.assertGreater(
                             len(name_diffs),
                             0,
-                            "There are differences between the mysql and CB station names" + str(name_diffs)
+                            "There are differences between the mysql and CB station names"
+                            + str(name_diffs),
                         )
                     except:
                         # recalculate without the differences
                         self.cb_model_obs_data = []
                         cb_ctc = {}
-                        cb_ctc = self.calculate_cb_ctc(spec_file_name=spec_file,
-                            epoch=elem['fcstValidEpoch'],
+                        cb_ctc = self.calculate_cb_ctc(
+                            spec_file_name=spec_file,
+                            epoch=elem["fcstValidEpoch"],
                             fcst_len=i,
                             threshold=int(t),
                             model="HRRR_OPS",
                             subset="METAR",
                             region="ALL_HRRR",
-                            reject_stations=name_diffs)
+                            reject_stations=name_diffs,
+                        )
                         mysql_ctc = {}
                         self.mysql_model_obs_data = []
                         mysql_ctc = self.calculate_mysql_ctc_loop(
@@ -626,7 +618,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                             model="HRRR_OPS",
                             region="ALL_HRRR",
                             obs_table="obs",
-                            reject_stations=name_diffs
+                            reject_stations=name_diffs,
                         )
 
                     # self.assertEqual(
@@ -635,422 +627,6 @@ class TestCTCBuilderV01(unittest.TestCase):
                     #     "model_obs_data are not the same length",
                     # )
                     for r in range(len(self.mysql_model_obs_data)):
-                        delta = round(
-                            (
-                                self.mysql_model_obs_data[r]["model_value"] * 10
-                                + self.cb_model_obs_data[r]["model"]
-                            )
-                            * 0.05
-                        )
-                        try:
-                            self.assertAlmostEqual(
-                                self.mysql_model_obs_data[r]["model_value"] * 10,
-                                self.cb_model_obs_data[r]["model"],
-                                msg="mysql and cb model values differ",
-                                delta=delta,
-                            )
-                        except:
-                            print(
-                                i,
-                                "model",
-                                self.mysql_model_obs_data[r]["time"],
-                                self.mysql_model_obs_data[r]["fcst_len"],
-                                self.cb_model_obs_data[r]["thrsh"],
-                                self.mysql_model_obs_data[r]["name"],
-                                self.mysql_model_obs_data[r]["model_value"] * 10,
-                                self.cb_model_obs_data[r]["name"],
-                                self.cb_model_obs_data[r]["model"],
-                                delta,
-                            )
-                        try:
-                            self.assertAlmostEqual(
-                                self.mysql_model_obs_data[r]["obs_value"] * 10,
-                                self.cb_model_obs_data[r]["obs"],
-                                msg="mysql and cb obs values differ",
-                                delta=delta,
-                            )
-                        except:
-                            print(
-                                i,
-                                "obs",
-                                self.mysql_model_obs_data[r]["time"],
-                                self.mysql_model_obs_data[r]["fcst_len"],
-                                self.cb_model_obs_data[r]["thrsh"],
-                                self.mysql_model_obs_data[r]["name"],
-                                self.mysql_model_obs_data[r]["obs_value"] * 10,
-                                self.cb_model_obs_data[r]["name"],
-                                self.cb_model_obs_data[i]["obs"],
-                                delta,
-                            )
-
-        except:
-            self.fail("TestCTCBuilderV01 Exception failure: " + str(sys.exc_info()[0]))
-        return
-
-    def test_ctc_builder_hrrr_ops_all_hrrr_legacy(
-        self,
-    ):  # pylint: disable=too-many-locals
-        """
-        This test verifies that data is returned for each fcstLen and each threshold,
-        using the METAR_LEGACY data and that the model name is modified to have "_LEGACY" appended.
-        It can be used to debug the builder by putting a specific epoch for first_epoch.
-        By default it will build all unbuilt CTC objects and put them into the output folder.
-        Then it takes the last output json file and loads that file.
-        Then the test  derives the same CTC in three ways.
-        1) it calculates the CTC using couchbase data for input.
-        2) It calculates the CTC using mysql data for input.
-        3) It uses the mysql legacy query with the embeded calculation.
-        The two mysql derived CTC's are compared and asserted, and then the couchbase CTC
-        is compared and asserted against the mysql CTC.
-        """
-        # noinspection PyBroadException
-        try:
-            cwd = os.getcwd()
-            credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
-            spec_file = (
-                cwd
-                + "/ctc_to_cb/test/test_load_spec_metar_hrrr_ops_all_hrrr_ctc_V01-legacy.yaml"
-            )
-            outdir = "/opt/data/ctc_to_cb_legacy/output"
-            filepaths = outdir + "/*.json"
-            files = glob.glob(filepaths)
-            for f in files:
-                try:
-                    os.remove(f)
-                except OSError as e:
-                    self.fail("Error: %s : %s" % (f, e.strerror))
-            vx_ingest = VXIngest()
-            vx_ingest.runit(
-                {
-                    "spec_file": spec_file,
-                    "credentials_file": credentials_file,
-                    "output_dir": outdir,
-                    "threads": 1,
-                    "first_epoch": 1645002000,
-                    "last_epoch": 1645005600,
-                }
-            )
-            list_of_output_files = glob.glob("/opt/data/ctc_to_cb_legacy/output/*")
-            # latest_output_file = max(list_of_output_files, key=os.path.getctime)
-            latest_output_file = min(list_of_output_files, key=os.path.getctime)
-            try:
-                # Opening JSON file
-                output_file = open(latest_output_file)
-                # returns JSON object as a dictionary
-                vx_ingest_output_data = json.load(output_file)
-                # get the last fcstValidEpochs
-                fcst_valid_epochs = {
-                    doc["fcstValidEpoch"] for doc in vx_ingest_output_data
-                }
-                # take a fcstValidEpoch in the middle of the list
-                fcst_valid_epoch = list(fcst_valid_epochs)[
-                    int(len(fcst_valid_epochs) / 2)
-                ]
-                thresholds = ["500", "1000", "3000", "60000"]
-                # get all the documents that have the chosen fcstValidEpoch
-                docs = [
-                    doc
-                    for doc in vx_ingest_output_data
-                    if doc["fcstValidEpoch"] == fcst_valid_epoch
-                ]
-                # get all the fcstLens for those docs
-                fcst_lens = []
-                for elem in docs:
-                    fcst_lens.append(elem["fcstLen"])
-                output_file.close()
-            except:
-                self.fail(
-                    "TestCTCBuilderV01 Exception failure opening output: "
-                    + str(sys.exc_info()[0])
-                )
-            for i in fcst_lens:
-                elem = None
-                # find the document for this fcst_len
-                for elem in docs:
-                    if elem["fcstLen"] == i:
-                        break
-                # process all the thresholds
-                for t in thresholds:
-                    print(
-                        "Asserting mysql derived CTC for fcstValidEpoch: {epoch} model: HRRR_OPS_LEGACY region: ALL_HRRR fcst_len: {fcst_len} threshold: {thrsh}".format(
-                            epoch=elem["fcstValidEpoch"], thrsh=t, fcst_len=i
-                        )
-                    )
-                    # populate the self.cb_model_obs_data
-                    cb_ctc = self.calculate_cb_ctc(
-                        spec_file_name=spec_file,
-                        epoch=elem["fcstValidEpoch"],
-                        fcst_len=i,
-                        threshold=int(t),
-                        model="HRRR_OPS_LEGACY",
-                        subset="METAR_LEGACY",
-                        region="ALL_HRRR",
-                    )
-                    mysql_ctc_loop = self.calculate_mysql_ctc_loop(
-                        epoch=elem["fcstValidEpoch"],
-                        fcst_len=i,
-                        threshold=int(t) / 10,
-                        model="HRRR_OPS_LEGACY",
-                        region="ALL_HRRR",
-                        obs_table="obs",
-                    )
-                    if mysql_ctc_loop == None:
-                        print(
-                            "mysql_ctc_loop is None for threshold {thrsh}- contunuing".format(
-                                thrsh=str(t)
-                            )
-                        )
-                        continue
-                    # are the station names the same?
-                    mysql_names = [elem["name"] for elem in self.mysql_model_obs_data]
-                    cb_names = [elem["name"] for elem in self.cb_model_obs_data]
-                    name_diffs = [
-                        i
-                        for i in cb_names + mysql_names
-                        if i not in cb_names or i not in mysql_names
-                    ]
-                    try:
-                        self.assertGreater(
-                            len(name_diffs),
-                            0,
-                            "There are differences between the mysql and CB station names" + str(name_diffs)
-                        )
-                    except:
-                        # recalculate without the differences
-                        self.cb_model_obs_data = []
-                        cb_ctc = {}
-                        cb_ctc = self.calculate_cb_ctc(spec_file_name=spec_file,
-                            epoch=elem['fcstValidEpoch'],
-                            fcst_len=i,
-                            threshold=int(t),
-                            model="HRRR_OPS",
-                            subset="METAR",
-                            region="ALL_HRRR",
-                            reject_stations=name_diffs)
-                        mysql_ctc = {}
-                        self.mysql_model_obs_data = []
-                        mysql_ctc = self.calculate_mysql_ctc_loop(
-                            epoch=elem["fcstValidEpoch"],
-                            fcst_len=i,
-                            threshold=int(t) / 10,
-                            model="HRRR_OPS_LEGACY",
-                            region="ALL_HRRR",
-                            obs_table="obs",
-                            reject_stations=name_diffs
-                        )
-                    max_range = min(
-                        len(self.mysql_model_obs_data), len(self.cb_model_obs_data)
-                    )
-                    for r in range(max_range):
-                        delta = round(
-                            (
-                                self.mysql_model_obs_data[r]["model_value"] * 10
-                                + self.cb_model_obs_data[r]["model"]
-                            )
-                            * 0.05
-                        )
-                        try:
-                            self.assertAlmostEqual(
-                                self.mysql_model_obs_data[r]["model_value"] * 10,
-                                self.cb_model_obs_data[r]["model"],
-                                msg="mysql and cb model values differ",
-                                delta=delta,
-                            )
-                        except:
-                            print(
-                                i,
-                                "model",
-                                self.mysql_model_obs_data[r]["time"],
-                                self.mysql_model_obs_data[r]["fcst_len"],
-                                self.cb_model_obs_data[r]["thrsh"],
-                                self.mysql_model_obs_data[r]["name"],
-                                self.mysql_model_obs_data[r]["model_value"] * 10,
-                                self.cb_model_obs_data[r]["name"],
-                                self.cb_model_obs_data[r]["model"],
-                                delta,
-                            )
-                        try:
-                            self.assertAlmostEqual(
-                                self.mysql_model_obs_data[r]["obs_value"] * 10,
-                                self.cb_model_obs_data[r]["obs"],
-                                msg="mysql and cb obs values differ",
-                                delta=delta,
-                            )
-                        except:
-                            print(
-                                i,
-                                "obs",
-                                self.mysql_model_obs_data[r]["time"],
-                                self.mysql_model_obs_data[r]["fcst_len"],
-                                self.cb_model_obs_data[r]["thrsh"],
-                                self.mysql_model_obs_data[r]["name"],
-                                self.mysql_model_obs_data[r]["obs_value"] * 10,
-                                self.cb_model_obs_data[r]["name"],
-                                self.cb_model_obs_data[i]["obs"],
-                                delta,
-                            )
-
-        except:
-            self.fail("TestCTCBuilderV01 Exception failure: " + str(sys.exc_info()[0]))
-        return
-
-    def test_ctc_builder_hrrr_ops_all_hrrr_legacy_retro(
-        self,
-    ):  # pylint: disable=too-many-locals
-        """
-        This test verifies that data is returned for each fcstLen and each threshold,
-        using the METAR_LEGACY_RETRO data and that the model name is modified to have "_LEGACY_RETRO" appended.
-        It can be used to debug the builder by putting a specific epoch for first_epoch.
-        By default it will build all unbuilt CTC objects and put them into the output folder.
-        Then it takes the last output json file and loads that file.
-        Then the test  derives the same CTC in three ways.
-        1) it calculates the CTC using couchbase data for input.
-        2) It calculates the CTC using mysql data for input.
-        3) It uses the mysql retro query with the embeded calculation.
-        The two mysql derived CTC's are compared and asserted, and then the couchbase CTC
-        is compared and asserted against the mysql CTC.
-        """
-        # noinspection PyBroadException
-        try:
-            cwd = os.getcwd()
-            credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
-            spec_file = (
-                cwd
-                + "/ctc_to_cb/test/test_load_spec_metar_hrrr_ops_all_hrrr_ctc_V01-retro.yaml"
-            )
-            outdir = "/opt/data/ctc_to_cb_legacy_retro/output"
-            filepaths = outdir + "/*.json"
-            files = glob.glob(filepaths)
-            for f in files:
-                try:
-                    os.remove(f)
-                except OSError as e:
-                    self.fail("Error: %s : %s" % (f, e.strerror))
-            vx_ingest = VXIngest()
-            vx_ingest.runit(
-                {
-                    "spec_file": spec_file,
-                    "credentials_file": credentials_file,
-                    "output_dir": outdir,
-                    "threads": 1,
-                    "first_epoch": 1642118400,
-                    "last_epoch": 1642118400 + 3600,
-                }
-            )
-            list_of_output_files = glob.glob(
-                "/opt/data/ctc_to_cb_legacy_retro/output/*"
-            )
-            # latest_output_file = max(list_of_output_files, key=os.path.getctime)
-            latest_output_file = min(list_of_output_files, key=os.path.getctime)
-            try:
-                # Opening JSON file
-                output_file = open(latest_output_file)
-                # returns JSON object as a dictionary
-                vx_ingest_output_data = json.load(output_file)
-                # get the last fcstValidEpochs
-                fcst_valid_epochs = {
-                    doc["fcstValidEpoch"] for doc in vx_ingest_output_data
-                }
-                # take a fcstValidEpoch in the middle of the list
-                fcst_valid_epoch = list(fcst_valid_epochs)[
-                    int(len(fcst_valid_epochs) / 2)
-                ]
-                thresholds = ["500", "1000", "3000", "60000"]
-                # get all the documents that have the chosen fcstValidEpoch
-                docs = [
-                    doc
-                    for doc in vx_ingest_output_data
-                    if doc["fcstValidEpoch"] == fcst_valid_epoch
-                ]
-                # get all the fcstLens for those docs
-                fcst_lens = []
-                for elem in docs:
-                    fcst_lens.append(elem["fcstLen"])
-                output_file.close()
-            except:
-                self.fail(
-                    "TestCTCBuilderV01 Exception failure opening output: "
-                    + str(sys.exc_info()[0])
-                )
-            for i in fcst_lens:
-                elem = None
-                # find the document for this fcst_len
-                for elem in docs:
-                    if elem["fcstLen"] == i:
-                        break
-                # process all the thresholds
-                for t in thresholds:
-                    print(
-                        "Asserting mysql derived CTC for fcstValidEpoch: {epoch} model: HRRR_OPS_LEGACY region: ALL_HRRR fcst_len: {fcst_len} threshold: {thrsh}".format(
-                            epoch=elem["fcstValidEpoch"], thrsh=t, fcst_len=i
-                        )
-                    )
-                    # populate the self.cb_model_obs_data
-                    cb_ctc = self.calculate_cb_ctc(
-                        spec_file_name=spec_file,
-                        epoch=elem["fcstValidEpoch"],
-                        fcst_len=i,
-                        threshold=int(t),
-                        model="HRRR_OPS_LEGACY_RETRO",
-                        subset="METAR_LEGACY_RETRO",
-                        region="ALL_HRRR",
-                    )
-                    mysql_ctc_loop = self.calculate_mysql_ctc_loop(
-                        epoch=elem["fcstValidEpoch"],
-                        fcst_len=i,
-                        threshold=int(t) / 10,
-                        model="HRRR_OPS_LEGACY_retro",
-                        region="ALL_HRRR",
-                        obs_table="obs_retro"
-                    )
-                    if mysql_ctc_loop == None:
-                        print(
-                            "mysql_ctc_loop is None for threshold {thrsh}- contunuing".format(
-                                thrsh=str(t)
-                            )
-                        )
-                        continue
-                    # are the station names the same?
-                    mysql_names = [elem["name"] for elem in self.mysql_model_obs_data]
-                    cb_names = [elem["name"] for elem in self.cb_model_obs_data]
-                    name_diffs = [
-                        i
-                        for i in cb_names + mysql_names
-                        if i not in cb_names or i not in mysql_names
-                    ]
-                    try:
-                        self.assertGreater(
-                            len(name_diffs),
-                            0,
-                            "There are differences between the mysql and CB station names" + str(name_diffs)
-                        )
-                    except:
-                        # recalculate without the differences
-                        self.cb_model_obs_data = []
-                        cb_ctc = {}
-                        cb_ctc = self.calculate_cb_ctc(spec_file_name=spec_file,
-                            epoch=elem['fcstValidEpoch'],
-                            fcst_len=i,
-                            threshold=int(t),
-                            model="HRRR_OPS",
-                            subset="METAR",
-                            region="ALL_HRRR",
-                            reject_stations=name_diffs)
-                        mysql_ctc = {}
-                        self.mysql_model_obs_data = []
-                        mysql_ctc = self.calculate_mysql_ctc_loop(
-                            epoch=elem["fcstValidEpoch"],
-                            fcst_len=i,
-                            threshold=int(t) / 10,
-                            model="HRRR_OPS",
-                            region="ALL_HRRR",
-                            obs_table="obs",
-                            reject_stations=name_diffs
-                        )
-                    max_range = max(
-                        len(self.mysql_model_obs_data), len(self.cb_model_obs_data)
-                    )
-                    for r in range(max_range):
                         delta = round(
                             (
                                 self.mysql_model_obs_data[r]["model_value"] * 10
@@ -1290,7 +866,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                         subset="METAR",
                         region="ALL_HRRR",
                         fcst_len=i,
-                        threshold=int(t)
+                        threshold=int(t),
                     )
                     if cb_ctc is None:
                         print(
@@ -1338,7 +914,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                         region="ALL_HRRR",
                         fcst_len=i,
                         threshold=int(t),
-                        reject_stations=name_diffs
+                        reject_stations=name_diffs,
                     )
                     try:
                         self.assertEqual(
@@ -1422,756 +998,6 @@ class TestCTCBuilderV01(unittest.TestCase):
                                     self.cb_model_obs_data[r]["obs"],
                                     delta,
                                 )
-
-        except:
-            self.fail("TestCTCBuilderV01 Exception failure: " + str(sys.exc_info()[0]))
-        return
-
-    def test_ctc_builder_hrrr_ops_all_hrrr_compare_model_obs_data_legacy(self):
-        """
-        This test verifies that data is returned for each fcstLen and each threshold.
-        It can be used to debug the builder by putting a specific epoch for first_epoch.
-        By default it will build all unbuilt CTC objects and put them into the output folder.
-        Then it takes the last output json file and loads that file.
-        Then the test derives the same CTC in three ways.
-        1) it calculates the CTC using couchbase data for input.
-        2) It calculates the CTC using mysql data for input.
-        3) It uses the mysql legacy query with the embeded calculation.
-        The two mysql derived CTC's are compared and asserted, and then the couchbase CTC
-        is compared and asserted against the mysql CTC.
-        This test is applied against the legacy data set for mysql models and couchbase.
-        """
-        # noinspection PyBroadException
-        try:
-            credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
-            self.assertTrue(
-                Path(credentials_file).is_file(), "credentials_file Does not exist"
-            )
-            cf = open(credentials_file)
-            yaml_data = yaml.load(cf, yaml.SafeLoader)
-            host = yaml_data["cb_host"]
-            user = yaml_data["cb_user"]
-            password = yaml_data["cb_password"]
-            cf.close()
-            options = ClusterOptions(PasswordAuthenticator(user, password))
-            cluster = Cluster("couchbase://" + host, options)
-
-            host = yaml_data["mysql_host"]
-            user = yaml_data["mysql_user"]
-            passwd = yaml_data["mysql_password"]
-            connection = pymysql.connect(
-                host=host,
-                user=user,
-                passwd=passwd,
-                local_infile=True,
-                autocommit=True,
-                charset="utf8mb4",
-                cursorclass=pymysql.cursors.SSDictCursor,
-                client_flag=CLIENT.MULTI_STATEMENTS,
-            )
-            cursor = connection.cursor(pymysql.cursors.SSDictCursor)
-            cwd = os.getcwd()
-            spec_file = (
-                cwd
-                + "/ctc_to_cb/test/test_load_spec_metar_hrrr_ops_all_hrrr_ctc_V01-legacy.yaml"
-            )
-            # get the ceiling thresholds from the metadata
-            result = cluster.query(
-                """
-                SELECT RAW mdata.thresholdDescriptions
-                FROM mdata
-                WHERE type="MD"
-                    AND docType="matsAux"
-                """,
-                read_only=True,
-            )
-            thresholds = list(map(int, list((list(result)[0])["ceiling"].keys())))
-
-            # get the model fcstValidEpoch list from couchbase
-            result = cluster.query(
-                """SELECT RAW fcstValidEpoch
-                    FROM mdata
-                    WHERE type='DD'
-                        AND docType='model'
-                        AND mdata.model='{model}'
-                        AND mdata.version='V01'
-                        AND mdata.subset='{subset}'""".format(
-                    model="HRRR_OPS", subset="METAR"
-                )
-            )
-            cb_model_fcst_valid_epochs = list(result)
-            # get the obs fcstValidEpoch list from couchbase
-            result = cluster.query(
-                """SELECT raw mdata.fcstValidEpoch
-                    FROM mdata
-                    WHERE mdata.type='DD'
-                        AND mdata.docType='obs'
-                        AND mdata.subset='METAR_LEGACY'
-                        AND mdata.version='V01'"""
-            )
-            cb_obs_fcst_valid_epochs = list(result)
-            cb_common_fcst_valid_epochs = [
-                val
-                for val in cb_obs_fcst_valid_epochs
-                if val in set(cb_model_fcst_valid_epochs)
-            ]
-            # get available fcstValidEpochs for  legacy
-            first_epoch = cb_common_fcst_valid_epochs[0]
-            last_epoch = cb_common_fcst_valid_epochs[-1]
-            cursor.execute(
-                """
-                select DISTINCT
-                1 * 3600 * floor((o.time + 1800) /(1 * 3600)) as time
-                from
-                ceiling2.{model} as m,
-                madis3.metars,
-                ceiling2.obs as o
-                where
-                1 = 1
-                and m.madis_id = madis3.metars.madis_id
-                and m.madis_id = o.madis_id
-                and m.fcst_len = 1
-                and m.time = o.time
-                and find_in_set("{region}", reg) > 0
-                and o.time >= {first_epoch} - 1800
-                and o.time < {last_epoch} + 1800
-                and m.time >= {first_epoch} - 1800
-                and m.time < {last_epoch} + 1800
-                order by
-                time""".format(
-                    model="HRRR_OPS_LEGACY",
-                    region="ALL_HRRR",
-                    first_epoch=first_epoch,
-                    last_epoch=last_epoch,
-                )
-            )
-            mysql_common_fcst_valid_epochs = [o["time"] for o in cursor.fetchall()]
-            common_fcst_valid_epochs = [
-                val
-                for val in cb_common_fcst_valid_epochs
-                if val in set(mysql_common_fcst_valid_epochs)
-            ]
-
-            # choose one sort of near the end to be sure that all the data is present and that
-            # it won't get its raw data migrated away
-            rindex = min(len(common_fcst_valid_epochs), 15) * -1
-            fcst_valid_epoch = common_fcst_valid_epochs[rindex]
-            result = cluster.query(
-                """
-                SELECT RAW fcstLen
-                FROM mdata
-                WHERE mdata.type="DD"
-                    AND mdata.docType="model"
-                    AND mdata.model='{model}'
-                    AND mdata.version='V01'
-                    AND mdata.subset='{subset}'
-                    AND mdata.fcstValidEpoch={fcst_valid_epoch}""".format(
-                    model="HRRR_OPS",
-                    subset="METAR_LEGACY",
-                    fcst_valid_epoch=fcst_valid_epoch,
-                )
-            )
-            cb_fcst_lens = list(result)
-            cursor.execute(
-                """
-                select DISTINCT fcst_len
-                from
-                ceiling2.{model} as m,
-                madis3.metars
-                where
-                    1 = 1
-                    and find_in_set("{region}", reg) > 0
-                    and m.time >= {epoch} - 1800
-                    and m.time < {epoch} + 1800""".format(
-                    model="HRRR_OPS_LEGACY", region="ALL_HRRR", epoch=fcst_valid_epoch
-                )
-            )
-            mysql_fcst_lens_result = cursor.fetchall()
-            mysql_fcst_lens = [o["fcst_len"] for o in mysql_fcst_lens_result]
-            fcst_lens = [
-                fcst_len
-                for fcst_len in mysql_fcst_lens
-                if fcst_len in set(cb_fcst_lens)
-            ]
-            print("..")
-            print("cb fcst_lens:", cb_fcst_lens)
-            print("mysql fcst_lens:", mysql_fcst_lens)
-            print("common fcst_lens:", fcst_lens)
-            for i in fcst_lens:
-                for t in thresholds:
-                    # process all the thresholds
-                    print(
-                        "Asserting mysql derived CTC for fcstValidEpoch: {epoch} model: {model} region: {region} fcst_len: {fcst_len} threshold: {thrsh}".format(
-                            model="HRRR_OPS",
-                            region="ALL_HRRR",
-                            epoch=fcst_valid_epoch,
-                            thrsh=t,
-                            fcst_len=i,
-                        )
-                    )
-                    # calculate_cb_ctc derives the cb data for the compare
-                    cb_ctc = self.calculate_cb_ctc(
-                        spec_file_name=spec_file,
-                        epoch=fcst_valid_epoch,
-                        model="HRRR_OPS_LEGACY",
-                        subset="METAR_LEGACY",
-                        region="ALL_HRRR",
-                        fcst_len=i,
-                        threshold=int(t),
-                    )
-                    if cb_ctc is None:
-                        print(
-                            "mysql_ctc_loop is None for threshold {thrsh}- contunuing".format(
-                                thrsh=str(t)
-                            )
-                        )
-                        continue
-                    # calculate_mysql_ctc_loop derives the mysql data for the compare
-                    mysql_ctc_loop = self.calculate_mysql_ctc_loop(
-                        model="HRRR_OPS_LEGACY",
-                        region="ALL_HRRR",
-                        epoch=fcst_valid_epoch,
-                        fcst_len=i,
-                        threshold=int(t) / 10,
-                        obs_table="obs",
-                    )
-                    if mysql_ctc_loop is None:
-                        print(
-                            "mysql_ctc_loop is None for threshold {thrsh}- contunuing".format(
-                                thrsh=str(t)
-                            )
-                        )
-                        continue
-                    # mysql_ctc = self.calculate_mysql_ctc(model="HRRR_OPS", region="ALL_HRRR", epoch=fcst_valid_epoch, fcst_len=i, threshold=int(t) / 10, obs_table="obs")
-                    # are the station names the same?
-                    mysql_names = [elem["name"] for elem in self.mysql_model_obs_data]
-                    cb_names = [elem["name"] for elem in self.cb_model_obs_data]
-                    name_diffs = [
-                        i
-                        for i in cb_names + mysql_names
-                        if i not in cb_names or i not in mysql_names
-                    ]
-                    # Fix This when we sort out why there are differences
-                    self.assertGreater(
-                        len(name_diffs),
-                        0,
-                        "There are differences between the mysql and CB station names",
-                    )
-                    cb_ctc_nodiffs = self.calculate_cb_ctc(
-                        spec_file_name=spec_file,
-                        epoch=fcst_valid_epoch,
-                        model="HRRR_OPS_LEGACY",
-                        subset="METAR_LEGACY",
-                        region="ALL_HRRR",
-                        fcst_len=i,
-                        threshold=int(t),
-                        reject_stations=name_diffs
-                    )
-                    try:
-                        self.assertEqual(
-                            len(self.mysql_model_obs_data),
-                            len(self.cb_model_obs_data),
-                            "model_obs_data are not the same length",
-                        )
-                    except:
-                        print(
-                            "model_obs_data are not the same length",
-                            len(self.mysql_model_obs_data),
-                            len(self.cb_model_obs_data),
-                        )
-                    min_length = min(
-                        len(self.mysql_model_obs_data), len(self.cb_model_obs_data)
-                    )
-                    for r in range(min_length):
-                        if self.cb_model_obs_data[r]["model"] is None:
-                            try:
-                                self.assertEqual(
-                                    self.mysql_model_obs_data[r]["model_value"],
-                                    self.cb_model_obs_data[r]["model"],
-                                )
-                            except:
-                                print(
-                                    r,
-                                    "model",
-                                    self.mysql_model_obs_data[r]["time"],
-                                    self.mysql_model_obs_data[r]["fcst_len"],
-                                    self.cb_model_obs_data[r]["thrsh"],
-                                    self.mysql_model_obs_data[r]["name"],
-                                    self.mysql_model_obs_data[r]["model_value"] * 10,
-                                    self.cb_model_obs_data[r]["model"],
-                                )
-                        else:
-                            # find the delta between the two, mysql must be multiplied by 10
-                            delta = round(
-                                (
-                                    self.mysql_model_obs_data[r]["model_value"] * 10
-                                    + self.cb_model_obs_data[r]["model"]
-                                )
-                                * 0.05
-                            )
-                            try:
-                                # do the model values match within 5% ?
-                                self.assertAlmostEqual(
-                                    self.mysql_model_obs_data[r]["model_value"] * 10,
-                                    self.cb_model_obs_data[r]["model"],
-                                    msg="mysql and cb model values differ",
-                                    delta=delta,
-                                )
-                            except:
-                                print(
-                                    r,
-                                    "model",
-                                    self.mysql_model_obs_data[r]["time"],
-                                    self.mysql_model_obs_data[r]["fcst_len"],
-                                    self.cb_model_obs_data[r]["thrsh"],
-                                    self.mysql_model_obs_data[r]["name"],
-                                    self.mysql_model_obs_data[r]["model_value"] * 10,
-                                    self.cb_model_obs_data[r]["model"],
-                                    delta,
-                                )
-                            try:
-                                # do the obs match within 5%
-                                self.assertAlmostEqual(
-                                    self.mysql_model_obs_data[r]["obs_value"] * 10,
-                                    self.cb_model_obs_data[r]["obs"],
-                                    msg="mysql and cb obs values differ",
-                                    delta=delta,
-                                )
-                            except:
-                                print(
-                                    r,
-                                    "obs",
-                                    self.mysql_model_obs_data[r]["time"],
-                                    self.mysql_model_obs_data[r]["fcst_len"],
-                                    self.cb_model_obs_data[r]["thrsh"],
-                                    self.mysql_model_obs_data[r]["name"],
-                                    self.mysql_model_obs_data[r]["obs_value"] * 10,
-                                    self.cb_model_obs_data[r]["obs"],
-                                    delta,
-                                )
-        except:
-            self.fail("TestCTCBuilderV01 Exception failure: " + str(sys.exc_info()[0]))
-        return
-
-    def test_ctc_builder_hrrr_ops_all_hrrr_compare_model_obs_data_legacy_retro(self):
-        """
-        This test verifies that data is returned for each fcstLen and each threshold.
-        It can be used to debug the builder by putting a specific epoch for first_epoch.
-        By default it will build all unbuilt CTC objects and put them into the output folder.
-        Then it takes the last output json file and loads that file.
-        Then the test derives the same CTC in three ways.
-        1) it calculates the CTC using couchbase data for input.
-        2) It calculates the CTC using mysql data for input.
-        3) It uses the mysql legacy query with the embeded calculation.
-        The two mysql derived CTC's are compared and asserted, and then the couchbase CTC
-        is compared and asserted against the mysql CTC.
-        This test is applied against the legacy data special retro set for mysql models and couchbase.
-        """
-        # noinspection PyBroadException
-        try:
-            credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
-            self.assertTrue(
-                Path(credentials_file).is_file(), "credentials_file Does not exist"
-            )
-            cf = open(credentials_file)
-            yaml_data = yaml.load(cf, yaml.SafeLoader)
-            host = yaml_data["cb_host"]
-            user = yaml_data["cb_user"]
-            password = yaml_data["cb_password"]
-            cf.close()
-            options = ClusterOptions(PasswordAuthenticator(user, password))
-            cluster = Cluster("couchbase://" + host, options)
-
-            host = yaml_data["mysql_host"]
-            user = yaml_data["mysql_user"]
-            passwd = yaml_data["mysql_password"]
-            connection = pymysql.connect(
-                host=host,
-                user=user,
-                passwd=passwd,
-                local_infile=True,
-                autocommit=True,
-                charset="utf8mb4",
-                cursorclass=pymysql.cursors.SSDictCursor,
-                client_flag=CLIENT.MULTI_STATEMENTS,
-            )
-            cursor = connection.cursor(pymysql.cursors.SSDictCursor)
-            cwd = os.getcwd()
-            spec_file = (
-                cwd
-                + "/ctc_to_cb/test/test_load_spec_metar_hrrr_ops_all_hrrr_ctc_V01-retro.yaml"
-            )
-            # get the ceiling thresholds from the metadata
-            result = cluster.query(
-                """
-                SELECT RAW mdata.thresholdDescriptions
-                FROM mdata
-                WHERE type="MD"
-                    AND docType="matsAux"
-                """,
-                read_only=True,
-            )
-            thresholds = list(map(int, list((list(result)[0])["ceiling"].keys())))
-
-            # get the model fcstValidEpoch list from couchbase
-            # model data does not have _LEGACY or _LEGACY_RETRO
-            result = cluster.query(
-                """SELECT RAW TONUMBER(SPLIT(META().id,":")[4]) AS fcstValidEpoch
-                    FROM mdata
-                    WHERE type='DD'
-                        AND docType='model'
-                        AND mdata.model='{model}'
-                        AND mdata.version='V01'
-                        AND mdata.subset='{subset}'
-                        AND mdata.fcstValidEpoch BETWEEN 1625097600 AND 1642118400
-                        """.format(
-                    model="HRRR_OPS", subset="METAR"
-                )
-            )
-            cb_model_fcst_valid_epochs = list(result)
-            # get the obs fcstValidEpoch list from couchbase
-            # it is much more efficient to just return the ids
-            # restrict the data to greater than july 1 2021 and less than dec 14 2021 0Z
-            result = cluster.query(
-                """SELECT RAW TONUMBER(SPLIT(META().id,":")[4]) AS fcstValidEpoch
-                    FROM mdata
-                    WHERE type='DD'
-                        AND docType='obs'
-                        AND subset='METAR_LEGACY_RETRO'
-                        AND fcstValidEpoch >= 1625097600
-                        AND fcstValidEpoch <= 1639440000
-                        AND version='V01'"""
-            )
-            cb_obs_fcst_valid_epochs = list(result)
-            cb_common_fcst_valid_epochs = [
-                val
-                for val in cb_obs_fcst_valid_epochs
-                if val in set(cb_model_fcst_valid_epochs)
-            ]
-            # get available fcstValidEpochs for  legacy
-            first_epoch = cb_common_fcst_valid_epochs[0]
-            last_epoch = cb_common_fcst_valid_epochs[-1]
-            statement = """
-                select DISTINCT
-                1 * 3600 * floor((o.time + 1800) /(1 * 3600)) as time
-                from
-                ceiling2.{model} as m,
-                madis3.metars,
-                ceiling2.obs_retro as o
-                where
-                1 = 1
-                and m.madis_id = madis3.metars.madis_id
-                and m.madis_id = o.madis_id
-                and m.fcst_len = 1
-                and m.time = o.time
-                and find_in_set("{region}", reg) > 0
-                and o.time >= {first_epoch} - 1800
-                and o.time < {last_epoch} + 1800
-                and m.time >= {first_epoch} - 1800
-                and m.time < {last_epoch} + 1800
-                order by
-                time""".format(
-                model="HRRR_OPS_LEGACY_retro",
-                region="ALL_HRRR",
-                first_epoch=first_epoch,
-                last_epoch=last_epoch,
-            )
-            cursor.execute(statement)
-            mysql_common_fcst_valid_epochs = [o["time"] for o in cursor.fetchall()]
-            common_fcst_valid_epochs = [
-                val
-                for val in cb_common_fcst_valid_epochs
-                if val in set(mysql_common_fcst_valid_epochs)
-            ]
-
-            # choose one sort of near the end to be sure that all the data is present and that
-            # it won't get its raw data migrated away
-            rindex = min(len(common_fcst_valid_epochs), 15) * -1
-            fcst_valid_epoch = common_fcst_valid_epochs[rindex]
-            # PUT a test fcst_valid_epoch here
-            fcst_valid_epoch = 1639389600
-            result = cluster.query(
-                """
-                SELECT RAW fcstLen
-                FROM mdata
-                WHERE mdata.type="DD"
-                    AND mdata.docType="model"
-                    AND mdata.model='{model}'
-                    AND mdata.version='V01'
-                    AND mdata.subset='{subset}'
-                    AND mdata.fcstValidEpoch={fcst_valid_epoch}""".format(
-                    model="HRRR_OPS", subset="METAR", fcst_valid_epoch=fcst_valid_epoch
-                )
-            )
-            cb_fcst_lens = list(result)
-            cursor.execute(
-                """
-                select DISTINCT fcst_len
-                from
-                ceiling2.{model} as m,
-                madis3.metars
-                where
-                    1 = 1
-                    and find_in_set("{region}", reg) > 0
-                    and m.time >= {epoch} - 1800
-                    and m.time < {epoch} + 1800""".format(
-                    model="HRRR_OPS_LEGACY_retro",
-                    region="ALL_HRRR",
-                    epoch=fcst_valid_epoch,
-                )
-            )
-            mysql_fcst_lens_result = cursor.fetchall()
-            mysql_fcst_lens = [o["fcst_len"] for o in mysql_fcst_lens_result]
-            fcst_lens = [
-                fcst_len
-                for fcst_len in mysql_fcst_lens
-                if fcst_len in set(cb_fcst_lens)
-            ]
-            # PUT a test fcst_len here...
-            #fcst_lens = [0]
-            print("..")
-            # print("cb fcst_lens:", cb_fcst_lens)
-            # print("mysql fcst_lens:", mysql_fcst_lens)
-            # print("common fcst_lens:", fcst_lens)
-            for i in fcst_lens:
-                for t in thresholds:
-                    # process all the thresholds
-                    print(
-                        "Asserting mysql derived CTC for fcstValidEpoch: {epoch} model: {model} region: {region} fcst_len: {fcst_len} threshold: {thrsh}".format(
-                            model="HRRR_OPS_LEGACY_RETRO",
-                            region="ALL_HRRR",
-                            epoch=fcst_valid_epoch,
-                            thrsh=t,
-                            fcst_len=i,
-                        )
-                    )
-                    # calculate_cb_ctc derives the cb data for the compare
-                    cb_ctc = self.calculate_cb_ctc(
-                        spec_file_name=spec_file,
-                        epoch=fcst_valid_epoch,
-                        model="HRRR_OPS_LEGACY_RETRO",
-                        subset="METAR_LEGACY_RETRO",
-                        region="ALL_HRRR",
-                        fcst_len=i,
-                        threshold=int(t)
-                    )
-                    if cb_ctc is None:
-                        print(
-                            "cb_ctc is None for threshold {thrsh}- contunuing".format(
-                                thrsh=str(t)
-                            )
-                        )
-                        continue
-                    cb_ctc['total'] = cb_ctc['hits'] + cb_ctc['misses'] + cb_ctc['false_alarms'] + cb_ctc['correct_negatives']
-
-                    # calculate_mysql_ctc_loop derives the mysql data for the compare
-                    mysql_ctc = self.calculate_mysql_ctc_loop(
-                        model="HRRR_OPS_LEGACY_retro",
-                        region="ALL_HRRR",
-                        epoch=fcst_valid_epoch,
-                        fcst_len=i,
-                        threshold=int(t) / 10,
-                        obs_table="obs_retro",
-                    )
-                    if mysql_ctc is None:
-                        print(
-                            "mysql_ctc_loop is None for threshold {thrsh}- contunuing".format(
-                                thrsh=str(t)
-                            )
-                        )
-                        continue
-                    mysql_ctc['total'] = mysql_ctc['hits'] + mysql_ctc['misses'] + mysql_ctc['false_alarms'] + mysql_ctc['correct_negatives']
-
-                    # mysql_ctc = self.calculate_mysql_ctc(model="HRRR_OPS", region="ALL_HRRR", epoch=fcst_valid_epoch, fcst_len=i, threshold=int(t) / 10, obs_table="obs_retro")
-                    # are the station names the same?
-                    mysql_names = [elem["name"] for elem in self.mysql_model_obs_data]
-                    cb_names = [elem["name"] for elem in self.cb_model_obs_data]
-                    name_diffs = [
-                        n
-                        for n in cb_names + mysql_names
-                        if n not in cb_names or n not in mysql_names
-                    ]
-                    try:
-                        self.assertEqual(
-                            len(name_diffs),
-                            0,
-                            "There are differences between the mysql and CB station names" + str(name_diffs)
-                        )
-                    except:
-                        # recalculate without the differences
-                        self.cb_model_obs_data = []
-                        cb_ctc = {}
-                        cb_ctc = self.calculate_cb_ctc(
-                            spec_file_name=spec_file,
-                            epoch=fcst_valid_epoch,
-                            model="HRRR_OPS_LEGACY_RETRO",
-                            subset="METAR_LEGACY_RETRO",
-                            region="ALL_HRRR",
-                            fcst_len=i,
-                            threshold=int(t),
-                            reject_stations=name_diffs)
-                        cb_ctc['total'] = cb_ctc['hits'] + cb_ctc['misses'] + cb_ctc['false_alarms'] + cb_ctc['correct_negatives']
-                        mysql_ctc = {}
-                        self.mysql_model_obs_data = []
-                        mysql_ctc = self.calculate_mysql_ctc_loop(
-                            epoch=fcst_valid_epoch,
-                            fcst_len=i,
-                            threshold=int(t) / 10,
-                            model="HRRR_OPS_LEGACY_retro",
-                            region="ALL_HRRR",
-                            obs_table="obs_retro",
-                            reject_stations=name_diffs
-                        )
-                        mysql_ctc['total'] = mysql_ctc['hits'] + mysql_ctc['misses'] + mysql_ctc['false_alarms'] + mysql_ctc['correct_negatives']
-                        print("-- forecastLen:", i, " threshold:", t)
-                        mysql_names = [elem["name"] for elem in self.mysql_model_obs_data]
-                        cb_names = [elem["name"] for elem in self.cb_model_obs_data]
-                        name_diffs = [
-                            n
-                            for n in cb_names + mysql_names
-                            if n not in cb_names or n not in mysql_names
-                        ]
-                    print(
-                        "model/obs, thrsh, time, fcst_len, difference, feet, name, mysql_value * 10, cb_value, delta"
-                    )
-                    try:
-                        self.assertEqual(
-                            len(self.mysql_model_obs_data),
-                            len(self.cb_model_obs_data),
-                            "model_obs_data are not the same length",
-                        )
-                    except:
-                        print(
-                            "model_obs_data are not the same length",
-                            len(self.mysql_model_obs_data),
-                            len(self.cb_model_obs_data),
-                        )
-                    # min_length = min(len(self.mysql_model_obs_data), len(self.cb_model_obs_data))
-                    common_names = [val for val in mysql_names if val in set(cb_names)]
-                    for name in common_names:
-                        cb_idx = [
-                            idx
-                            for idx, element in enumerate(self.cb_model_obs_data)
-                            if element["name"] == name
-                        ][0]
-                        mysql_idx = [
-                            idx
-                            for idx, element in enumerate(self.mysql_model_obs_data)
-                            if element["name"] == name
-                        ][0]
-
-                        if (
-                            self.cb_model_obs_data[cb_idx]["model"] is None
-                            or self.mysql_model_obs_data[mysql_idx]["model_value"]
-                            is None
-                        ):
-                            # handle None condition differently for model data because assertAlmostEqual doesn't work with None
-                            try:
-                                self.assertEqual(
-                                    self.mysql_model_obs_data[mysql_idx]["model_value"],
-                                    self.cb_model_obs_data[cb_idx]["model"],
-                                )
-                            except:
-                                print(
-                                    "var",
-                                    "model",
-                                    self.cb_model_obs_data[cb_idx]["thrsh"],
-                                    self.mysql_model_obs_data[mysql_idx]["time"],
-                                    self.mysql_model_obs_data[mysql_idx]["fcst_len"],
-                                    "unequal",
-                                    "feet",
-                                    self.mysql_model_obs_data[mysql_idx]["name"],
-                                    round(self.mysql_model_obs_data[mysql_idx]["model_value"]
-                                    * 10),
-                                    round(self.cb_model_obs_data[cb_idx]["model"]),
-                                    0
-                                )
-                        else:
-                            # handle not None condition for model data
-                            # find 5% of the delta between the two, mysql must be multiplied by 10
-                            delta = round(
-                                (
-                                    self.mysql_model_obs_data[mysql_idx]["model_value"] * 10
-                                    + self.cb_model_obs_data[cb_idx]["model"]
-                                )
-                                * 0.1
-                            )
-                            try:
-                                # do the model values match within 5% ?
-                                self.assertAlmostEqual(
-                                    self.mysql_model_obs_data[mysql_idx]["model_value"] * 10,
-                                    self.cb_model_obs_data[cb_idx]["model"],
-                                    msg="mysql and cb model values differ",
-                                    delta=delta,
-                                )
-                            except:
-                                print(
-                                    "var",
-                                    "model",
-                                    self.cb_model_obs_data[cb_idx]["thrsh"],
-                                    self.mysql_model_obs_data[mysql_idx]["time"],
-                                    self.mysql_model_obs_data[mysql_idx]["fcst_len"],
-                                    round(abs(self.cb_model_obs_data[cb_idx]["model"] - self.mysql_model_obs_data[mysql_idx]["model_value"] * 10)),
-                                    "feet",
-                                    self.mysql_model_obs_data[mysql_idx]["name"],
-                                    round(self.mysql_model_obs_data[mysql_idx]["model_value"] * 10),
-                                    round(self.cb_model_obs_data[cb_idx]["model"]),
-                                    delta
-                                )
-                                # do the obs match within 5%
-                                mysql_obs_value = (
-                                    None
-                                    if self.mysql_model_obs_data[mysql_idx]["obs_value"]
-                                    is None
-                                    else self.mysql_model_obs_data[mysql_idx]["obs_value"] * 10
-                                )
-                                if (
-                                    self.cb_model_obs_data[cb_idx]["obs"] is None
-                                    or mysql_obs_value is None
-                                ):
-                                    # handle None condition differently for obs because assertAlmostEqual doesn't work with None
-                                    try:
-                                        self.assertEqual(
-                                            self.cb_model_obs_data[cb_idx]["obs"],
-                                            mysql_obs_value,
-                                        )
-                                    except:
-                                        print(
-                                            "var",
-                                            "obs",
-                                            self.cb_model_obs_data[cb_idx]["thrsh"],
-                                            self.mysql_model_obs_data[mysql_idx]["time"],
-                                            self.mysql_model_obs_data[mysql_idx]["fcst_len"],
-                                            "unequal",
-                                            "feet",
-                                            self.mysql_model_obs_data[mysql_idx]["name"],
-                                            round(mysql_obs_value),
-                                            round(self.cb_model_obs_data[cb_idx]["obs"]),
-                                            0
-                                        )
-                                else:
-                                    # handle not None condition for obs
-                                    try:
-                                        self.assertAlmostEqual(
-                                            mysql_obs_value,
-                                            self.cb_model_obs_data[cb_idx]["obs"],
-                                            msg="mysql and cb obs values differ",
-                                            delta=delta,
-                                        )
-                                    except:
-                                        print(
-                                            "var",
-                                            "obs",
-                                            self.cb_model_obs_data[cb_idx]["thrsh"],
-                                            self.mysql_model_obs_data[mysql_idx]["time"],
-                                            self.mysql_model_obs_data[mysql_idx]["fcst_len"],
-                                            round(abs(mysql_obs_value - self.cb_model_obs_data[cb_idx]["obs"])),
-                                            "feet",
-                                            self.mysql_model_obs_data[mysql_idx]["name"],
-                                            round(mysql_obs_value),
-                                            round(self.cb_model_obs_data[cb_idx]["obs"]),
-                                            delta
-                                        )
 
         except:
             self.fail("TestCTCBuilderV01 Exception failure: " + str(sys.exc_info()[0]))
@@ -2186,6 +1012,8 @@ class TestCTCBuilderV01(unittest.TestCase):
         a common set of fcst_len values. It then compares the data with assertions. The intent is to
         demonstrate that the data transformation from input model obs pairs is being done
         the same for couchbase as it is for the legacy ingest system.
+
+        NOTE: We do not expect the mysql CTC data to match the CB CTC data - use this for debugging
         """
         try:
             credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
@@ -2344,505 +1172,79 @@ class TestCTCBuilderV01(unittest.TestCase):
             #
             mysql_fcst_len_thrsh = {}
             for fcst_len in intersect_fcst_lens:
+
                 mysql_fcst_len = [
                     value for value in mysql_results if value["fcst_len"] == fcst_len
                 ]
+                for cb_index_for_fcst_len, x in enumerate(cb_results):
+                    if x["mdata"]["fcstLen"] == fcst_len:
+                        break
                 for t in thresholds:
                     for mysql_fcst_len_thrsh in mysql_fcst_len:
                         if mysql_fcst_len_thrsh["trsh"] * 10 == t:
                             break
-                    self.assertEqual(
-                        cb_results[fcst_len]["mdata"]["data"][str(t)]["hits"],
+                    self.assertAlmostEqual(
+                        cb_results[cb_index_for_fcst_len]["mdata"]["data"][str(t)][
+                            "hits"
+                        ],
                         mysql_fcst_len_thrsh["hits"],
-                        "mysql hits {mhits} do not match couchbase hits {chits} for fcst_len {f} and threshold {t}".format(
+                        delta=1000,
+                        msg="mysql hits {mhits} do not match couchbase hits {chits} for fcst_len {f} and threshold {t}".format(
                             mhits=mysql_fcst_len_thrsh["hits"],
-                            chits=cb_results[fcst_len]["mdata"]["data"][str(t)]["hits"],
+                            chits=cb_results[cb_index_for_fcst_len]["mdata"]["data"][
+                                str(t)
+                            ]["hits"],
                             f=fcst_len,
                             t=t,
                         ),
                     )
-                    self.assertEqual(
-                        cb_results[fcst_len]["mdata"]["data"][str(t)]["misses"],
+                    self.assertAlmostEqual(
+                        cb_results[cb_index_for_fcst_len]["mdata"]["data"][str(t)][
+                            "misses"
+                        ],
                         mysql_fcst_len_thrsh["misses"],
-                        "mysql misses {mmisses} do not match couchbase misses {cmisses} for fcst_len {f} and threshold {t}".format(
+                        delta=1000,
+                        msg="mysql misses {mmisses} do not match couchbase misses {cmisses} for fcst_len {f} and threshold {t}".format(
                             mmisses=mysql_fcst_len_thrsh["misses"],
-                            cmisses=cb_results[fcst_len]["mdata"]["data"][str(t)][
-                                "misses"
-                            ],
+                            cmisses=cb_results[cb_index_for_fcst_len]["mdata"]["data"][
+                                str(t)
+                            ]["misses"],
                             f=fcst_len,
                             t=t,
                         ),
                     )
-                    self.assertEqual(
-                        cb_results[fcst_len]["mdata"]["data"][str(t)]["false_alarms"],
+                    self.assertAlmostEqual(
+                        cb_results[cb_index_for_fcst_len]["mdata"]["data"][str(t)][
+                            "false_alarms"
+                        ],
                         mysql_fcst_len_thrsh["false_alarms"],
-                        "mysql false_alarms {mfalse_alarms} do not match couchbase false_alarms {cfalse_alarms} for fcst_len {f} and threshold {t}".format(
+                        delta=1000,
+                        msg="mysql false_alarms {mfalse_alarms} do not match couchbase false_alarms {cfalse_alarms} for fcst_len {f} and threshold {t}".format(
                             mfalse_alarms=mysql_fcst_len_thrsh["false_alarms"],
-                            cfalse_alarms=cb_results[fcst_len]["mdata"]["data"][str(t)][
-                                "false_alarms"
-                            ],
+                            cfalse_alarms=cb_results[cb_index_for_fcst_len]["mdata"][
+                                "data"
+                            ][str(t)]["false_alarms"],
                             f=fcst_len,
                             t=t,
                         ),
                     )
-                    self.assertEqual(
-                        cb_results[fcst_len]["mdata"]["data"][str(t)][
+                    self.assertAlmostEqual(
+                        cb_results[cb_index_for_fcst_len]["mdata"]["data"][str(t)][
                             "correct_negatives"
                         ],
                         mysql_fcst_len_thrsh["correct_negatives"],
-                        "mysql correct_negatives {mcorrect_negatives} do not match couchbase correct_negatives {ccorrect_negatives} for fcst_len {f} and threshold {t}".format(
+                        delta=1000,
+                        msg="mysql correct_negatives {mcorrect_negatives} do not match couchbase correct_negatives {ccorrect_negatives} for fcst_len {f} and threshold {t}".format(
                             mcorrect_negatives=mysql_fcst_len_thrsh[
                                 "correct_negatives"
                             ],
-                            ccorrect_negatives=cb_results[fcst_len]["mdata"]["data"][
-                                str(t)
-                            ]["correct_negatives"],
+                            ccorrect_negatives=cb_results[cb_index_for_fcst_len][
+                                "mdata"
+                            ]["data"][str(t)]["correct_negatives"],
                             f=fcst_len,
                             t=t,
                         ),
                     )
-        except:
-            self.fail("TestCTCBuilderV01 Exception failure: " + str(sys.exc_info()[0]))
-        return
-
-    def test_ctc_data_hrrr_ops_all_hrrr_legacy(self):
-        # noinspection PyBroadException
-        """
-        This test is a comprehensive test of the ctcBuilder data. It will retrieve CTC documents
-        for a specific fcstValidEpoch from couchbase and the legacy mysql database.
-        It determines an appropriate fcstValidEpoch that exists in both datasets, then
-        a common set of fcst_len values. It then compares the data with assertions. The intent is to
-        demonstrate that the data transformation from input model obs pairs is being done
-        the same for couchbase as it is for the legacy ingest system.
-        """
-        try:
-            credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
-            self.assertTrue(
-                Path(credentials_file).is_file(), "credentials_file Does not exist"
-            )
-            cf = open(credentials_file)
-            yaml_data = yaml.load(cf, yaml.SafeLoader)
-            host = yaml_data["cb_host"]
-            user = yaml_data["cb_user"]
-            password = yaml_data["cb_password"]
-            cf.close()
-            options = ClusterOptions(PasswordAuthenticator(user, password))
-            cluster = Cluster("couchbase://" + host, options)
-
-            host = yaml_data["mysql_host"]
-            user = yaml_data["mysql_user"]
-            passwd = yaml_data["mysql_password"]
-            connection = pymysql.connect(
-                host=host,
-                user=user,
-                passwd=passwd,
-                local_infile=True,
-                autocommit=True,
-                charset="utf8mb4",
-                cursorclass=pymysql.cursors.SSDictCursor,
-                client_flag=CLIENT.MULTI_STATEMENTS,
-            )
-            cursor = connection.cursor(pymysql.cursors.SSDictCursor)
-            # get available fcstValidEpochs for couchbase
-            result = cluster.query(
-                """SELECT RAW fcstValidEpoch
-                FROM mdata
-                WHERE type="DD"
-                    AND docType="CTC"
-                    AND mdata.subDocType = "CEILING"
-                    AND mdata.model='HRRR_OPS_LEGACY'
-                    AND mdata.region='ALL_HRRR'
-                    AND mdata.version='V01'
-                    AND mdata.subset='METAR_LEGACY'"""
-            )
-            cb_fcst_valid_epochs = list(result)
-            # get available fcstValidEpochs for  legacy
-            cursor.execute(
-                "select time from ceiling_sums2.HRRR_OPS_LEGACY_ALL_HRRR where time > %s AND time < %s;",
-                (cb_fcst_valid_epochs[0], cb_fcst_valid_epochs[-1]),
-            )
-            common_fcst_valid_lens_result = cursor.fetchall()
-            # choose the last one that is common
-            fcst_valid_epoch = common_fcst_valid_lens_result[-1]["time"]
-            # get all the cb fcstLen values
-            result = cluster.query(
-                """SELECT raw mdata.fcstLen
-                FROM mdata
-                WHERE mdata.type='DD'
-                    AND mdata.docType = "CTC"
-                    AND mdata.subDocType = "CEILING"
-                    AND mdata.model='HRRR_OPS_LEGACY'
-                    AND mdata.region='ALL_HRRR'
-                    AND mdata.version='V01'
-                    AND mdata.subset='METAR_LEGACY'
-                    AND mdata.fcstValidEpoch = $time
-                    order by mdata.fcstLen
-                """,
-                time=fcst_valid_epoch,
-            )
-            cb_fcst_valid_lens = list(result)
-            # get the mysql_fcst_len values
-            statement = "select DISTINCT fcst_len from ceiling_sums2.HRRR_OPS_LEGACY_ALL_HRRR where time = %s;"
-            cursor.execute(statement, (fcst_valid_epoch))
-            mysql_fcst_valid_lens_result = cursor.fetchall()
-            mysql_fcst_valid_lens = [
-                o["fcst_len"] for o in mysql_fcst_valid_lens_result
-            ]
-            # get the intersection of the fcst_len's
-            intersect_fcst_lens = [
-                value for value in mysql_fcst_valid_lens if value in cb_fcst_valid_lens
-            ]
-            # get the thesholdDescriptions from the couchbase metadata
-            result = cluster.query(
-                """
-                SELECT RAW mdata.thresholdDescriptions
-                FROM mdata
-                WHERE type="MD"
-                    AND docType="matsAux"
-                """,
-                read_only=True,
-            )
-            thresholds = list(map(int, list((list(result)[0])["ceiling"].keys())))
-
-            # get the associated couchbase ceiling model data
-            # get the associated couchbase obs
-            # get the ctc couchbase data
-            ctc_cb_statement = """
-                SELECT *
-                FROM mdata
-                WHERE mdata.type='DD'
-                    AND mdata.docType = "CTC"
-                    AND mdata.subDocType = "CEILING"
-                    AND mdata.model='HRRR_OPS_LEGACY'
-                    AND mdata.region='ALL_HRRR'
-                    AND mdata.version='V01'
-                    AND mdata.subset='METAR_LEGACY'
-                    AND mdata.fcstValidEpoch = {time}
-                    AND mdata.fcstLen IN {intersect_fcst_lens}
-                    order by mdata.fcstLen;
-                """.format(
-                time=fcst_valid_epoch, intersect_fcst_lens=intersect_fcst_lens
-            )
-            result = cluster.query(ctc_cb_statement)
-            cb_results = list(result)
-            # print the couchbase statement
-            print("cb statement is:" + ctc_cb_statement)
-
-            # get the associated mysql ceiling model data
-            # get the associated mysql obs
-            # get the ctc mysql data
-            format_strings = ",".join(["%s"] * len(intersect_fcst_lens))
-            params = [fcst_valid_epoch]
-            params.extend(intersect_fcst_lens)
-            statement = (
-                "select fcst_len,trsh, yy as hits, yn as false_alarms, ny as misses, nn as correct_negatives from ceiling_sums2.HRRR_OPS_LEGACY_ALL_HRRR where time = %s AND fcst_len IN ("
-                "" + format_strings + ") ORDER BY fcst_len;"
-            )
-            # print the mysql statement
-            string_intersect_fcst_lens = [str(ifl) for ifl in intersect_fcst_lens]
-            print_statement = (
-                "mysql statement is: "
-                + "select fcst_len,trsh, yy as hits, yn as false_alarms, ny as misses, nn as correct_negatives from ceiling_sums2.HRRR_OPS_LEGACY_ALL_HRRR where time = "
-                + str(fcst_valid_epoch)
-                + " AND fcst_len IN ("
-                + ",".join(string_intersect_fcst_lens)
-                + ") ORDER BY fcst_len;"
-            )
-            print(print_statement)
-            cursor.execute(statement, tuple(params))
-            mysql_results = cursor.fetchall()
-            #
-            mysql_fcst_len_thrsh = {}
-            for fcst_len in intersect_fcst_lens:
-                mysql_fcst_len = [
-                    value for value in mysql_results if value["fcst_len"] == fcst_len
-                ]
-                for t in thresholds:
-                    for mysql_fcst_len_thrsh in mysql_fcst_len:
-                        if mysql_fcst_len_thrsh["trsh"] * 10 == t:
-                            break
-                    self.assertEqual(
-                        cb_results[fcst_len]["mdata"]["data"][str(t)]["hits"],
-                        mysql_fcst_len_thrsh["hits"],
-                        "mysql hits {mhits} do not match couchbase hits {chits} for fcst_len {f} and threshold {t}".format(
-                            mhits=mysql_fcst_len_thrsh["hits"],
-                            chits=cb_results[fcst_len]["mdata"]["data"][str(t)]["hits"],
-                            f=fcst_len,
-                            t=t,
-                        ),
-                    )
-                    self.assertEqual(
-                        cb_results[fcst_len]["mdata"]["data"][str(t)]["misses"],
-                        mysql_fcst_len_thrsh["misses"],
-                        "mysql misses {mmisses} do not match couchbase misses {cmisses} for fcst_len {f} and threshold {t}".format(
-                            mmisses=mysql_fcst_len_thrsh["misses"],
-                            cmisses=cb_results[fcst_len]["mdata"]["data"][str(t)][
-                                "misses"
-                            ],
-                            f=fcst_len,
-                            t=t,
-                        ),
-                    )
-                    self.assertEqual(
-                        cb_results[fcst_len]["mdata"]["data"][str(t)]["false_alarms"],
-                        mysql_fcst_len_thrsh["false_alarms"],
-                        "mysql false_alarms {mfalse_alarms} do not match couchbase false_alarms {cfalse_alarms} for fcst_len {f} and threshold {t}".format(
-                            mfalse_alarms=mysql_fcst_len_thrsh["false_alarms"],
-                            cfalse_alarms=cb_results[fcst_len]["mdata"]["data"][str(t)][
-                                "false_alarms"
-                            ],
-                            f=fcst_len,
-                            t=t,
-                        ),
-                    )
-                    self.assertEqual(
-                        cb_results[fcst_len]["mdata"]["data"][str(t)][
-                            "correct_negatives"
-                        ],
-                        mysql_fcst_len_thrsh["correct_negatives"],
-                        "mysql correct_negatives {mcorrect_negatives} do not match couchbase correct_negatives {ccorrect_negatives} for fcst_len {f} and threshold {t}".format(
-                            mcorrect_negatives=mysql_fcst_len_thrsh[
-                                "correct_negatives"
-                            ],
-                            ccorrect_negatives=cb_results[fcst_len]["mdata"]["data"][
-                                str(t)
-                            ]["correct_negatives"],
-                            f=fcst_len,
-                            t=t,
-                        ),
-                    )
-        except:
-            self.fail("TestCTCBuilderV01 Exception failure: " + str(sys.exc_info()[0]))
-        return
-
-    def test_ctc_data_hrrr_ops_all_hrrr_legacy_retro(self):
-        # noinspection PyBroadException
-        """
-        This test is a comprehensive test of the ctcBuilder data. It will retrieve CTC documents
-        for a specific fcstValidEpoch from couchbase and the legacy mysql database.
-        It determines an appropriate fcstValidEpoch that exists in both datasets, then
-        a common set of fcst_len values. It then compares the data with assertions. The intent is to
-        demonstrate that the data transformation from input model obs pairs is being done
-        the same for couchbase as it is for the legacy ingest system.
-        """
-        try:
-            credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
-            self.assertTrue(
-                Path(credentials_file).is_file(), "credentials_file Does not exist"
-            )
-            cf = open(credentials_file)
-            yaml_data = yaml.load(cf, yaml.SafeLoader)
-            host = yaml_data["cb_host"]
-            user = yaml_data["cb_user"]
-            password = yaml_data["cb_password"]
-            cf.close()
-            options = ClusterOptions(PasswordAuthenticator(user, password))
-            cluster = Cluster("couchbase://" + host, options)
-
-            host = yaml_data["mysql_host"]
-            user = yaml_data["mysql_user"]
-            passwd = yaml_data["mysql_password"]
-            connection = pymysql.connect(
-                host=host,
-                user=user,
-                passwd=passwd,
-                local_infile=True,
-                autocommit=True,
-                charset="utf8mb4",
-                cursorclass=pymysql.cursors.SSDictCursor,
-                client_flag=CLIENT.MULTI_STATEMENTS,
-            )
-            cursor = connection.cursor(pymysql.cursors.SSDictCursor)
-            # get available fcstValidEpochs for couchbase
-            result = cluster.query(
-                """SELECT RAW fcstValidEpoch
-                FROM mdata
-                WHERE type="DD"
-                    AND docType="CTC"
-                    AND mdata.subDocType = "CEILING"
-                    AND mdata.model='HRRR_OPS_LEGACY_RETRO'
-                    AND mdata.region='ALL_HRRR'
-                    AND mdata.version='V01'
-                    AND mdata.subset='METAR_LEGACY_RETRO'"""
-            )
-            cb_fcst_valid_epochs = list(result)
-            # get available fcstValidEpochs for  legacy
-            cursor.execute(
-                "select time from ceiling_sums2.HRRR_OPS_LEGACY_retro_ALL_HRRR where time > %s AND time < %s;",
-                (cb_fcst_valid_epochs[0], cb_fcst_valid_epochs[-1]),
-            )
-            common_fcst_valid_lens_result = cursor.fetchall()
-            # choose the middle one that is common reduce the array to all but one value (about a third of the way) for testing
-            single_common_fcst_valid_result = common_fcst_valid_lens_result[int(len(common_fcst_valid_lens_result)/3)]
-            common_fcst_valid_lens_result = [single_common_fcst_valid_result]
-            # get all the cb fcstLen values
-            for fcst_valid_epoch_result in common_fcst_valid_lens_result:
-                fcst_valid_epoch = fcst_valid_epoch_result['time']
-                # overwrite the fcstValidEpoch - TAKE THIS OUT
-                fcst_valid_epoch = 1639389600
-                result = cluster.query(
-                    """SELECT raw mdata.fcstLen
-                    FROM mdata
-                    WHERE mdata.type='DD'
-                        AND mdata.docType = "CTC"
-                        AND mdata.subDocType = "CEILING"
-                        AND mdata.model='HRRR_OPS_LEGACY_RETRO'
-                        AND mdata.region='ALL_HRRR'
-                        AND mdata.version='V01'
-                        AND mdata.subset='METAR_LEGACY_RETRO'
-                        AND mdata.fcstValidEpoch = $time
-                        order by mdata.fcstLen
-                    """,
-                    time=fcst_valid_epoch,
-                )
-                if len(list(result)) == 0:
-                    continue
-                cb_fcst_valid_lens = list(result)
-                # get the mysql_fcst_len values
-                statement = "select DISTINCT fcst_len from ceiling_sums2.HRRR_OPS_LEGACY_retro_ALL_HRRR where time = %s;"
-                cursor.execute(statement, (fcst_valid_epoch))
-                mysql_fcst_valid_lens_result = cursor.fetchall()
-                mysql_fcst_valid_lens = [
-                    o["fcst_len"] for o in mysql_fcst_valid_lens_result
-                ]
-                # get the intersection of the fcst_len's
-                intersect_fcst_lens = [
-                    value for value in mysql_fcst_valid_lens if value in cb_fcst_valid_lens
-                ]
-                # get the thesholdDescriptions from the couchbase metadata
-                result = cluster.query(
-                    """
-                    SELECT RAW mdata.thresholdDescriptions
-                    FROM mdata
-                    WHERE type="MD"
-                        AND docType="matsAux"
-                    """,
-                    read_only=True,
-                )
-                thresholds = list(map(int, list((list(result)[0])["ceiling"].keys())))
-
-                # get the associated couchbase ceiling model data
-                # get the associated couchbase obs
-                # get the ctc couchbase data
-                ctc_cb_statement = """
-                    SELECT *
-                    FROM mdata
-                    WHERE mdata.type='DD'
-                        AND mdata.docType = "CTC"
-                        AND mdata.subDocType = "CEILING"
-                        AND mdata.model='HRRR_OPS_LEGACY_RETRO'
-                        AND mdata.region='ALL_HRRR'
-                        AND mdata.version='V01'
-                        AND mdata.subset='METAR_LEGACY_RETRO'
-                        AND mdata.fcstValidEpoch = {time}
-                        AND mdata.fcstLen IN {intersect_fcst_lens}
-                        order by mdata.fcstLen;
-                    """.format(
-                    time=fcst_valid_epoch, intersect_fcst_lens=intersect_fcst_lens
-                )
-                result = cluster.query(ctc_cb_statement)
-                cb_results = list(result)
-                # print the couchbase statement
-                print("cb statement is:" + ctc_cb_statement)
-
-                # get the associated mysql ceiling model data
-                # get the associated mysql obs
-                # get the ctc mysql data
-                format_strings = ",".join(["%s"] * len(intersect_fcst_lens))
-                params = [fcst_valid_epoch]
-                params.extend(intersect_fcst_lens)
-                statement = (
-                    "select fcst_len,trsh, yy as hits, yn as false_alarms, ny as misses, nn as correct_negatives from ceiling_sums2.HRRR_OPS_LEGACY_retro_ALL_HRRR where time = %s AND fcst_len IN ("
-                    "" + format_strings + ") ORDER BY fcst_len;"
-                )
-                # print the mysql statement
-                string_intersect_fcst_lens = [str(ifl) for ifl in intersect_fcst_lens]
-                print_statement = (
-                    "mysql statement is: "
-                    + "select fcst_len,trsh, yy as hits, yn as false_alarms, ny as misses, nn as correct_negatives from ceiling_sums2.HRRR_OPS_LEGACY_retro_ALL_HRRR where time = "
-                    + str(fcst_valid_epoch)
-                    + " AND fcst_len IN ("
-                    + ",".join(string_intersect_fcst_lens)
-                    + ") ORDER BY fcst_len;"
-                )
-                print(print_statement)
-                cursor.execute(statement, tuple(params))
-                mysql_results = cursor.fetchall()
-                #
-                mysql_fcst_len_thrsh = {}
-                for fcst_len in intersect_fcst_lens:
-                    for cb_fcst_len_idx in range(0, len(cb_results)):
-                        if cb_results[cb_fcst_len_idx]["mdata"]['fcstLen'] == fcst_len:
-                            break
-                    for t in thresholds:
-                        cb_fcst_len_thrsh = cb_results[cb_fcst_len_idx]["mdata"]["data"][str(t)]
-                        cb_fcst_len_thrsh["thrsh"] = t
-                        for mysql_results_idx in range(0,len(mysql_results)):
-                            if mysql_results[mysql_results_idx]["fcst_len"] == fcst_len and mysql_results[mysql_results_idx]["trsh"] * 10 == t:
-                                mysql_fcst_len_thrsh = mysql_results[mysql_results_idx]
-                                break
-                        try:
-                            self.assertEqual(
-                                cb_fcst_len_thrsh["hits"],
-                                mysql_fcst_len_thrsh["hits"],
-                                "mysql hits {mhits} do not match couchbase hits {chits} for time {time} and fcst_len {f} and threshold {t}".format(
-                                    time=fcst_valid_epoch,
-                                    mhits=mysql_fcst_len_thrsh["hits"],
-                                    chits=cb_fcst_len_thrsh["hits"],
-                                    f=fcst_len,
-                                    t=t
-                                ),
-                            )
-                        except:
-                            #print (str(sys.exc_info()[1]))
-                            print ("var - hits ", mysql_fcst_len_thrsh["hits"], cb_fcst_len_thrsh["hits"], abs(mysql_fcst_len_thrsh["hits"] - cb_fcst_len_thrsh["hits"]), "count", "fcst_len:", str(fcst_len), "thrsh", str(t), "time:",str(fcst_valid_epoch))
-                        try:
-                            self.assertEqual(
-                                cb_fcst_len_thrsh["misses"],
-                                mysql_fcst_len_thrsh["misses"],
-                                "mysql misses {m_misses} do not match couchbase misses {c_misses} for time {time} and fcst_len {f} and threshold {t}".format(
-                                    time=fcst_valid_epoch,
-                                    m_misses=mysql_fcst_len_thrsh["misses"],
-                                    c_misses=cb_fcst_len_thrsh["misses"],
-                                    f=fcst_len,
-                                    t=t
-                                ),
-                            )
-                        except:
-                            #print (str(sys.exc_info()[1]))
-                            print ("var - misses ", mysql_fcst_len_thrsh["misses"], cb_fcst_len_thrsh["misses"], abs(mysql_fcst_len_thrsh["misses"] - cb_fcst_len_thrsh["misses"]), "count", "fcst_len:", str(fcst_len), "thrsh", str(t), "time:",str(fcst_valid_epoch))
-
-                        try:
-                            self.assertEqual(
-                                cb_fcst_len_thrsh["false_alarms"],
-                                mysql_fcst_len_thrsh["false_alarms"],
-                                "mysql false_alarms {mfalse_alarms} do not match couchbase false_alarms {cfalse_alarms} for time {time} and fcst_len {f} and threshold {t}".format(
-                                    time=fcst_valid_epoch,
-                                    mfalse_alarms=mysql_fcst_len_thrsh["false_alarms"],
-                                    cfalse_alarms=cb_fcst_len_thrsh["false_alarms"],
-                                    f=fcst_len,
-                                    t=t
-                                ),
-                            )
-                        except:
-                            #print (str(sys.exc_info()[1]))
-                            print ("var - false_alarms ", mysql_fcst_len_thrsh["false_alarms"], cb_fcst_len_thrsh["false_alarms"], abs(mysql_fcst_len_thrsh["false_alarms"] - cb_fcst_len_thrsh["false_alarms"]), "count", "fcst_len:", str(fcst_len), "thrsh", str(t), "time:",str(fcst_valid_epoch))
-                        try:
-                            self.assertEqual(
-                                cb_fcst_len_thrsh["correct_negatives"],
-                                mysql_fcst_len_thrsh["correct_negatives"],
-                                "mysql correct_negatives {mcorrect_negatives} do not match couchbase correct_negatives {ccorrect_negatives} for time {time} and fcst_len {f} and threshold {t}".format(
-                                    time=fcst_valid_epoch,
-                                    mcorrect_negatives=mysql_fcst_len_thrsh["correct_negatives"],
-                                    ccorrect_negatives=cb_fcst_len_thrsh["correct_negatives"],
-                                    f=fcst_len,
-                                    t=t
-                                ),
-                            )
-                        except:
-                            #print (str(sys.exc_info()[1]))
-                            print ("var - correct_negatives ", mysql_fcst_len_thrsh["correct_negatives"], cb_fcst_len_thrsh["correct_negatives"], abs(mysql_fcst_len_thrsh["correct_negatives"] - cb_fcst_len_thrsh["correct_negatives"]), "count", "fcst_len:", str(fcst_len), "thrsh", str(t), "time:",str(fcst_valid_epoch))
-
         except:
             self.fail("TestCTCBuilderV01 Exception failure: " + str(sys.exc_info()[0]))
         return

@@ -12,7 +12,7 @@ from grib2_to_cb.run_ingest_threads import VXIngest
 from pathlib import Path
 from couchbase.cluster import Cluster, ClusterOptions
 from couchbase_core.cluster import PasswordAuthenticator
-from grib2_to_cb.load_spec_yaml import LoadYamlSpecFile
+from builder_common.load_spec_yaml import LoadYamlSpecFile
 
 class TestGribBuilderV01Unit(TestCase):
 

@@ -60,7 +60,7 @@ from datetime import datetime
 from datetime import timedelta
 from multiprocessing import JoinableQueue
 from classic_sql_to_cb.sql_ingest_manager import SqlIngestManager
-from classic_sql_to_cb.load_spec_yaml import LoadYamlSpecFile
+from builder_common.load_spec_yaml import LoadYamlSpecFile
 
 
 def parse_args(args):

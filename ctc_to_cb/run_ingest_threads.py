@@ -54,6 +54,7 @@ Copyright 2019 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of
 Colorado, NOAA/OAR/ESRL/GSL
 """
 import argparse
+import json
 import logging
 import os
 import sys
@@ -61,9 +62,10 @@ import time
 from datetime import datetime, timedelta
 from multiprocessing import JoinableQueue
 from pathlib import Path
-import json
+
 import yaml
-from ctc_to_cb.load_spec_yaml import LoadYamlSpecFile
+from builder_common.load_spec_yaml import LoadYamlSpecFile
+
 from ctc_to_cb.vx_ingest_manager import VxIngestManager
 
 
@@ -199,8 +201,8 @@ class VXIngest(object):
         # load the my_queue with
         # Constructor for an infinite size  FIFO my_queue
         _q = JoinableQueue()
-        for f in self.load_spec['ingest_document_ids']:
-            _q.put(f)
+        for _f in self.load_spec['ingest_document_ids']:
+            _q.put(_f)
         # instantiate data_type_manager pool - each data_type_manager is a
         # thread that uses builders to process a file
         # Make the Pool of data_type_managers
@@ -240,12 +242,12 @@ class VXIngest(object):
             if not Path(self.credentials_file).is_file():
                 sys.exit("*** credentials_file file " +
                          self.credentials_file + " can not be found!")
-            f = open(self.credentials_file)
-            yaml_data = yaml.load(f, yaml.SafeLoader)
+            _f = open(self.credentials_file)
+            yaml_data = yaml.load(_f, yaml.SafeLoader)
             load_spec['cb_connection']['host'] = yaml_data['cb_host']
             load_spec['cb_connection']['user'] = yaml_data['cb_user']
             load_spec['cb_connection']['password'] = yaml_data['cb_password']
-            f.close()
+            _f.close()
             return load_spec
         except (RuntimeError, TypeError, NameError, KeyError):
             logging.error("*** %s in read ***", sys.exc_info()[0])

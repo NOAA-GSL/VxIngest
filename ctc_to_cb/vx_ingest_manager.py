@@ -34,10 +34,10 @@ Colorado, NOAA/OAR/ESRL/GSD
 import json
 import logging
 import os
+import queue
 import sys
 import time
 from multiprocessing import Process
-import queue
 from pathlib import Path
 
 from couchbase.cluster import Cluster, ClusterOptions
@@ -325,10 +325,10 @@ class VxIngestManager(Process):
                         + ": process_document_id writing documents into "
                         + complete_file_name
                     )
-                    f = open(complete_file_name, "w")
+                    _f = open(complete_file_name, "w")
                     # we need to write out a list of the values of the _document_map for cbimport
-                    f.write(json.dumps(list(document_map.values())))
-                    f.close()
+                    _f.write(json.dumps(list(document_map.values())))
+                    _f.close()
                 except Exception as _e:  # pylint: disable=broad-except
                     logging.info(
                         "process_document_id - trying write: Got Exception - %s",

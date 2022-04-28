@@ -10,14 +10,15 @@ import copy
 import cProfile
 import logging
 import math
-import sys
 import os
+import sys
+from datetime import datetime
 from pstats import Stats
 
 import numpy
 import pygrib
 import pyproj
-from datetime import datetime
+
 import grib2_to_cb.get_grid as gg
 
 
@@ -55,8 +56,8 @@ def get_geo_index(fcst_valid_epoch, geo):
         else:
             return latest_index
     except Exception as _e:  # pylint: disable=bare-except, disable=broad-except
-            logging.error("GribBuilder.get_geo_index: Exception  error: %s", str(_e))
-            return 0
+        logging.error("GribBuilder.get_geo_index: Exception  error: %s", str(_e))
+        return 0
 class GribBuilder:  # pylint: disable=too-many-arguments
     """parent class for grib builders"""
 
@@ -565,7 +566,7 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
             base_name = os.path.basename(file_name)
             an_id = "DF:metar:grib2:{m}:{n}".format(m=model, n=base_name)
             return an_id
-        except Exception as e:
+        except Exception as e: #pylint: disable=pylint(broad-except)
             logging.error(
                 "%s create_data_file_id: Exception: %s",
                 self.__class__.__name__,
@@ -675,7 +676,6 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
             message = self.grbs.select(name="Orography")[0]
             values = message["values"]
             surface_values = []
-            # TODO does this make sense????
             fcst_valid_epoch = round(message.validDate.timestamp())
             for station in self.domain_stations:
                 geo_index = get_geo_index(fcst_valid_epoch, station['geo'])
@@ -757,7 +757,7 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
         """
         # convert all the values to a float
         vis_values = []
-        for _v, v_intrp_ignore in list(params_dict.values())[
+        for _v, v_intrp_ignore in list(params_dict.values())[ #pylint: disable=pylint(unused-variable)
             0
         ]:  # pylint:disable=unused-variable
             vis_values.append(float(_v) / 1609.344 if _v is not None else None)

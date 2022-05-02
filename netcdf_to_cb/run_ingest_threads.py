@@ -36,7 +36,7 @@ load_spec:
     user: "cb_user"   - should come from defaults file
     password: "cb_pwd" - should come from defaults file
 
-(For the mask - python time.strftime format e.g. 20210619_1300)
+The mask  is a python time.strftime format e.g. 20210619_1300.
 The optional output_dir specifies the directory where output files will be written instead
 of writing them directly to couchbase. If the output_dir is not specified data will be written
 to couchbase cluster specified in the cb_connection.
@@ -68,10 +68,9 @@ from multiprocessing import JoinableQueue
 from pathlib import Path
 
 import yaml
-from builder_common.load_spec_yaml import LoadYamlSpecFile
 from couchbase.cluster import Cluster, ClusterOptions
 from couchbase_core.cluster import PasswordAuthenticator
-
+from builder_common.load_spec_yaml import LoadYamlSpecFile
 from netcdf_to_cb.vx_ingest_manager import VxIngestManager
 
 
@@ -90,16 +89,20 @@ def parse_args(args):
         "--spec_file",
         type=str,
         help="Please provide required load_spec filename "
-        "-s something.xml or -s something.yaml",
+        "-s something.xml or -s something.yaml"
     )
     parser.add_argument(
         "-c",
         "--credentials_file",
         type=str,
-        help="Please provide required credentials_file",
+        help="Please provide required credentials_file"
     )
     parser.add_argument(
-        "-t", "--threads", type=int, default=1, help="Number of threads to use"
+        "-t",
+        "--threads",
+        type=int,
+        default=1,
+        help="Number of threads to use"
     )
     parser.add_argument(
         "-p",
@@ -177,7 +180,7 @@ class VXIngest:
                 _f = open(complete_file_name, "w")
                 _f.write(json.dumps([self.load_spec["load_job_doc"]]))
                 _f.close()
-            except Exception as _e:  # pylint: disable=broad-except
+            except Exception as _e:# pylint: disable=broad-except
                 logging.info(
                     "process_file - trying write load_job: Got Exception - %s", str(_e)
                 )
@@ -194,8 +197,8 @@ class VXIngest:
         )
         stream = os.popen("git rev-parse HEAD")
         git_hash = stream.read().strip()
-        ingest_document_id = self.load_spec['ingest_document_id']
-        subset = ingest_document_id.split(":")[2]
+        self.ingest_document_id = self.load_spec['ingest_document_id']
+        subset = self.ingest_document_id.split(":")[2]
         lj_doc = {
             "id": self.load_job_id,
             "subset": subset,
@@ -204,7 +207,7 @@ class VXIngest:
             "script": __file__,
             "scriptVersion": git_hash,
             "loadSpec": self.spec_file,
-            "note": "",
+            "note": ""
         }
         return lj_doc
 
@@ -256,7 +259,7 @@ class VXIngest:
         try:
             result = self.cluster.query(df_query)
             df_elements = list(result)
-            df_full_names = [ element['url'] for element in df_elements ]
+            df_full_names = [element['url'] for element in df_elements]
             if os.path.exists(directory) and os.path.isdir(directory):
                 file_list = sorted(glob(directory + os.path.sep + file_pattern), key=os.path.getmtime)
                 for filename in file_list:
@@ -359,7 +362,7 @@ class VXIngest:
                     self.load_spec,
                     self.ingest_document,
                     _q,
-                    self.output_dir,
+                    self.output_dir
                 )
                 ingest_manager_list.append(ingest_manager_thread)
                 ingest_manager_thread.start()

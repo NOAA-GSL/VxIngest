@@ -12,7 +12,7 @@ from pymysql.constants import CLIENT
 from unittest import TestCase
 from netcdf_to_cb.run_ingest_threads import VXIngest
 from pathlib import Path
-from couchbase.cluster import Cluster, ClusterOptions, QueryOptions, QueryScanConsistency
+from couchbase.cluster import Cluster, ClusterOptions, QueryOptions, QueryScanConsistency, MutationState
 from couchbase.collection import RemoveOptions
 from couchbase_core.durability import Durability
 from couchbase.durability import ServerDurability
@@ -47,7 +47,7 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             autocommit=True,
             charset="utf8mb4",
             cursorclass=pymysql.cursors.SSDictCursor,
-            client_flag=CLIENT.MULTI_STATEMENTS,
+            client_flag=CLIENT.MULTI_STATEMENTS
         )
         _cursor = connection.cursor(pymysql.cursors.SSDictCursor)
         return _cursor
@@ -151,7 +151,7 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
                     self.assertAlmostEqual(
                         cb_stations[station_name]["lat"],
                         float(mysql_stations[station_name]["lat"]),
-                        4,
+                        2,
                         "cb lat {c} does not equal mysql lat {m} for station {s} distance offset is {d} km".format(
                             c=str(cb_stations[station_name]["lat"]),
                             m=str(mysql_stations[station_name]["lat"]),
@@ -165,7 +165,7 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
                     self.assertAlmostEqual(
                         cb_stations[station_name]["lon"],
                         float(mysql_stations[station_name]["lon"]),
-                        4,
+                        2,
                         "cb lon {c} does not equal mysql lon {m} for station {s} distance offset is {d} km".format(
                             c=str(cb_stations[station_name]["lon"]),
                             m=str(mysql_stations[station_name]["lon"]),
@@ -487,31 +487,35 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             # ****************
             # 1) new station test
             # remove station station_zbaa from the database
-            self.remove_station_zbaa(_station_name, _cluster, _collection, station_zbaa)
+            ms = self.remove_station(_cluster, _collection, station_zbaa)
             # initialize builder with missing station_zbaa
             self.setup_builder_doc(_cluster, _collection, _builder)
             # handle_station should give us a new station_zbaa
             _builder.handle_station({"recNum": _rec_num, "stationName": _station_name})
             doc_map = _builder.get_document_map()
-            _collection.upsert_multi(doc_map)
+            id=next(iter(doc_map))
+            result = _collection.upsert(id, doc_map[id])
+            ms = MutationState(result)
             #assert for new station_zbaa
-            self.assert_station(_cluster, station_zbaa_copy)
+            self.assert_station(_cluster, station_zbaa_copy, ms)
             self.cleanup_builder_doc(_cluster, _collection, _builder, station_zbaa_copy)
 
             # ****************
             # 2) changed location test
             new_station_zbaa = deepcopy(station_zbaa_copy)
             # add 1 to the existing lat for geo[0] and upsert the modified station_zbaa
-            new_station_zbaa["geo"][0]["lat"] = station_zbaa['geo'][0]['lat'] + 1
-            new_doc = {station_zbaa['id']:new_station_zbaa}
-            _collection.upsert_multi(new_doc)
+            new_station_zbaa["geo"][0]["lat"] = 41.06999
+            result = _collection.upsert(station_zbaa['id'], new_station_zbaa)
+            ms = MutationState(result)
             # handle_station should see that the existing station_zbaa has a different
             # geo[0]['lat'] and make a new geo[1]['lat'] with the netcdf original lat
             # populate the builder list with the modified station by seting up
             self.setup_builder_doc(_cluster, _collection, _builder)
             _builder.handle_station({"recNum": _rec_num, "stationName": _station_name})
             doc_map = _builder.get_document_map()
-            _collection.upsert_multi(doc_map)
+            id = next(iter(doc_map))
+            result = _collection.upsert(id, doc_map[id])
+            ms = MutationState(result)
             # station ZBAA should now have 2 geo entries
             self.assertTrue(len(doc_map["MD:V01:METAR:station:ZBAA"]["geo"]) == 2,msg="new station ZBAA['geo'] does not have 2 elements")
             #modify the station_zbaa to reflect what handle_station should have done
@@ -523,7 +527,7 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
                     "lat": 40.06999,
                     "lon": 116.58
             })
-            self.assert_station(_cluster, station_zbaa)
+            self.assert_station(_cluster, station_zbaa, ms)
             self.cleanup_builder_doc(_cluster, _collection, _builder, station_zbaa_copy)
 
             # ****************
@@ -534,8 +538,7 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             # add some time to the firstTime and lastTime of new_station_zbaa
             new_station_zbaa["geo"][0]["firstTime"] = station_zbaa['geo'][0]['firstTime'] + 2 *_builder.cadence
             new_station_zbaa["geo"][0]["lastTime"] = station_zbaa['geo'][0]['lastTime'] + 2 *_builder.cadence
-            new_doc = {new_station_zbaa['id']:new_station_zbaa}
-            _collection.upsert_multi(new_doc)
+            _collection.upsert(new_station_zbaa['id'],new_station_zbaa)
             # populate the builder list with the modified station by seting up
             self.setup_builder_doc(_cluster, _collection, _builder)
             # handle station should see that the real station_zbaa doesn't fit within
@@ -543,41 +546,51 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             # original firstTime (matches the fcstValidEpoch of the file)
             _builder.handle_station({"recNum": _rec_num, "stationName": _station_name})
             doc_map = _builder.get_document_map()
-            _collection.upsert_multi(doc_map)
+            id = next(iter(doc_map))
+            result = _collection.upsert(id, doc_map[id])
+            ms = MutationState(result)
             # modify the new_station_zbaa['geo'] to reflect what handle_station should have done
             new_station_zbaa['geo'][0]["firstTime"] = orig_first_time
-            self.assert_station(_cluster, new_station_zbaa)
+            self.assert_station(_cluster, new_station_zbaa, ms)
             self.cleanup_builder_doc(_cluster, _collection, _builder, station_zbaa_copy)
         except Exception as _e:  # pylint:disable=broad-except
             self.fail("test_handle_station Exception failure: " + str(_e))
         finally:
             # upsert the original ZBAA station document
             station_zbaa["geo"].pop(0)
-            _collection.upsert_multi({station_zbaa_copy["id"]: station_zbaa_copy})
+            _collection.upsert(station_zbaa_copy["id"], station_zbaa_copy)
 
-    def remove_station_zbaa(self, _station_name, _cluster, _collection, station_zbaa):
-        if station_zbaa is not None:
-            _collection.remove(station_zbaa["id"])
-        result = _cluster.query(
+    def remove_station(self, cluster, collection, station):
+        """
+        Removes the station from the collection
+        Args:
+            _cluster (object): a couchbase cluster object
+            _collection (object): a couchbase collection object
+            station (object): a station object
+
+        Returns:
+            : station name
+        """
+        if station is None:
+            return None
+        res = collection.remove(station["id"])
+        ms = MutationState(res)
+        result = cluster.query(
                     " ".join(("""
                     SELECT mdata.*
                     FROM mdata
                     WHERE mdata.type = 'MD'
                     AND mdata.docType = 'station'
                     AND mdata.version = 'V01'
-                    AND name = '""" + _station_name + "'").split()),
-                    QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS)
+                    AND name = '""" + station["name"] + "'").split()),
+                    QueryOptions(consistent_with=ms)
                 )
-        if len(list(result)) > 0:
-            station_zbaa = list(result)[0]
-        else:
-            station_zbaa = None
         check_station_zbaa = len(list(result)) == 0
-        self.assertTrue(check_station_zbaa, msg="station " + _station_name + " did not get deleted")
-        return station_zbaa
+        self.assertTrue(check_station_zbaa, msg="station " + station["name"] + " did not get deleted")
+        return station["name"]
 
-    def setup_builder_doc(self, _cluster, _collection, _builder):
-        result = _cluster.query(
+    def setup_builder_doc(self, cluster, collection, builder):
+        result = cluster.query(
                 " ".join("""SELECT mdata.*
                 FROM mdata
                 WHERE type = 'MD'
@@ -585,26 +598,28 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
                 AND subset = 'METAR'
                 AND version = 'V01';""".split())
             )
-        _builder.stations = list(result)
-        _builder.initialize_document_map()
+        builder.stations = list(result)
+        builder.initialize_document_map()
 
-    def cleanup_builder_doc(self, _cluster, _collection, _builder, station_zbaa_copy):
-        _collection.upsert_multi({station_zbaa_copy["id"]:station_zbaa_copy})
-        result = _cluster.query(
+    def cleanup_builder_doc(self, cluster, collection, builder, station_zbaa_copy):
+        res = collection.upsert(station_zbaa_copy["id"], station_zbaa_copy)
+        ms = MutationState(res)
+        result = cluster.query(
                 " ".join("""SELECT mdata.*
                 FROM mdata
                 WHERE type = 'MD'
                 AND docType = 'station'
                 AND subset = 'METAR'
-                AND version = 'V01';""".split())
+                AND version = 'V01';""".split()),
+                QueryOptions(consistent_with=ms)
             )
-        _builder.stations = list(result)
-        _builder.initialize_document_map()
+        builder.stations = list(result)
+        builder.initialize_document_map()
 
-    def assert_station(self, _cluster, station_zbaa):
+    def assert_station(self, cluster, station_zbaa, ms):
         """Asserts that a given station object matches the one that is in the database,
         """
-        new_result = _cluster.query(
+        new_result = cluster.query(
             " ".join("""
                 SELECT mdata.*
                 FROM mdata
@@ -612,7 +627,7 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
                 AND mdata.docType = 'station'
                 AND mdata.version = 'V01'
                 AND name = 'ZBAA'
-                """.split()), QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS)
+                """.split()), QueryOptions(consistent_with=ms)
         )
         new_station_zbaa = list(new_result)[0]
         if station_zbaa is None:

@@ -468,6 +468,9 @@ class TestCTCBuilderV01(unittest.TestCase):
         3) It uses the mysql legacy query with the embeded calculation.
         The two mysql derived CTC's are compared and asserted, and then the couchbase CTC
         is compared and asserted against the mysql CTC.
+        NOTE: We expect this test to have wide tolerances because of the differences in the 
+        mysql and couchbase ingest
+        algorithms. Use this test more for debugging.
         """
         # noinspection PyBroadException
         try:

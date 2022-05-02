@@ -87,6 +87,7 @@ class VxIngestManager(Process):
         self.thread_name = name
         self.load_spec = load_spec
         self.cb_credentials = self.load_spec["cb_connection"]
+        self.ingest_document_id = None
         self.ingest_type_builder_name = None
         self.ingest_document = None
         self.queue = ingest_document_id_queue

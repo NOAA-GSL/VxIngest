@@ -1,5 +1,10 @@
 # ctc ingest to couchbase
 
+## purpose
+
+This builder is intended to import ctc data into Couchbase taking advantage of the GSL Couchbase data schema that has been developed by the GSL AVID model verification team.
+The ctc_builder.py program provides a CTCBuilder class that will read existing model and observation data and, using the formula above, create CTC documents that can be imported into the database.
+
 ## How CTC tables are derived
 
 ARRAY_SUM(ARRAY CASE WHEN (pair.modelValue < 300
@@ -10,11 +15,6 @@ ARRAY_SUM(ARRAY CASE WHEN (NOT pair.modelValue < 300
         AND pair.observationValue < 300) THEN 1 ELSE 0 END FOR pair IN pairs END) AS misses,
 ARRAY_SUM(ARRAY CASE WHEN (NOT pair.modelValue < 300
         AND NOT pair.observationValue < 300) THEN 1 ELSE 0 END FOR pair IN pairs END) AS correct_negatives
-
-## purpose
-
-This builder is intended to import ctc data into Couchbase taking advantage of the GSL Couchbase data schema that has been developed by the GSL AVID model verification team.
-The ctc_builder.py program provides a CTCBuilder class that will read existing model and observation data and, using the formula above, create CTC documents that can be imported into the database.
 
 ## Environment
 

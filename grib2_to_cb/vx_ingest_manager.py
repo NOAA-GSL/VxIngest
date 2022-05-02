@@ -45,7 +45,7 @@ from pathlib import Path
 
 from couchbase.cluster import Cluster, ClusterOptions
 from couchbase.exceptions import \
-    TimeoutException  # pylint: disable=ungrouped-imports
+    TimeoutException  # pylint:disable=ungrouped-imports
 from couchbase_core.cluster import PasswordAuthenticator
 
 from grib2_to_cb import grib_builder
@@ -101,6 +101,8 @@ class VxIngestManager(Process):  # pylint:disable=too-many-instance-attributes
         self.thread_name = name
         self.load_spec = load_spec
         self.ingest_document = ingest_document
+        self.cb_credentials = self.load_spec["cb_connection"]
+        self.ingest_document_id = self.load_spec["ingest_document_id"]
         self.ingest_type_builder_name = None
         self.queue = file_name_queue
         self.builder_map = {}
@@ -139,7 +141,7 @@ class VxIngestManager(Process):  # pylint:disable=too-many-instance-attributes
             self.collection = self.cluster.bucket("mdata").default_collection()
             logging.info("%s: Couchbase connection success")
         except Exception as _e:  # pylint:disable=broad-except
-            logging.error("*** %s in connect_cb ***", str(_e))
+            logging.exception("*** %s in connect_cb ***")
             sys.exit("*** Error when connecting to mysql database: ")
 
     # entry point of the thread. Is invoked automatically when the thread is
@@ -162,10 +164,9 @@ class VxIngestManager(Process):  # pylint:disable=too-many-instance-attributes
             try:
                 self.ingest_type_builder_name = self.ingest_document["builder_type"]
             except Exception as _e:  # pylint:disable=broad-except
-                logging.error(
-                    "%s: process_file: Exception getting ingest document: %s",
-                    self.thread_name,
-                    str(_e),
+                logging.exception(
+                    "%s: process_file: Exception getting ingest document",
+                    self.thread_name
                 )
                 sys.exit("*** Error getting ingest document ***")
             # get a connection
@@ -196,13 +197,12 @@ class VxIngestManager(Process):  # pylint:disable=too-many-instance-attributes
                     else:
                         logging.info(
                             "%s: IngestManager - Queue empty - disconnecting couchbase",
-                            self.thread_name,
+                            self.thread_name
                         )
                         break
         except Exception as _e:  # pylint:disable=broad-except
-            logging.error(
-                "%s: *** %s Error in IngestManager run ***", self.thread_name, str(_e)
-            )
+            logging.exception(
+                "%s: *** Error in IngestManager run ***", self.thread_name)
             raise _e
         finally:
             self.close_cb()
@@ -222,7 +222,6 @@ class VxIngestManager(Process):  # pylint:disable=too-many-instance-attributes
         # noinspection PyBroadException
         try:
             logging.info("process_file - : start time: %s", str(start_process_time))
-
             if self.ingest_type_builder_name in self.builder_map.keys():
                 builder = self.builder_map[self.ingest_type_builder_name]
             else:
@@ -241,11 +240,10 @@ class VxIngestManager(Process):  # pylint:disable=too-many-instance-attributes
             else:
                 self.write_document_to_cb(file_name, document_map)
         except Exception as _e:  # pylint:disable=broad-except
-            logging.error(
-                "%s: Exception in builder: %s error: %s ",
+            logging.exception(
+                "%s: Exception in builder: %s",
                 self.thread_name,
-                str(self.ingest_type_builder_name),
-                str(_e),
+                str(self.ingest_type_builder_name)
             )
             raise _e
         finally:
@@ -265,7 +263,6 @@ class VxIngestManager(Process):  # pylint:disable=too-many-instance-attributes
         Raises:
             _e: generic exception
         """
-
         # The document_map is all built now so write all the
         # documents in the document_map into couchbase
         # noinspection PyBroadException
@@ -304,10 +301,9 @@ class VxIngestManager(Process):  # pylint:disable=too-many-instance-attributes
                 str(upsert_stop_time - upsert_start_time),
             )
         except Exception as _e:  # pylint:disable=broad-except
-            logging.error(
-                "%s: *** %s Error writing to Couchbase: in process_file writing document ***",
-                self.thread_name,
-                str(_e),
+            logging.exception(
+                "%s: *** Error writing to Couchbase: in process_file writing document ***",
+                self.thread_name
             )
             raise _e
 
@@ -349,9 +345,7 @@ class VxIngestManager(Process):  # pylint:disable=too-many-instance-attributes
                     _f.write(json.dumps(list(document_map.values())))
                     _f.close()
                 except Exception as _e1:  # pylint:disable=broad-except
-                    logging.info(
-                        "process_file - trying write: Got Exception - %s", str(_e1)
-                    )
+                    logging.exception("process_file - trying write: Got Exception")
             write_stop_time = int(time.time())
             logging.info(
                 "process_file - executing file write: stop time: %s",
@@ -362,9 +356,7 @@ class VxIngestManager(Process):  # pylint:disable=too-many-instance-attributes
                 str(write_stop_time - write_start_time),
             )
         except Exception as _e:  # pylint:disable=broad-except
-            logging.error(
-                ": *** %s Error writing to files: in process_file writing document %s***",
-                self.thread_name,
-                str(_e),
-            )
+            logging.exception(
+                ": *** %s Error writing to files: in process_file writing document***",
+                self.thread_name)
             raise _e

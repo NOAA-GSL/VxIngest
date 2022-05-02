@@ -1,9 +1,20 @@
-# grib2 ingest to couchbase
+# ctc ingest to couchbase
 
 ## purpose
 
-These programs are intended to import grib data into Couchbase taking advantage of the GSL Couchbase data schema
-that has been developed by the GSL AVID model verification team.
+This builder is intended to import ctc data into Couchbase taking advantage of the GSL Couchbase data schema that has been developed by the GSL AVID model verification team.
+The ctc_builder.py program provides a CTCBuilder class that will read existing model and observation data and, using the formula above, create CTC documents that can be imported into the database.
+
+## How CTC tables are derived
+
+ARRAY_SUM(ARRAY CASE WHEN (pair.modelValue < 300
+        AND pair.observationValue < 300) THEN 1 ELSE 0 END FOR pair IN pairs END) AS hits,
+ARRAY_SUM(ARRAY CASE WHEN (pair.modelValue < 300
+        AND NOT pair.observationValue < 300) THEN 1 ELSE 0 END FOR pair IN pairs END) AS false_alarms,
+ARRAY_SUM(ARRAY CASE WHEN (NOT pair.modelValue < 300
+        AND pair.observationValue < 300) THEN 1 ELSE 0 END FOR pair IN pairs END) AS misses,
+ARRAY_SUM(ARRAY CASE WHEN (NOT pair.modelValue < 300
+        AND NOT pair.observationValue < 300) THEN 1 ELSE 0 END FOR pair IN pairs END) AS correct_negatives
 
 ## Environment
 
@@ -17,11 +28,12 @@ These programs use a load_spec YAML file and a credentials file.
 
 ### load_spec example
 
-This is the grib2_to_cb/test/load_spec_grib_metar_hrrr_ops_V01.yaml file from this distribution.
+This is the  ctc_to_cb/test/load_spec_metar_ctc_V01.yaml file from this distribution.
 
 ```json
-email: "randy.pierce@noaa.gov"
-  ingest_document_id: "MD:V01:METAR:HRRR_OPS:ingest:grib2"
+load_spec:
+  email: "randy.pierce@noaa.gov"
+  ingest_document_ids: ["MD-TEST:V01:METAR:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest"]
   cb_connection:
     management_system: "cb"
     host: "cb_host"
@@ -31,68 +43,56 @@ email: "randy.pierce@noaa.gov"
 
 The email is optional - currently not used.
 The cb_connection block defines the connection values that will be used to authenticate a connection to the host.
-The ingest_document_ids: ['MD:V01:METAR:HRRR_OPS:ingest:grib2'] line defines
+The ingest_document_ids: ['MD-TEST:V01:METAR:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest'] line defines
 one or a list of metadata documents. These documents define how the program will operate.
-The 'MD:V01:METAR:obs:ingest:netcdf' value is the id of a couchbase metadata document.
+The 'MD-TEST:V01:METAR:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest' value is the id of a couchbase metadata ingest document.
 This document MUST exist on the couchbase cluster defined by cb_host
 and MUST be readable by the cb_user. Copies of the metadata documents are checked into
-.../VXingest/mats_metadata_and_indexes/ingest_models_from_grib.json and there is a script
-.../VXingest/mats_metadata_and_indexes/ingest_models_from_grib.sh that is usefull for importing
-the associated metadata document.
+.../VXingest/mats_metadata_and_indexes/ingest_ctcs.json and there is a script
+.../VXingest/mats_metadata_and_indexes/ingest_ctcs.sh that is usefull for importing
+the associated metadata documents.
 
 ### metadata Example
 
-This is the contents of "MD:V01:METAR:HRRR_OPS:ingest:grib2". You must either
+This is the contents of "MD:V01:METAR:HRRR_OPS:E_US:CTC:CEILING:ingest". You must either
 be certain that it already exists in the couchbase cluster or you must create it.
 
 ```json
-    {
-  "builder_type": "GribModelBuilderV01",
-  "validTimeInterval": 3600,
-  "validTimeDelta": 1800,
-  "docType": "ingest",
-  "subDocType": "grib2",
-  "id": "MD:V01:METAR:HRRR_OPS:ingest:grib2",
-  "model": "HRRR_OPS",
-  "fcstLens": "0,1,3,6,9,12,15,18,21,24,27,30,33,36",
-  "subType": "model",
-  "subset": "METAR",
-  "template": {
-    "correctedTime": "",
-    "data": {
-      "&getName": {
-        "Ceiling": "&handle_ceiling",
-        "DewPoint": "&kelvin_to_farenheight|*2 metre dewpoint temperature",
-        "Surface Pressure": "&handle_surface_pressure|*Surface pressure",
-        "Temperature": "&kelvin_to_farenheight|*2 metre temperature",
-        "Visibility": "&handle_visibility|*Visibility",
-        "RH": "&handle_RH|*2 metre relative humidity",
-        "WD": "&handle_wind_direction",
-        "WS": "&handle_wind_speed|*10 metre U wind component,*10 metre V wind component",
-        "name": "&getName"
-      }
-    },
-    "dataSourceId": "NCO",
-    "docType": "model",
-    "model": "HRRR_OPS",
-    "fcstValidBeg": "&handle_iso_time",
-    "fcstValidEpoch": "&handle_time",
-    "id": "DD:V01:METAR:HRRR_OPS:&handle_time:&handle_fcst_len",
+  {
+    "id": "MD:V01:METAR:HRRR_OPS:E_US:CTC:CEILING:ingest",
+    "builder_type": "CTCModelObsBuilderV01",
+    "docType": "ingest",
+    "type": "MD",
+    "version": "V01",
     "subset": "METAR",
-    "type": "DD",
-    "version": "V01"
+    "subType": "CTC",
+    "subDocType": "CEILING",
+    "model": "HRRR_OPS",
+    "region": "E_US",
+    "template": {
+      "dataFileId": "DF_id",
+      "dataSourceId": "DS_id",
+      "id": "DD:V01:METAR:HRRR_OPS:E_US:CTC:CEILING:&handle_time:&handle_fcst_len",
+      "type": "DD",
+      "docType": "CTC",
+      "subDocType": "CEILING",
+      "model": "HRRR_OPS",
+      "region": "E_US",
+      "version": "V01",
+      "subset": "METAR",
+      "fcstValidISO": "&handle_iso_time",
+      "fcstValidEpoch": "&handle_time",
+      "fcstLen": "&handle_fcst_len",
+      "data": "&handle_data"
+    }
   },
-  "type": "MD",
-  "version": "V01"
-}
- 
 ```
 
 The line
-```"builder_type": "GribModelBuilderV01"```
-defines a python class. These builder classes are defined
-in the grib_builder.py file. This class will interpret the
-load_spec and ingest data from a set of grib2 files retrieved from the path.
+```"builder_type": "CTCModelObsBuilderV01"```
+refers to a python class. This builder class is defined
+in the ctc_builder.py file. This class will interpret the
+load_spec and ingest data from a set of model and observation documents to create the ctc documents.
 Notice
 
 ```code
@@ -102,19 +102,9 @@ Notice
     "subset": "METAR",
 ```
 
-#### field substitution by value in the template
-
-These fields describe a metadata document that is used by a program to ingest data.
-Data documents will be created according to the template defined in the "template" field.
-Template strings that start with an '*' will be replaced with data derived
-from the grib file. Most template entries in the GribBuilders are handler functions. A handler function
-is defined like ```"&handle_surface_pressure|*Surface pressure"```. In this example the function name is
-handle_surface_pressure and it will recieve a parameter param_dict['Surface pressure'] that will be an array of
-tuples, one per station location. Each tuple will have a location precise value and an interpolated value.
-
 #### field substitution by function in the template
 
-If in the template above the line ```"Surface Pressure": "&handle_surface_pressure|*Surface pressure",```
+If in the template above the line ```"&handle_time" or "&handle_fcst_len"```
 defines a field substitution by named function. A named function must
 exist in the specified builder class. These functions have a signature like
 
@@ -135,6 +125,9 @@ It is up to the handler_function to decide which part of the tuple is appropriat
 The method "named_function" will be called like...
 named_function({field1:[(value, interp_value),(value, interp_value)...], [(value, interp_value),(value, interp_value)...], ... }) and the return value from named_function will be substituted into the generated document.
 
+In this example the function names are &handle_time and &handle_fcst_len and they are concatenated like &handle_time:&handle_fcst_len. The resulting string will look something like "1636466400:0".
+The entire id line will therefore be something like "id": "DD:V01:METAR:HRRR_OPS:E_US:CTC:CEILING:1636466400:0".
+
 #### Where to place substitutions
 
 Substitutions can be for keys or values in the template, in top level documents or in sub documents.
@@ -142,9 +135,9 @@ Substitutions can be for keys or values in the template, in top level documents 
 ## Structure of templates
 
 Templates are given document identifiers like
-```MD:V01:METAR:HRRR_OPS:ingest:grib2```
+```"MD:V01:METAR:HRRR_OPS:E_US:CTC:CEILING:ingest"```
 This identifier is constrained to match specific fields within the
-document. "type:version:subset:product:docType
+document. "type:version:subset:model:region:product:subdocType
 
 and MUST contain these keywords...
 
@@ -232,7 +225,7 @@ have an 'id' field with a unique value. The 'id' value should reflect the identi
 #### Example restore ingest with cbimports
 
 ```code
-cbimport json --cluster couchbase://adb-cb4.gsd.esrl.noaa.gov --bucket mdata --username avid --password 'getapassword' --format list --generate-key %id% --dataset file:///${HOME}/VXingest/gsd_sql_to_cb/ingest_backup/ingest-20210313:083606
+cbimport json --cluster couchbase://adb-cb4.gsd.esrl.noaa.gov --bucket mdata --username avid --password 'getapassword' --format list --generate-key %id% --dataset file:///${HOME}/VXingest/ctc_to_cb/ingest_backup/ingest-20210313:083606
 
 ```
 
@@ -244,7 +237,7 @@ into a server would look like this for the server adb-cb4.gsd.esrl.noaa.gov
 The password has been obscured and the example assumes that you cloned this repo into ${HOME}....
 
 ```code
-cbimport json --cluster couchbase://adb-cb4.gsd.esrl.noaa.gov --bucket mdata --username avid --password 'getyourselfapassword' --format list --generate-key %id% --dataset file:///${HOME}/VXingest/gsd_sql_to_cb/metadata_files/regions.json
+cbimport json --cluster couchbase://adb-cb4.gsd.esrl.noaa.gov --bucket mdata --username avid --password 'getyourselfapassword' --format list --generate-key %id% --dataset file:///${HOME}/VXingest/ctc_to_cb/metadata_files/regions.json
 ```
 
 For more information on cbimport see [cbimport](https://docs.couchbase.com/server/current/tools/cbimport-json.html)
@@ -306,7 +299,9 @@ This assumes that you have cloned this repo into your home directory.
 ```bash
 cd ~/VXingest
 export PYTHONPATH=~/VXingest
-nohup python grib2_to_cb/run_ingest_threads.py -s /data/grib2_to_cb/load_specs/load_spec_grib_metar_hrrr_ops_V01.yaml -c ~/adb-cb1-credentials -p /public/data/grids/hrrr/conus/wrfprs/grib2/ -m %y%j%H%f -o /data/grib2_to_cb/output -t 16 > logs/20210724-13:36 2>&1 &
+outdir="/data/ctc_to_cb/rap_ops_130/output/${pid}"
+nohup python ${clonedir}/ctc_to_cb/run_ingest_threads.py -s /data/ctc_to_cb/load_specs/load_spec_metar_ctc_rap_ops_130_V01.yaml  -c ~/adb-cb1-credentials -o $outdir -t8
+${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p $outdir -n 8 -l ${clonedir}/logs &
 ```
 
 this will create or update a document with the id "MD:V01:METAR:HRRR_OPS:ingest:grib2"
@@ -322,7 +317,7 @@ and that you have installed any necessary python packages like pygrib and numpy.
 ```bash
 cd ~/VXingest
 export PYTHONPATH=~/VXingest
-python3 -m unittest grib2_to_cb/test/test_metar_model_grib.py
+python3 -m unittest ctc_to_cb/test/test_metar_model_grib.py
 ```
 
 or
@@ -330,14 +325,18 @@ or
 ```bash
 cd ~/VXingest
 export PYTHONPATH=~/VXingest
-python3 -m unittest grib2_to_cb/test/test_metar_grib_and_station_utils.py 
+python3 -m unittest ctc_to_cb/test/test_metar_grib_and_station_utils.py
 ```
 
 ## Examples of running the ingest programs
 
+clonedir=~/VXingest
 cd ~/VXingest
 export PYTHONPATH=~/VXingest
-nohup  python grib2_to_cb/run_ingest_threads.py -s /data/grib2_to_cb/load_specs/load_spec_grib_metar_hrrr_ops_V01.yaml -c ~/adb-cb1-credentials -p /public/data/grids/hrrr/conus/wrfprs/grib2/ -m %y%j%H%f -o /data/grib2_to_cb/output -t 8 > logs/20210724-09:12 2>&1 &
+outdir="/data/ctc_to_cb/rap_ops_130/output/${pid}"
+python ${clonedir}/ctc_to_cb/run_ingest_threads.py -s /data/ctc_to_cb/load_specs/load_spec_metar_ctc_rap_ops_130_V01.yaml  -c ~/adb-cb1-credentials -o $outdir -t8
+
+${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p $outdir -n 8 -l ${clonedir}/logs &
 
 ### parameters
 
@@ -345,25 +344,11 @@ nohup  python grib2_to_cb/run_ingest_threads.py -s /data/grib2_to_cb/load_specs/
 
 -c this is the credentials file
 
--p this is the path to the model output grib2 files
-
--m %y%j%H%f this is a python datetime.strptime format string that is used as a file name mask for the input files
->(NOTE: the %f equates to microseconds and essentially ignores the last 6 digits. For these model files
-the last 6 digits refer to non date fields used for cycle init hour and minute, and forecast length)
-
 -o output directory - this is the directory for the program to write output json files.
-
--n number of stations this is how many stations to process (optional, default is all of them)
->(NOTE: this is primarily useful only for debugging. It limits the processing)
-
--f this is first fcst valid epoch allowed to get ingested (optional, defau;lt is 0)
-
--l this is the last fcstValid epoch to get ingested (optional, default is max)
 
 -t threads this is how many threads the program will use (optional, default is 1)
 
-All of these examples assume that you are in the VxIngest/grib2_to_cb
-directory. It also assumes that you have a proper python3 and that you have installed
+All of these examples assume that you have a proper python3 and that you have installed
 python packages.
 
 ### N1QL metadata queries

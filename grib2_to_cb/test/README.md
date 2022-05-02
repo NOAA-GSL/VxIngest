@@ -108,7 +108,7 @@ You also need a .vscode/launch.json that looks something like
 {
     // Use IntelliSense to learn about possible attributes.
     // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    // For more information, visit: "https://go.microsoft.com/fwlink/?linkid=830387"
     "version": "0.2.0",
     "configurations": [
         {
@@ -223,7 +223,7 @@ You need to choose the python interpreter. To do this do a cmd->Shift->P and scr
 
 You can use the pytest module to invoke a test from the command line. For example...
 
-```python3 -m pytest -s -v  /Users/randy.pierce/PycharmProjects/VXingest/ctc_to_cb/test/test_int_metar_ctc.py::TestCTCBuilderV01::test_ctc_builder_hrrr_ops_all_hrrr_compare_model_obs_data > test_result_ctc_compare.txt```
+```python3 -m pytest -s -v  /Users/randy.pierce/VXingest/ctc_to_cb/test/test_int_metar_ctc.py::TestCTCBuilderV01::test_ctc_builder_hrrr_ops_all_hrrr_compare_model_obs_data > test_result_ctc_compare.txt```
 
 would execute the integration test 'test_ctc_builder_hrrr_ops_all_hrrr_compare_model_obs_data' integration test method from the 'TestCTCBuilderV01' test class in the /Users/randy.pierce/PycharmProjects/VXingest/ctc_to_cb/test/test_metar_ctc.py python file and it would redirect the output of this integration test into a file 'test_result_ctc_compare.txt'.
 
@@ -252,10 +252,15 @@ netcdf_to_cb/test/test_unit_metar_obs_netcdf.py::TestNetcdfObsBuilderV01Unit::te
 
 ### vscode testing
 
-#### To use the vscode test utility click the little flask icon on the left panel.
+#### To use the vscode test utility click the little flask icon on the left panel
 
 The python test explorer will discover any tests that are in the code tree in a test directory with a name that starts with test_.
 
 By clicking the arrow or the bug icon to the right of the test name you can either execute or debug the test within vscode. Clicking the 'bug' will cause the debugger to stop at any breakpoints.
 
 You can also click the little page icon and that will open an editor on the individual test.
+
+From inside vscode select the flask icon and expand the test explorer test list to find the test(s) that
+you want to run. Groups of tests can be run simultaneously by selecting the proper heirarchical test.
+For example if you click on the TestCTCBuilderV01 line all of the tests in that class will be run (which is all of the CTC integration tests). Initially a blue elispis (...) shows up to the left of each test item. This icon will change to a
+red X or a green checkmark depending on whether or not the test passed.

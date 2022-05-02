@@ -11,19 +11,18 @@ import copy
 import cProfile
 import logging
 import math
-import re
 import os
-from pstats import Stats
-
+import re
 import time
 import traceback
 from datetime import datetime, timedelta
+from pstats import Stats
 
 import netCDF4 as nc
 import numpy.ma as ma
 
 
-def truncate_round(n, decimals=0):
+def truncate_round(_n, decimals=0):
     """
     Round a float to a specific number of places in an expected manner
     Args:
@@ -33,7 +32,7 @@ def truncate_round(n, decimals=0):
         float: The number multiplied by n and then divided by n
     """
     multiplier = 10 ** decimals
-    return int(n * multiplier) / multiplier
+    return int(_n * multiplier) / multiplier
 
 
 def convert_to_iso(an_epoch):
@@ -303,7 +302,7 @@ class NetcdfBuilder:  # pylint disable=too-many-instance-attributes
         except Exception as _e:  # pylint:disable=broad-except
             logging.exception(
                 "%s handle_named_function: Exception instantiating builder:",
-                self.__class__.__name__
+                self.__class__.__name__,
             )
         return replace_with
 
@@ -541,7 +540,7 @@ class NetcdfMetarObsBuilderV01(
         if "data" not in doc.keys() or doc["data"] is None:
             doc["data"] = {}
         if element["name"] not in doc["data"].keys():
-            # we only want the closest record (to match the legacy data)
+            # we only want the closest record (to match the legacy-sql data)
             doc["data"][element["name"]] = element
         else:
             # is this one closer to the target time?
@@ -592,7 +591,7 @@ class NetcdfMetarObsBuilderV01(
             mSCT = re.compile(".*SCT.*")  # pylint:disable=invalid-name
             mBKN = re.compile(".*BKN.*")  # Broken pylint:disable=invalid-name
             mOVC = re.compile(".*OVC.*")  # Overcast pylint:disable=invalid-name
-            mVV = re.compile(
+            mVV = re.compile( #pylint: disable=invalid-name
                 ".*VV.*"
             )  # Vertical Visibility pylint:disable=invalid-name
             mask_array = ma.getmaskarray(skyLayerBase)
@@ -626,7 +625,7 @@ class NetcdfMetarObsBuilderV01(
                     or mSCT.match(skyCover_array[index])
                 ):
                     return 60000
-            # nothing was unmasked - return 60000 if there is a ceiling value in skycover array (legacy)
+            # nothing was unmasked - return 60000 if there is a ceiling value in skycover array
             for index in range(  # pylint:disable=consider-using-enumerate
                 len(skyCover_array)
             ):  # pylint:disable=consider-using-enumerate
@@ -949,9 +948,7 @@ class NetcdfMetarObsBuilderV01(
                 if matching_location:
                     if (
                         fcst_valid_epoch
-                        <= self.stations[station_index]["geo"][geo_index][
-                            "firstTime"
-                        ]
+                        <= self.stations[station_index]["geo"][geo_index]["firstTime"]
                     ):
                         self.stations[station_index]["geo"][geo_index][
                             "firstTime"
@@ -986,122 +983,3 @@ class NetcdfMetarObsBuilderV01(
                 str(params_dict),
             )
             return ""
-
-
-class NetcdfMetarLegacyObsBuilderV01(
-    NetcdfMetarObsBuilderV01
-):  # pylint: disable=too-many-instance-attributes
-    """
-    This is the builder for observation data that is ingested from netcdf (madis) files
-    with special regard for how data is loaded. The special data loading concerns the
-    ceiling value which might or might not come from the closest data record for a given station,
-    which is how the legacy ingest does it.
-    """
-
-    def __init__(self, load_spec, ingest_document, cluster, collection):
-        """
-        This builder creates a set of V01 obs documents using the V01 station documents.
-        This builder loads V01 station data into memory, and uses them to associate a station with an observation
-        lat, lon point.
-        In each document the observation data is an array of objects each of which is the obs data
-        for a specific station.
-        If a station from a metar file does not exist in the couchbase database
-        a station document will be created from the metar record data and
-        the station document will be added to the document map.
-        :param ingest_document: the document from the ingest document
-        :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
-        :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
-        """
-        NetcdfMetarObsBuilderV01.__init__(
-            self, load_spec, ingest_document, cluster, collection
-        )
-        self.cluster = cluster
-        self.collection = collection
-        self.same_time_rows = []
-        self.time = 0
-        self.interpolated_time = 0
-        self.delta = ingest_document["validTimeDelta"]
-        self.cadence = ingest_document["validTimeInterval"]
-        self.template = ingest_document["template"]
-        self.subset = self.template["subset"]
-        # We want the subset to be derived from the template because the ids will reflect
-        # the subset and the subset will be set in the template i.e. "metar-legacy".
-        # self.do_profiling = True  # set to True to enable build_document profiling
-        self.do_profiling = False  # set to True to enable build_document profiling
-
-    # override load_data to choose closest data record and the closest ceiling value
-    # (which might have a different recorded time than the data element)
-    def load_data(self, doc, key, element):
-        """
-        This method appends an observation to the data array -
-        in fact we use a dict to hold data elems to ensure
-        the data elements are unique per station name, the map is converted
-        back to a list in get_document_map. Using a map ensures that the last
-        entry in the netcdf file is the one that gets captured.
-        The data element with the recorded time that is closest to the fcstValidEpoch
-        is the one that is saved, and that recorded time is saved in the data element
-        as well. The Ceiling value might not come from the data element with the recorded
-        time that is closest to the fcstValidEpoch, it might come from a different data element
-        that is not closest to the fcstValidEpoch, if the closest one has a None ceiling value.
-        That is how the legacy ingest worked.
-        :param doc: The document being created
-        :param key: Not used
-        :param element: the observation data
-        :return: the document being created
-        """
-        if "data" not in doc.keys() or doc["data"] is None:
-            doc["data"] = {}
-        # we only want the closest record (to match the legacy data)
-        # but we need a valid ceiling value if one exists that isn't in the closest record
-        if element["name"] not in doc["data"].keys():
-            element["Ceiling Reported Time"] = int(element["Reported Time"])
-            doc["data"][element["name"]] = element
-        else:
-            # One already exists in the doc for this station,
-            # Determine the ceiling value to use
-            # if the existing ceiling value is None
-            #   then the ceiling value is the new element ceiling value
-            # else
-            #     if the new element "Reported Time" is closer to the fcstValidEpoch
-            #            AND the new element ceiling value is not None
-            #        use the new element ceiling value and update the "Ceiling Reported Time"
-            #     else keep the existing ceiling value and "Ceiling Reported Time"
-            # NOTE: the new data element doesn't have a "Ceiling Reported Time" since
-            # there is no such variable in the netcdf file.
-            # We generate it here from a new element "Reported Time" and stuff it into the document for later comparison against
-            # a new element["Reported Time"].
-            top_of_hour = doc["fcstValidEpoch"]
-            if doc["data"][element["name"]]["Ceiling"] is None:
-                # the existing one is None so use the new one
-                ceiling_value = element["Ceiling"]
-                ceiling_reported_time = int(element["Reported Time"])
-            else:
-                # existing is not None so we have to compare
-                if element["Ceiling"] is not None and abs(
-                    top_of_hour - element["Reported Time"]
-                ) < abs(
-                    top_of_hour - doc["data"][element["name"]]["Ceiling Reported Time"]
-                ):
-                    # new element ceiling is closer than the existing one so use the new one
-                    ceiling_value = element["Ceiling"]
-                    ceiling_reported_time = int(element["Reported Time"])
-                else:
-                    # existing ceiling value is closer than the new one so use the existing one
-                    ceiling_value = doc["data"][element["name"]]["Ceiling"]
-                    ceiling_reported_time = doc["data"][element["name"]][
-                        "Ceiling Reported Time"
-                    ]
-            # is this data element closer to the fcstValidEpoch?
-            if abs(top_of_hour - element["Reported Time"]) < abs(
-                top_of_hour - doc["data"][element["name"]]["Reported Time"]
-            ):
-                # the new element is closer to fcstValisEpoch than the existing one so replace the existing one
-                doc["data"][element["name"]] = element
-            # update the ceiling values regardless of if the data element is replaced
-            # we might be keeping the existing data element and updating the Ceiling value
-            # or vice versa
-            doc["data"][element["name"]]["Ceiling"] = ceiling_value
-            doc["data"][element["name"]][
-                "Ceiling Reported Time"
-            ] = ceiling_reported_time
-        return doc

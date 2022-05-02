@@ -37,14 +37,17 @@ Colorado, NOAA/OAR/ESRL/GSD
 import json
 import logging
 import os
+import queue
 import sys
 import time
 from multiprocessing import Process
-import queue
 from pathlib import Path
+
 from couchbase.cluster import Cluster, ClusterOptions
+from couchbase.exceptions import \
+    TimeoutException  # pylint:disable=ungrouped-imports
 from couchbase_core.cluster import PasswordAuthenticator
-from couchbase.exceptions import TimeoutException  # pylint:disable=ungrouped-imports
+
 from netcdf_to_cb import netcdf_builder
 
 
@@ -209,8 +212,11 @@ class VxIngestManager(Process):  # pylint:disable=too-many-instance-attributes
         Raises:
             _e: [description]
         """
+        # get or instantiate the builder
+        # noinspection PyBroadException
         start_process_time = int(time.time())
         document_map = {}
+        # noinspection PyBroadException
         try:
             logging.info("process_file - : start time: %s", str(start_process_time))
             if self.ingest_type_builder_name in self.builder_map.keys():
@@ -218,7 +224,10 @@ class VxIngestManager(Process):  # pylint:disable=too-many-instance-attributes
             else:
                 builder_class = getattr(netcdf_builder, self.ingest_type_builder_name)
                 builder = builder_class(
-                    self.load_spec, self.ingest_document, self.cluster, self.collection
+                    self.load_spec,
+                    self.ingest_document,
+                    self.cluster,
+                    self.collection
                 )
                 self.builder_map[self.ingest_type_builder_name] = builder
             document_map = builder.build_document(file_name)
@@ -250,6 +259,9 @@ class VxIngestManager(Process):  # pylint:disable=too-many-instance-attributes
         Raises:
             _e: generic exception
         """
+        # The document_map is all built now so write all the
+        # documents in the document_map into couchbase
+        # noinspection PyBroadException
         try:
             logging.info(
                 "%s: process_file writing documents for ingest_document :%s  with threadName: %s",

@@ -309,55 +309,104 @@ This is an example credentials file, the user and password are fake.
 
 ## Tests
 
-There are tests in the test directory. To run the connections test
-for example switch to the test directory and use this invocation.
+There are tests in the test directory. To run the test_vxingest_get_file_list test
+for example cd to the VXingest directory and use this invocation.
 This assumes that you have cloned this repo into your home directory.
 
 ``` sh
+source ~/VXingest/test_venv/bin/activate
 export PYTHONPATH=~/VxIngest
-~/anaconda3/bin/python3 -m unittest test_connection.py```
+python3 -m pytest netcdf_to_cb/test/test_unit_metar_obs_netcdf.py::TestNetcdfObsBuilderV01Unit::test_vxingest_get_file_list
 ```
 
 ## Examples of running the ingest programs
 
+Each ingest writes files to an output directory and then imports the files with the
+[import_docs.sh](../scripts/VXingest_utilities/import_docs.sh utility)
+
 ### parameters
 
 -s this is the load spec
-
 -c this is the credentials file
+-m this is the file mask (to prevent picking up superfluous files)
+-o this is the output directory where files are to be written
+-t this is the number of threads
 
--f this is the first fcstValid epoch to get ingested
-
--l this is the last fcstValid epoch to get ingested
-
-All of these examples assume that you are in the VxIngest/gsd_sql_to_cb
+All of these examples assume that you are in the VxIngest
 directory. It also assumes that you have a proper python3 and that you have installed
 python packages.
 
-### Ingest version 3 stations
+### run_cron.sh
 
-This needs no first and last epoch parameter
-
-``` sh
-export PYTHONPATH=$HOME/VXingest
-$HOME/VXingest/gsd_sql_to_cb/run_gsd_ingest_threads.py
--s $HOME/VxIngest/test/load_spec_gsd-stations-v03.yaml
--c $HOME/adb-credentials-local
-```
-
-### Ingest version 4 METAR obs
-
-This will ingest all records from Thursday, November 12, 2020 12:00:00 AM
-(epoch 1605139200) through Saturday, November 14, 2020 12:00:00 AM
-(epoch 1605312000) INCLUSIVE.
+The current ingest invocations are contained in the [run_cron.sh](../scripts/VXingest_utilities/run_cron.sh)
+For reference the current run_cron looks like this...
 
 ``` sh
-export PYTHONPATH=$HOME/VXingest
-$HOME/VXingest/gsd_sql_to_cb/run_gsd_ingest_threads.py
--s $HOME/VxIngest/test/load_spec_gsd-metars-v04.yaml
--c $HOME/adb-credentials-local
--f 1605139200
--l 1605312000
+#!/usr/bin/env sh
+
+echo STARTING
+date
+if [ $# -ne 1 ]; then
+        echo "Usage $0 VxIngest_clonedir";
+        exit 1
+fi
+clonedir=$1
+pid=$$
+if [ "$(whoami)" != "amb-verif" ]; then
+        echo "Script must be run as user: amb-verif"
+        exit 255
+fi
+
+source ${HOME}/vxingest-env/bin/activate
+
+cd ${clonedir} && export PYTHONPATH=`pwd`
+gitroot=$(git rev-parse --show-toplevel)
+if [ "$gitroot" != "$(pwd)" ];then
+        echo "$(pwd) is not a git root directory: Usage $0 VxIngest_clonedir"
+        exit
+fi
+
+if [ ! -d "${HOME}/logs" ]; then
+        mkdir ${HOME}/logs
+fi
+
+echo "--------"
+echo "*************************************"
+echo "netcdf obs and stations"
+outdir="/data/netcdf_to_cb/output/${pid}"
+python ${clonedir}/netcdf_to_cb/run_ingest_threads.py -s /data/netcdf_to_cb/load_specs/load_spec_netcdf_metar_obs_V01.yaml -c ~/adb-cb1-credentials -p /public/data/madis/point/metar/netcdf -m %Y%m%d_%H%M -o $outdir -t8
+${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p $outdir -n 8 -l ${clonedir}/logs
+
+echo "--------"
+echo "models"
+echo "*************************************"
+echo "hrrr_ops"
+outdir="/data/grib2_to_cb/hrrr_ops/output/${pid}"
+python ${clonedir}/grib2_to_cb/run_ingest_threads.py -s /data/grib2_to_cb/load_specs/load_spec_grib_metar_hrrr_ops_V01.yaml -c ~/adb-cb1-credentials -p /public/data/grids/hrrr/conus/wrfprs/grib2 -m %y%j%H%f -o $outdir -t8
+${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p $outdir -n 8 -l ${clonedir}/logs
+
+echo "*************************************"
+echo "rap_ops_130"
+outdir="/data/grib2_to_cb/rap_ops_130/output/${pid}"
+python ${clonedir}/grib2_to_cb/run_ingest_threads.py -s /data/grib2_to_cb/load_specs/load_spec_grib_metar_rap_ops_130_V01.yaml -c ~/adb-cb1-credentials -p /public/data/grids/rap/iso_130/grib2 -m %y%j%H%f -o $outdir -t8
+${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p $outdir -n 8 -l ${clonedir}/logs
+
+echo "--------"
+echo "ctc's"
+echo "*************************************"
+echo "hrrr_ops rap_ops_130"
+outdir="/data/ctc_to_cb/output/${pid}"
+python ${clonedir}/ctc_to_cb/run_ingest_threads.py -s /data/ctc_to_cb/load_specs/load_spec_metar_ctc_V01.yaml  -c ~/adb-cb1-credentials -o $outdir -t8
+${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p $outdir -n 8 -l ${clonedir}/logs
+
+echo "--------"
+date
+echo "*************************************"
+echo "update metadata"
+${clonedir}/mats_metadata_and_indexes/metadata_files/update_ceiling_mats_metadata.sh ~/adb-cb1-credentials
+echo "FINISHED"
+date
+
 ```
 
 ## Recomended indexes
@@ -523,7 +572,7 @@ and SEARCH(station,{"field":"description", "regexp": "denver.*"})
 
 ### N1QL metadata queries
 
-These are modtly oriented around cb-ceiling but they are illustrative.
+These are mostly oriented around cb-ceiling but they are illustrative for all documents.
 This will return the min and max fcstValidEpoch for the HRRR model
 
 ``` sql
@@ -672,40 +721,4 @@ With the single node server there are no replications possible, but for
 the cluster we should start with num_recs = 2 (one less than the number of nodes) which
 will result in three instances of each service.
 
-## Example ingest commands
-
-This is bounded by a time range -f 1437084000 -l 1437688800 data will not be retrieved from the sql tables outside this range.
-
-``` sh
-python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-HRRR_GtLk_CTC-v01.yaml -c ${HOME}/adb-cb1-credentials -f 1437084000 -l 1437688800
-```
-
-These are unbounded by a time range - all data that the ingest statement can retrieve will be retrieved.
-
-``` sh
-python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-HRRR_ALL_HRRR_CTC-v01.yaml -c ${HOME}/adb-cb1-credentials
-python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-HRRR_E_HRRR_CTC-v01.yaml -c ${HOME}/adb-cb1-credentials
-python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-HRRR_E_US_CTC-v01.yaml -c ${HOME}/adb-cb1-credentials
-python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-HRRR_GtLk_CTC-v01.yaml -c ${HOME}/adb-cb1-credentials
-python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-HRRR_OPS_ALL_HRRR_CTC-v01.yaml -c ${HOME}/adb-cb1-credentials
-python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-HRRR_OPS_E_HRRR_CTC-v01.yaml -c ${HOME}/adb-cb1-credentials
-python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-HRRR_OPS_E_US_CTC-v01.yaml -c ${HOME}/adb-cb1-credentials
-python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-HRRR_OPS_GtLk_CTC-v01.yaml -c ${HOME}/adb-cb1-credentials
-python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-hrrr_ops-v01.yaml -c ${HOME}/adb-cb1-credentials
-python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-HRRR_OPS_W_HRRR_CTC-v01.yaml -c ${HOME}/adb-cb1-credentials
-python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-HRRR_W_HRRR_CTC-v01.yaml -c ${HOME}/adb-cb1-credentials
-python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-metars-v01.yaml -c ${HOME}/adb-cb1-credentials
-python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-rrfs_dev1-v01.yaml -c ${HOME}/adb-cb1-credentials
-python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-stations-v01.yaml -c ${HOME}/adb-cb1-credentials
-```
-
-This script will consider all the above load_spec files and it will find the latest time for each that exists in the couchbase bucket
-and the latest time that exists in the sql table and use those values as a total time range.
-The total time range will be further divided into one week intervalse that will
-be used to bound the run_gsd_ingest_threads.py. This script uses nohup because it might take a long time to run.
-It also runs in the background and this example puts the output into a log file.
-
-``` sh
-nohup ../scripts/VXingest_utilities/ingest.sh ~/adb-cb1-credentials > logs/ingest-20210326-10-15 2>&1 &
-
-```
+We must change the default data path to a large partition.

@@ -34,13 +34,7 @@ class LoadYamlSpecFile:
         # set the defaults
         # args requires {'spec_file':something, ['spec_type':'gsd_builder'] }
         self.spec_file_name = args["spec_file"].lstrip()
-        self.connection_list = ["cb_connection"]
         self.load_spec = {
-            "cb_connection": {
-                "host": None,
-                "user": None,
-                "password": None,
-            },
             "email": None,
             "ingest_document_ids": [],
         }
@@ -71,25 +65,8 @@ class LoadYamlSpecFile:
         try:
             # process  yaml file
             # yaml.dump(self.yaml_data)
-            # deal with connections
-            for c_key in self.connection_list:
-                c_keys = self.load_spec[c_key].keys()
-                for k in c_keys:
-                    try:
-                        # assign the connection keys from the yaml_data
-                        if k in self.load_spec[c_key].keys():
-                            self.load_spec[c_key][k] = self.yaml_data['load_spec'][c_key][k]
-                    except KeyError:
-                        logging.warning(
-                            "yaml file: %s is missing key: load_spec[%s]['%s'] - using default",
-                            self.spec_file_name,
-                            c_key,
-                            k
-                        )
-                # assign the top level keys
-                for k in self.yaml_data['load_spec'].keys():
-                    self.load_spec[k] = self.yaml_data['load_spec'][k]
-
+            for k in self.yaml_data['load_spec'].keys():
+                self.load_spec[k] = self.yaml_data['load_spec'][k]
         except Exception: # pylint: disable=bare-except, disable=broad-except
             logging.error("*** %s in read yaml ***", sys.exc_info()[0])
             sys.exit("*** Error(s) found while reading YAML file!")

@@ -1,0 +1,3 @@
+load_spec:
+  email: "randy.pierce@noaa.gov"
+  ingest_document_id: "MD:V01:METAR:RAP_OPS_130:ingest:grib2"

@@ -289,7 +289,7 @@ class VXIngest(object):
                 )
             _f = open(self.credentials_file)
             yaml_data = yaml.load(_f, yaml.SafeLoader)
-            if load_spec['cb_connection'] is None:
+            if 'cb_connection' not in load_spec.keys():
                 load_spec['cb_connection'] = {}
             load_spec["cb_connection"]["host"] = yaml_data["cb_host"]
             load_spec["cb_connection"]["host"] = yaml_data["cb_host"]

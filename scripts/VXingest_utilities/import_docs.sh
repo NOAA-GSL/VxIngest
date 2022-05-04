@@ -110,7 +110,7 @@ echo "cbimport commands submitted, now waiting"
 wait
 echo "cbimport commands submitted, done waiting"
 cd ${curdir}
-grep -i successfully ${tmp_log_dir}/x* | awk '{print $2}' | awk 'BEGIN { FS="file:///" }; {print $2}' | tr -d "\`" | while read f_input;do
+grep -i successfully ${tmp_log_dir}/x* | awk '{print $2}' | awk 'BEGIN { FS="file:///" }; {print $2}' | tr -d "\`" | while read f_input; do
 rm -rf $f_input
 done
 #remove empty input file_paths

@@ -21,19 +21,14 @@ This is the grib2_to_cb/test/load_spec_grib_metar_hrrr_ops_V01.yaml file from th
 
 ```json
 email: "randy.pierce@noaa.gov"
-  ingest_document_id: "MD:V01:METAR:HRRR_OPS:ingest:grib2"
-  cb_connection:
-    management_system: "cb"
-    host: "cb_host"
-    user: "cb_user"
-    password: "cb_pwd"
+  ingest_document_ids: ['MD:V01:METAR:HRRR_OPS:ingest:grib2']
 ```
 
 The email is optional - currently not used.
 The cb_connection block defines the connection values that will be used to authenticate a connection to the host.
 The ingest_document_ids: ['MD:V01:METAR:HRRR_OPS:ingest:grib2'] line defines
 one or a list of metadata documents. These documents define how the program will operate.
-The 'MD:V01:METAR:obs:ingest:netcdf' value is the id of a couchbase metadata document.
+The 'MD:V01:METAR:HRRR_OPS:ingest:grib2' value is the id of a couchbase metadata document.
 This document MUST exist on the couchbase cluster defined by cb_host
 and MUST be readable by the cb_user. Copies of the metadata documents are checked into
 .../VXingest/mats_metadata_and_indexes/ingest_models_from_grib.json and there is a script

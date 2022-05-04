@@ -219,6 +219,7 @@ class VXIngest(object):
             load_spec_file = LoadYamlSpecFile({"spec_file": self.spec_file})
             # read in the load_spec file
             self.load_spec = dict(load_spec_file.read())
+            self.get_credentials(self.load_spec)
             # stash the first_last_params because the builder will need to detrmine
             # if it needs to check for the latest validEpoch from the database (first_epoch == 0)
             self.load_spec["first_last_params"] = self.first_last_params

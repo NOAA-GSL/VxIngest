@@ -257,6 +257,12 @@ class VXIngest:
         """
         file_names = []
         try:
+            # it is possible to set a query option for scan consistency but it makes this operation really slow.
+            # In actual operation the ingest will do a bulk insert and wait for a period of time before getting
+            # around to processing another file. I think the risk of reprocessing a file because the DF record is
+            # not fully persisted is small enough to not burden the ingest with a scan consistency check.
+            # Things like tests or special ingest operations may need to wait for consistency. In that case do another query with
+            # scan consistency set outside of this operation.
             result = self.cluster.query(df_query)
             df_elements = list(result)
             df_full_names = [element['url'] for element in df_elements]
@@ -274,6 +280,8 @@ class VXIngest:
                             df_entry = next(element for element in df_elements if element["url"] == filename)
                             if os.path.getmtime(filename) > int(df_entry['mtime']):
                                 file_names.append(filename)
+                            else:
+                                logging.info("%s - File %s has already been processed", self.__class__.__name__,filename)
                     except Exception as _e:  # pylint:disable=broad-except
                         # don't care, it just means it wasn't a properly formatted file per the mask
                         continue
@@ -362,7 +370,7 @@ class VXIngest:
                     self.load_spec,
                     self.ingest_document,
                     _q,
-                    self.output_dir
+                    self.output_dir,
                 )
                 ingest_manager_list.append(ingest_manager_thread)
                 ingest_manager_thread.start()

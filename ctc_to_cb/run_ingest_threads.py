@@ -219,8 +219,7 @@ class VXIngest(object):
             load_spec_file = LoadYamlSpecFile({"spec_file": self.spec_file})
             # read in the load_spec file
             self.load_spec = dict(load_spec_file.read())
-            # put the real credentials into the load_spec
-            self.load_spec["cb_connection"] = self.get_credentials(self.load_spec)["cb_connection"]
+            self.get_credentials(self.load_spec)
             # stash the first_last_params because the builder will need to detrmine
             # if it needs to check for the latest validEpoch from the database (first_epoch == 0)
             self.load_spec["first_last_params"] = self.first_last_params
@@ -291,6 +290,8 @@ class VXIngest(object):
                 )
             _f = open(self.credentials_file)
             yaml_data = yaml.load(_f, yaml.SafeLoader)
+            if 'cb_connection' not in load_spec.keys():
+                load_spec['cb_connection'] = {}
             load_spec["cb_connection"]["host"] = yaml_data["cb_host"]
             load_spec["cb_connection"]["host"] = yaml_data["cb_host"]
             load_spec["cb_connection"]["user"] = yaml_data["cb_user"]

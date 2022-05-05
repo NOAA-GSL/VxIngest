@@ -1,6 +1,7 @@
 from copy import deepcopy
 import sys
 import os
+import time
 import shutil
 from glob import glob
 import yaml
@@ -61,10 +62,10 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
                 cwd + "/netcdf_to_cb/test/test_load_spec_netcdf_metar_obs_V01.yaml"
             )
             _vx_ingest.credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
-            _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
             _load_spec_file = LoadYamlSpecFile({"spec_file": _vx_ingest.spec_file})
             # read in the load_spec file
             _vx_ingest.load_spec = dict(_load_spec_file.read())
+            _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
             _vx_ingest.connect_cb()
             return _vx_ingest
         except Exception as _e:  # pylint:disable=broad-except
@@ -267,6 +268,21 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
         try:
             vx_ingest = self.setup_connection()
             vx_ingest.load_job_id = "test_id"
+            df_record = {
+                    "dataSourceId": "GSL",
+                    "fileType": "grib2",
+                    "id": "DF:metar:grib2:HRRR_OPS:f_fred_01",
+                    "interpolation": "nearest 4 weighted average",
+                    "loadJobId": "LJ:__main__:VXIngest:1636575702",
+                    "model": "HRRR_OPS",
+                    "mtime": 1636465996,
+                    "originType": "model",
+                    "projection": "lambert_conformal_conic",
+                    "subset": "metar",
+                    "type": "DF",
+                    "url": "/tmp/test/f_fred_01"
+                }
+            vx_ingest.collection.upsert("DF:metar:grib2:HRRR_OPS:f_fred_01",df_record)
             if os.path.exists("/tmp/test"):
                 shutil.rmtree("/tmp/test")
             os.mkdir("/tmp/test")
@@ -287,6 +303,7 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
                 AND fileType='grib2'
                 AND originType='model'
                 AND model='HRRR_OPS' order by url;"""
+            # should get f_fred_01 because the mtime in the DF record is old. The file is newer.
             files = vx_ingest.get_file_list(query, "/tmp/test", "f_fred_*")
             self.assertListEqual(
                 files,
@@ -299,9 +316,28 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
                 ],
                 "get_file_list wrong list",
             )
+            # update the mtime in the df record so that the file will not be included
+            df_record["mtime"] =round(time.time())
+            vx_ingest.collection.upsert("DF:metar:grib2:HRRR_OPS:f_fred_01",df_record)
+            # do a query with scan consistency set so that we know the record got persisted
+            vx_ingest.cluster.query(query,QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS))
+            files = vx_ingest.get_file_list(query, "/tmp/test", "f_fred_*")
+            # should not get f_fred_01 because the DF record has a newer mtime
+            self.assertListEqual(
+                files,
+                [
+                    "/tmp/test/f_fred_02",
+                    "/tmp/test/f_fred_04",
+                    "/tmp/test/f_fred_05",
+                    "/tmp/test/f_fred_03",
+                ],
+                "get_file_list wrong list",
+            )
+
         except Exception as _e:  # pylint:disable=broad-except
             self.fail("test_build_load_job_doc Exception failure: " + str(_e))
         finally:
+            vx_ingest.collection.remove("DF:metar:grib2:HRRR_OPS:f_fred_01")
             shutil.rmtree("/tmp/test")
             vx_ingest.close_cb()
 
@@ -488,6 +524,16 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             # 1) new station test
             # remove station station_zbaa from the database
             ms = self.remove_station(_cluster, _collection, station_zbaa)
+            result = _cluster.query(
+                """
+                SELECT mdata.*
+                FROM mdata
+                WHERE mdata.type = 'MD'
+                AND mdata.docType = 'station'
+                AND mdata.version = 'V01'
+                AND name = 'ZBAA'""",
+                QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS)
+            )
             # initialize builder with missing station_zbaa
             self.setup_builder_doc(_cluster, _collection, _builder)
             # handle_station should give us a new station_zbaa
@@ -496,6 +542,16 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             id=next(iter(doc_map))
             result = _collection.upsert(id, doc_map[id])
             ms = MutationState(result)
+            result = _cluster.query(
+                """
+                SELECT mdata.*
+                FROM mdata
+                WHERE mdata.type = 'MD'
+                AND mdata.docType = 'station'
+                AND mdata.version = 'V01'
+                AND name = 'ZBAA'""",
+                QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS)
+            )
             #assert for new station_zbaa
             self.assert_station(_cluster, station_zbaa_copy, ms)
             self.cleanup_builder_doc(_cluster, _collection, _builder, station_zbaa_copy)
@@ -512,10 +568,30 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             # populate the builder list with the modified station by seting up
             self.setup_builder_doc(_cluster, _collection, _builder)
             _builder.handle_station({"recNum": _rec_num, "stationName": _station_name})
+            result = _cluster.query(
+                """
+                SELECT mdata.*
+                FROM mdata
+                WHERE mdata.type = 'MD'
+                AND mdata.docType = 'station'
+                AND mdata.version = 'V01'
+                AND name = 'ZBAA'""",
+                QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS)
+            )
             doc_map = _builder.get_document_map()
             id = next(iter(doc_map))
             result = _collection.upsert(id, doc_map[id])
             ms = MutationState(result)
+            result = _cluster.query(
+                """
+                SELECT mdata.*
+                FROM mdata
+                WHERE mdata.type = 'MD'
+                AND mdata.docType = 'station'
+                AND mdata.version = 'V01'
+                AND name = 'ZBAA'""",
+                QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS)
+            )
             # station ZBAA should now have 2 geo entries
             self.assertTrue(len(doc_map["MD:V01:METAR:station:ZBAA"]["geo"]) == 2,msg="new station ZBAA['geo'] does not have 2 elements")
             #modify the station_zbaa to reflect what handle_station should have done
@@ -545,6 +621,16 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             # the existing timeframe of geo[0] and modify the geo element with the
             # original firstTime (matches the fcstValidEpoch of the file)
             _builder.handle_station({"recNum": _rec_num, "stationName": _station_name})
+            result = _cluster.query(
+                """
+                SELECT mdata.*
+                FROM mdata
+                WHERE mdata.type = 'MD'
+                AND mdata.docType = 'station'
+                AND mdata.version = 'V01'
+                AND name = 'ZBAA'""",
+                QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS)
+            )
             doc_map = _builder.get_document_map()
             id = next(iter(doc_map))
             result = _collection.upsert(id, doc_map[id])

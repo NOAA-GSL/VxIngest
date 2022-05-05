@@ -1,6 +1,6 @@
 # How to build the indexes
 
-### Index Creation Scripts
+## Index Creation Scripts
 
 There are three index creation scripts
 

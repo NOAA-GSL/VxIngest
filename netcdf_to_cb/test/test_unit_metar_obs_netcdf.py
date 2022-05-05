@@ -524,6 +524,16 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             # 1) new station test
             # remove station station_zbaa from the database
             ms = self.remove_station(_cluster, _collection, station_zbaa)
+            result = _cluster.query(
+                """
+                SELECT mdata.*
+                FROM mdata
+                WHERE mdata.type = 'MD'
+                AND mdata.docType = 'station'
+                AND mdata.version = 'V01'
+                AND name = 'ZBAA'""",
+                QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS)
+            )
             # initialize builder with missing station_zbaa
             self.setup_builder_doc(_cluster, _collection, _builder)
             # handle_station should give us a new station_zbaa
@@ -532,6 +542,16 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             id=next(iter(doc_map))
             result = _collection.upsert(id, doc_map[id])
             ms = MutationState(result)
+            result = _cluster.query(
+                """
+                SELECT mdata.*
+                FROM mdata
+                WHERE mdata.type = 'MD'
+                AND mdata.docType = 'station'
+                AND mdata.version = 'V01'
+                AND name = 'ZBAA'""",
+                QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS)
+            )
             #assert for new station_zbaa
             self.assert_station(_cluster, station_zbaa_copy, ms)
             self.cleanup_builder_doc(_cluster, _collection, _builder, station_zbaa_copy)
@@ -548,10 +568,30 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             # populate the builder list with the modified station by seting up
             self.setup_builder_doc(_cluster, _collection, _builder)
             _builder.handle_station({"recNum": _rec_num, "stationName": _station_name})
+            result = _cluster.query(
+                """
+                SELECT mdata.*
+                FROM mdata
+                WHERE mdata.type = 'MD'
+                AND mdata.docType = 'station'
+                AND mdata.version = 'V01'
+                AND name = 'ZBAA'""",
+                QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS)
+            )
             doc_map = _builder.get_document_map()
             id = next(iter(doc_map))
             result = _collection.upsert(id, doc_map[id])
             ms = MutationState(result)
+            result = _cluster.query(
+                """
+                SELECT mdata.*
+                FROM mdata
+                WHERE mdata.type = 'MD'
+                AND mdata.docType = 'station'
+                AND mdata.version = 'V01'
+                AND name = 'ZBAA'""",
+                QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS)
+            )
             # station ZBAA should now have 2 geo entries
             self.assertTrue(len(doc_map["MD:V01:METAR:station:ZBAA"]["geo"]) == 2,msg="new station ZBAA['geo'] does not have 2 elements")
             #modify the station_zbaa to reflect what handle_station should have done
@@ -581,6 +621,16 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             # the existing timeframe of geo[0] and modify the geo element with the
             # original firstTime (matches the fcstValidEpoch of the file)
             _builder.handle_station({"recNum": _rec_num, "stationName": _station_name})
+            result = _cluster.query(
+                """
+                SELECT mdata.*
+                FROM mdata
+                WHERE mdata.type = 'MD'
+                AND mdata.docType = 'station'
+                AND mdata.version = 'V01'
+                AND name = 'ZBAA'""",
+                QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS)
+            )
             doc_map = _builder.get_document_map()
             id = next(iter(doc_map))
             result = _collection.upsert(id, doc_map[id])

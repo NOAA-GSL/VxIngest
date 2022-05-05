@@ -318,7 +318,7 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             )
             # update the mtime in the df record so that the file will not be included
             df_record["mtime"] =round(time.time())
-            vx_ingest.collection.upsert("cc",df_record)
+            vx_ingest.collection.upsert("DF:metar:grib2:HRRR_OPS:f_fred_01",df_record)
             # do a query with scan consistency set so that we know the record got persisted
             vx_ingest.cluster.query(query,QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS))
             files = vx_ingest.get_file_list(query, "/tmp/test", "f_fred_*")

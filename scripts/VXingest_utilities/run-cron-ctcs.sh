@@ -61,5 +61,5 @@ echo "*************************************"
 echo "update metadata"
 ${clonedir}/mats_metadata_and_indexes/metadata_files/update_ceiling_mats_metadata.sh ~/adb-cb1-credentials
 
-echo "FINISHED" 
+echo "FINISHED"
 date

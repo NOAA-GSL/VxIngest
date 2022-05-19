@@ -8,72 +8,22 @@ Colorado, NOAA/OAR/ESRL/GSL
 
 import copy
 import cProfile
-import datetime as dt
 import logging
+import datetime as dt
 import re
-import sys
 from pstats import Stats
 
 from couchbase.exceptions import DocumentNotFoundException
 from couchbase.search import GeoBoundingBoxQuery, SearchOptions
+from builder_common.builder_utilities import convert_to_iso
+from builder_common.builder_utilities import get_geo_index
+from builder_common.builder_utilities import initialize_data_array
+from builder_common.builder import Builder
 
-TS_OUT_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
-
-def convert_to_iso(an_epoch):
+class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
     """
-    simple conversion of an epoch to an iso string
-    """
-    if not isinstance(an_epoch, int):
-        an_epoch = int(an_epoch)
-    valid_time_str = dt.datetime.utcfromtimestamp(an_epoch).strftime(TS_OUT_FORMAT)
-    return valid_time_str
-
-
-def initialize_data(doc):
-    """initialize the data by just making sure the template data element has been removed.
-    All the data elements are going to be top level elements"""
-    if "data" in doc.keys():
-        del doc["data"]
-    return doc
-
-
-def get_geo_index(fcst_valid_epoch, geo):
-    """return the geo index for the given fcst_valid_epoch
-
-    Args:
-        fcst_valid_epoch (int): an epoch in seconds
-        geo (list): a list of VXingest geo objects
-
-    Returns:
-        int: the corresponding list index for the given geo and the given fcst_valid_epoch
-    """
-    latest_time = 0
-    latest_index = 0
-    try:
-        geo_index = 0
-        for geo_index, geo_item in enumerate(geo):
-            if geo_item["lastTime"] > latest_time:
-                latest_time = geo_item["lastTime"]
-                latest_index = geo_index
-            found = False
-            if (
-                geo_item["firstTime"] >= fcst_valid_epoch
-                and fcst_valid_epoch <= geo_item["lastTime"]
-            ):
-                found = True
-                break
-        if found:
-            return geo_index
-        else:
-            return latest_index
-    except Exception as _e:  # pylint: disable=bare-except, disable=broad-except
-        logging.error("CTCBuilder.get_geo_index: Exception  error: %s", str(_e))
-        return 0
-
-
-class CTCBuilder:  # pylint:disable=too-many-instance-attributes
-    """
+    Parent class for CTC builders
     1) find all the stations for the region for this ingest (model and region)
     select raw geo from mdata where type="MD" and docType="station" and subset='METAR' and version='V01'
     Use the region metadata document....
@@ -136,12 +86,16 @@ class CTCBuilder:  # pylint:disable=too-many-instance-attributes
     """
 
     def __init__(self, load_spec, ingest_document, cluster, collection):
+
+        super().__init__(load_spec, ingest_document, cluster, collection)
+
+        self.ingest_document = ingest_document
         self.template = ingest_document["template"]
+        self.subset = self.template["subset"]
         self.load_spec = load_spec
         self.cluster = cluster
         self.collection = collection
-        self.an_id = None
-        self.document_map = {}
+        # CTC builder specific
         self.domain_stations = []
         self.model = ingest_document["model"]
         self.region = ingest_document["region"]
@@ -159,27 +113,20 @@ class CTCBuilder:  # pylint:disable=too-many-instance-attributes
         self.not_found_stations = set()
         self.not_found_station_count = 0
 
-    def initialize_document_map(self):  # pylint: disable=missing-function-docstring
-        pass
-
-    def get_document_map(self):  # pylint: disable=missing-function-docstring
-        pass
-
-    def handle_data(self, doc):  # pylint: disable=missing-function-docstring
-        pass
-
-    def derive_id(self, template_id):
+    def derive_id(self, **kwargs):
         """
         This is a private method to derive a document id from the current station,
         substituting *values from the corresponding grib fields as necessary. A *field
         represents a direct substitution and a &function|params...
-        represents a handler function.
+        represents a handler function. There is a kwargs because different builders may
+        require a different argument list.
         Args:
             template_id (string): this is an id template string
         Returns:
             [string]: The processed id with substitutions made for elements in the id template
         """
         try:
+            template_id = kwargs["template_id"]
             parts = template_id.split(":")
             new_parts = []
             for part in parts:
@@ -187,16 +134,14 @@ class CTCBuilder:  # pylint:disable=too-many-instance-attributes
                     value = str(self.handle_named_function(part))
                 else:
                     if part.startswith("*"):
-                        _v, _interp_v = self.translate_template_item(part)
-                        value = str(_v)
+                        value = str(self.translate_template_item(part))
                     else:
                         value = str(part)
                 new_parts.append(value)
             new_id = ":".join(new_parts)
             return new_id
-        except Exception as _e:  # pylint: disable=broad-except
-            _e = sys.exc_info()
-            logging.error("GribBuilder.derive_id: Exception  error: %s", str(_e))
+        except Exception as _e:  # pylint:disable=broad-except
+            logging.exception("CTCBuilder.derive_id")
             return None
 
     def translate_template_item(self, variable):
@@ -245,11 +190,11 @@ class CTCBuilder:  # pylint:disable=too-many-instance-attributes
                 return
             # make a copy of the template, which will become the new document
             # once all the translations have occured
-            new_document = initialize_data(new_document)
+            new_document = initialize_data_array(new_document)
             for key in self.template.keys():
                 if key == "data":
                     # pylint: disable=assignment-from-no-return
-                    new_document = self.handle_data(new_document)
+                    new_document = self.handle_data(doc=new_document)
                     continue
                 new_document = self.handle_key(new_document, key)
             # put document into document map
@@ -285,7 +230,7 @@ class CTCBuilder:  # pylint:disable=too-many-instance-attributes
         # noinspection PyBroadException
         try:
             if key == "id":
-                an_id = self.derive_id(self.template["id"])
+                an_id = self.derive_id(template=self.template["id"])
                 if not an_id in doc:
                     doc["id"] = an_id
                 return doc
@@ -304,15 +249,14 @@ class CTCBuilder:  # pylint:disable=too-many-instance-attributes
             else:
                 doc[key] = self.translate_template_item(doc[key])
             return doc
-        except Exception as _e:  # pylint: disable=broad-except
-            logging.error(
-                "%s GribBuilder.handle_key: Exception in builder:  error: %s",
+        except Exception as _e:  # pylint:disable=broad-except
+            logging.exception(
+                "%s GribBuilder.handle_key: Exception in builder",
                 self.__class__.__name__,
-                str(_e),
             )
         return doc
 
-    def handle_named_function(self, _named_function_def):
+    def handle_named_function(self, named_function_def):
         """
         This method processes a named function entry from a template.
         Args:
@@ -332,7 +276,7 @@ class CTCBuilder:  # pylint:disable=too-many-instance-attributes
         """
         func = None
         try:
-            parts = _named_function_def.split("|")
+            parts = named_function_def.split("|")
             func = parts[0].replace("&", "")
             params = []
             if len(parts) > 1:
@@ -345,12 +289,12 @@ class CTCBuilder:  # pylint:disable=too-many-instance-attributes
                 dict_params[_p[1:]] = self.translate_template_item(_p)
             # call the named function using getattr
             replace_with = getattr(self, func)(dict_params)
-        except Exception as _e:  # pylint: disable=broad-except
-            logging.error(
-                "%s handle_named_function: %s Exception instantiating builder:  error: %s",
+        except Exception as _e:  # pylint:disable=broad-except
+            logging.exception(
+                "%s handle_named_function: %s params %s: Exception instantiating builder:",
                 self.__class__.__name__,
                 func,
-                str(_e),
+                params,
             )
         return replace_with
 
@@ -435,7 +379,7 @@ class CTCBuilder:  # pylint:disable=too-many-instance-attributes
                 str(_e),
             )
 
-    def build_document(self):
+    def build_document(self, queue_element):
         """
         This is the entry point for the ctcBuilders from the ingestManager.
         These documents are id'd by fcstValidEpoch and fcstLen. The data section is an array
@@ -553,13 +497,16 @@ class CTCBuilder:  # pylint:disable=too-many-instance-attributes
             return document_map
         except Exception as _e:  # pylint: disable=broad-except
             logging.error(
-                "%s: Exception with builder build_document: error: %s",
+                "%s: Exception with builder build_document: error: %s for element %s",
                 self.__class__.__name__,
                 str(_e),
+                queue_element,
             )
             return {}
 
-    def get_stations_for_region_by_geosearch(self, region_name, valid_epoch): # pylint: disable=unused-argument
+    def get_stations_for_region_by_geosearch(
+        self, region_name, valid_epoch
+    ):  # pylint: disable=unused-argument
         # NOTE: this is currently broken because geosearch currently does not know how to
         # search through a collection of points
         """Using a geosearh return all the stations within the defined region
@@ -757,13 +704,14 @@ class CTCModelObsBuilderV01(CTCBuilder):
         return self.document_map
 
     # named functions
-    def handle_data(self, doc):  # pylint:disable=too-many-branches
+    def handle_data(self, **kwargs):  # pylint:disable=too-many-branches
         """
         This routine processes the ctc data element. The data elements are all the same and always have the
         same keys which are thresholds, therefore this class does not implement handlers.
         :return: The modified document_map
         """
         try:  # pylint: disable=too-many-nested-blocks
+            doc = kwargs["doc"]
             data_elem = {}
             # get the thresholds
             if self.thresholds is None:
@@ -861,7 +809,7 @@ class CTCModelObsBuilderV01(CTCBuilder):
         """
         return self.model_data["fcstValidEpoch"]
 
-    def handle_iso_time(self, params_dict): # pylint: disable=unused-argument
+    def handle_iso_time(self, params_dict):  # pylint: disable=unused-argument
         """return the fcstValidTime for the current model in ISO
         Args:
             params_dict (dict): contains named_function parameters
@@ -872,7 +820,7 @@ class CTCModelObsBuilderV01(CTCBuilder):
             self.model_data["fcstValidEpoch"]
         ).isoformat()
 
-    def handle_fcst_len(self, params_dict): # pylint: disable=unused-argument
+    def handle_fcst_len(self, params_dict):  # pylint: disable=unused-argument
         """returns the fcst lead time in hours for this document
         Args:
             params_dict (dict): contains named_function parameters

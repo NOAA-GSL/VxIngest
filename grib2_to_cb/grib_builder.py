@@ -12,53 +12,18 @@ import logging
 import math
 import os
 import sys
-from datetime import datetime
 from pstats import Stats
-
 import numpy
 import pygrib
 import pyproj
-
 import grib2_to_cb.get_grid as gg
+from builder_common.builder_utilities import convert_to_iso
+from builder_common.builder_utilities import get_geo_index
+from builder_common.builder_utilities import initialize_data_array
+from builder_common.builder import Builder
 
 
-def convert_to_iso(an_epoch):
-    """
-    convert an epoch to ISO format
-    """
-    if not isinstance(an_epoch, int):
-        an_epoch = int(an_epoch)
-    valid_time_str = datetime.utcfromtimestamp(an_epoch).strftime("%Y-%m-%dT%H:%M:%SZ")
-    return valid_time_str
-
-
-def initialize_data(doc):
-    """initialize the data by just making sure the template data element has been removed.
-    All the data elements are going to be top level elements"""
-    if "data" in doc.keys():
-        del doc["data"]
-    return doc
-
-def get_geo_index(fcst_valid_epoch, geo):
-    latest_time = 0
-    latest_index = 0
-    try:
-        for geo_index in range(len(geo)):
-            if geo[geo_index]['lastTime'] > latest_time:
-                latest_time = geo[geo_index]['lastTime']
-                latest_index = geo_index
-            found = False
-            if geo[geo_index]['firstTime'] >= fcst_valid_epoch and fcst_valid_epoch <= geo[geo_index]['lastTime']:
-                found = True
-                break
-        if found:
-            return geo_index
-        else:
-            return latest_index
-    except Exception as _e:  # pylint: disable=bare-except, disable=broad-except
-        logging.error("GribBuilder.get_geo_index: Exception  error: %s", str(_e))
-        return 0
-class GribBuilder:  # pylint: disable=too-many-arguments
+class GribBuilder(Builder):  # pylint: disable=too-many-arguments
     """parent class for grib builders"""
 
     def __init__(
@@ -69,14 +34,16 @@ class GribBuilder:  # pylint: disable=too-many-arguments
         collection,
         number_stations=sys.maxsize,
     ):
+        super().__init__(load_spec, ingest_document, cluster, collection)
+
         self.ingest_document = ingest_document
         self.template = ingest_document["template"]
+        self.subset = self.template["subset"]
         self.load_spec = load_spec
         self.cluster = cluster
         self.collection = collection
+        # GribBuilder specific
         self.number_stations = number_stations
-        self.an_id = None
-        self.document_map = {}
         self.projection = None
         self.grbs = None
         self.grbm = None
@@ -86,45 +53,24 @@ class GribBuilder:  # pylint: disable=too-many-arguments
         self.transformer = None
         self.transformer_reverse = None
         self.domain_stations = []
-        # self.do_profiling = True  # set to True to enable build_document profiling
-        self.do_profiling = False
 
-    def initialize_document_map(self):  # pylint: disable=missing-function-docstring
-        pass
+        # self.do_profiling = False - in super
+        # set to True to enable build_document profiling
 
-    def load_data(
-        self, doc, key, element
-    ):  # pylint: disable=missing-function-docstring
-        pass
-
-    def get_document_map(self):  # pylint: disable=missing-function-docstring
-        pass
-
-    def handlestation(self, row):  # pylint: disable=missing-function-docstring
-        pass
-
-    def build_datafile_doc(
-        self, model, file_name, data_file_id
-    ):  # pylint: disable=missing-function-docstring
-        pass
-
-    def create_data_file_id(
-        self, model, file_name
-    ):  # pylint: disable=missing-function-docstring
-        pass
-
-    def derive_id(self, template_id):
+    def derive_id(self, **kwargs):
         """
         This is a private method to derive a document id from the current station,
         substituting *values from the corresponding grib fields as necessary. A *field
         represents a direct substitution and a &function|params...
-        represents a handler function.
+        represents a handler function. There is a kwargs because different builders may
+        require a different argument list.
         Args:
             template_id (string): this is an id template string
         Returns:
             [string]: The processed id with substitutions made for elements in the id template
         """
         try:
+            template_id = kwargs["template_id"]
             parts = template_id.split(":")
             new_parts = []
             for part in parts:
@@ -141,8 +87,8 @@ class GribBuilder:  # pylint: disable=too-many-arguments
                 new_parts.append(value)
             new_id = ":".join(new_parts)
             return new_id
-        except Exception as _e:  # pylint: disable=bare-except, disable=broad-except
-            logging.error("GribBuilder.derive_id: Exception  error: %s", str(_e))
+        except Exception as _e:  # pylint:disable=broad-except
+            logging.exception("GribBuilder.derive_id")
             return None
 
     def translate_template_item(self, variable, single_return=False):
@@ -176,13 +122,16 @@ class GribBuilder:  # pylint: disable=too-many-arguments
                     for station in self.domain_stations:
                         # get the individual station value and interpolated value
                         fcst_valid_epoch = round(message.validDate.timestamp())
-                        geo_index = get_geo_index(fcst_valid_epoch,station['geo'])
+                        geo_index = get_geo_index(fcst_valid_epoch, station["geo"])
                         station_value = values[
-                            round(station['geo'][geo_index]["y_gridpoint"]), round(station['geo'][geo_index]["x_gridpoint"])
+                            round(station["geo"][geo_index]["y_gridpoint"]),
+                            round(station["geo"][geo_index]["x_gridpoint"]),
                         ]
                         # interpolated gridpoints cannot be rounded
                         interpolated_value = gg.interpGridBox(
-                            values, station['geo'][geo_index]["y_gridpoint"], station['geo'][geo_index]["x_gridpoint"]
+                            values,
+                            station["geo"][geo_index]["y_gridpoint"],
+                            station["geo"][geo_index]["x_gridpoint"],
                         )
                         # convert each station value to iso if necessary
                         if _ri.startswith("{ISO}"):
@@ -207,12 +156,11 @@ class GribBuilder:  # pylint: disable=too-many-arguments
                 (station_value, interpolated_value)
                 for i in range(len(self.domain_stations))
             ]
-        except Exception as _e:  # pylint: disable=broad-except
-            logging.error(
-                "GribBuilder.translate_template_item for variable %s: replacements: %s: Exception  error: %s",
+        except Exception as _e:  # pylint:disable=broad-except
+            logging.exception(
+                "Builder.translate_template_item for variable %s: replacements: %s",
                 str(variable),
                 str(replacements),
-                str(_e)
             )
 
     def handle_document(self):
@@ -231,10 +179,10 @@ class GribBuilder:  # pylint: disable=too-many-arguments
                 return
             # make a copy of the template, which will become the new document
             # once all the translations have occured
-            new_document = initialize_data(new_document)
+            new_document = initialize_data_array(new_document)
             for key in self.template.keys():
                 if key == "data":
-                    new_document = self.handle_data(new_document)
+                    new_document = self.handle_data(doc=new_document)
                     continue
                 new_document = self.handle_key(new_document, key)
             # put document into document map
@@ -270,7 +218,7 @@ class GribBuilder:  # pylint: disable=too-many-arguments
         # noinspection PyBroadException
         try:
             if key == "id":
-                an_id = self.derive_id(self.template["id"])
+                an_id = self.derive_id(template_id=self.template["id"])
                 if not an_id in doc:
                     doc["id"] = an_id
                 return doc
@@ -290,14 +238,13 @@ class GribBuilder:  # pylint: disable=too-many-arguments
                 doc[key], _interp_v = self.translate_template_item(doc[key], True)
             return doc
         except Exception as _e:  # pylint:disable=broad-except
-            logging.error(
-                "%s GribBuilder.handle_key: Exception in builder:  error: %s",
+            logging.exception(
+                "%s GribBuilder.handle_key: Exception in builder:",
                 self.__class__.__name__,
-                str(_e),
             )
         return doc
 
-    def handle_named_function(self, _named_function_def):
+    def handle_named_function(self, named_function_def):
         """
         This routine processes a named function entry from a template.
         :param _named_function_def - this can be either a template key or a template value.
@@ -312,10 +259,9 @@ class GribBuilder:  # pylint: disable=too-many-arguments
         will be substituted into the document.
         :station the station being processed.
         """
-        # noinspection PyBroadException
         func = None
         try:
-            parts = _named_function_def.split("|")
+            parts = named_function_def.split("|")
             func = parts[0].replace("&", "")
             params = []
             if len(parts) > 1:
@@ -329,16 +275,15 @@ class GribBuilder:  # pylint: disable=too-many-arguments
             # call the named function using getattr
             replace_with = getattr(self, func)(dict_params)
         except Exception as _e:  # pylint:disable=broad-except
-            logging.error(
-                "%s - handle_named_function: %s params: %s Exception instantiating builder:  error: %s",
+            logging.exception(
+                "%s handle_named_function: %s params %s: Exception instantiating builder:",
                 self.__class__.__name__,
                 func,
                 params,
-                str(_e),
             )
         return replace_with
 
-    def handle_data(self, doc):
+    def handle_data(self, **kwargs):
         """This method iterates the template entries, deciding for each entry to either
         handle_named_function (if the entry starts with a '&') or to translate_template_item
         if it starts with an '*'. It handles both keys and values for each template entry.
@@ -348,6 +293,7 @@ class GribBuilder:  # pylint: disable=too-many-arguments
             (Object): this is the data document that is being built
         """
         try:
+            doc = kwargs["doc"]
             data_elem = {}
             data_key = next(iter(self.template["data"]))
             data_template = self.template["data"][data_key]
@@ -362,9 +308,8 @@ class GribBuilder:  # pylint: disable=too-many-arguments
                 except Exception as _e:  # pylint:disable=broad-except
                     value = [(None, None)]
                     logging.warning(
-                        "%s GribBuilder.handle_data Exception: %s - setting value to (None,None)",
+                        "%s Builder.handle_data - value is (None,None)",
                         self.__class__.__name__,
-                        str(_e),
                     )
                 data_elem[key] = value
             if data_key.startswith("&"):
@@ -374,21 +319,20 @@ class GribBuilder:  # pylint: disable=too-many-arguments
                 data_key, _interp_ignore_value = self.translate_template_item(data_key)
             if data_key is None:
                 logging.warning(
-                    "%s GribBuilder.handle_data - _data_key is None",
+                    "%s Builder.handle_data - _data_key is None",
                     self.__class__.__name__,
                 )
             self.load_data(doc, data_key, data_elem)
             return doc
-        except Exception as _e:  # pylint: disable=broad-except
-            logging.error(
-                "%s handle_data: Exception instantiating builder:  error: %s",
+        except Exception as _e:  # pylint:disable=broad-except
+            logging.exception(
+                "%s handle_data: Exception instantiating builder",
                 self.__class__.__name__,
-                str(_e),
             )
         return doc
 
     def build_document(
-        self, file_name
+        self, queue_element
     ):  # pylint:disable=too-many-statements, disable=too-many-locals
         """
         This is the entry point for the gribBuilders from the ingestManager.
@@ -407,10 +351,10 @@ class GribBuilder:  # pylint: disable=too-many-arguments
         try:
             # translate the projection from the grib file
             logging.getLogger().setLevel(logging.INFO)
-            self.projection = gg.getGrid(file_name)
-            self.grbs = pygrib.open(file_name)  # pylint:disable=no-member
+            self.projection = gg.getGrid(queue_element)
+            self.grbs = pygrib.open(queue_element)  # pylint:disable=no-member
             self.grbm = self.grbs.message(1)
-            self.spacing, max_x, max_y = gg.getAttributes(file_name)
+            self.spacing, max_x, max_y = gg.getAttributes(queue_element)
             # Set the two projections to be used during the transformation (nearest neighbor method, what we use for everything with METARS)
             self.in_proj = pyproj.Proj(proj="latlon")
             self.out_proj = self.projection
@@ -443,15 +387,12 @@ class GribBuilder:  # pylint: disable=too-many-arguments
                 )
             )
             for row in result:
-                for geo_index in range(len(row['geo'])):
-                    lat = row['geo'][geo_index]['lat']
-                    lon = row['geo'][geo_index]['lon']
+                for geo_index in range(len(row["geo"])):
+                    lat = row["geo"][geo_index]["lat"]
+                    lon = row["geo"][geo_index]["lon"]
                     if lat == -90 and lon == 180:
-                        # TODO need to fix this
                         continue  # don't know how to transform that station
-                    _x, _y = self.transformer.transform(
-                        lon, lat, radians=False
-                    )
+                    _x, _y = self.transformer.transform(lon, lat, radians=False)
                     x_gridpoint, y_gridpoint = _x / self.spacing, _y / self.spacing
                     try:
                         # pylint: disable=c-extension-no-member
@@ -470,8 +411,8 @@ class GribBuilder:  # pylint: disable=too-many-arguments
                         )
                         continue
                     station = copy.deepcopy(row)
-                    station['geo'][geo_index]["x_gridpoint"] = x_gridpoint
-                    station['geo'][geo_index]["y_gridpoint"] = y_gridpoint
+                    station["geo"][geo_index]["x_gridpoint"] = x_gridpoint
+                    station["geo"][geo_index]["y_gridpoint"] = y_gridpoint
                     self.domain_stations.append(station)
 
             # if we have asked for profiling go ahead and do it
@@ -489,24 +430,24 @@ class GribBuilder:  # pylint: disable=too-many-arguments
             # pylint: disable=assignment-from-no-return
             document_map = self.get_document_map()
             data_file_id = self.create_data_file_id(
-                model=self.template["model"], file_name=file_name
+                self.subset, "grib2", self.template["model"], queue_element
             )
             if data_file_id is None:
                 logging.error(
-                "%s: Failed to create DataFile ID:", self.__class__.__name__)
+                    "%s: Failed to create DataFile ID:", self.__class__.__name__
+                )
             data_file_doc = self.build_datafile_doc(
-                model=self.template["model"],
-                file_name=file_name,
+                file_name=queue_element,
                 data_file_id=data_file_id,
+                origin_type=self.template["model"],
             )
             document_map[data_file_doc["id"]] = data_file_doc
             return document_map
         except Exception as _e:  # pylint:disable=broad-except
-            logging.error(
-                "%s: Exception with builder build_document: file_name: %s error: %s",
+            logging.exception(
+                "%s: Exception with builder build_document: file_name: %s",
                 self.__class__.__name__,
-                file_name,
-                str(_e),
+                queue_element,
             )
             return {}
 
@@ -555,26 +496,11 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
         self.delta = ingest_document["validTimeDelta"]
         self.cadence = ingest_document["validTimeInterval"]
         self.template = ingest_document["template"]
+        self.subset = self.template["subset"]
         # self.do_profiling = True  # set to True to enable build_document profiling
         self.do_profiling = False  # set to True to enable build_document profiling
 
-    def create_data_file_id(self, model, file_name):
-        """
-        This method creates a metar grib_to_cb datafile id from the parameters
-        """
-        try:
-            base_name = os.path.basename(file_name)
-            an_id = "DF:metar:grib2:{m}:{n}".format(m=model, n=base_name)
-            return an_id
-        except Exception as e: #pylint: disable=pylint(broad-except)
-            logging.error(
-                "%s create_data_file_id: Exception: %s",
-                self.__class__.__name__,
-                str(e),
-            )
-            return None
-
-    def build_datafile_doc(self, model, file_name, data_file_id):
+    def build_datafile_doc(self, file_name, data_file_id, origin_type):
         """
         This method will build a dataFile document for GribBuilder. The dataFile
         document will represent the file that is ingested by the GribBuilder. The document
@@ -586,11 +512,10 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
         df_doc = {
             "id": data_file_id,
             "mtime": mtime,
-            "subset": "metar",
+            "subset": self.subset,
             "type": "DF",
             "fileType": "grib2",
-            "originType": "model",
-            "model": model,
+            "originType": origin_type,
             "loadJobId": self.load_spec["load_job_doc"]["id"],
             "dataSourceId": "GSL",
             "url": file_name,
@@ -678,9 +603,9 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
             surface_values = []
             fcst_valid_epoch = round(message.validDate.timestamp())
             for station in self.domain_stations:
-                geo_index = get_geo_index(fcst_valid_epoch, station['geo'])
-                x_gridpoint = round(station['geo'][geo_index]["x_gridpoint"])
-                y_gridpoint = round(station['geo'][geo_index]["y_gridpoint"])
+                geo_index = get_geo_index(fcst_valid_epoch, station["geo"])
+                x_gridpoint = round(station["geo"][geo_index]["x_gridpoint"])
+                y_gridpoint = round(station["geo"][geo_index]["y_gridpoint"])
                 surface_values.append(values[y_gridpoint, x_gridpoint])
 
             message = self.grbs.select(
@@ -690,9 +615,9 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
             fcst_valid_epoch = round(message.validDate.timestamp())
             ceil_msl_values = []
             for station in self.domain_stations:
-                geo_index = get_geo_index(fcst_valid_epoch, station['geo'])
-                x_gridpoint = round(station['geo'][geo_index]["x_gridpoint"])
-                y_gridpoint = round(station['geo'][geo_index]["y_gridpoint"])
+                geo_index = get_geo_index(fcst_valid_epoch, station["geo"])
+                x_gridpoint = round(station["geo"][geo_index]["x_gridpoint"])
+                y_gridpoint = round(station["geo"][geo_index]["y_gridpoint"])
                 # what do we do with a masked ceiling value?
                 if not numpy.ma.is_masked(values[y_gridpoint, x_gridpoint]):
                     ceil_msl_values.append(values[y_gridpoint, x_gridpoint])
@@ -757,7 +682,9 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
         """
         # convert all the values to a float
         vis_values = []
-        for _v, v_intrp_ignore in list(params_dict.values())[ #pylint: disable=pylint(unused-variable)
+        for _v, v_intrp_ignore in list(
+            params_dict.values()
+        )[  # pylint: disable=unused-variable
             0
         ]:  # pylint:disable=unused-variable
             vis_values.append(float(_v) / 1609.344 if _v is not None else None)
@@ -818,9 +745,9 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
         fcst_valid_epoch = round(message.validDate.timestamp())
         uwind_ms_values = []
         for station in self.domain_stations:
-            geo_index = get_geo_index(fcst_valid_epoch, station['geo'])
-            x_gridpoint = station['geo'][geo_index]["x_gridpoint"]
-            y_gridpoint = station['geo'][geo_index]["y_gridpoint"]
+            geo_index = get_geo_index(fcst_valid_epoch, station["geo"])
+            x_gridpoint = station["geo"][geo_index]["x_gridpoint"]
+            y_gridpoint = station["geo"][geo_index]["y_gridpoint"]
             uwind_ms_values.append(gg.interpGridBox(values, y_gridpoint, x_gridpoint))
 
         message = self.grbs.select(name="10 metre V wind component")[0]
@@ -828,19 +755,16 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
         fcst_valid_epoch = round(message.validDate.timestamp())
         vwind_ms_values = []
         for station in self.domain_stations:
-            geo_index = get_geo_index(fcst_valid_epoch, station['geo'])
-            x_gridpoint = station['geo'][geo_index]["x_gridpoint"]
-            y_gridpoint = station['geo'][geo_index]["y_gridpoint"]
+            geo_index = get_geo_index(fcst_valid_epoch, station["geo"])
+            x_gridpoint = station["geo"][geo_index]["x_gridpoint"]
+            y_gridpoint = station["geo"][geo_index]["y_gridpoint"]
             vwind_ms_values.append(gg.interpGridBox(values, y_gridpoint, x_gridpoint))
         # Convert from U-V components to speed and direction (requires rotation if grid is not earth relative)
         # wind speed then convert to mph
         ws_mph = []
-        for _i in range(
-            len(uwind_ms_values)
-        ):  # pylint:disable=consider-using-enumerate
-            uwind_ms = uwind_ms_values[_i]
+        for _i, uwind_ms in enumerate(uwind_ms_values):
             vwind_ms = vwind_ms_values[_i]
-            ws_ms = math.sqrt(
+            ws_ms = math.sqrt(  # pylint:disable=c-extension-no-member
                 (uwind_ms * uwind_ms) + (vwind_ms * vwind_ms)
             )  # pylint:disable=c-extension-no-member
             ws_mph.append((ws_ms / 0.447) + 0.5)
@@ -867,9 +791,9 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
         fcst_valid_epoch = round(uwind_message.validDate.timestamp())
         uwind_ms = []
         for station in self.domain_stations:
-            geo_index = get_geo_index(fcst_valid_epoch, station['geo'])
-            x_gridpoint = station['geo'][geo_index]["x_gridpoint"]
-            y_gridpoint = station['geo'][geo_index]["y_gridpoint"]
+            geo_index = get_geo_index(fcst_valid_epoch, station["geo"])
+            x_gridpoint = station["geo"][geo_index]["x_gridpoint"]
+            y_gridpoint = station["geo"][geo_index]["y_gridpoint"]
             # interpolated value cannot use rounded gridpoints
             uwind_ms.append(gg.interpGridBox(u_values, y_gridpoint, x_gridpoint))
 
@@ -878,21 +802,22 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
         fcst_valid_epoch = round(vwind_message.validDate.timestamp())
         vwind_ms = []
         for station in self.domain_stations:
-            geo_index = get_geo_index(fcst_valid_epoch, station['geo'])
-            x_gridpoint = station['geo'][geo_index]["x_gridpoint"]
-            y_gridpoint = station['geo'][geo_index]["y_gridpoint"]
+            geo_index = get_geo_index(fcst_valid_epoch, station["geo"])
+            x_gridpoint = station["geo"][geo_index]["x_gridpoint"]
+            y_gridpoint = station["geo"][geo_index]["y_gridpoint"]
             vwind_ms.append(gg.interpGridBox(v_values, y_gridpoint, x_gridpoint))
 
         _wd = []
-        for i in range(len(uwind_ms)):  # pylint:disable=consider-using-enumerate
+        for i, u_val in enumerate(uwind_ms):
             # theta = gg.getWindTheta(vwind_message, station['lon'])
             # radians = math.atan2(uwind_ms, vwind_ms)
             # wd = (radians*57.2958) + theta + 180
-            geo_index = get_geo_index(fcst_valid_epoch, station['geo'])
+            v_val = vwind_ms[i]
+            geo_index = get_geo_index(fcst_valid_epoch, station["geo"])
             longitude = self.domain_stations[i]["geo"][geo_index]["lon"]
             theta = gg.getWindTheta(vwind_message, longitude)
-            radians = math.atan2(
-                uwind_ms[i], vwind_ms[i]
+            radians = math.atan2(  # pylint:disable=c-extension-no-member
+                u_val, v_val
             )  # pylint:disable=c-extension-no-member
             wd_value = (radians * 57.2958) + theta + 180
             # adjust for outliers

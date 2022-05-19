@@ -31,11 +31,6 @@ This is an example load_spec...
 load_spec:
   email: "randy.pierce@noaa.gov"
   ingest_document_id: 'MD:V01:METAR:obs'
-  cb_connection:
-    management_system: cb
-    host: "cb_host"   - should come from defaults file
-    user: "cb_user"   - should come from defaults file
-    password: "cb_pwd" - should come from defaults file
 
 The mask  is a python time.strftime format e.g. '%y%j%H%f'.
 The optional output_dir specifies the directory where output files will be written instead
@@ -50,27 +45,23 @@ defaults:
   cb_user: some_cb_user_name
   cb_password: password_for_some_cb_user_name
 This is an example invocation in bash.
-# clean the output directory
-rm -rf /data/grib2_to_cb/rap_ops_130/output/*
-python grib2_to_cb/run_ingest_threads.py -s /data/grib2_to_cb/load_specs/load_spec_grib_metar_rap_ops_130_V01.yaml -c ~/adb-cb1-credentials -p /public/data/grids/rap/iso_130/grib2 -m %y%j%H%f -o /data/grib2_to_cb/rap_ops_130/output -t8
+outdir="/data/grib2_to_cb/rap_ops_130/output/${pid}"
+mkdir $outdir
+python ${clonedir}/grib2_to_cb/run_ingest_threads.py -s /data/grib2_to_cb/load_specs/load_spec_grib_metar_rap_ops_130_V01.yaml -c ~/adb-cb1-credentials -p /public/data/grids/rap/iso_130/grib2 -m %y%j%H%f -o $outdir -t8
+${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p $outdir -n 8 -l ${clonedir}/logs
 
 Copyright 2019 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of
 Colorado, NOAA/OAR/ESRL/GSL
 """
 import argparse
-import json
 import logging
 import os
 import sys
 import time
 from datetime import datetime, timedelta
-from glob import glob
 from multiprocessing import JoinableQueue
-from pathlib import Path
 
-import yaml
-from couchbase.cluster import Cluster, ClusterOptions
-from couchbase_core.cluster import PasswordAuthenticator
+from builder_common.vx_ingest import CommonVxIngest
 from builder_common.load_spec_yaml import LoadYamlSpecFile
 from grib2_to_cb.vx_ingest_manager import VxIngestManager
 
@@ -90,20 +81,16 @@ def parse_args(args):
         "--spec_file",
         type=str,
         help="Please provide required load_spec filename "
-        "-s something.xml or -s something.yaml"
+        "-s something.xml or -s something.yaml",
     )
     parser.add_argument(
         "-c",
         "--credentials_file",
         type=str,
-        help="Please provide required credentials_file"
+        help="Please provide required credentials_file",
     )
     parser.add_argument(
-        "-t",
-        "--threads",
-        type=int,
-        default=1,
-        help="Number of threads to use"
+        "-t", "--threads", type=int, default=1, help="Number of threads to use"
     )
     parser.add_argument(
         "-p",
@@ -131,7 +118,7 @@ def parse_args(args):
         "--output_dir",
         type=str,
         default="/tmp",
-        help="Specify the output directory to put the json output files"
+        help="Specify the output directory to put the json output files",
     )
     parser.add_argument(
         "-n",
@@ -145,7 +132,7 @@ def parse_args(args):
     return args
 
 
-class VXIngest:
+class VXIngest(CommonVxIngest):
     """
     This class is the commandline mechanism for using the builder.
     This class will maintain the couchbase collection and cluster objects for all
@@ -175,136 +162,8 @@ class VXIngest:
         self.cluster = None
         self.ingest_document_id = None
         self.ingest_document = None
+        super().__init__()
         logging.getLogger().setLevel(logging.INFO)
-
-    def write_load_job_to_files(self):
-        """
-        write all the documents in the document_map into files in the output_dir
-        """
-        # noinspection PyBroadException
-        try:
-            Path(self.output_dir).mkdir(parents=True, exist_ok=True)
-            try:
-                file_name = self.load_job_id + ".json"
-                complete_file_name = os.path.join(self.output_dir, file_name)
-                _f = open(complete_file_name, "w")
-                _f.write(json.dumps([self.load_spec["load_job_doc"]]))
-                _f.close()
-            except Exception as _e:# pylint: disable=broad-except
-                logging.info(
-                    "process_file - trying write load_job: Got Exception - %s", str(_e)
-                )
-        except Exception as _e:
-            logging.error(": *** Error writing load_job to files: %s***", str(_e))
-            raise _e
-
-    def build_load_job_doc(self):
-        """
-        This method will build a load_job document for GribBuilder
-        """
-        self.load_job_id = "LJ:{m}:{c}:{t}".format(
-            m=self.__module__, c=self.__class__.__name__, t=str(int(time.time()))
-        )
-        stream = os.popen("git rev-parse HEAD")
-        git_hash = stream.read().strip()
-        self.ingest_document_id = self.load_spec['ingest_document_id']
-        subset = self.ingest_document_id.split(":")[2]
-        lj_doc = {
-            "id": self.load_job_id,
-            "subset": subset,
-            "type": "LJ",
-            "lineageId": self.path,
-            "script": __file__,
-            "scriptVersion": git_hash,
-            "loadSpec": self.spec_file,
-            "note": ""
-        }
-        return lj_doc
-
-    def close_cb(self):
-        """
-        close couchbase connection
-        """
-        if self.cluster:
-            self.cluster.disconnect()
-
-    def connect_cb(self):
-        """
-        create a couchbase connection and maintain the collection and cluster objects.
-        """
-        logging.info("%s: data_type_manager - Connecting to couchbase")
-        # get a reference to our cluster
-        # noinspection PyBroadException
-        try:
-            options = ClusterOptions(
-                PasswordAuthenticator(
-                    self.cb_credentials["user"], self.cb_credentials["password"]
-                )
-            )
-            self.cluster = Cluster(
-                "couchbase://" + self.cb_credentials["host"], options
-            )
-            self.collection = self.cluster.bucket("mdata").default_collection()
-            logging.info("%s: Couchbase connection success")
-        except Exception as _e:  # pylint:disable=broad-except
-            logging.error("*** %s in connect_cb ***", str(_e))
-            sys.exit("*** Error when connecting to cb database: ")
-
-    def get_file_list(self, df_query, directory, file_pattern):
-        """This method accepts a file path (directory), a query statement (df_query),
-        and a file pattern (file_pattern). It uses the df_query statement to retrieve a
-        list of file {url:file_url, mtime:mtime} records from DataFile
-        objects and compares the file names in the directory that match the file_pattern (using glob)
-        to the file url list that is returned from the df_query.
-        Any file names that are not in the returned url list are added and any files
-        that are in the list but have newer mtime entries are also added.
-        Args:
-            df_query (string): this is a query statement that should return a list of {url:file_url, mtime:mtime}
-            directory (string): The full path to a directory that contains files to be ingested
-            file_pattern (string): A file glob pattern that matches the files desired.
-        Raises:
-            Exception: general exception
-        """
-        file_names = []
-        try:
-            # it is possible to set a query option for scan consistency but it makes this operation really slow.
-            # In actual operation the ingest will do a bulk insert and wait for a period of time before getting
-            # around to processing another file. I think the risk of reprocessing a file because the DF record is
-            # not fully persisted is small enough to not burden the ingest with a scan consistency check.
-            # Things like tests or special ingest operations may need to wait for consistency. In that case do another query with
-            # scan consistency set outside of this operation.
-            result = self.cluster.query(df_query)
-            df_elements = list(result)
-            df_full_names = [element['url'] for element in df_elements]
-            if os.path.exists(directory) and os.path.isdir(directory):
-                file_list = sorted(glob(directory + os.path.sep + file_pattern), key=os.path.getmtime)
-                for filename in file_list:
-                    try:
-                        # check to see if this file has already been ingested
-                        # (if it is not in the df_full_names - add it)
-                        if filename not in df_full_names:
-                            file_names.append(filename)
-                        else:
-                            # it was already processed so check to see if the mtime of the
-                            # file is greater than the mtime in the database entry, if so then add it
-                            df_entry = next(element for element in df_elements if element["url"] == filename)
-                            if os.path.getmtime(filename) > int(df_entry['mtime']):
-                                file_names.append(filename)
-                            else:
-                                logging.info("%s - File %s has already been processed", self.__class__.__name__,filename)
-                    except Exception as _e:  # pylint:disable=broad-except
-                        # don't care, it just means it wasn't a properly formatted file per the mask
-                        continue
-            if len(file_names) == 0:
-                raise Exception("No files to Process!")
-            return file_names
-        except Exception as _e: # pylint: disable=bare-except, disable=broad-except
-            logging.error(
-                "%s get_file_list Error: %s",
-                self.__class__.__name__,
-                str(_e),
-            )
-            return file_names
 
     def runit(self, args):  # pylint:disable=too-many-locals
         """
@@ -334,7 +193,7 @@ class VXIngest:
             # put the real credentials into the load_spec
             self.cb_credentials = self.get_credentials(self.load_spec)
             # stash the load_job
-            self.load_spec["load_job_doc"] = self.build_load_job_doc()
+            self.load_spec["load_job_doc"] = self.build_load_job_doc("ctc")
             # get the ingest document id.
             # NOTE: in future we may make this (ingest_document_id) a list
             # and start each VxIngestManager with its own ingest_document_id
@@ -365,7 +224,9 @@ class VXIngest:
             AND fileType='grib2'
             AND originType='model'
             AND model='{model}' order by url;
-            """.format(subset=self.ingest_document['subset'], model=model)
+            """.format(
+            subset=self.ingest_document["subset"], model=model
+        )
         file_names = self.get_file_list(file_query, self.path, self.file_pattern)
         for _f in file_names:
             _q.put(_f)
@@ -384,12 +245,12 @@ class VXIngest:
                     self.ingest_document,
                     _q,
                     self.output_dir,
-                    number_stations=self.number_stations
+                    number_stations=self.number_stations,
                 )
                 ingest_manager_list.append(ingest_manager_thread)
                 ingest_manager_thread.start()
             except Exception as _e:  # pylint:disable=broad-except
-                logging.error("*** Error in  VxIngestManager %s***", str(_e))
+                logging.error("*** Error in  VXIngest %s***", str(_e))
         # be sure to join all the threads to wait on them
         finished = [proc.join() for proc in ingest_manager_list]
         self.write_load_job_to_files()
@@ -401,36 +262,10 @@ class VXIngest:
         logging.info("End a_time: %s", str(datetime.now()))
         logging.info("--- *** --- End  --- *** ---")
 
-    def get_credentials(self, load_spec):
-        """get credentials from a credentials file and puts them into the load_spec
-        Args:
-            load_spec (dict): [this is generated from the load spec file]
-        Returns:
-            [dict]: [the new load_spec with the credentials]
-        """
-        logging.debug("credentials filename is %s", self.credentials_file)
-        try:
-            # check for existence of file
-            if not Path(self.credentials_file).is_file():
-                sys.exit(
-                    "*** credentials_file file "
-                    + self.credentials_file
-                    + " can not be found!"
-                )
-            _f = open(self.credentials_file)
-            _yaml_data = yaml.load(_f, yaml.SafeLoader)
-            load_spec["cb_connection"] = {}
-            load_spec["cb_connection"]["host"] = _yaml_data["cb_host"]
-            load_spec["cb_connection"]["user"] = _yaml_data["cb_user"]
-            load_spec["cb_connection"]["password"] = _yaml_data["cb_password"]
-            _f.close()
-            return load_spec["cb_connection"]
-        except (RuntimeError, TypeError, NameError, KeyError):
-            logging.error("*** %s in read ***", sys.exc_info()[0])
-            sys.exit("*** Parsing error(s) in load_spec file!")
-
     def main(self):
-        """run_ingest_threads main entry. Manages a set of VxIngestManagers for processing input files"""
+        """
+        This is the entry for run_ingest_threads
+        """
         logging.info("PYTHONPATH: %s", os.environ["PYTHONPATH"])
         args = parse_args(sys.argv[1:])
         self.runit(vars(args))

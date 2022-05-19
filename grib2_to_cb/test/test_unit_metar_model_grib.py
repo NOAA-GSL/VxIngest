@@ -1,20 +1,14 @@
-import sys
+# pylint: disable=missing-module-docstring
 import os
 import shutil
-from glob import glob
 from pathlib import Path
-import yaml
-import pymysql
-from pymysql.constants import CLIENT
-import numpy as np
 from unittest import TestCase
-from grib2_to_cb.run_ingest_threads import VXIngest
-from pathlib import Path
-from couchbase.cluster import Cluster, ClusterOptions
-from couchbase_core.cluster import PasswordAuthenticator
-from builder_common.load_spec_yaml import LoadYamlSpecFile
 
-class TestGribBuilderV01Unit(TestCase):
+from builder_common.load_spec_yaml import LoadYamlSpecFile
+from grib2_to_cb.run_ingest_threads import VXIngest
+
+
+class TestGribBuilderV01Unit(TestCase): # pylint: disable=missing-class-docstring
 
     def setup_connection(self):
         """test setup
@@ -32,6 +26,7 @@ class TestGribBuilderV01Unit(TestCase):
             return _vx_ingest
         except Exception as _e: #pylint:disable=broad-except
             self.fail("test_credentials_and_load_spec Exception failure: " + str(_e))
+            return None
 
     def test_credentials_and_load_spec(self):
         """test the get_credentials and load_spec
@@ -82,8 +77,9 @@ class TestGribBuilderV01Unit(TestCase):
             vx_ingest.path = "/tmp"
             vx_ingest.load_spec["load_job_doc"] = {"test":"a line of text"}
             vx_ingest.spec_file = "/tmp/test_file"
-            ljd = vx_ingest.build_load_job_doc()
-            self.assertTrue(ljd['id'].startswith('LJ:grib2_to_cb.run_ingest_threads:VXIngest'))
+            lineage = "CTC"
+            ljd = vx_ingest.build_load_job_doc(lineage)
+            self.assertTrue(ljd['id'].startswith('LJ:METAR:grib2_to_cb.run_ingest_threads:VXIngest'))
         except Exception as _e: #pylint:disable=broad-except
             self.fail("test_build_load_job_doc Exception failure: " + str(_e))
         finally:

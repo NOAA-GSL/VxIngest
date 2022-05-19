@@ -1,3 +1,4 @@
+# pylint: disable=missing-module-docstring
 import os
 from multiprocessing import JoinableQueue
 from unittest import TestCase
@@ -6,7 +7,7 @@ from ctc_to_cb.vx_ingest_manager import VxIngestManager
 from builder_common.load_spec_yaml import LoadYamlSpecFile
 
 
-class TestCTCBuilderV01Unit(TestCase):
+class TestCTCBuilderV01Unit(TestCase):  # pylint: disable=missing-class-docstring
 
     vx_ingest_manager = None
 
@@ -23,18 +24,20 @@ class TestCTCBuilderV01Unit(TestCase):
             # read in the load_spec file
             _vx_ingest.load_spec = dict(_load_spec_file.read())
             _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
+            _vx_ingest.connect_cb()
             TestCTCBuilderV01Unit.vx_ingest_manager = VxIngestManager(
                 "test", _vx_ingest.load_spec, JoinableQueue(), "/tmp"
             )
             return _vx_ingest
         except Exception as _e:  # pylint:disable=broad-except
             self.fail("test_credentials_and_load_spec Exception failure: " + str(_e))
+            return None
 
     def test_cb_connect_disconnect(self):
         """test the cb connect and close"""
         try:
             self.setup_ingest()
-            TestCTCBuilderV01Unit.vx_ingest_manager.connect_cb()
+            TestCTCBuilderV01Unit.vx_ingest_manager.set_connection()
             result = TestCTCBuilderV01Unit.vx_ingest_manager.cluster.query(
                 "SELECT raw CLOCK_LOCAL() as time"
             )
@@ -74,9 +77,9 @@ class TestCTCBuilderV01Unit(TestCase):
             vx_ingest.path = "/tmp"
             vx_ingest.load_spec["load_job_doc"] = {"test": "a line of text"}
             vx_ingest.spec_file = "/tmp/test_file"
-            ljd = vx_ingest.build_load_job_doc()
+            ljd = vx_ingest.build_load_job_doc("ctc")
             self.assertTrue(
-                ljd["id"].startswith("LJ:ctc_to_cb.run_ingest_threads:VXIngest")
+                ljd["id"].startswith("LJ:METAR:ctc_to_cb.run_ingest_threads:VXIngest")
             )
         except Exception as _e:  # pylint:disable=broad-except
             self.fail("test_build_load_job_doc Exception failure: " + str(_e))

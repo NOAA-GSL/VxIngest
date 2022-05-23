@@ -205,7 +205,7 @@ class VXIngest(CommonVxIngest):
                     "VXIngestManager-" + str(thread_count),
                     self.load_spec,
                     _q,
-                    self.output_dir,
+                    self.output_dir
                 )
                 ingest_manager_list.append(ingest_manager_thread)
                 ingest_manager_thread.start()

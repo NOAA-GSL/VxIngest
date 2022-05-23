@@ -37,7 +37,7 @@ class TestCTCBuilderV01Unit(TestCase):  # pylint: disable=missing-class-docstrin
         """test the cb connect and close"""
         try:
             self.setup_ingest()
-            TestCTCBuilderV01Unit.vx_ingest_manager.set_connection()
+            TestCTCBuilderV01Unit.vx_ingest_manager.connect_cb()
             result = TestCTCBuilderV01Unit.vx_ingest_manager.cluster.query(
                 "SELECT raw CLOCK_LOCAL() as time"
             )

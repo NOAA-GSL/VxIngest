@@ -1,5 +1,16 @@
 """
 CommonVxIngest - parent class for all VxIngest classes
+NOTE about threading, database connections, and pickling! Each VxIngest
+runs in its own thread. Each VxIngest also needs to query the database to find out
+if a load job has already been processed - so it needs a database connection.
+Each Ingest manager (usually more than one) runs in its own thread which is
+maintained by its Vxingest. It is impossible to pass the VxIngest database connection
+to the VxIngestManager - i.e. accross python process objects (multithreading process objects)
+because a database connection cannot be pickled (pythons name for object serialization).
+Therefore the database credentials are stored in the load_spec, but not the database connection.
+The database connection must be recreated in each process thread using the credentials that are
+stored in the load_spec. It feels redundant and it is definitelty confusing but blame pythons
+threading model.
 """
 
 import logging
@@ -127,8 +138,8 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
                 "couchbase://" + self.cb_credentials["host"], options
             )
             self.collection = self.cluster.bucket("mdata").default_collection()
-            self.load_spec["cluster"] = self.cluster
-            self.load_spec["collection"] = self.collection
+            # stash the credentials for the VxIngestManager - see NOTE at the top of this file.
+            self.load_spec['cb_credentials'] = self.cb_credentials
             logging.info("%s: Couchbase connection success")
         except Exception as _e:  # pylint:disable=broad-except
             logging.error("*** %s in connect_cb ***", str(_e))

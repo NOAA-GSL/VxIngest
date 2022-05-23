@@ -1,19 +1,26 @@
-import sys
+"""
+    integration tests for netcdf
+"""
 import os
-import time
+import sys
 from glob import glob
-import yaml
-import pymysql
-from pymysql.constants import CLIENT
-import numpy as np
-from unittest import TestCase
-from netcdf_to_cb.run_ingest_threads import VXIngest
 from pathlib import Path
+from unittest import TestCase
+
+import numpy as np
+import pymysql
+import yaml
 from couchbase.cluster import Cluster, ClusterOptions
 from couchbase_core.cluster import PasswordAuthenticator
-from ctc_to_cb.ctc_builder import CTCBuilder
+from pymysql.constants import CLIENT
+
+from netcdf_to_cb.run_ingest_threads import VXIngest
+
 
 class TestNetcdfObsBuilderV01(TestCase):
+    """
+        integration tests for netcdf
+    """
 
     def test_compare_obs_to_mysql(self):
         """This test attempts to find recent observations that match in both the mysql and the CB
@@ -27,8 +34,8 @@ class TestNetcdfObsBuilderV01(TestCase):
                 Path(credentials_file).is_file(), "credentials_file Does not exist"
             )
 
-            f = open(credentials_file)
-            yaml_data = yaml.load(f, yaml.SafeLoader)
+            _f = open(credentials_file)
+            yaml_data = yaml.load(_f, yaml.SafeLoader)
             host = yaml_data["cb_host"]
             user = yaml_data["cb_user"]
             password = yaml_data["cb_password"]
@@ -136,7 +143,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                 if len(mysql_obs_ceiling_values_tmp) > 0:
                     mysql_obs_ceiling = mysql_obs_ceiling_values_tmp[0]["ceil"] * 10
                 else:
-                     mysql_obs_ceiling = None
+                    mysql_obs_ceiling = None
 
                 statement = """select o.*
                 from  madis3.metars as s, visibility.obs as o
@@ -149,7 +156,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                 if len(mysql_obs_visibility_values_tmp) > 0:
                     mysql_obs_visibility = mysql_obs_visibility_values_tmp[0]["vis100"] / 100
                 else:
-                     mysql_obs_visibility = None
+                    mysql_obs_visibility = None
 
                 # now we have values for this time for each fcst_len, iterate the fcst_len and assert each value
                 intersect_data_dict = {}
@@ -319,14 +326,14 @@ class TestNetcdfObsBuilderV01(TestCase):
                         err_msg="MYSQL Ceiling and CB Ceiling are not approximately equal",
                         verbose=True,
                     )
-        except:
+        except: # pylint: disable=bare-except
             print(str(sys.exc_info()))
             self.fail("TestGsdIngestManager Exception failure: " + str(sys.exc_info()))
 
-    def test_one_thread_spedicfy_file_pattern(self):
+    def test_one_thread_spedicfy_file_pattern(self): # pylint:disable=missing-function-docstring
         try:
             cwd = os.getcwd()
-            self.spec_file = (
+            spec_file = (
                 cwd + "/netcdf_to_cb/test/test_load_spec_netcdf_metar_obs_V01.yaml"
             )
             # setup - remove output files
@@ -335,7 +342,7 @@ class TestNetcdfObsBuilderV01(TestCase):
             vx_ingest = VXIngest()
             vx_ingest.runit(
                 {
-                    "spec_file": self.spec_file,
+                    "spec_file": spec_file,
                     "credentials_file": os.environ["HOME"] + "/adb-cb1-credentials",
                     "path": "/opt/data/netcdf_to_cb/input_files",
                     "file_name_mask": "%Y%m%d_%H%M",
@@ -345,21 +352,24 @@ class TestNetcdfObsBuilderV01(TestCase):
                 }
             )
             self.assertTrue(len(glob("/opt/data/netcdf_to_cb/output/test1/[0123456789]???????_[0123456789]???.json")) > 0,msg="There are no output files")
-            self.assertTrue(len(glob("/opt/data/netcdf_to_cb/output/test1/LJ:netcdf_to_cb.run_ingest_threads:VXIngest:*.json")) == 1, msg="there is no load job output file")
+            self.assertTrue(len(glob("/opt/data/netcdf_to_cb/output/test1/LJ:METAR:netcdf_to_cb.run_ingest_threads:VXIngest:*.json")) == 1, msg="there is no load job output file")
             # use file globbing to see if we got one output file for each input file plus one load job file
             self.assertTrue(len(glob("/opt/data/netcdf_to_cb/output/test1/20211108*.json")) ==
                 len(glob("/opt/data/netcdf_to_cb/input_files/20211108_0000")), msg="number of output files is incorrect")
             # teardown remove output files
             for _f in glob('/opt/data/netcdf_to_cb/output/test1/*.json'):
                 os.remove(_f)
-        except Exception as e:
-            self.fail("TestGsdIngestManager Exception failure: " + str(e))
+        except Exception as _e: #pylint: disable=broad-except
+            self.fail("TestGsdIngestManager Exception failure: " + str(_e))
 
 
     def test_two_threads_spedicfy_file_pattern(self):
+        """
+        integration test for testing multithreaded capability
+        """
         try:
             cwd = os.getcwd()
-            self.spec_file = (
+            spec_file = (
                 cwd + "/netcdf_to_cb/test/test_load_spec_netcdf_metar_obs_V01.yaml"
             )
             # setup - remove output files
@@ -368,7 +378,7 @@ class TestNetcdfObsBuilderV01(TestCase):
             vx_ingest = VXIngest()
             vx_ingest.runit(
                 {
-                    "spec_file": self.spec_file,
+                    "spec_file": spec_file,
                     "credentials_file": os.environ["HOME"] + "/adb-cb1-credentials",
                     "path": "/opt/data/netcdf_to_cb/input_files",
                     "file_name_mask": "%Y%m%d_%H%M",
@@ -378,7 +388,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                 }
             )
             self.assertTrue(len(glob("/opt/data/netcdf_to_cb/output/test2/[0123456789]???????_[0123456789]???.json")) > 0,msg="There are no output files")
-            self.assertTrue(len(glob("/opt/data/netcdf_to_cb/output/test2/LJ:netcdf_to_cb.run_ingest_threads:VXIngest:*.json")) == 1, msg="there is no load job output file")
+            self.assertTrue(len(glob("/opt/data/netcdf_to_cb/output/test2/LJ:METAR:netcdf_to_cb.run_ingest_threads:VXIngest:*.json")) == 1, msg="there is no load job output file")
             # use file globbing to see if we got one output file for each input file plus one load job file
             self.assertTrue(len(glob("/opt/data/netcdf_to_cb/output/test2/20210919*.json")) ==
                 len(glob("/opt/data/netcdf_to_cb/input_files/20210919*")), msg="number of output files is incorrect")
@@ -386,8 +396,8 @@ class TestNetcdfObsBuilderV01(TestCase):
             # teardown remove output files
             for _f in glob('/opt/data/netcdf_to_cb/output/test2/*.json'):
                 os.remove(_f)
-        except Exception as e:
-            self.fail("TestGsdIngestManager Exception failure: " + str(e))
+        except Exception as _e: #pylint: disable=broad-except
+            self.fail("TestGsdIngestManager Exception failure: " + str(_e))
 
     def test_one_thread_default(self):
         """This test will start one thread of the ingestManager and simply make sure it runs with no Exceptions.
@@ -397,7 +407,7 @@ class TestNetcdfObsBuilderV01(TestCase):
         Remove any documents type DD prior to using this test."""
         try:
             cwd = os.getcwd()
-            self.spec_file = (
+            spec_file = (
                 cwd + "/netcdf_to_cb/test/test_load_spec_netcdf_metar_obs_V01.yaml"
             )
             # setup - remove output files
@@ -406,7 +416,7 @@ class TestNetcdfObsBuilderV01(TestCase):
             vx_ingest = VXIngest()
             vx_ingest.runit(
                 {
-                    "spec_file": self.spec_file,
+                    "spec_file": spec_file,
                     "credentials_file": os.environ["HOME"] + "/adb-cb1-credentials",
                     "path": "/opt/data/netcdf_to_cb/input_files",
                     "file_name_mask": "%Y%m%d_%H%M",
@@ -416,7 +426,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                 }
             )
             self.assertTrue(len(glob("/opt/data/netcdf_to_cb/output/test3/[0123456789]???????_[0123456789]???.json")) > 0,msg="There are no output files")
-            self.assertTrue(len(glob("/opt/data/netcdf_to_cb/output/test3/LJ:netcdf_to_cb.run_ingest_threads:VXIngest:*.json")) == 1, msg="there is no load job output file")
+            self.assertTrue(len(glob("/opt/data/netcdf_to_cb/output/test3/LJ:METAR:netcdf_to_cb.run_ingest_threads:VXIngest:*.json")) == 1, msg="there is no load job output file")
             # use file globbing to see if we got one output file for each input file plus one load job file
             self.assertTrue(len(glob("/opt/data/netcdf_to_cb/output/test3/[0123456789]???????_[0123456789]???.json")) ==
                 len(glob("/opt/data/netcdf_to_cb/input_files/[0123456789]???????_[0123456789]???")), msg="number of output files is incorrect")
@@ -424,8 +434,8 @@ class TestNetcdfObsBuilderV01(TestCase):
             # teardown remove output files
             for _f in glob('/opt/data/netcdf_to_cb/output/test3/*.json'):
                 os.remove(_f)
-        except Exception as e:
-            self.fail("TestGsdIngestManager Exception failure: " + str(e))
+        except Exception as _e: #pylint: disable=broad-except
+            self.fail("TestGsdIngestManager Exception failure: " + str(_e))
 
 
     def test_two_threads_default(self):
@@ -436,7 +446,7 @@ class TestNetcdfObsBuilderV01(TestCase):
         Remove any documents type DD prior to using this test."""
         try:
             cwd = os.getcwd()
-            self.spec_file = (
+            spec_file = (
                 cwd + "/netcdf_to_cb/test/test_load_spec_netcdf_metar_obs_V01.yaml"
             )
             # setup - remove output files
@@ -445,7 +455,7 @@ class TestNetcdfObsBuilderV01(TestCase):
             vx_ingest = VXIngest()
             vx_ingest.runit(
                 {
-                    "spec_file": self.spec_file,
+                    "spec_file": spec_file,
                     "credentials_file": os.environ["HOME"] + "/adb-cb1-credentials",
                     "path": "/opt/data/netcdf_to_cb/input_files",
                     "file_name_mask": "%Y%m%d_%H%M",
@@ -454,7 +464,7 @@ class TestNetcdfObsBuilderV01(TestCase):
                 }
             )
             self.assertTrue(len(glob("/opt/data/netcdf_to_cb/output/test4/[0123456789]???????_[0123456789]???.json")) > 0,msg="There are no output files")
-            self.assertTrue(len(glob("/opt/data/netcdf_to_cb/output/test4/LJ:netcdf_to_cb.run_ingest_threads:VXIngest:*.json")) == 1, msg="there is no load job output file")
+            self.assertTrue(len(glob("/opt/data/netcdf_to_cb/output/test4/LJ:METAR:netcdf_to_cb.run_ingest_threads:VXIngest:*.json")) >= 1, msg="there is no load job output file")
             # use file globbing to see if we got one output file for each input file plus one load job file
             self.assertTrue(len(glob("/opt/data/netcdf_to_cb/output/test4/[0123456789]???????_[0123456789]???.json")) ==
                 len(glob("/opt/data/netcdf_to_cb/input_files/[0123456789]???????_[0123456789]???")), msg="number of output files is incorrect")
@@ -462,10 +472,10 @@ class TestNetcdfObsBuilderV01(TestCase):
             # teardown remove output files
             for _f in glob('/opt/data/netcdf_to_cb/output/test4/*.json'):
                 os.remove(_f)
-        except Exception as e:
-            self.fail("TestGsdIngestManager Exception failure: " + str(e))
+        except Exception as _e: #pylint: disable=broad-except
+            self.fail("TestGsdIngestManager Exception failure: " + str(_e))
 
-    def check_mismatched_fcstValidEpoch_to_id(self):
+    def check_mismatched_fcst_valid_epoch_to_id(self):
         """This is a simple ultility test that can be used to see if there are
         any missmatched fcstValidEpoch values among the observations i.e. the fcstValidEpoch in the id
         does not match the fcstValidEpoch in the top level fcstValidEpoch field"""
@@ -475,8 +485,8 @@ class TestNetcdfObsBuilderV01(TestCase):
                 Path(credentials_file).is_file(), "credentials_file Does not exist"
             )
 
-            f = open(credentials_file)
-            yaml_data = yaml.load(f, yaml.SafeLoader)
+            _f = open(credentials_file)
+            yaml_data = yaml.load(_f, yaml.SafeLoader)
             host = yaml_data["cb_host"]
             user = yaml_data["cb_user"]
             password = yaml_data["cb_password"]
@@ -493,5 +503,5 @@ class TestNetcdfObsBuilderV01(TestCase):
                 AND NOT CONTAINS(mdata.id,to_string(mdata.fcstValidEpoch)) """)
             for row in result:
                 self.fail("These do not have the same fcstValidEpoch: {0}".format(str(row['fcstValidEpoch']) + row['id']))
-        except Exception as e:
-            self.fail("TestGsdIngestManager Exception failure: " + str(e))
+        except Exception as _e: #pylint: disable=broad-except
+            self.fail("TestGsdIngestManager Exception failure: " + str(_e))

@@ -28,15 +28,13 @@ from builder_common.builder import Builder
 class NetcdfBuilder(Builder):  # pylint disable=too-many-instance-attributes
     """parent class for netcdf builders"""
 
-    def __init__(self, load_spec, ingest_document, cluster, collection):
-        super().__init__(load_spec, ingest_document, cluster, collection)
+    def __init__(self, load_spec, ingest_document):
+        super().__init__(load_spec, ingest_document)
 
         self.ingest_document = ingest_document
         self.template = ingest_document["template"]
         self.subset = self.template["subset"]
         self.load_spec = load_spec
-        self.cluster = cluster
-        self.collection = collection
         # NetcdfBuilder specific
         self.ncdf_data_set = None
         self.stations = []
@@ -207,7 +205,7 @@ class NetcdfBuilder(Builder):  # pylint disable=too-many-instance-attributes
         try:
             if key == "id":
                 an_id = self.derive_id(
-                    template_id=self.template["id"], rec_nem=_rec_num
+                    template_id=self.template["id"], rec_num=_rec_num
                 )
                 if not an_id in doc:
                     doc["id"] = an_id
@@ -335,7 +333,7 @@ class NetcdfBuilder(Builder):  # pylint disable=too-many-instance-attributes
             # pylint: disable=no-member
             self.ncdf_data_set = nc.Dataset(queue_element)
             if len(self.stations) == 0:
-                result = self.cluster.query(
+                result = self.load_spec['cluster'].query(
                     """SELECT mdata.*
                     FROM mdata
                     WHERE type = 'MD'
@@ -389,7 +387,7 @@ class NetcdfMetarObsBuilderV01(
     This is the builder for observation data that is ingested from netcdf (madis) files
     """
 
-    def __init__(self, load_spec, ingest_document, cluster, collection):
+    def __init__(self, load_spec, ingest_document):
         """
         This builder creates a set of V01 obs documents using the V01 station documents.
         This builder loads V01 station data into memory, and uses them to associate a station with an observation
@@ -405,9 +403,7 @@ class NetcdfMetarObsBuilderV01(
         :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
         :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
         """
-        NetcdfBuilder.__init__(self, load_spec, ingest_document, cluster, collection)
-        self.cluster = cluster
-        self.collection = collection
+        NetcdfBuilder.__init__(self, load_spec, ingest_document)
         self.same_time_rows = []
         self.time = 0
         self.interpolated_time = 0

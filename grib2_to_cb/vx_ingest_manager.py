@@ -154,9 +154,7 @@ class VxIngestManager(
                 builder = builder_class(
                     self.load_spec,
                     self.ingest_document,
-                    self.cluster,
-                    self.collection,
-                    self.number_stations,
+                    self.number_stations
                 )
                 self.builder_map[self.ingest_type_builder_name] = builder
             document_map = builder.build_document(queue_element)

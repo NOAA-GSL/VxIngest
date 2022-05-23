@@ -19,7 +19,6 @@ from netcdf_to_cb.netcdf_builder import NetcdfMetarObsBuilderV01
 from netcdf_to_cb.run_ingest_threads import VXIngest
 
 
-
 class TestNetcdfObsBuilderV01Unit(TestCase):
     """various unit tests for the obs builder.
         to run one of these from the command line....
@@ -50,7 +49,7 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             autocommit=True,
             charset="utf8mb4",
             cursorclass=pymysql.cursors.SSDictCursor,
-            client_flag=CLIENT.MULTI_STATEMENTS
+            client_flag=CLIENT.MULTI_STATEMENTS,
         )
         _cursor = connection.cursor(pymysql.cursors.SSDictCursor)
         return _cursor
@@ -97,7 +96,7 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
         finally:
             vx_ingest.close_cb()
 
-    def test_compare_stations_to_mysql(self): # pylint: disable=too-many-locals
+    def test_compare_stations_to_mysql(self):  # pylint: disable=too-many-locals
         """test are couchbase stations the same as mysql.
         useful .... awk 'NF > 20 {print $(NF-5), $(NF-1), $(NF)}' ~/stations_comare.txt | sort | uniq
         """
@@ -116,7 +115,11 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             cb_station_list = list(result)
             cb_stations = {}
             for _s in cb_station_list:
-                cb_stations[_s["name"]] = {"name":_s["name"],'lat':_s['geo'][0]['lat'],'lon':_s['geo'][0]['lon']}
+                cb_stations[_s["name"]] = {
+                    "name": _s["name"],
+                    "lat": _s["geo"][0]["lat"],
+                    "lon": _s["geo"][0]["lon"],
+                }
 
             cursor = self.setup_mysql_connection()
             cursor.execute(
@@ -144,11 +147,11 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             for station_name in common_station_names:
                 coords_1 = (
                     cb_stations[station_name]["lat"],
-                    cb_stations[station_name]["lon"]
+                    cb_stations[station_name]["lon"],
                 )
                 coords_2 = (
                     mysql_stations[station_name]["lat"],
-                    mysql_stations[station_name]["lon"]
+                    mysql_stations[station_name]["lon"],
                 )
                 distance = geopyd.distance(coords_1, coords_2).km
                 try:
@@ -163,7 +166,7 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
                             d=distance,
                         ),
                     )
-                except Exception as _e1:   # pylint:disable=broad-except
+                except Exception as _e1:  # pylint:disable=broad-except
                     print("test_compare_stations_to_mysql lat failure: " + str(_e1))
                 try:
                     self.assertAlmostEqual(
@@ -208,7 +211,9 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             vx_ingest.spec_file = "/tmp/test_file"
             ljd = vx_ingest.build_load_job_doc(vx_ingest.path)
             self.assertTrue(
-                ljd["id"].startswith("LJ:METAR:netcdf_to_cb.run_ingest_threads:VXIngest")
+                ljd["id"].startswith(
+                    "LJ:METAR:netcdf_to_cb.run_ingest_threads:VXIngest"
+                )
             )
         except Exception as _e:  # pylint:disable=broad-except
             self.fail("test_build_load_job_doc Exception failure: " + str(_e))
@@ -222,7 +227,7 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
         """
         try:
             # first we have to create a netcdf dataset and a temperature variable
-            _nc = nc.Dataset( # pylint:disable=no-member
+            _nc = nc.Dataset(  # pylint:disable=no-member
                 "inmemory.nc",
                 format="NETCDF3_CLASSIC",
                 mode="w",
@@ -236,14 +241,11 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             _v[0] = 250.15
 
             vx_ingest = self.setup_connection()
-            cluster = vx_ingest.cluster
-            collection = vx_ingest.collection
+            _collection = vx_ingest.collection
             load_spec = vx_ingest.load_spec
             ingest_document_id = vx_ingest.load_spec["ingest_document_id"]
-            ingest_document = collection.get(ingest_document_id).content
-            builder = NetcdfMetarObsBuilderV01(
-                load_spec, ingest_document, cluster, collection
-            )
+            ingest_document = _collection.get(ingest_document_id).content
+            builder = NetcdfMetarObsBuilderV01(load_spec, ingest_document)
             builder.file_name = "20210920_1700"
             # assign our temporary in-memory dataset to the builder
             builder.ncdf_data_set = _nc
@@ -266,20 +268,20 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             vx_ingest = self.setup_connection()
             vx_ingest.load_job_id = "test_id"
             df_record = {
-                    "dataSourceId": "GSL",
-                    "fileType": "grib2",
-                    "id": "DF:metar:grib2:HRRR_OPS:f_fred_01",
-                    "interpolation": "nearest 4 weighted average",
-                    "loadJobId": "LJ:__main__:VXIngest:1636575702",
-                    "model": "HRRR_OPS",
-                    "mtime": 1636465996,
-                    "originType": "model",
-                    "projection": "lambert_conformal_conic",
-                    "subset": "metar",
-                    "type": "DF",
-                    "url": "/tmp/test/f_fred_01"
-                }
-            vx_ingest.collection.upsert("DF:metar:grib2:HRRR_OPS:f_fred_01",df_record)
+                "dataSourceId": "GSL",
+                "fileType": "grib2",
+                "id": "DF:metar:grib2:HRRR_OPS:f_fred_01",
+                "interpolation": "nearest 4 weighted average",
+                "loadJobId": "LJ:__main__:VXIngest:1636575702",
+                "model": "HRRR_OPS",
+                "mtime": 1636465996,
+                "originType": "model",
+                "projection": "lambert_conformal_conic",
+                "subset": "metar",
+                "type": "DF",
+                "url": "/tmp/test/f_fred_01",
+            }
+            vx_ingest.collection.upsert("DF:metar:grib2:HRRR_OPS:f_fred_01", df_record)
             if os.path.exists("/tmp/test"):
                 shutil.rmtree("/tmp/test")
             os.mkdir("/tmp/test")
@@ -314,10 +316,12 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
                 "get_file_list wrong list",
             )
             # update the mtime in the df record so that the file will not be included
-            df_record["mtime"] =round(time.time())
-            vx_ingest.collection.upsert("DF:metar:grib2:HRRR_OPS:f_fred_01",df_record)
+            df_record["mtime"] = round(time.time())
+            vx_ingest.collection.upsert("DF:metar:grib2:HRRR_OPS:f_fred_01", df_record)
             # do a query with scan consistency set so that we know the record got persisted
-            vx_ingest.cluster.query(query,QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS))
+            vx_ingest.cluster.query(
+                query, QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS)
+            )
             files = vx_ingest.get_file_list(query, "/tmp/test", "f_fred_*")
             # should not get f_fred_01 because the DF record has a newer mtime
             self.assertListEqual(
@@ -347,9 +351,7 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             _load_spec = vx_ingest.load_spec
             _ingest_document_id = vx_ingest.load_spec["ingest_document_id"]
             _ingest_document = _collection.get(_ingest_document_id).content
-            _builder = NetcdfMetarObsBuilderV01(
-                _load_spec, _ingest_document, _cluster, _collection
-            )
+            _builder = NetcdfMetarObsBuilderV01(_load_spec, _ingest_document)
             for delta in [
                 0,
                 -1,
@@ -412,9 +414,7 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             load_spec = vx_ingest.load_spec
             ingest_document_id = vx_ingest.load_spec["ingest_document_id"]
             ingest_document = _collection.get(ingest_document_id).content
-            _builder = NetcdfMetarObsBuilderV01(
-                load_spec, ingest_document, _cluster, _collection
-            )
+            _builder = NetcdfMetarObsBuilderV01(load_spec, ingest_document)
             for delta in [
                 0,
                 -1,
@@ -480,56 +480,63 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             load_spec = vx_ingest.load_spec
             ingest_document_id = vx_ingest.load_spec["ingest_document_id"]
             ingest_document = _collection.get(ingest_document_id).content
-            _builder = NetcdfMetarObsBuilderV01(
-                load_spec, ingest_document, _cluster, _collection
-            )
+            _builder = NetcdfMetarObsBuilderV01(load_spec, ingest_document)
             _builder.file_name = "20211108_0000"
             _pattern = "%Y%m%d_%H%M"
             # fmask is usually set in the run_ingest_threads
-            _builder.load_spec['fmask'] = _pattern
-            _builder.ncdf_data_set = nc.Dataset( # pylint:disable=no-member
+            _builder.load_spec["fmask"] = _pattern
+            _builder.ncdf_data_set = nc.Dataset(  # pylint:disable=no-member
                 "/opt/data/netcdf_to_cb/input_files/20211108_0000"
             )
             rec_num_length = _builder.ncdf_data_set["stationName"].shape[0]
             # find the rec_num of the stationName ZBAA
             for i in range(rec_num_length):
-                if str(nc.chartostring(_builder.ncdf_data_set["stationName"][i])) == "ZBAA": # pylint:disable=no-member
+                if (
+                    str(nc.chartostring(_builder.ncdf_data_set["stationName"][i])) # pylint: disable=no-member
+                    == "ZBAA"
+                ):  # pylint:disable=no-member
                     break
             _rec_num = i
             # use a station that is in the netcdf file but is not used in any of our domains.
             # like Beijing China ZBAA.
             # first upsert the expected station (because it may have been corrupted by an interupted test)
             _zbaa_doc = {
-                        "description": "BEIJING/PEKING",
-                        "docType": "station",
-                        "geo": [
-                        {
-                            "elev": 30,
-                            "firstTime": 1636329600,
-                            "lastTime": 1636329600,
-                            "lat": 40.06999,
-                            "lon": 116.58
-                        }
-                        ],
-                        "id": "MD:V01:METAR:station:ZBAA",
-                        "name": "ZBAA",
-                        "subset": "METAR",
-                        "type": "MD",
-                        "updateTime": 1652990720,
-                        "version": "V01"
+                "description": "BEIJING/PEKING",
+                "docType": "station",
+                "geo": [
+                    {
+                        "elev": 30,
+                        "firstTime": 1636329600,
+                        "lastTime": 1636329600,
+                        "lat": 40.06999,
+                        "lon": 116.58,
                     }
+                ],
+                "id": "MD:V01:METAR:station:ZBAA",
+                "name": "ZBAA",
+                "subset": "METAR",
+                "type": "MD",
+                "updateTime": 1652990720,
+                "version": "V01",
+            }
 
-            result = _collection.upsert('MD:V01:METAR:station:ZBAA', _zbaa_doc)
+            result = _collection.upsert("MD:V01:METAR:station:ZBAA", _zbaa_doc)
 
             result = _cluster.query(
-                " ".join(("""
+                " ".join(
+                    (
+                        """
                 SELECT mdata.*
                 FROM mdata
                 WHERE mdata.type = 'MD'
                 AND mdata.docType = 'station'
                 AND mdata.version = 'V01'
-                AND name = '""" + _station_name + "'").split()),
-                QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS)
+                AND name = '"""
+                        + _station_name
+                        + "'"
+                    ).split()
+                ),
+                QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS),
             )
             if len(list(result)) > 0:
                 station_zbaa = list(result)[0]
@@ -538,7 +545,9 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             # keep a copy of station_zbaa around for future use
             station_zbaa_copy = deepcopy(station_zbaa)
             if station_zbaa_copy is not None:
-                self.cleanup_builder_doc(_cluster, _collection, _builder, station_zbaa_copy)
+                self.cleanup_builder_doc(
+                    _cluster, _collection, _builder, station_zbaa_copy
+                )
 
             # ****************
             # 1) new station test
@@ -552,14 +561,14 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
                 AND mdata.docType = 'station'
                 AND mdata.version = 'V01'
                 AND name = 'ZBAA'""",
-                QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS)
+                QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS),
             )
             # initialize builder with missing station_zbaa
             self.setup_builder_doc(_cluster, _builder)
             # handle_station should give us a new station_zbaa
             _builder.handle_station({"recNum": _rec_num, "stationName": _station_name})
             doc_map = _builder.get_document_map()
-            _id=next(iter(doc_map))
+            _id = next(iter(doc_map))
             result = _collection.upsert(_id, doc_map[_id])
             result = _cluster.query(
                 """
@@ -569,9 +578,9 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
                 AND mdata.docType = 'station'
                 AND mdata.version = 'V01'
                 AND name = 'ZBAA'""",
-                QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS)
+                QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS),
             )
-            #assert for new station_zbaa
+            # assert for new station_zbaa
             self.assert_station(_cluster, station_zbaa_copy)
             self.cleanup_builder_doc(_cluster, _collection, _builder, station_zbaa_copy)
 
@@ -580,7 +589,7 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             new_station_zbaa = deepcopy(station_zbaa_copy)
             # add 1 to the existing lat for geo[0] and upsert the modified station_zbaa
             new_station_zbaa["geo"][0]["lat"] = 41.06999
-            result = _collection.upsert(station_zbaa['id'], new_station_zbaa)
+            result = _collection.upsert(station_zbaa["id"], new_station_zbaa)
             # handle_station should see that the existing station_zbaa has a different
             # geo[0]['lat'] and make a new geo[1]['lat'] with the netcdf original lat
             # populate the builder list with the modified station by seting up
@@ -594,7 +603,7 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
                 AND mdata.docType = 'station'
                 AND mdata.version = 'V01'
                 AND name = 'ZBAA'""",
-                QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS)
+                QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS),
             )
             doc_map = _builder.get_document_map()
             _id = next(iter(doc_map))
@@ -607,19 +616,28 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
                 AND mdata.docType = 'station'
                 AND mdata.version = 'V01'
                 AND name = 'ZBAA'""",
-                QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS)
+                QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS),
             )
             # station ZBAA should now have 2 geo entries
-            self.assertTrue(len(doc_map["MD:V01:METAR:station:ZBAA"]["geo"]) == 2,msg="new station ZBAA['geo'] does not have 2 elements")
-            #modify the station_zbaa to reflect what handle_station should have done
-            station_zbaa['geo'][0]['lat'] = 41.06999
-            station_zbaa['geo'].append({
+            self.assertTrue(
+                len(doc_map["MD:V01:METAR:station:ZBAA"]["geo"]) == 2,
+                msg="new station ZBAA['geo'] does not have 2 elements",
+            )
+            # modify the station_zbaa to reflect what handle_station should have done
+            station_zbaa["geo"][0]["lat"] = 41.06999
+            station_zbaa["geo"].append(
+                {
                     "elev": 30,
-                    "firstTime": doc_map["MD:V01:METAR:station:ZBAA"]["geo"][0]['firstTime'],
-                    "lastTime": doc_map["MD:V01:METAR:station:ZBAA"]["geo"][0]['lastTime'],
+                    "firstTime": doc_map["MD:V01:METAR:station:ZBAA"]["geo"][0][
+                        "firstTime"
+                    ],
+                    "lastTime": doc_map["MD:V01:METAR:station:ZBAA"]["geo"][0][
+                        "lastTime"
+                    ],
                     "lat": 40.06999,
-                    "lon": 116.58
-            })
+                    "lon": 116.58,
+                }
+            )
             self.assert_station(_cluster, station_zbaa)
             self.cleanup_builder_doc(_cluster, _collection, _builder, station_zbaa_copy)
 
@@ -629,9 +647,13 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             # save the original firstTime
             orig_first_time = new_station_zbaa["geo"][0]["firstTime"]
             # add some time to the firstTime and lastTime of new_station_zbaa
-            new_station_zbaa["geo"][0]["firstTime"] = station_zbaa['geo'][0]['firstTime'] + 2 *_builder.cadence
-            new_station_zbaa["geo"][0]["lastTime"] = station_zbaa['geo'][0]['lastTime'] + 2 *_builder.cadence
-            _collection.upsert(new_station_zbaa['id'],new_station_zbaa)
+            new_station_zbaa["geo"][0]["firstTime"] = (
+                station_zbaa["geo"][0]["firstTime"] + 2 * _builder.cadence
+            )
+            new_station_zbaa["geo"][0]["lastTime"] = (
+                station_zbaa["geo"][0]["lastTime"] + 2 * _builder.cadence
+            )
+            _collection.upsert(new_station_zbaa["id"], new_station_zbaa)
             # populate the builder list with the modified station by seting up
             self.setup_builder_doc(_cluster, _builder)
             # handle station should see that the real station_zbaa doesn't fit within
@@ -646,13 +668,13 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
                 AND mdata.docType = 'station'
                 AND mdata.version = 'V01'
                 AND name = 'ZBAA'""",
-                QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS)
+                QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS),
             )
             doc_map = _builder.get_document_map()
             _id = next(iter(doc_map))
             result = _collection.upsert(_id, doc_map[_id])
             # modify the new_station_zbaa['geo'] to reflect what handle_station should have done
-            new_station_zbaa['geo'][0]["firstTime"] = orig_first_time
+            new_station_zbaa["geo"][0]["firstTime"] = orig_first_time
             self.assert_station(_cluster, new_station_zbaa)
             self.cleanup_builder_doc(_cluster, _collection, _builder, station_zbaa_copy)
         except Exception as _e:  # pylint:disable=broad-except
@@ -678,73 +700,101 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
         res = collection.remove(station["id"])
         _ms = MutationState(res)
         result = cluster.query(
-                    " ".join(("""
+            " ".join(
+                (
+                    """
                     SELECT mdata.*
                     FROM mdata
                     WHERE mdata.type = 'MD'
                     AND mdata.docType = 'station'
                     AND mdata.version = 'V01'
-                    AND name = '""" + station["name"] + "'").split()),
-                    QueryOptions(consistent_with=_ms)
-                )
+                    AND name = '"""
+                    + station["name"]
+                    + "'"
+                ).split()
+            ),
+            QueryOptions(consistent_with=_ms),
+        )
         check_station_zbaa = len(list(result)) == 0
-        self.assertTrue(check_station_zbaa, msg="station " + station["name"] + " did not get deleted")
+        self.assertTrue(
+            check_station_zbaa,
+            msg="station " + station["name"] + " did not get deleted",
+        )
         return station["name"]
 
     def setup_builder_doc(self, cluster, builder):
         """
-            initialize the builder document map and populate the builder station list with data from the DB
+        initialize the builder document map and populate the builder station list with data from the DB
         """
         result = cluster.query(
-                " ".join("""SELECT mdata.*
+            " ".join(
+                """SELECT mdata.*
                 FROM mdata
                 WHERE type = 'MD'
                 AND docType = 'station'
                 AND subset = 'METAR'
-                AND version = 'V01';""".split())
+                AND version = 'V01';""".split()
             )
+        )
         builder.stations = list(result)
         builder.initialize_document_map()
 
     def cleanup_builder_doc(self, cluster, collection, builder, station_zbaa_copy):
         """
-            upsert the zbaa station and then setup the builder doc (trying to be consistent
-            with the upsert)
+        upsert the zbaa station and then setup the builder doc (trying to be consistent
+        with the upsert)
         """
-        res = collection.upsert(station_zbaa_copy["id"], station_zbaa_copy)
+        collection.upsert(station_zbaa_copy["id"], station_zbaa_copy)
         result = cluster.query(
-                " ".join("""SELECT mdata.*
+            " ".join(
+                """SELECT mdata.*
                 FROM mdata
                 WHERE type = 'MD'
                 AND docType = 'station'
                 AND subset = 'METAR'
-                AND version = 'V01';""".split()),
-                QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS)
-            )
+                AND version = 'V01';""".split()
+            ),
+            QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS),
+        )
         builder.stations = list(result)
         builder.initialize_document_map()
 
     def assert_station(self, cluster, station_zbaa):
-        """Asserts that a given station object matches the one that is in the database,
-        """
+        """Asserts that a given station object matches the one that is in the database,"""
         new_result = cluster.query(
-            " ".join("""
+            " ".join(
+                """
                 SELECT mdata.*
                 FROM mdata
                 WHERE mdata.type = 'MD'
                 AND mdata.docType = 'station'
                 AND mdata.version = 'V01'
                 AND name = 'ZBAA'
-                """.split()), QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS)
+                """.split()
+            ),
+            QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS),
         )
         new_station_zbaa = list(new_result)[0]
         if station_zbaa is None:
-            self.assertIsNotNone(new_station_zbaa["description"], msg="new station description is missing")
-            self.assertIsNotNone(new_station_zbaa["id"], msg="new station id is missing")
-            self.assertIsNotNone(new_station_zbaa["name"], msg="new station name is missing")
-            self.assertIsNotNone(new_station_zbaa["updateTime"], msg="new station updateTime is missing")
-            self.assertIsNotNone(new_station_zbaa["geo"], msg="new station geo is missing")
-            self.assertEqual(1, len(new_station_zbaa["geo"]), msg="new station geo is not length 1")
+            self.assertIsNotNone(
+                new_station_zbaa["description"],
+                msg="new station description is missing",
+            )
+            self.assertIsNotNone(
+                new_station_zbaa["id"], msg="new station id is missing"
+            )
+            self.assertIsNotNone(
+                new_station_zbaa["name"], msg="new station name is missing"
+            )
+            self.assertIsNotNone(
+                new_station_zbaa["updateTime"], msg="new station updateTime is missing"
+            )
+            self.assertIsNotNone(
+                new_station_zbaa["geo"], msg="new station geo is missing"
+            )
+            self.assertEqual(
+                1, len(new_station_zbaa["geo"]), msg="new station geo is not length 1"
+            )
             return
         self.assertEqual(
             new_station_zbaa["description"],
@@ -752,7 +802,7 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             msg="new 'description'"
             + new_station_zbaa["description"]
             + " does not equal old 'description'"
-            + station_zbaa["description"]
+            + station_zbaa["description"],
         )
         self.assertEqual(
             new_station_zbaa["id"],
@@ -760,7 +810,7 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             msg="new 'id'"
             + new_station_zbaa["id"]
             + " does not equal old 'id'"
-            + station_zbaa["id"]
+            + station_zbaa["id"],
         )
         self.assertEqual(
             new_station_zbaa["name"],
@@ -768,7 +818,7 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             msg="new 'name'"
             + new_station_zbaa["name"]
             + " does not equal old 'name'"
-            + station_zbaa["name"]
+            + station_zbaa["name"],
         )
         for geo_index in range(len(new_station_zbaa["geo"])):
             self.assertEqual(
@@ -777,7 +827,7 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
                 msg="new '['geo'][geo_index]['lat']'"
                 + str(new_station_zbaa["geo"][geo_index]["lat"])
                 + " does not equal old '['geo'][geo_index]['lat']'"
-                + str(station_zbaa["geo"][geo_index]["lat"])
+                + str(station_zbaa["geo"][geo_index]["lat"]),
             )
             self.assertEqual(
                 new_station_zbaa["geo"][geo_index]["lon"],
@@ -785,7 +835,7 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
                 msg="new '['geo'][geo_index]['lon']'"
                 + str(new_station_zbaa["geo"][geo_index]["lon"])
                 + " does not equal old '['geo'][geo_index]['lon']'"
-                + str(station_zbaa["geo"][geo_index]["lon"])
+                + str(station_zbaa["geo"][geo_index]["lon"]),
             )
             self.assertEqual(
                 new_station_zbaa["geo"][geo_index]["elev"],
@@ -793,7 +843,7 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
                 msg="new '['geo'][geo_index]['elev']'"
                 + str(new_station_zbaa["geo"][geo_index]["elev"])
                 + " does not equal old '['geo'][geo_index]['elev']'"
-                + str(station_zbaa["geo"][geo_index]["elev"])
+                + str(station_zbaa["geo"][geo_index]["elev"]),
             )
             self.assertEqual(
                 new_station_zbaa["geo"][geo_index]["firstTime"],
@@ -801,7 +851,7 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
                 msg="new '['geo'][geo_index]['firstTime']'"
                 + str(new_station_zbaa["geo"][geo_index]["firstTime"])
                 + " does not equal old '['geo'][geo_index]['firstTime']'"
-                + str(station_zbaa["geo"][geo_index]["firstTime"])
+                + str(station_zbaa["geo"][geo_index]["firstTime"]),
             )
             self.assertEqual(
                 new_station_zbaa["geo"][geo_index]["lastTime"],
@@ -809,21 +859,18 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
                 msg="new '['geo'][geo_index]['lastTime']'"
                 + str(new_station_zbaa["geo"][geo_index]["lastTime"])
                 + " does not equal old '['geo'][geo_index]['lastTime']'"
-                + str(station_zbaa["geo"][geo_index]["lastTime"])
+                + str(station_zbaa["geo"][geo_index]["lastTime"]),
             )
 
     def test_derive_valid_time_epoch(self):
         """test the derive_valid_time_epoch routine in netcdf_builder"""
         try:
             vx_ingest = self.setup_connection()
-            _cluster = vx_ingest.cluster
             _collection = vx_ingest.collection
             load_spec = vx_ingest.load_spec
             ingest_document_id = vx_ingest.load_spec["ingest_document_id"]
             ingest_document = _collection.get(ingest_document_id).content
-            _builder = NetcdfMetarObsBuilderV01(
-                load_spec, ingest_document, _cluster, _collection
-            )
+            _builder = NetcdfMetarObsBuilderV01(load_spec, ingest_document)
             _builder.file_name = "20211108_0000"
             _pattern = "%Y%m%d_%H%M"
             _file_utc_time = datetime.strptime(_builder.file_name, _pattern)
@@ -850,9 +897,7 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             load_spec = vx_ingest.load_spec
             ingest_document_id = vx_ingest.load_spec["ingest_document_id"]
             ingest_document = _collection.get(ingest_document_id).content
-            _builder = NetcdfMetarObsBuilderV01(
-                load_spec, ingest_document, _cluster, _collection
-            )
+            _builder = NetcdfMetarObsBuilderV01(load_spec, ingest_document)
             _builder.file_name = "20211108_0000"
             derived_epoch = _builder.derive_valid_time_iso(
                 {"file_name_pattern": "%Y%m%d_%H%M"}

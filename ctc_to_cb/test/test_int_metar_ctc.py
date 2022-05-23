@@ -1,3 +1,4 @@
+# pylint: disable=too-many-lines
 """
 test for VxIngest CTC builders
 """
@@ -14,10 +15,10 @@ import pymysql
 import yaml
 from couchbase.auth import PasswordAuthenticator
 from couchbase.cluster import Cluster, ClusterOptions
-from ctc_to_cb import ctc_builder
-from builder_common.load_spec_yaml import LoadYamlSpecFile
-from ctc_to_cb.run_ingest_threads import VXIngest
 from pymysql.constants import CLIENT
+from ctc_to_cb import ctc_builder
+from ctc_to_cb.run_ingest_threads import VXIngest
+from builder_common.load_spec_yaml import LoadYamlSpecFile
 
 
 class TestCTCBuilderV01(unittest.TestCase):
@@ -38,18 +39,21 @@ class TestCTCBuilderV01(unittest.TestCase):
         self.stations = []
         self.mysql_not_in_stations = []
 
-    def test_check_fcstValidEpoch_fcstValidIso(self):
+    def test_check_fcst_valid_epoch_fcst_valid_iso(self):
+        """
+            integration test to check fcst_valid_epoch is derived correctly
+        """
         try:
             credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
             self.assertTrue(
                 Path(credentials_file).is_file(), "credentials_file Does not exist"
             )
-            f = open(credentials_file)
-            yaml_data = yaml.load(f, yaml.SafeLoader)
+            _f = open(credentials_file)
+            yaml_data = yaml.load(_f, yaml.SafeLoader)
             host = yaml_data["cb_host"]
             user = yaml_data["cb_user"]
             password = yaml_data["cb_password"]
-            f.close()
+            _f.close()
             options = ClusterOptions(PasswordAuthenticator(user, password))
             cluster = Cluster("couchbase://" + host, options)
             result = cluster.query(
@@ -76,10 +80,10 @@ class TestCTCBuilderV01(unittest.TestCase):
                 self.assertTrue(
                     (fve % 3600) == 0, "fcstValidEpoch is not at top of hour"
                 )
-        except Exception as e: # pylint: disable=bare-except, disable=broad-except
+        except Exception as _e: # pylint: disable=bare-except, disable=broad-except
             self.fail(
                 "TestGsdIngestManager.test_check_fcstValidEpoch_fcstValidIso Exception failure: "
-                + str(e)
+                + str(_e)
             )
 
     def test_get_stations_geo_search(self):
@@ -92,12 +96,12 @@ class TestCTCBuilderV01(unittest.TestCase):
             self.assertTrue(
                 Path(credentials_file).is_file(), "credentials_file Does not exist"
             )
-            f = open(credentials_file)
-            yaml_data = yaml.load(f, yaml.SafeLoader)
+            _f = open(credentials_file)
+            yaml_data = yaml.load(_f, yaml.SafeLoader)
             host = yaml_data["cb_host"]
             user = yaml_data["cb_user"]
             password = yaml_data["cb_password"]
-            f.close()
+            _f.close()
             options = ClusterOptions(PasswordAuthenticator(user, password))
             cluster = Cluster("couchbase://" + host, options)
             collection = cluster.bucket("mdata").default_collection()
@@ -108,13 +112,15 @@ class TestCTCBuilderV01(unittest.TestCase):
             )
             load_spec_file = LoadYamlSpecFile({"spec_file": spec_file})
             load_spec = dict(load_spec_file.read())
+            load_spec['cluster'] = cluster
+            load_spec['collection'] = collection
             ingest_document_result = collection.get(
                 "MD-TEST:V01:METAR:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest"
             )
             ingest_document = ingest_document_result.content
             # instantiate a ctcBuilder so we can use its get_station methods
             builder_class = getattr(ctc_builder, "CTCModelObsBuilderV01")
-            builder = builder_class(load_spec, ingest_document, cluster, collection)
+            builder = builder_class(load_spec, ingest_document)
             result = cluster.query(
                 """
                 SELECT name,
@@ -159,8 +165,8 @@ class TestCTCBuilderV01(unittest.TestCase):
                     len(stations_difference) < 1000,
                     "difference between expected and actual greater than 100",
                 )
-        except Exception as e:
-            self.fail("TestGsdIngestManager Exception failure: " + str(e))
+        except Exception as _e: # pylint: disable=broad-except
+            self.fail("TestGsdIngestManager Exception failure: " + str(_e))
 
     def calculate_mysql_ctc(self, epoch, fcst_len, threshold, model, region, obs_table):
         """This method calculates a ctc table from mysql data using the following algorithm
@@ -192,9 +198,9 @@ class TestCTCBuilderV01(unittest.TestCase):
         self.assertTrue(
             Path(credentials_file).is_file(), "credentials_file Does not exist"
         )
-        cf = open(credentials_file)
-        yaml_data = yaml.load(cf, yaml.SafeLoader)
-        cf.close()
+        _cf = open(credentials_file)
+        yaml_data = yaml.load(_cf, yaml.SafeLoader)
+        _cf.close()
         host = yaml_data["mysql_host"]
         user = yaml_data["mysql_user"]
         passwd = yaml_data["mysql_password"]
@@ -244,16 +250,16 @@ class TestCTCBuilderV01(unittest.TestCase):
         ctc = cursor.fetchall()[0]
         return ctc
 
-    def calculate_mysql_ctc_loop(
+    def calculate_mysql_ctc_loop( #pylint: disable=dangerous-default-value, missing-function-docstring
         self, epoch, fcst_len, threshold, model, region, obs_table, reject_stations=[]
     ):
         credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
         self.assertTrue(
             Path(credentials_file).is_file(), "credentials_file Does not exist"
         )
-        cf = open(credentials_file)
-        yaml_data = yaml.load(cf, yaml.SafeLoader)
-        cf.close()
+        _cf = open(credentials_file)
+        yaml_data = yaml.load(_cf, yaml.SafeLoader)
+        _cf.close()
         host = yaml_data["mysql_host"]
         user = yaml_data["mysql_user"]
         passwd = yaml_data["mysql_password"]
@@ -297,7 +303,7 @@ class TestCTCBuilderV01(unittest.TestCase):
         print("mysql_ctc statement: ", statement)
         cursor.execute(statement)
         row = cursor.fetchone()
-        if row == None:
+        if row is None:
             return None
         hits = 0
         misses = 0
@@ -336,7 +342,7 @@ class TestCTCBuilderV01(unittest.TestCase):
         }
         return ctc
 
-    def calculate_cb_ctc(
+    def calculate_cb_ctc( #pylint: disable=dangerous-default-value,missing-function-docstring
         self,
         spec_file_name,
         epoch,
@@ -351,19 +357,18 @@ class TestCTCBuilderV01(unittest.TestCase):
         self.assertTrue(
             Path(credentials_file).is_file(), "credentials_file Does not exist"
         )
-        f = open(credentials_file)
-        yaml_data = yaml.load(f, yaml.SafeLoader)
+        _f = open(credentials_file)
+        yaml_data = yaml.load(_f, yaml.SafeLoader)
         host = yaml_data["cb_host"]
         user = yaml_data["cb_user"]
         password = yaml_data["cb_password"]
-        f.close()
-        options = ClusterOptions(PasswordAuthenticator(user, password))
-        cluster = Cluster("couchbase://" + host, options)
-        collection = cluster.bucket("mdata").default_collection()
-        cwd = os.getcwd()
+        _f.close()
         load_spec_file = LoadYamlSpecFile({"spec_file": spec_file_name})
         load_spec = dict(load_spec_file.read())
-        ingest_document_result = collection.get(
+        options = ClusterOptions(PasswordAuthenticator(user, password))
+        load_spec['cluster'] = Cluster("couchbase://" + host, options)
+        load_spec['collection'] = load_spec['cluster'].bucket("mdata").default_collection()
+        ingest_document_result = load_spec['collection'].get(
             "MD:V01:{subset}:{model}:ALL_HRRR:CTC:CEILING:ingest".format(
                 subset=subset, model=model
             )
@@ -371,7 +376,7 @@ class TestCTCBuilderV01(unittest.TestCase):
         ingest_document = ingest_document_result.content
         # instantiate a ctcBuilder so we can use its get_station methods
         builder_class = getattr(ctc_builder, "CTCModelObsBuilderV01")
-        builder = builder_class(load_spec, ingest_document, cluster, collection)
+        builder = builder_class(load_spec, ingest_document)
         legacy_stations = sorted(
             #                builder.get_stations_for_region_by_geosearch(region, epoch)
             builder.get_stations_for_region_by_sort(region, epoch)
@@ -390,16 +395,16 @@ class TestCTCBuilderV01(unittest.TestCase):
         )
         print("cb_ctc model_id:", model_id, " obs_id:", obs_id)
         try:
-            full_model_data = collection.get(model_id).content
-        except:
+            full_model_data = load_spec['collection'].get(model_id).content
+        except: # pylint: disable=bare-except
             time.sleep(0.25)
-            full_model_data = collection.get(model_id).content
+            full_model_data = load_spec['collection'].get(model_id).content
         self.cb_model_obs_data = []
         try:
-            full_obs_data = collection.get(obs_id).content
-        except:
+            full_obs_data = load_spec['collection'].get(obs_id).content
+        except: # pylint: disable=bare-except
             time.sleep(0.25)
-            full_obs_data = collection.get(obs_id).content
+            full_obs_data = load_spec['collection'].get(obs_id).content
         for station in self.stations:
             # find observation data for this station
             obs_data = None
@@ -468,7 +473,7 @@ class TestCTCBuilderV01(unittest.TestCase):
         3) It uses the mysql legacy query with the embeded calculation.
         The two mysql derived CTC's are compared and asserted, and then the couchbase CTC
         is compared and asserted against the mysql CTC.
-        NOTE: We expect this test to have wide tolerances because of the differences in the 
+        NOTE: We expect this test to have wide tolerances because of the differences in the
         mysql and couchbase ingest
         algorithms. Use this test more for debugging.
         """
@@ -483,11 +488,11 @@ class TestCTCBuilderV01(unittest.TestCase):
             outdir = "/opt/data/ctc_to_cb/hrrr_ops/output"
             filepaths = outdir + "/*.json"
             files = glob.glob(filepaths)
-            for f in files:
+            for _f in files:
                 try:
-                    os.remove(f)
-                except OSError as e:
-                    self.fail("Error: %s : %s" % (f, e.strerror))
+                    os.remove(_f)
+                except OSError as _e:
+                    self.fail("Error: %s : %s" % (_f, _e.strerror))
             vx_ingest = VXIngest()
             vx_ingest.runit(
                 {
@@ -498,6 +503,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                     "first_epoch": 100,
                 }
             )
+
             list_of_output_files = glob.glob("/opt/data/ctc_to_cb/output/*")
             # latest_output_file = max(list_of_output_files, key=os.path.getctime)
             latest_output_file = min(list_of_output_files, key=os.path.getctime)
@@ -514,41 +520,41 @@ class TestCTCBuilderV01(unittest.TestCase):
                 fcst_valid_epoch = list(fcst_valid_epochs)[
                     int(len(fcst_valid_epochs) / 2)
                 ]
-                thresholds = ["500", "1000", "3000", "60000"]
+                _thresholds = ["500", "1000", "3000", "60000"]
                 # get all the documents that have the chosen fcstValidEpoch
                 docs = [
-                    doc
-                    for doc in vx_ingest_output_data
-                    if doc["fcstValidEpoch"] == fcst_valid_epoch
+                    _doc
+                    for _doc in vx_ingest_output_data
+                    if _doc["fcstValidEpoch"] == fcst_valid_epoch
                 ]
                 # get all the fcstLens for those docs
                 fcst_lens = []
-                for elem in docs:
-                    fcst_lens.append(elem["fcstLen"])
+                for _elem in docs:
+                    fcst_lens.append(_elem["fcstLen"])
                 output_file.close()
-            except:
+            except: # pylint: disable=bare-except
                 self.fail(
                     "TestCTCBuilderV01 Exception failure opening output: "
                     + str(sys.exc_info()[0])
                 )
-            for i in fcst_lens:
-                elem = None
+            for _i in fcst_lens:
+                _elem = None
                 # find the document for this fcst_len
-                for elem in docs:
-                    if elem["fcstLen"] == i:
+                for _elem in docs:
+                    if _elem["fcstLen"] == _i:
                         break
                 # process all the thresholds
-                for t in thresholds:
+                for _t in _thresholds:
                     print(
                         "Asserting mysql derived CTC for fcstValidEpoch: {epoch} model: HRRR_OPS region: ALL_HRRR fcst_len: {fcst_len} threshold: {thrsh}".format(
-                            epoch=elem["fcstValidEpoch"], thrsh=t, fcst_len=i
+                            epoch=_elem["fcstValidEpoch"], thrsh=_t, fcst_len=_i
                         )
                     )
                     cb_ctc = self.calculate_cb_ctc(
                         spec_file_name=spec_file,
-                        epoch=elem["fcstValidEpoch"],
-                        fcst_len=i,
-                        threshold=int(t),
+                        epoch=_elem["fcstValidEpoch"],
+                        fcst_len=_i,
+                        threshold=int(_t),
                         model="HRRR_OPS",
                         subset="METAR",
                         region="ALL_HRRR",
@@ -556,14 +562,14 @@ class TestCTCBuilderV01(unittest.TestCase):
                     if cb_ctc is None:
                         print(
                             "cb_ctc_loop is None for threshold {thrsh}- contunuing".format(
-                                thrsh=str(t)
+                                thrsh=str(_t)
                             )
                         )
                         continue
                     mysql_ctc = self.calculate_mysql_ctc_loop(
-                        epoch=elem["fcstValidEpoch"],
-                        fcst_len=i,
-                        threshold=int(t) / 10,
+                        epoch=_elem["fcstValidEpoch"],
+                        fcst_len=_i,
+                        threshold=int(_t) / 10,
                         model="HRRR_OPS",
                         region="ALL_HRRR",
                         obs_table="obs",
@@ -571,7 +577,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                     if mysql_ctc is None:
                         print(
                             "mysql_ctc_loop is None for threshold {thrsh}- contunuing".format(
-                                thrsh=str(t)
+                                thrsh=str(_t)
                             )
                         )
                         continue
@@ -587,9 +593,9 @@ class TestCTCBuilderV01(unittest.TestCase):
                     mysql_names = [elem["name"] for elem in self.mysql_model_obs_data]
                     cb_names = [elem["name"] for elem in self.cb_model_obs_data]
                     name_diffs = [
-                        i
-                        for i in cb_names + mysql_names
-                        if i not in cb_names or i not in mysql_names
+                        _i
+                        for _i in cb_names + mysql_names
+                        if _i not in cb_names or _i not in mysql_names
                     ]
                     try:
                         self.assertGreater(
@@ -598,15 +604,15 @@ class TestCTCBuilderV01(unittest.TestCase):
                             "There are differences between the mysql and CB station names"
                             + str(name_diffs),
                         )
-                    except:
+                    except: # pylint: disable=bare-except
                         # recalculate without the differences
                         self.cb_model_obs_data = []
                         cb_ctc = {}
                         cb_ctc = self.calculate_cb_ctc(
                             spec_file_name=spec_file,
-                            epoch=elem["fcstValidEpoch"],
-                            fcst_len=i,
-                            threshold=int(t),
+                            epoch=_elem["fcstValidEpoch"],
+                            fcst_len=_i,
+                            threshold=int(_t),
                             model="HRRR_OPS",
                             subset="METAR",
                             region="ALL_HRRR",
@@ -615,9 +621,9 @@ class TestCTCBuilderV01(unittest.TestCase):
                         mysql_ctc = {}
                         self.mysql_model_obs_data = []
                         mysql_ctc = self.calculate_mysql_ctc_loop(
-                            epoch=elem["fcstValidEpoch"],
-                            fcst_len=i,
-                            threshold=int(t) / 10,
+                            epoch=_elem["fcstValidEpoch"],
+                            fcst_len=_i,
+                            threshold=int(_t) / 10,
                             model="HRRR_OPS",
                             region="ALL_HRRR",
                             obs_table="obs",
@@ -629,56 +635,56 @@ class TestCTCBuilderV01(unittest.TestCase):
                     #     len(self.cb_model_obs_data),
                     #     "model_obs_data are not the same length",
                     # )
-                    for r in range(len(self.mysql_model_obs_data)):
+                    for _r in range(len(self.mysql_model_obs_data)): # pylint: disable=consider-using-enumerate
                         delta = round(
                             (
-                                self.mysql_model_obs_data[r]["model_value"] * 10
-                                + self.cb_model_obs_data[r]["model"]
+                                self.mysql_model_obs_data[_r]["model_value"] * 10
+                                + self.cb_model_obs_data[_r]["model"]
                             )
                             * 0.05
                         )
                         try:
                             self.assertAlmostEqual(
-                                self.mysql_model_obs_data[r]["model_value"] * 10,
-                                self.cb_model_obs_data[r]["model"],
+                                self.mysql_model_obs_data[_r]["model_value"] * 10,
+                                self.cb_model_obs_data[_r]["model"],
                                 msg="mysql and cb model values differ",
                                 delta=delta,
                             )
-                        except:
+                        except: # pylint: disable=bare-except
                             print(
-                                i,
+                                _i,
                                 "model",
-                                self.mysql_model_obs_data[r]["time"],
-                                self.mysql_model_obs_data[r]["fcst_len"],
-                                self.cb_model_obs_data[r]["thrsh"],
-                                self.mysql_model_obs_data[r]["name"],
-                                self.mysql_model_obs_data[r]["model_value"] * 10,
-                                self.cb_model_obs_data[r]["name"],
-                                self.cb_model_obs_data[r]["model"],
+                                self.mysql_model_obs_data[_r]["time"],
+                                self.mysql_model_obs_data[_r]["fcst_len"],
+                                self.cb_model_obs_data[_r]["thrsh"],
+                                self.mysql_model_obs_data[_r]["name"],
+                                self.mysql_model_obs_data[_r]["model_value"] * 10,
+                                self.cb_model_obs_data[_r]["name"],
+                                self.cb_model_obs_data[_r]["model"],
                                 delta,
                             )
                         try:
                             self.assertAlmostEqual(
-                                self.mysql_model_obs_data[r]["obs_value"] * 10,
-                                self.cb_model_obs_data[r]["obs"],
+                                self.mysql_model_obs_data[_r]["obs_value"] * 10,
+                                self.cb_model_obs_data[_r]["obs"],
                                 msg="mysql and cb obs values differ",
                                 delta=delta,
                             )
-                        except:
+                        except: # pylint: disable=bare-except
                             print(
-                                i,
+                                _i,
                                 "obs",
-                                self.mysql_model_obs_data[r]["time"],
-                                self.mysql_model_obs_data[r]["fcst_len"],
-                                self.cb_model_obs_data[r]["thrsh"],
-                                self.mysql_model_obs_data[r]["name"],
-                                self.mysql_model_obs_data[r]["obs_value"] * 10,
-                                self.cb_model_obs_data[r]["name"],
-                                self.cb_model_obs_data[i]["obs"],
+                                self.mysql_model_obs_data[_r]["time"],
+                                self.mysql_model_obs_data[_r]["fcst_len"],
+                                self.cb_model_obs_data[_r]["thrsh"],
+                                self.mysql_model_obs_data[_r]["name"],
+                                self.mysql_model_obs_data[_r]["obs_value"] * 10,
+                                self.cb_model_obs_data[_r]["name"],
+                                self.cb_model_obs_data[_i]["obs"],
                                 delta,
                             )
 
-        except:
+        except: # pylint: disable=bare-except
             self.fail("TestCTCBuilderV01 Exception failure: " + str(sys.exc_info()[0]))
         return
 
@@ -701,12 +707,12 @@ class TestCTCBuilderV01(unittest.TestCase):
             self.assertTrue(
                 Path(credentials_file).is_file(), "credentials_file Does not exist"
             )
-            cf = open(credentials_file)
-            yaml_data = yaml.load(cf, yaml.SafeLoader)
+            _cf = open(credentials_file)
+            yaml_data = yaml.load(_cf, yaml.SafeLoader)
             host = yaml_data["cb_host"]
             user = yaml_data["cb_user"]
             password = yaml_data["cb_password"]
-            cf.close()
+            _cf.close()
             options = ClusterOptions(PasswordAuthenticator(user, password))
             cluster = Cluster("couchbase://" + host, options)
 
@@ -849,16 +855,16 @@ class TestCTCBuilderV01(unittest.TestCase):
             print("cb fcst_lens:", cb_fcst_lens)
             print("mysql fcst_lens:", mysql_fcst_lens)
             print("common fcst_lens:", fcst_lens)
-            for i in fcst_lens:
-                for t in thresholds:
+            for _i in fcst_lens:
+                for _t in thresholds:
                     # process all the thresholds
                     print(
                         "Asserting mysql derived CTC for fcstValidEpoch: {epoch} model: {model} region: {region} fcst_len: {fcst_len} threshold: {thrsh}".format(
                             model="HRRR_OPS",
                             region="ALL_HRRR",
                             epoch=fcst_valid_epoch,
-                            thrsh=t,
-                            fcst_len=i,
+                            thrsh=_t,
+                            fcst_len=_i,
                         )
                     )
                     # calculate_cb_ctc derives the cb data for the compare
@@ -868,13 +874,13 @@ class TestCTCBuilderV01(unittest.TestCase):
                         model="HRRR_OPS",
                         subset="METAR",
                         region="ALL_HRRR",
-                        fcst_len=i,
-                        threshold=int(t),
+                        fcst_len=_i,
+                        threshold=int(_t),
                     )
                     if cb_ctc is None:
                         print(
                             "mysql_ctc_loop is None for threshold {thrsh}- contunuing".format(
-                                thrsh=str(t)
+                                thrsh=str(_t)
                             )
                         )
                         continue
@@ -883,14 +889,14 @@ class TestCTCBuilderV01(unittest.TestCase):
                         model="HRRR_OPS",
                         region="ALL_HRRR",
                         epoch=fcst_valid_epoch,
-                        fcst_len=i,
-                        threshold=int(t) / 10,
+                        fcst_len=_i,
+                        threshold=int(_t) / 10,
                         obs_table="obs",
                     )
                     if mysql_ctc_loop is None:
                         print(
                             "mysql_ctc_loop is None for threshold {thrsh}- contunuing".format(
-                                thrsh=str(t)
+                                thrsh=str(_t)
                             )
                         )
                         continue
@@ -909,14 +915,14 @@ class TestCTCBuilderV01(unittest.TestCase):
                         0,
                         "There are differences between the mysql and CB station names",
                     )
-                    cb_ctc_nodiffs = self.calculate_cb_ctc(
+                    cb_ctc_nodiffs = self.calculate_cb_ctc( # pylint: disable=unused-variable
                         spec_file_name=spec_file,
                         epoch=fcst_valid_epoch,
                         model="HRRR_OPS",
                         subset="METAR",
                         region="ALL_HRRR",
-                        fcst_len=i,
-                        threshold=int(t),
+                        fcst_len=_i,
+                        threshold=int(_t),
                         reject_stations=name_diffs,
                     )
                     try:
@@ -925,7 +931,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                             len(self.cb_model_obs_data),
                             "model_obs_data are not the same length",
                         )
-                    except:
+                    except: # pylint: disable=bare-except
                         print(
                             "model_obs_data are not the same length",
                             len(self.mysql_model_obs_data),
@@ -934,79 +940,79 @@ class TestCTCBuilderV01(unittest.TestCase):
                     min_length = min(
                         len(self.mysql_model_obs_data), len(self.cb_model_obs_data)
                     )
-                    for r in range(min_length):
-                        if self.cb_model_obs_data[r]["model"] is None:
+                    for _r in range(min_length):
+                        if self.cb_model_obs_data[_r]["model"] is None:
                             try:
                                 self.assertEqual(
-                                    self.mysql_model_obs_data[r]["model_value"],
-                                    self.cb_model_obs_data[r]["model"],
+                                    self.mysql_model_obs_data[_r]["model_value"],
+                                    self.cb_model_obs_data[_r]["model"],
                                 )
-                            except:
+                            except:  # pylint: disable=bare-except
                                 print(
-                                    r,
+                                    _r,
                                     "model",
-                                    self.mysql_model_obs_data[r]["time"],
-                                    self.mysql_model_obs_data[r]["fcst_len"],
-                                    self.cb_model_obs_data[r]["thrsh"],
-                                    self.mysql_model_obs_data[r]["name"],
-                                    self.mysql_model_obs_data[r]["model_value"] * 10,
-                                    self.cb_model_obs_data[r]["model"],
+                                    self.mysql_model_obs_data[_r]["time"],
+                                    self.mysql_model_obs_data[_r]["fcst_len"],
+                                    self.cb_model_obs_data[_r]["thrsh"],
+                                    self.mysql_model_obs_data[_r]["name"],
+                                    self.mysql_model_obs_data[_r]["model_value"] * 10,
+                                    self.cb_model_obs_data[_r]["model"],
                                 )
                         else:
                             # find the delta between the two, mysql must be multiplied by 10
                             delta = round(
                                 (
-                                    self.mysql_model_obs_data[r]["model_value"] * 10
-                                    + self.cb_model_obs_data[r]["model"]
+                                    self.mysql_model_obs_data[_r]["model_value"] * 10
+                                    + self.cb_model_obs_data[_r]["model"]
                                 )
                                 * 0.05
                             )
                             try:
                                 # do the model values match within 5% ?
                                 self.assertAlmostEqual(
-                                    self.mysql_model_obs_data[r]["model_value"] * 10,
-                                    self.cb_model_obs_data[r]["model"],
+                                    self.mysql_model_obs_data[_r]["model_value"] * 10,
+                                    self.cb_model_obs_data[_r]["model"],
                                     msg="mysql and cb model values differ",
                                     delta=delta,
                                 )
-                            except:
+                            except: # pylint: disable=bare-except
                                 print(
-                                    r,
+                                    _r,
                                     "model",
-                                    self.mysql_model_obs_data[r]["time"],
-                                    self.mysql_model_obs_data[r]["fcst_len"],
-                                    self.cb_model_obs_data[r]["thrsh"],
-                                    self.mysql_model_obs_data[r]["name"],
-                                    self.mysql_model_obs_data[r]["model_value"] * 10,
-                                    self.cb_model_obs_data[r]["model"],
+                                    self.mysql_model_obs_data[_r]["time"],
+                                    self.mysql_model_obs_data[_r]["fcst_len"],
+                                    self.cb_model_obs_data[_r]["thrsh"],
+                                    self.mysql_model_obs_data[_r]["name"],
+                                    self.mysql_model_obs_data[_r]["model_value"] * 10,
+                                    self.cb_model_obs_data[_r]["model"],
                                     delta,
                                 )
                             try:
                                 # do the obs match within 5%
                                 self.assertAlmostEqual(
-                                    self.mysql_model_obs_data[r]["obs_value"] * 10,
-                                    self.cb_model_obs_data[r]["obs"],
+                                    self.mysql_model_obs_data[_r]["obs_value"] * 10,
+                                    self.cb_model_obs_data[_r]["obs"],
                                     msg="mysql and cb obs values differ",
                                     delta=delta,
                                 )
-                            except:
+                            except: # pylint: disable=bare-except
                                 print(
-                                    r,
+                                    _r,
                                     "obs",
-                                    self.mysql_model_obs_data[r]["time"],
-                                    self.mysql_model_obs_data[r]["fcst_len"],
-                                    self.cb_model_obs_data[r]["thrsh"],
-                                    self.mysql_model_obs_data[r]["name"],
-                                    self.mysql_model_obs_data[r]["obs_value"] * 10,
-                                    self.cb_model_obs_data[r]["obs"],
+                                    self.mysql_model_obs_data[_r]["time"],
+                                    self.mysql_model_obs_data[_r]["fcst_len"],
+                                    self.cb_model_obs_data[_r]["thrsh"],
+                                    self.mysql_model_obs_data[_r]["name"],
+                                    self.mysql_model_obs_data[_r]["obs_value"] * 10,
+                                    self.cb_model_obs_data[_r]["obs"],
                                     delta,
                                 )
 
-        except:
+        except: # pylint: disable=bare-except
             self.fail("TestCTCBuilderV01 Exception failure: " + str(sys.exc_info()[0]))
         return
 
-    def test_ctc_data_hrrr_ops_all_hrrr(self):
+    def test_ctc_data_hrrr_ops_all_hrrr(self): # pylint: disable=too-many-locals
         # noinspection PyBroadException
         """
         This test is a comprehensive test of the ctcBuilder data. It will retrieve CTC documents
@@ -1023,12 +1029,12 @@ class TestCTCBuilderV01(unittest.TestCase):
             self.assertTrue(
                 Path(credentials_file).is_file(), "credentials_file Does not exist"
             )
-            cf = open(credentials_file)
-            yaml_data = yaml.load(cf, yaml.SafeLoader)
+            _cf = open(credentials_file)
+            yaml_data = yaml.load(_cf, yaml.SafeLoader)
             host = yaml_data["cb_host"]
             user = yaml_data["cb_user"]
             password = yaml_data["cb_password"]
-            cf.close()
+            _cf.close()
             options = ClusterOptions(PasswordAuthenticator(user, password))
             cluster = Cluster("couchbase://" + host, options)
 
@@ -1179,15 +1185,16 @@ class TestCTCBuilderV01(unittest.TestCase):
                 mysql_fcst_len = [
                     value for value in mysql_results if value["fcst_len"] == fcst_len
                 ]
-                for cb_index_for_fcst_len, x in enumerate(cb_results):
-                    if x["mdata"]["fcstLen"] == fcst_len:
+                cb_index_for_fcst_len = None
+                for cb_index_for_fcst_len, _x in enumerate(cb_results):
+                    if _x["mdata"]["fcstLen"] == fcst_len:
                         break
-                for t in thresholds:
+                for _t in thresholds:
                     for mysql_fcst_len_thrsh in mysql_fcst_len:
-                        if mysql_fcst_len_thrsh["trsh"] * 10 == t:
+                        if mysql_fcst_len_thrsh["trsh"] * 10 == _t:
                             break
                     self.assertAlmostEqual(
-                        cb_results[cb_index_for_fcst_len]["mdata"]["data"][str(t)][
+                        cb_results[cb_index_for_fcst_len]["mdata"]["data"][str(_t)][
                             "hits"
                         ],
                         mysql_fcst_len_thrsh["hits"],
@@ -1195,14 +1202,14 @@ class TestCTCBuilderV01(unittest.TestCase):
                         msg="mysql hits {mhits} do not match couchbase hits {chits} for fcst_len {f} and threshold {t}".format(
                             mhits=mysql_fcst_len_thrsh["hits"],
                             chits=cb_results[cb_index_for_fcst_len]["mdata"]["data"][
-                                str(t)
+                                str(_t)
                             ]["hits"],
                             f=fcst_len,
-                            t=t,
+                            t=_t,
                         ),
                     )
                     self.assertAlmostEqual(
-                        cb_results[cb_index_for_fcst_len]["mdata"]["data"][str(t)][
+                        cb_results[cb_index_for_fcst_len]["mdata"]["data"][str(_t)][
                             "misses"
                         ],
                         mysql_fcst_len_thrsh["misses"],
@@ -1210,14 +1217,14 @@ class TestCTCBuilderV01(unittest.TestCase):
                         msg="mysql misses {mmisses} do not match couchbase misses {cmisses} for fcst_len {f} and threshold {t}".format(
                             mmisses=mysql_fcst_len_thrsh["misses"],
                             cmisses=cb_results[cb_index_for_fcst_len]["mdata"]["data"][
-                                str(t)
+                                str(_t)
                             ]["misses"],
                             f=fcst_len,
-                            t=t,
+                            t=_t,
                         ),
                     )
                     self.assertAlmostEqual(
-                        cb_results[cb_index_for_fcst_len]["mdata"]["data"][str(t)][
+                        cb_results[cb_index_for_fcst_len]["mdata"]["data"][str(_t)][
                             "false_alarms"
                         ],
                         mysql_fcst_len_thrsh["false_alarms"],
@@ -1226,13 +1233,13 @@ class TestCTCBuilderV01(unittest.TestCase):
                             mfalse_alarms=mysql_fcst_len_thrsh["false_alarms"],
                             cfalse_alarms=cb_results[cb_index_for_fcst_len]["mdata"][
                                 "data"
-                            ][str(t)]["false_alarms"],
+                            ][str(_t)]["false_alarms"],
                             f=fcst_len,
-                            t=t,
+                            t=_t,
                         ),
                     )
                     self.assertAlmostEqual(
-                        cb_results[cb_index_for_fcst_len]["mdata"]["data"][str(t)][
+                        cb_results[cb_index_for_fcst_len]["mdata"]["data"][str(_t)][
                             "correct_negatives"
                         ],
                         mysql_fcst_len_thrsh["correct_negatives"],
@@ -1243,11 +1250,11 @@ class TestCTCBuilderV01(unittest.TestCase):
                             ],
                             ccorrect_negatives=cb_results[cb_index_for_fcst_len][
                                 "mdata"
-                            ]["data"][str(t)]["correct_negatives"],
+                            ]["data"][str(_t)]["correct_negatives"],
                             f=fcst_len,
-                            t=t,
+                            t=_t,
                         ),
                     )
-        except:
+        except: # pylint: disable=bare-except
             self.fail("TestCTCBuilderV01 Exception failure: " + str(sys.exc_info()[0]))
         return

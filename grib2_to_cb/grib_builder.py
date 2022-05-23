@@ -30,18 +30,14 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
         self,
         load_spec,
         ingest_document,
-        cluster,
-        collection,
         number_stations=sys.maxsize,
     ):
-        super().__init__(load_spec, ingest_document, cluster, collection)
+        super().__init__(load_spec, ingest_document)
 
         self.ingest_document = ingest_document
         self.template = ingest_document["template"]
         self.subset = self.template["subset"]
         self.load_spec = load_spec
-        self.cluster = cluster
-        self.collection = collection
         # GribBuilder specific
         self.number_stations = number_stations
         self.projection = None
@@ -374,7 +370,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
             limit_clause = ";"
             if self.number_stations != sys.maxsize:
                 limit_clause = " limit {l};".format(l=self.number_stations)
-            result = self.cluster.query(
+            result = self.load_spec['cluster'].query(
                 """SELECT mdata.geo, name
                     from mdata
                     where type='MD'
@@ -462,8 +458,6 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
         self,
         load_spec,
         ingest_document,
-        cluster,
-        collection,
         number_stations=sys.maxsize,
     ):  # pylint:disable=too-many-arguments
         """This builder creates a set of V01 model documents using the stations in the station list.
@@ -483,12 +477,8 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
             self,
             load_spec,
             ingest_document,
-            cluster,
-            collection,
             number_stations=sys.maxsize,
         )
-        self.cluster = cluster
-        self.collection = collection
         self.number_stations = number_stations
         self.same_time_rows = []
         self.time = 0
@@ -682,7 +672,7 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
         """
         # convert all the values to a float
         vis_values = []
-        for _v, v_intrp_ignore in list(
+        for _v, v_intrp_ignore in list( # pylint: disable=unused-variable
             params_dict.values()
         )[  # pylint: disable=unused-variable
             0

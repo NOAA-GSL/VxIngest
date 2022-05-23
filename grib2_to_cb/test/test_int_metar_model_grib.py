@@ -1,22 +1,27 @@
+# pylint: disable=too-many-lines
+"""
+    integration tests for grib builder
+"""
 import copy
+import datetime as DT
 import glob
 import json
 import math
 import os
 import sys
-import datetime as DT
 import unittest
 from glob import glob
-import grib2_to_cb.get_grid as gg
+
+import numpy as np
 import pygrib
 import pymysql
-from pymysql.constants import CLIENT
 import pyproj
 import yaml
-import numpy as np
 from couchbase.cluster import Cluster, ClusterOptions
 from couchbase_core.cluster import PasswordAuthenticator
+from pymysql.constants import CLIENT
 from grib2_to_cb.run_ingest_threads import VXIngest
+import grib2_to_cb.get_grid as gg
 
 
 class TestGribBuilderV01(unittest.TestCase):
@@ -27,10 +32,19 @@ class TestGribBuilderV01(unittest.TestCase):
     # 21 196 14 000018 %y %j %H %f  treating the last 6 decimals as microseconds even though they are not.
     # these files are two digit year, day of year, hour, and forecast lead time (6 digit ??)
     def get_geo_index(self, fcst_valid_epoch, geo):
+        """ return the index of the geo list that corresponds to the given fcst_valid_epoch
+
+        Args:
+            fcst_valid_epoch (int): an epoch
+            geo (list): a list of geo objects
+
+        Returns:
+            int : the index
+        """
         latest_time = 0
         latest_index = 0
         try:
-            for geo_index in range(len(geo)):
+            for geo_index in range(len(geo)): # pylint: disable=consider-using-enumerate
                 if geo[geo_index]['lastTime'] > latest_time:
                     latest_time = geo[geo_index]['lastTime']
                     latest_index = geo_index
@@ -43,8 +57,8 @@ class TestGribBuilderV01(unittest.TestCase):
             else:
                 return latest_index
         except Exception as _e:  # pylint: disable=bare-except, disable=broad-except
-                print("GribBuilder.get_geo_index: Exception  error: %s", str(_e))
-                return 0
+            print("GribBuilder.get_geo_index: Exception  error: %s", str(_e))
+            return 0
 
     def test_compare_model_to_mysql(self):
         """This test attempts to find recent models that match in both the mysql and the CB
@@ -58,8 +72,8 @@ class TestGribBuilderV01(unittest.TestCase):
                os.path.isfile(credentials_file), "credentials_file Does not exist"
             )
 
-            f = open(credentials_file)
-            yaml_data = yaml.load(f, yaml.SafeLoader)
+            _f = open(credentials_file)
+            yaml_data = yaml.load(_f, yaml.SafeLoader)
             host = yaml_data["cb_host"]
             user = yaml_data["cb_user"]
             password = yaml_data["cb_password"]
@@ -258,105 +272,105 @@ class TestGribBuilderV01(unittest.TestCase):
                     continue
 
                 intersect_data_dict = {}
-                for i in intersect_fcst_len:
-                    intersect_data_dict[i] = {}
-                    mysql_index = mysql_model_fcst_len.index(i)
-                    cb = next(item for item in cb_model_values if item["fcstLen"] == i)
-                    intersect_data_dict[i]["cb"] = {}
-                    intersect_data_dict[i]["cb"]["fcstLen"] = cb["fcstLen"]
-                    intersect_data_dict[i]["cb"].update(cb["data_item"])
-                    intersect_data_dict[i]["mysql"] = {}
-                    intersect_data_dict[i]["mysql"]["fcst_len"] = mysql_model_fcst_len[mysql_index]
-                    intersect_data_dict[i]["mysql"]["press"] = mysql_model_press[mysql_index]
-                    intersect_data_dict[i]["mysql"]["temp"] = mysql_model_temp[mysql_index]
-                    intersect_data_dict[i]["mysql"]["dp"] = mysql_model_dp[mysql_index]
-                    intersect_data_dict[i]["mysql"]["rh"] = mysql_model_rh[mysql_index]
-                    intersect_data_dict[i]["mysql"]["ws"] = mysql_model_ws[mysql_index]
-                    intersect_data_dict[i]["mysql"]["wd"] = mysql_model_wd[mysql_index]
+                for _i in intersect_fcst_len:
+                    intersect_data_dict[_i] = {}
+                    mysql_index = mysql_model_fcst_len.index(_i)
+                    _cb = next(item for item in cb_model_values if item["fcstLen"] == _i)
+                    intersect_data_dict[_i]["cb"] = {}
+                    intersect_data_dict[_i]["cb"]["fcstLen"] = _cb["fcstLen"]
+                    intersect_data_dict[_i]["cb"].update(_cb["data_item"])
+                    intersect_data_dict[_i]["mysql"] = {}
+                    intersect_data_dict[_i]["mysql"]["fcst_len"] = mysql_model_fcst_len[mysql_index]
+                    intersect_data_dict[_i]["mysql"]["press"] = mysql_model_press[mysql_index]
+                    intersect_data_dict[_i]["mysql"]["temp"] = mysql_model_temp[mysql_index]
+                    intersect_data_dict[_i]["mysql"]["dp"] = mysql_model_dp[mysql_index]
+                    intersect_data_dict[_i]["mysql"]["rh"] = mysql_model_rh[mysql_index]
+                    intersect_data_dict[_i]["mysql"]["ws"] = mysql_model_ws[mysql_index]
+                    intersect_data_dict[_i]["mysql"]["wd"] = mysql_model_wd[mysql_index]
 
                     try:
                         if mysql_model_ceiling is None or mysql_index >= len(mysql_model_ceiling) or mysql_model_ceiling[mysql_index] is None:
-                            intersect_data_dict[i]["mysql"]["ceiling"] = None
+                            intersect_data_dict[_i]["mysql"]["ceiling"] = None
                         else:
-                            intersect_data_dict[i]["mysql"]["ceiling"] = mysql_model_ceiling[mysql_index]
+                            intersect_data_dict[_i]["mysql"]["ceiling"] = mysql_model_ceiling[mysql_index]
 
                         if mysql_model_visibility is None or mysql_index >= len(mysql_model_visibility) or mysql_model_visibility[mysql_index] is None:
-                            intersect_data_dict[i]["mysql"]["visibility"] = None
+                            intersect_data_dict[_i]["mysql"]["visibility"] = None
                         else:
-                            intersect_data_dict[i]["mysql"]["visibility"] = mysql_model_visibility[mysql_index]
-                    except:
+                            intersect_data_dict[_i]["mysql"]["visibility"] = mysql_model_visibility[mysql_index]
+                    except: # pylint: disable=bare-except
                         self.fail(
                            "TestGsdIngestManager Exception failure for ceiling or visibility: " + str(sys.exc_info()[0])
                         )
                     print(
                         "time: {0}\t\tfcst_len: {1}\t\tstation:{2}".format(
-                            time, i, station
+                            time, _i, station
                         )
                     )
                     print("field\t\tmysql\t\tcb\t\t\t\tdelta\t\t\tunits")
 
-                    if intersect_data_dict[i]["mysql"]["press"] is not None and intersect_data_dict[i]["cb"]["Surface Pressure"] is not None:
-                        delta = intersect_data_dict[i]["mysql"]["press"] - intersect_data_dict[i]["cb"]["Surface Pressure"]
+                    if intersect_data_dict[_i]["mysql"]["press"] is not None and intersect_data_dict[_i]["cb"]["Surface Pressure"] is not None:
+                        delta = intersect_data_dict[_i]["mysql"]["press"] - intersect_data_dict[_i]["cb"]["Surface Pressure"]
                     else:
                         delta = None
                     print(
                         "'press'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
-                            intersect_data_dict[i]["mysql"]["press"],
-                            intersect_data_dict[i]["cb"]["Surface Pressure"],
+                            intersect_data_dict[_i]["mysql"]["press"],
+                            intersect_data_dict[_i]["cb"]["Surface Pressure"],
                             delta, units['Surface Pressure']
                         )
                     )
 
-                    if intersect_data_dict[i]["mysql"]["temp"] is not None and intersect_data_dict[i]["cb"]["Temperature"] is not None:
-                        delta = intersect_data_dict[i]["mysql"]["temp"] - intersect_data_dict[i]["cb"]["Temperature"]
+                    if intersect_data_dict[_i]["mysql"]["temp"] is not None and intersect_data_dict[_i]["cb"]["Temperature"] is not None:
+                        delta = intersect_data_dict[_i]["mysql"]["temp"] - intersect_data_dict[_i]["cb"]["Temperature"]
                     else:
                         delta = None
                     print(
                         "'temp'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
-                            intersect_data_dict[i]["mysql"]["temp"],
-                            intersect_data_dict[i]["cb"]["Temperature"],
+                            intersect_data_dict[_i]["mysql"]["temp"],
+                            intersect_data_dict[_i]["cb"]["Temperature"],
                             delta, units['Temperature']
                         )
                     )
 
-                    if intersect_data_dict[i]["mysql"]["dp"] is not None and intersect_data_dict[i]["cb"]["DewPoint"] is not None:
-                        delta = intersect_data_dict[i]["mysql"]["dp"] - intersect_data_dict[i]["cb"]["DewPoint"]
+                    if intersect_data_dict[_i]["mysql"]["dp"] is not None and intersect_data_dict[_i]["cb"]["DewPoint"] is not None:
+                        delta = intersect_data_dict[_i]["mysql"]["dp"] - intersect_data_dict[_i]["cb"]["DewPoint"]
                     else:
                         delta = None
                     print(
                         "'dp'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
-                            intersect_data_dict[i]["mysql"]["dp"],
-                            intersect_data_dict[i]["cb"]["DewPoint"],
+                            intersect_data_dict[_i]["mysql"]["dp"],
+                            intersect_data_dict[_i]["cb"]["DewPoint"],
                             delta, units['DewPoint']
                         )
                     )
 
-                    if intersect_data_dict[i]["mysql"]["rh"] is not None and intersect_data_dict[i]["cb"]["RH"] is not None:
-                        delta = intersect_data_dict[i]["mysql"]["rh"] - intersect_data_dict[i]["cb"]["RH"]
+                    if intersect_data_dict[_i]["mysql"]["rh"] is not None and intersect_data_dict[_i]["cb"]["RH"] is not None:
+                        delta = intersect_data_dict[_i]["mysql"]["rh"] - intersect_data_dict[_i]["cb"]["RH"]
                     else:
                         delta = None
                     print(
                         "'rh'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
-                            intersect_data_dict[i]["mysql"]["rh"],
-                            intersect_data_dict[i]["cb"]["RH"],
+                            intersect_data_dict[_i]["mysql"]["rh"],
+                            intersect_data_dict[_i]["cb"]["RH"],
                             delta, units['RH']
                         )
                     )
 
-                    if intersect_data_dict[i]["mysql"]["ws"] is not None and intersect_data_dict[i]["cb"]["WS"] is not None:
-                        delta = intersect_data_dict[i]["mysql"]["ws"] - intersect_data_dict[i]["cb"]["WS"]
+                    if intersect_data_dict[_i]["mysql"]["ws"] is not None and intersect_data_dict[_i]["cb"]["WS"] is not None:
+                        delta = intersect_data_dict[_i]["mysql"]["ws"] - intersect_data_dict[_i]["cb"]["WS"]
                     else:
                         delta = None
                     print(
                         "'ws'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
-                            intersect_data_dict[i]["mysql"]["ws"],
-                            intersect_data_dict[i]["cb"]["WS"],
+                            intersect_data_dict[_i]["mysql"]["ws"],
+                            intersect_data_dict[_i]["cb"]["WS"],
                             delta, units['WS']
                         )
                     )
 
-                    if intersect_data_dict[i]["mysql"]["wd"] is not None and intersect_data_dict[i]["cb"]["WD"] is not None:
-                        delta = intersect_data_dict[i]["mysql"]["wd"] - intersect_data_dict[i]["cb"]["WD"]
+                    if intersect_data_dict[_i]["mysql"]["wd"] is not None and intersect_data_dict[_i]["cb"]["WD"] is not None:
+                        delta = intersect_data_dict[_i]["mysql"]["wd"] - intersect_data_dict[_i]["cb"]["WD"]
                         if delta > 180:
                             delta = 360 - delta
                         if delta < -180:
@@ -365,117 +379,117 @@ class TestGribBuilderV01(unittest.TestCase):
                         delta = None
                     print(
                         "'wd'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
-                            intersect_data_dict[i]["mysql"]["wd"],
-                            intersect_data_dict[i]["cb"]["WD"],
+                            intersect_data_dict[_i]["mysql"]["wd"],
+                            intersect_data_dict[_i]["cb"]["WD"],
                             delta, units['WD']
                         )
                     )
 
-                    if intersect_data_dict[i]["mysql"]["ceiling"] is not None and intersect_data_dict[i]["cb"]["Ceiling"] is not None:
-                        delta = intersect_data_dict[i]["mysql"]["ceiling"] - intersect_data_dict[i]["cb"]["Ceiling"]
+                    if intersect_data_dict[_i]["mysql"]["ceiling"] is not None and intersect_data_dict[_i]["cb"]["Ceiling"] is not None:
+                        delta = intersect_data_dict[_i]["mysql"]["ceiling"] - intersect_data_dict[_i]["cb"]["Ceiling"]
                     else:
                         delta = None
                     print(
                         "'ceiling'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
-                            intersect_data_dict[i]["mysql"]["ceiling"],
-                            intersect_data_dict[i]["cb"]["Ceiling"],
+                            intersect_data_dict[_i]["mysql"]["ceiling"],
+                            intersect_data_dict[_i]["cb"]["Ceiling"],
                             delta, units['Ceiling']
                         )
                     )
 
-                    if intersect_data_dict[i]["mysql"]["visibility"] is not None and intersect_data_dict[i]["cb"]["Visibility"] is not None:
-                        delta = intersect_data_dict[i]["mysql"]["visibility"] - intersect_data_dict[i]["cb"]["Visibility"]
+                    if intersect_data_dict[_i]["mysql"]["visibility"] is not None and intersect_data_dict[_i]["cb"]["Visibility"] is not None:
+                        delta = intersect_data_dict[_i]["mysql"]["visibility"] - intersect_data_dict[_i]["cb"]["Visibility"]
                     else:
                         delta = None
                     print(
                         "'visibility'\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
-                            intersect_data_dict[i]["mysql"]["visibility"],
-                            intersect_data_dict[i]["cb"]["Visibility"],
+                            intersect_data_dict[_i]["mysql"]["visibility"],
+                            intersect_data_dict[_i]["cb"]["Visibility"],
                             delta, units['Visibility']
                         )
                     )
                     print("--")
 
-                for i in intersect_fcst_len:
+                for _i in intersect_fcst_len:
                     self.assertEqual(
-                        intersect_data_dict[i]["mysql"]["fcst_len"],
-                        intersect_data_dict[i]["cb"]["fcstLen"],
+                        intersect_data_dict[_i]["mysql"]["fcst_len"],
+                        intersect_data_dict[_i]["cb"]["fcstLen"],
                         msg="MYSQL fcst_len and CB fcstLen are not equal",
                     )
 
-                    if intersect_data_dict[i]["mysql"]["press"] is not None and intersect_data_dict[i]["cb"]["Surface Pressure"] is not None:
+                    if intersect_data_dict[_i]["mysql"]["press"] is not None and intersect_data_dict[_i]["cb"]["Surface Pressure"] is not None:
                         np.testing.assert_allclose(
-                            intersect_data_dict[i]["mysql"]["press"],
-                            intersect_data_dict[i]["cb"]["Surface Pressure"],
+                            intersect_data_dict[_i]["mysql"]["press"],
+                            intersect_data_dict[_i]["cb"]["Surface Pressure"],
                             atol=1.5,
                             rtol=0,
                             err_msg="MYSQL Pressure and CB Surface Pressure are not approximately equal",
                             verbose=True,
                         )
-                    if intersect_data_dict[i]["mysql"]["temp"] is not None and intersect_data_dict[i]["cb"]["Temperature"] is not None:
+                    if intersect_data_dict[_i]["mysql"]["temp"] is not None and intersect_data_dict[_i]["cb"]["Temperature"] is not None:
                         np.testing.assert_allclose(
-                            intersect_data_dict[i]["mysql"]["temp"],
-                            intersect_data_dict[i]["cb"]["Temperature"],
+                            intersect_data_dict[_i]["mysql"]["temp"],
+                            intersect_data_dict[_i]["cb"]["Temperature"],
                             atol=3,
                             rtol=0,
                             err_msg="MYSQL temp and CB Temperature are not approximately equal",
                             verbose=True,
                         )
-                    if intersect_data_dict[i]["mysql"]["dp"] is not None and intersect_data_dict[i]["cb"]["DewPoint"] is not None:
+                    if intersect_data_dict[_i]["mysql"]["dp"] is not None and intersect_data_dict[_i]["cb"]["DewPoint"] is not None:
                         np.testing.assert_allclose(
-                            intersect_data_dict[i]["mysql"]["dp"],
-                            intersect_data_dict[i]["cb"]["DewPoint"],
+                            intersect_data_dict[_i]["mysql"]["dp"],
+                            intersect_data_dict[_i]["cb"]["DewPoint"],
                             atol=5,
                             rtol=0,
                             err_msg="MYSQL dp and CB Dew Point are not approximately equal",
                             verbose=True,
                         )
-                    if intersect_data_dict[i]["mysql"]["rh"] is not None and intersect_data_dict[i]["cb"]["RH"] is not None:
+                    if intersect_data_dict[_i]["mysql"]["rh"] is not None and intersect_data_dict[_i]["cb"]["RH"] is not None:
                         np.testing.assert_allclose(
-                            intersect_data_dict[i]["mysql"]["rh"],
-                            intersect_data_dict[i]["cb"]["RH"],
+                            intersect_data_dict[_i]["mysql"]["rh"],
+                            intersect_data_dict[_i]["cb"]["RH"],
                             atol=20,
                             rtol=0,
                             err_msg="MYSQL rh and CB RH are not approximately equal",
                             verbose=True,
                         )
-                    if intersect_data_dict[i]["mysql"]["wd"] is not None and intersect_data_dict[i]["cb"]["WD"] is not None:
+                    if intersect_data_dict[_i]["mysql"]["wd"] is not None and intersect_data_dict[_i]["cb"]["WD"] is not None:
                         np.testing.assert_allclose(
-                            intersect_data_dict[i]["mysql"]["wd"],
-                            intersect_data_dict[i]["cb"]["WD"],
+                            intersect_data_dict[_i]["mysql"]["wd"],
+                            intersect_data_dict[_i]["cb"]["WD"],
                             atol=9999999,
                             rtol=0,
                             err_msg="MYSQL wd and CB WD are not approximately equal",
                             verbose=True,
                         )
-                    if intersect_data_dict[i]["mysql"]["ws"] is not None and intersect_data_dict[i]["cb"]["WS"] is not None:
+                    if intersect_data_dict[_i]["mysql"]["ws"] is not None and intersect_data_dict[_i]["cb"]["WS"] is not None:
                         np.testing.assert_allclose(
-                            intersect_data_dict[i]["mysql"]["ws"],
-                            intersect_data_dict[i]["cb"]["WS"],
+                            intersect_data_dict[_i]["mysql"]["ws"],
+                            intersect_data_dict[_i]["cb"]["WS"],
                             atol=3,
                             rtol=0,
                             err_msg="MYSQL ws and CB WS are not approximately equal",
                             verbose=True,
                         )
-                    if intersect_data_dict[i]["mysql"]["visibility"] is not None and intersect_data_dict[i]["cb"]["Visibility"] is not None:
+                    if intersect_data_dict[_i]["mysql"]["visibility"] is not None and intersect_data_dict[_i]["cb"]["Visibility"] is not None:
                         np.testing.assert_allclose(
-                            intersect_data_dict[i]["mysql"]["visibility"],
-                            intersect_data_dict[i]["cb"]["Visibility"],
+                            intersect_data_dict[_i]["mysql"]["visibility"],
+                            intersect_data_dict[_i]["cb"]["Visibility"],
                             atol=99999,
                             rtol=0,
                             err_msg="MYSQL Visibility and CB Visibility are not approximately equal",
                             verbose=True,
                         )
-                    if intersect_data_dict[i]["mysql"]["ceiling"] is not None and intersect_data_dict[i]["cb"]["Ceiling"] is not None:
+                    if intersect_data_dict[_i]["mysql"]["ceiling"] is not None and intersect_data_dict[_i]["cb"]["Ceiling"] is not None:
                         np.testing.assert_allclose(
-                            intersect_data_dict[i]["mysql"]["ceiling"],
-                            intersect_data_dict[i]["cb"]["Ceiling"],
+                            intersect_data_dict[_i]["mysql"]["ceiling"],
+                            intersect_data_dict[_i]["cb"]["Ceiling"],
                             atol=99999,
                             rtol=0,
                             err_msg="MYSQL Ceiling and CB Ceiling are not approximately equal",
                             verbose=True,
                         )
-        except:
+        except: # pylint: disable=bare-except
             print(str(sys.exc_info()))
             self.fail("TestGsdIngestManager Exception failure: " + str(sys.exc_info()))
 
@@ -492,8 +506,8 @@ class TestGribBuilderV01(unittest.TestCase):
                 os.path.isfile(credentials_file), "credentials_file Does not exist"
             )
 
-            f = open(credentials_file)
-            yaml_data = yaml.load(f, yaml.SafeLoader)
+            _f = open(credentials_file)
+            yaml_data = yaml.load(_f, yaml.SafeLoader)
             host = yaml_data["cb_host"]
             user = yaml_data["cb_user"]
             password = yaml_data["cb_password"]
@@ -683,105 +697,105 @@ class TestGribBuilderV01(unittest.TestCase):
 
                 # now we have values for this time for each fcst_len, iterate the fcst_len and assert each value
                 intersect_data_dict = {}
-                for i in intersect_fcst_len:
-                    intersect_data_dict[i] = {}
-                    mysql_index = mysql_model_fcst_len.index(i)
-                    cb = next(item for item in cb_model_values if item["fcstLen"] == i)
-                    intersect_data_dict[i]["cb"] = {}
-                    intersect_data_dict[i]["cb"]["fcstLen"] = cb["fcstLen"]
-                    intersect_data_dict[i]["cb"].update(cb["data_item"])
-                    intersect_data_dict[i]["mysql"] = {}
-                    intersect_data_dict[i]["mysql"]["fcst_len"] = mysql_model_fcst_len[mysql_index]
-                    intersect_data_dict[i]["mysql"]["press"] = mysql_model_press[mysql_index]
-                    intersect_data_dict[i]["mysql"]["temp"] = mysql_model_temp[mysql_index]
-                    intersect_data_dict[i]["mysql"]["dp"] = mysql_model_dp[mysql_index]
-                    intersect_data_dict[i]["mysql"]["rh"] = mysql_model_rh[mysql_index]
-                    intersect_data_dict[i]["mysql"]["ws"] = mysql_model_ws[mysql_index]
-                    intersect_data_dict[i]["mysql"]["wd"] = mysql_model_wd[mysql_index]
+                for _i in intersect_fcst_len:
+                    intersect_data_dict[_i] = {}
+                    mysql_index = mysql_model_fcst_len.index(_i)
+                    _cb = next(item for item in cb_model_values if item["fcstLen"] == _i)
+                    intersect_data_dict[_i]["cb"] = {}
+                    intersect_data_dict[_i]["cb"]["fcstLen"] = _cb["fcstLen"]
+                    intersect_data_dict[_i]["cb"].update(_cb["data_item"])
+                    intersect_data_dict[_i]["mysql"] = {}
+                    intersect_data_dict[_i]["mysql"]["fcst_len"] = mysql_model_fcst_len[mysql_index]
+                    intersect_data_dict[_i]["mysql"]["press"] = mysql_model_press[mysql_index]
+                    intersect_data_dict[_i]["mysql"]["temp"] = mysql_model_temp[mysql_index]
+                    intersect_data_dict[_i]["mysql"]["dp"] = mysql_model_dp[mysql_index]
+                    intersect_data_dict[_i]["mysql"]["rh"] = mysql_model_rh[mysql_index]
+                    intersect_data_dict[_i]["mysql"]["ws"] = mysql_model_ws[mysql_index]
+                    intersect_data_dict[_i]["mysql"]["wd"] = mysql_model_wd[mysql_index]
 
                     try:
                         if mysql_model_ceiling is None or mysql_index >= len(mysql_model_ceiling) or mysql_model_ceiling[mysql_index] is None:
-                            intersect_data_dict[i]["mysql"]["ceiling"] = None
+                            intersect_data_dict[_i]["mysql"]["ceiling"] = None
                         else:
-                            intersect_data_dict[i]["mysql"]["ceiling"] = mysql_model_ceiling[mysql_index]
+                            intersect_data_dict[_i]["mysql"]["ceiling"] = mysql_model_ceiling[mysql_index]
 
                         if mysql_model_visibility is None or mysql_index >= len(mysql_model_visibility) or mysql_model_visibility[mysql_index] is None:
-                            intersect_data_dict[i]["mysql"]["visibility"] = None
+                            intersect_data_dict[_i]["mysql"]["visibility"] = None
                         else:
-                            intersect_data_dict[i]["mysql"]["visibility"] = mysql_model_visibility[mysql_index]
-                    except:
+                            intersect_data_dict[_i]["mysql"]["visibility"] = mysql_model_visibility[mysql_index]
+                    except: # pylint: disable=bare-except
                         self.fail(
                            "TestGsdIngestManager Exception failure for ceiling or visibility: " + str(sys.exc_info()[0])
                         )
                     print(
                         "time: {0}\t\tfcst_len: {1}\t\tstation:{2}".format(
-                            time, i, station
+                            time, _i, station
                         )
                     )
                     print("field\t\tmysql\t\tcb\t\t\t\tdelta\t\t\tunits")
 
-                    if intersect_data_dict[i]["mysql"]["press"] is not None and intersect_data_dict[i]["cb"]["Surface Pressure"] is not None:
-                        delta = intersect_data_dict[i]["mysql"]["press"] - intersect_data_dict[i]["cb"]["Surface Pressure"]
+                    if intersect_data_dict[_i]["mysql"]["press"] is not None and intersect_data_dict[_i]["cb"]["Surface Pressure"] is not None:
+                        delta = intersect_data_dict[_i]["mysql"]["press"] - intersect_data_dict[_i]["cb"]["Surface Pressure"]
                     else:
                         delta = None
                     print(
                         "var - 'press'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
-                            intersect_data_dict[i]["mysql"]["press"],
-                            intersect_data_dict[i]["cb"]["Surface Pressure"],
+                            intersect_data_dict[_i]["mysql"]["press"],
+                            intersect_data_dict[_i]["cb"]["Surface Pressure"],
                             delta, units['Surface Pressure']
                         )
                     )
 
-                    if intersect_data_dict[i]["mysql"]["temp"] is not None and intersect_data_dict[i]["cb"]["Temperature"] is not None:
-                        delta = intersect_data_dict[i]["mysql"]["temp"] - intersect_data_dict[i]["cb"]["Temperature"]
+                    if intersect_data_dict[_i]["mysql"]["temp"] is not None and intersect_data_dict[_i]["cb"]["Temperature"] is not None:
+                        delta = intersect_data_dict[_i]["mysql"]["temp"] - intersect_data_dict[_i]["cb"]["Temperature"]
                     else:
                         delta = None
                     print(
                         "var - 'temp'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
-                            intersect_data_dict[i]["mysql"]["temp"],
-                            intersect_data_dict[i]["cb"]["Temperature"],
+                            intersect_data_dict[_i]["mysql"]["temp"],
+                            intersect_data_dict[_i]["cb"]["Temperature"],
                             delta, units['Temperature']
                         )
                     )
 
-                    if intersect_data_dict[i]["mysql"]["dp"] is not None and intersect_data_dict[i]["cb"]["DewPoint"] is not None:
-                        delta = intersect_data_dict[i]["mysql"]["dp"] - intersect_data_dict[i]["cb"]["DewPoint"]
+                    if intersect_data_dict[_i]["mysql"]["dp"] is not None and intersect_data_dict[_i]["cb"]["DewPoint"] is not None:
+                        delta = intersect_data_dict[_i]["mysql"]["dp"] - intersect_data_dict[_i]["cb"]["DewPoint"]
                     else:
                         delta = None
                     print(
                         "var - 'dp'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
-                            intersect_data_dict[i]["mysql"]["dp"],
-                            intersect_data_dict[i]["cb"]["DewPoint"],
+                            intersect_data_dict[_i]["mysql"]["dp"],
+                            intersect_data_dict[_i]["cb"]["DewPoint"],
                             delta, units['DewPoint']
                         )
                     )
 
-                    if intersect_data_dict[i]["mysql"]["rh"] is not None and intersect_data_dict[i]["cb"]["RH"] is not None:
-                        delta = intersect_data_dict[i]["mysql"]["rh"] - intersect_data_dict[i]["cb"]["RH"]
+                    if intersect_data_dict[_i]["mysql"]["rh"] is not None and intersect_data_dict[_i]["cb"]["RH"] is not None:
+                        delta = intersect_data_dict[_i]["mysql"]["rh"] - intersect_data_dict[_i]["cb"]["RH"]
                     else:
                         delta = None
                     print(
                         "var - 'rh'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
-                            intersect_data_dict[i]["mysql"]["rh"],
-                            intersect_data_dict[i]["cb"]["RH"],
+                            intersect_data_dict[_i]["mysql"]["rh"],
+                            intersect_data_dict[_i]["cb"]["RH"],
                             delta, units['RH']
                         )
                     )
 
-                    if intersect_data_dict[i]["mysql"]["ws"] is not None and intersect_data_dict[i]["cb"]["WS"] is not None:
-                        delta = intersect_data_dict[i]["mysql"]["ws"] - intersect_data_dict[i]["cb"]["WS"]
+                    if intersect_data_dict[_i]["mysql"]["ws"] is not None and intersect_data_dict[_i]["cb"]["WS"] is not None:
+                        delta = intersect_data_dict[_i]["mysql"]["ws"] - intersect_data_dict[_i]["cb"]["WS"]
                     else:
                         delta = None
                     print(
                         "var - 'ws'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
-                            intersect_data_dict[i]["mysql"]["ws"],
-                            intersect_data_dict[i]["cb"]["WS"],
+                            intersect_data_dict[_i]["mysql"]["ws"],
+                            intersect_data_dict[_i]["cb"]["WS"],
                             delta, units['WS']
                         )
                     )
 
-                    if intersect_data_dict[i]["mysql"]["wd"] is not None and intersect_data_dict[i]["cb"]["WD"] is not None:
-                        delta = intersect_data_dict[i]["mysql"]["wd"] - intersect_data_dict[i]["cb"]["WD"]
+                    if intersect_data_dict[_i]["mysql"]["wd"] is not None and intersect_data_dict[_i]["cb"]["WD"] is not None:
+                        delta = intersect_data_dict[_i]["mysql"]["wd"] - intersect_data_dict[_i]["cb"]["WD"]
                         if delta > 180:
                             delta = 360 - delta
                         if delta < -180:
@@ -790,121 +804,123 @@ class TestGribBuilderV01(unittest.TestCase):
                         delta = None
                     print(
                         "var - 'wd'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
-                            intersect_data_dict[i]["mysql"]["wd"],
-                            intersect_data_dict[i]["cb"]["WD"],
+                            intersect_data_dict[_i]["mysql"]["wd"],
+                            intersect_data_dict[_i]["cb"]["WD"],
                             delta, units['WD']
                         )
                     )
 
-                    if intersect_data_dict[i]["mysql"]["ceiling"] is not None and intersect_data_dict[i]["cb"]["Ceiling"] is not None:
-                        delta = intersect_data_dict[i]["mysql"]["ceiling"] - intersect_data_dict[i]["cb"]["Ceiling"]
+                    if intersect_data_dict[_i]["mysql"]["ceiling"] is not None and intersect_data_dict[_i]["cb"]["Ceiling"] is not None:
+                        delta = intersect_data_dict[_i]["mysql"]["ceiling"] - intersect_data_dict[_i]["cb"]["Ceiling"]
                     else:
                         delta = None
                     print(
                         "var - 'ceiling'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
-                            intersect_data_dict[i]["mysql"]["ceiling"],
-                            intersect_data_dict[i]["cb"]["Ceiling"],
+                            intersect_data_dict[_i]["mysql"]["ceiling"],
+                            intersect_data_dict[_i]["cb"]["Ceiling"],
                             delta, units['Ceiling']
                         )
                     )
 
-                    if intersect_data_dict[i]["mysql"]["visibility"] is not None and intersect_data_dict[i]["cb"]["Visibility"] is not None:
-                        delta = intersect_data_dict[i]["mysql"]["visibility"] - intersect_data_dict[i]["cb"]["Visibility"]
+                    if intersect_data_dict[_i]["mysql"]["visibility"] is not None and intersect_data_dict[_i]["cb"]["Visibility"] is not None:
+                        delta = intersect_data_dict[_i]["mysql"]["visibility"] - intersect_data_dict[_i]["cb"]["Visibility"]
                     else:
                         delta = None
                     print(
                         "'visibility'\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
-                            intersect_data_dict[i]["mysql"]["visibility"],
-                            intersect_data_dict[i]["cb"]["Visibility"],
+                            intersect_data_dict[_i]["mysql"]["visibility"],
+                            intersect_data_dict[_i]["cb"]["Visibility"],
                             delta, units['Visibility']
                         )
                     )
                     print("--")
 
-                for i in intersect_fcst_len:
+                for _i in intersect_fcst_len:
                     self.assertEqual(
-                        intersect_data_dict[i]["mysql"]["fcst_len"],
-                        intersect_data_dict[i]["cb"]["fcstLen"],
+                        intersect_data_dict[_i]["mysql"]["fcst_len"],
+                        intersect_data_dict[_i]["cb"]["fcstLen"],
                         msg="MYSQL fcst_len and CB fcstLen are not equal",
                     )
 
-                    if intersect_data_dict[i]["mysql"]["press"] is not None and intersect_data_dict[i]["cb"]["Surface Pressure"] is not None:
+                    if intersect_data_dict[_i]["mysql"]["press"] is not None and intersect_data_dict[_i]["cb"]["Surface Pressure"] is not None:
                         np.testing.assert_allclose(
-                            intersect_data_dict[i]["mysql"]["press"],
-                            intersect_data_dict[i]["cb"]["Surface Pressure"],
+                            intersect_data_dict[_i]["mysql"]["press"],
+                            intersect_data_dict[_i]["cb"]["Surface Pressure"],
                             atol=1.5,
                             rtol=0,
                             err_msg="MYSQL Pressure and CB Surface Pressure are not approximately equal",
                             verbose=True,
                         )
-                    if intersect_data_dict[i]["mysql"]["temp"] is not None and intersect_data_dict[i]["cb"]["Temperature"] is not None:
+                    if intersect_data_dict[_i]["mysql"]["temp"] is not None and intersect_data_dict[_i]["cb"]["Temperature"] is not None:
                         np.testing.assert_allclose(
-                            intersect_data_dict[i]["mysql"]["temp"],
-                            intersect_data_dict[i]["cb"]["Temperature"],
+                            intersect_data_dict[_i]["mysql"]["temp"],
+                            intersect_data_dict[_i]["cb"]["Temperature"],
                             atol=3,
                             rtol=0,
                             err_msg="MYSQL temp and CB Temperature are not approximately equal",
                             verbose=True,
                         )
-                    if intersect_data_dict[i]["mysql"]["dp"] is not None and intersect_data_dict[i]["cb"]["DewPoint"] is not None:
+                    if intersect_data_dict[_i]["mysql"]["dp"] is not None and intersect_data_dict[_i]["cb"]["DewPoint"] is not None:
                         np.testing.assert_allclose(
-                            intersect_data_dict[i]["mysql"]["dp"],
-                            intersect_data_dict[i]["cb"]["DewPoint"],
+                            intersect_data_dict[_i]["mysql"]["dp"],
+                            intersect_data_dict[_i]["cb"]["DewPoint"],
                             atol=5,
                             rtol=0,
                             err_msg="MYSQL dp and CB Dew Point are not approximately equal",
                             verbose=True,
                         )
-                    if intersect_data_dict[i]["mysql"]["rh"] is not None and intersect_data_dict[i]["cb"]["RH"] is not None:
+                    if intersect_data_dict[_i]["mysql"]["rh"] is not None and intersect_data_dict[_i]["cb"]["RH"] is not None:
                         np.testing.assert_allclose(
-                            intersect_data_dict[i]["mysql"]["rh"],
-                            intersect_data_dict[i]["cb"]["RH"],
+                            intersect_data_dict[_i]["mysql"]["rh"],
+                            intersect_data_dict[_i]["cb"]["RH"],
                             atol=20,
                             rtol=0,
                             err_msg="MYSQL rh and CB RH are not approximately equal",
                             verbose=True,
                         )
-                    if intersect_data_dict[i]["mysql"]["wd"] is not None and intersect_data_dict[i]["cb"]["WD"] is not None:
+                    if intersect_data_dict[_i]["mysql"]["wd"] is not None and intersect_data_dict[_i]["cb"]["WD"] is not None:
                         np.testing.assert_allclose(
-                            intersect_data_dict[i]["mysql"]["wd"],
-                            intersect_data_dict[i]["cb"]["WD"],
+                            intersect_data_dict[_i]["mysql"]["wd"],
+                            intersect_data_dict[_i]["cb"]["WD"],
                             atol=9999999,
                             rtol=0,
                             err_msg="MYSQL wd and CB WD are not approximately equal",
                             verbose=True,
                         )
-                    if intersect_data_dict[i]["mysql"]["ws"] is not None and intersect_data_dict[i]["cb"]["WS"] is not None:
+                    if intersect_data_dict[_i]["mysql"]["ws"] is not None and intersect_data_dict[_i]["cb"]["WS"] is not None:
                         np.testing.assert_allclose(
-                            intersect_data_dict[i]["mysql"]["ws"],
-                            intersect_data_dict[i]["cb"]["WS"],
+                            intersect_data_dict[_i]["mysql"]["ws"],
+                            intersect_data_dict[_i]["cb"]["WS"],
                             atol=3,
                             rtol=0,
                             err_msg="MYSQL ws and CB WS are not approximately equal",
                             verbose=True,
                         )
-                    if intersect_data_dict[i]["mysql"]["visibility"] is not None and intersect_data_dict[i]["cb"]["Visibility"] is not None:
+                    if intersect_data_dict[_i]["mysql"]["visibility"] is not None and intersect_data_dict[_i]["cb"]["Visibility"] is not None:
                         np.testing.assert_allclose(
-                            intersect_data_dict[i]["mysql"]["visibility"],
-                            intersect_data_dict[i]["cb"]["Visibility"],
+                            intersect_data_dict[_i]["mysql"]["visibility"],
+                            intersect_data_dict[_i]["cb"]["Visibility"],
                             atol=99999,
                             rtol=0,
                             err_msg="MYSQL Visibility and CB Visibility are not approximately equal",
                             verbose=True,
                         )
-                    if intersect_data_dict[i]["mysql"]["ceiling"] is not None and intersect_data_dict[i]["cb"]["Ceiling"] is not None:
+                    if intersect_data_dict[_i]["mysql"]["ceiling"] is not None and intersect_data_dict[_i]["cb"]["Ceiling"] is not None:
                         np.testing.assert_allclose(
-                            intersect_data_dict[i]["mysql"]["ceiling"],
-                            intersect_data_dict[i]["cb"]["Ceiling"],
+                            intersect_data_dict[_i]["mysql"]["ceiling"],
+                            intersect_data_dict[_i]["cb"]["Ceiling"],
                             atol=99999,
                             rtol=0,
                             err_msg="MYSQL Ceiling and CB Ceiling are not approximately equal",
                             verbose=True,
                         )
-        except:
+        except: # pylint: disable=bare-except
             print(str(sys.exc_info()))
             self.fail("TestGsdIngestManager Exception failure: " + str(sys.exc_info()))
 
-    def test_gribBuilder_one_thread_file_pattern_hrrr_ops_conus(self):
+    def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus(self):
+        """ test gribBuilder with one thread
+        """
         try:
             #1632412800 fcst_len 1 -> 1632412800 - 1 * 3600 -> 1632409200 September 23, 2021 15:00:00 -> 2126615000001
             #1632412800 fcst_len 3 -> 1632412800 - 3 * 3600 -> 1632402000 September 23, 2021 13:00:00 -> 2126613000003
@@ -915,14 +931,14 @@ class TestGribBuilderV01(unittest.TestCase):
             #first_epoch = 1634252400 - 10
             #last_epoch = 1634252400 + 10
             cwd = os.getcwd()
-            self.credentials_file = os.environ['HOME'] + '/adb-cb1-credentials'
-            self.spec_file = cwd + '/grib2_to_cb/test/test_load_spec_grib_metar_hrrr_ops_V01.yaml'
+            credentials_file = os.environ['HOME'] + '/adb-cb1-credentials'
+            spec_file = cwd + '/grib2_to_cb/test/test_load_spec_grib_metar_hrrr_ops_V01.yaml'
             # remove output files
             for _f in glob('/opt/data/grib2_to_cb/output/test1/*.json'):
                 os.remove(_f)
-            vxIngest = VXIngest()
-            vxIngest.runit({'spec_file': self.spec_file,
-                            'credentials_file': self.credentials_file,
+            vx_ingest = VXIngest()
+            vx_ingest.runit({'spec_file': spec_file,
+                            'credentials_file': credentials_file,
                             'path': '/opt/public/data/grids/hrrr/conus/wrfprs/grib2',
                             'file_name_mask': '%y%j%H%f',
                             'output_dir': '/opt/data/grib2_to_cb/output/test1',
@@ -930,7 +946,7 @@ class TestGribBuilderV01(unittest.TestCase):
                             'file_pattern': '21287230000[0123456789]?'
                             })
 
-        except:
+        except: # pylint: disable=bare-except
             self.fail("TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus Exception failure: " +
                       str(sys.exc_info()[0]))
         finally:
@@ -938,7 +954,9 @@ class TestGribBuilderV01(unittest.TestCase):
             for _f in glob('/opt/data/grib2_to_cb/output/test1/*.json'):
                 os.remove(_f)
 
-    def test_gribBuilder_two_threads_file_pattern_hrrr_ops_conus(self):
+    def test_grib_builder_two_threads_file_pattern_hrrr_ops_conus(self):
+        """ test gribBuilder multi-threaded
+        """
         try:
             #1632412800 fcst_len 1 -> 1632412800 - 1 * 3600 -> 1632409200 September 23, 2021 15:00:00 -> 2126615000001
             #1632412800 fcst_len 3 -> 1632412800 - 3 * 3600 -> 1632402000 September 23, 2021 13:00:00 -> 2126613000003
@@ -949,14 +967,14 @@ class TestGribBuilderV01(unittest.TestCase):
             #first_epoch = 1634252400 - 10
             #last_epoch = 1634252400 + 10
             cwd = os.getcwd()
-            self.credentials_file = os.environ['HOME'] + '/adb-cb1-credentials'
-            self.spec_file = cwd + '/grib2_to_cb/test/test_load_spec_grib_metar_hrrr_ops_V01.yaml'
+            credentials_file = os.environ['HOME'] + '/adb-cb1-credentials'
+            spec_file = cwd + '/grib2_to_cb/test/test_load_spec_grib_metar_hrrr_ops_V01.yaml'
             # remove output files
             for _f in glob('/opt/data/grib2_to_cb/output/test2/*.json'):
                 os.remove(_f)
-            vxIngest = VXIngest()
-            vxIngest.runit({'spec_file': self.spec_file,
-                            'credentials_file': self.credentials_file,
+            vx_ingest = VXIngest()
+            vx_ingest.runit({'spec_file': spec_file,
+                            'credentials_file': credentials_file,
                             'path': '/opt/public/data/grids/hrrr/conus/wrfprs/grib2',
                             'file_name_mask': '%y%j%H%f',
                             'output_dir': '/opt/data/grib2_to_cb/output/test2',
@@ -964,7 +982,7 @@ class TestGribBuilderV01(unittest.TestCase):
                             'file_pattern': '21287230000[0123456789]?'
                             })
 
-        except:
+        except: # pylint: disable=bare-except
             self.fail("TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus Exception failure: " +
                       str(sys.exc_info()[0]))
         finally:
@@ -973,7 +991,9 @@ class TestGribBuilderV01(unittest.TestCase):
                 os.remove(_f)
 
 
-    def test_gribBuilder_verses_script(self):
+    def test_grib_builder_verses_script(self): # pylint: disable=too-many-locals, too-many-branches, too-many-statements
+        """ test gribBuilder matches what the test script returns
+        """
         # noinspection PyBroadException
         try:
                         # remove output files
@@ -983,11 +1003,11 @@ class TestGribBuilderV01(unittest.TestCase):
             #latest_input_file = max(list_of_input_files, key=os.path.getctime)
             #file_utc_time = datetime.datetime.strptime(os.path.basename(latest_input_file), '%y%j%H%f')
             cwd = os.getcwd()
-            self.credentials_file = os.environ['HOME'] + '/adb-cb1-credentials'
-            self.spec_file = cwd + '/grib2_to_cb/test/test_load_spec_grib_metar_hrrr_ops_V01.yaml'
-            vxIngest = VXIngest()
-            vxIngest.runit({'spec_file': self.spec_file,
-                            'credentials_file': self.credentials_file,
+            credentials_file = os.environ['HOME'] + '/adb-cb1-credentials'
+            spec_file = cwd + '/grib2_to_cb/test/test_load_spec_grib_metar_hrrr_ops_V01.yaml'
+            vx_ingest = VXIngest()
+            vx_ingest.runit({'spec_file': spec_file,
+                            'credentials_file': credentials_file,
                             'path': '/opt/public/data/grids/hrrr/conus/wrfprs/grib2',
                             'file_name_mask': '%y%j%H%f',
                             'output_dir': '/opt/data/grib2_to_cb/output/test3',
@@ -1000,82 +1020,81 @@ class TestGribBuilderV01(unittest.TestCase):
             latest_output_file = max(
                 list_of_output_files, key=os.path.getctime)
             # Opening JSON file
-            f = open(latest_output_file)
+            _f = open(latest_output_file)
             # returns JSON object as
             # a dictionary
-            vxIngest_output_data = json.load(f)
+            vx_ingest_output_data = json.load(_f)
             # Closing file
-            f.close()
+            _f.close()
             expected_station_data = {}
 
-            f = open(self.credentials_file)
-            yaml_data = yaml.load(f, yaml.SafeLoader)
+            _f = open(credentials_file)
+            yaml_data = yaml.load(_f, yaml.SafeLoader)
             host = yaml_data['cb_host']
             user = yaml_data['cb_user']
             password = yaml_data['cb_password']
             options = ClusterOptions(PasswordAuthenticator(user, password))
-            self.cluster = Cluster('couchbase://' + host, options)
-            self.collection = self.cluster.bucket("mdata").default_collection()
+            cluster = Cluster('couchbase://' + host, options)
 
             # Grab the projection information from the test file
             latest_input_file = "/opt/public/data/grids/hrrr/conus/wrfprs/grib2/" + os.path.basename("/opt/data/grib2_to_cb/output/test3/2128723000002.json").split('.')[0]
-            self.projection = gg.getGrid(latest_input_file)
-            self.grbs = pygrib.open(latest_input_file)
-            self.grbm = self.grbs.message(1)
-            fcst_valid_epoch = round(self.grbm.validDate.timestamp())
-            self.spacing, max_x, max_y = gg.getAttributes(latest_input_file)
+            projection = gg.getGrid(latest_input_file)
+            grbs = pygrib.open(latest_input_file) # pylint: disable=no-member
+            grbm = grbs.message(1)
+            fcst_valid_epoch = round(grbm.validDate.timestamp())
+            spacing, max_x, max_y = gg.getAttributes(latest_input_file)
 
-            self.assertEqual(self.projection.description, 'PROJ-based coordinate operation',
+            self.assertEqual(projection.description, 'PROJ-based coordinate operation',
                              "projection description: is Not corrrect")
             # Set the two projections to be used during the transformation (nearest neighbor method, what we use for everything with METARS)
-            self.in_proj = pyproj.Proj(proj='latlon')
-            self.out_proj = self.projection
-            self.transformer = pyproj.Transformer.from_proj(
-                proj_from=self.in_proj, proj_to=self.out_proj)
-            self.transformer_reverse = pyproj.Transformer.from_proj(
-                proj_from=self.out_proj, proj_to=self.in_proj)
-            self.domain_stations = []
-            for i in vxIngest_output_data[0]['data']:
+            in_proj = pyproj.Proj(proj='latlon')
+            out_proj = projection
+            transformer = pyproj.Transformer.from_proj(
+                proj_from=in_proj, proj_to=out_proj)
+            transformer_reverse = pyproj.Transformer.from_proj( # pylint: disable=unused-variable
+                proj_from=out_proj, proj_to=in_proj)
+            domain_stations = []
+            for i in vx_ingest_output_data[0]['data']:
                 station_name = i['name']
-                result = self.cluster.query(
+                result = cluster.query(
                     "SELECT mdata.geo from mdata where type='MD' and docType='station' and subset='METAR' and version='V01' and mdata.name = $name",
                     name=station_name)
                 row = result.get_single_result()
                 geo_index = self.get_geo_index(fcst_valid_epoch,row['geo'])
                 i['lat'] = row['geo'][geo_index]['lat']
                 i['lon'] = row['geo'][geo_index]['lon']
-                x, y = self.transformer.transform(
+                _x, _y = transformer.transform(
                     row['geo'][geo_index]['lon'], row['geo'][geo_index]['lat'], radians=False)
-                x_gridpoint, y_gridpoint = x/self.spacing, y/self.spacing
+                x_gridpoint, y_gridpoint = _x/spacing, _y/spacing
                 if x_gridpoint < 0 or x_gridpoint > max_x or y_gridpoint < 0 or y_gridpoint > max_y:
                     continue
                 station = copy.deepcopy(row)
                 station['geo'][geo_index]['x_gridpoint'] = x_gridpoint
                 station['geo'][geo_index]['y_gridpoint'] = y_gridpoint
                 station['name'] = station_name
-                self.domain_stations.append(station)
+                domain_stations.append(station)
 
             expected_station_data['fcstValidEpoch'] = fcst_valid_epoch
-            self.assertEqual(expected_station_data['fcstValidEpoch'], vxIngest_output_data[0]['fcstValidEpoch'],
+            self.assertEqual(expected_station_data['fcstValidEpoch'], vx_ingest_output_data[0]['fcstValidEpoch'],
                              "expected fcstValidEpoch and derived fcstValidEpoch are not the same")
             expected_station_data['fcstValidISO'] = DT.datetime.fromtimestamp(fcst_valid_epoch).isoformat()
-            self.assertEqual(expected_station_data['fcstValidISO'], vxIngest_output_data[0]['fcstValidISO'],
+            self.assertEqual(expected_station_data['fcstValidISO'], vx_ingest_output_data[0]['fcstValidISO'],
                              "expected fcstValidISO and derived fcstValidISO are not the same")
             expected_station_data['id'] = "DD-TEST:V01:METAR:HRRR_OPS:" + str(expected_station_data['fcstValidEpoch']) + ":" + str(
-                self.grbm.forecastTime)
-            self.assertEqual(expected_station_data['id'], vxIngest_output_data[0]['id'],
+                grbm.forecastTime)
+            self.assertEqual(expected_station_data['id'], vx_ingest_output_data[0]['id'],
                              "expected id and derived id are not the same")
 
             # Ceiling
-            message = self.grbs.select(name='Orography')[0]
+            message = grbs.select(name='Orography')[0]
             surface_hgt_values = message['values']
 
-            message = self.grbs.select(
+            message = grbs.select(
                 name='Geopotential Height', typeOfFirstFixedSurface='215')[0]
             ceil_values = message['values']
 
-            for i in range(len(self.domain_stations)):
-                station = self.domain_stations[i]
+            for i in range(len(domain_stations)): # pylint: disable=consider-using-enumerate
+                station = domain_stations[i]
                 geo_index = self.get_geo_index(fcst_valid_epoch,station['geo'])
                 surface = surface_hgt_values[round(
                     station['geo'][geo_index]['y_gridpoint']), round(station['geo'][geo_index]['x_gridpoint'])]
@@ -1093,10 +1112,10 @@ class TestGribBuilderV01(unittest.TestCase):
                 expected_station_data['data'][i]['Ceiling'] = ceil_agl if not np.ma.is_masked(ceil_agl) else None
 
             # Surface Pressure
-            message = self.grbs.select(name='Surface pressure')[0]
+            message = grbs.select(name='Surface pressure')[0]
             values = message['values']
-            for i in range(len(self.domain_stations)):
-                station = self.domain_stations[i]
+            for i in range(len(domain_stations)): # pylint: disable=consider-using-enumerate
+                station = domain_stations[i]
                 geo_index = self.get_geo_index(fcst_valid_epoch,station['geo'])
                 value = values[round(station['geo'][geo_index]['y_gridpoint']), round(
                     station['geo'][geo_index]['x_gridpoint'])]
@@ -1107,10 +1126,10 @@ class TestGribBuilderV01(unittest.TestCase):
                 expected_station_data['data'][i]['Surface Pressure'] = pres_mb if not np.ma.is_masked(pres_mb) else None
 
             # Temperature
-            message = self.grbs.select(name='2 metre temperature')[0]
+            message = grbs.select(name='2 metre temperature')[0]
             values = message['values']
-            for i in range(len(self.domain_stations)):
-                station = self.domain_stations[i]
+            for i in range(len(domain_stations)): # pylint: disable=consider-using-enumerate
+                station = domain_stations[i]
                 geo_index = self.get_geo_index(fcst_valid_epoch,station['geo'])
                 tempk = gg.interpGridBox(
                     values, station['geo'][geo_index]['y_gridpoint'], station['geo'][geo_index]['x_gridpoint'])
@@ -1118,10 +1137,10 @@ class TestGribBuilderV01(unittest.TestCase):
                 expected_station_data['data'][i]['Temperature'] = tempf if not np.ma.is_masked(tempf) else None
 
             # Dewpoint
-            message = self.grbs.select(name='2 metre dewpoint temperature')[0]
+            message = grbs.select(name='2 metre dewpoint temperature')[0]
             values = message['values']
-            for i in range(len(self.domain_stations)):
-                station = self.domain_stations[i]
+            for i in range(len(domain_stations)): # pylint: disable=consider-using-enumerate
+                station = domain_stations[i]
                 geo_index = self.get_geo_index(fcst_valid_epoch,station['geo'])
                 dpk = gg.interpGridBox(
                     values, station['geo'][geo_index]['y_gridpoint'], station['geo'][geo_index]['x_gridpoint'])
@@ -1129,25 +1148,25 @@ class TestGribBuilderV01(unittest.TestCase):
                 expected_station_data['data'][i]['DewPoint'] = dpf if not np.ma.is_masked(dpf) else None
 
             # Relative Humidity
-            message = self.grbs.select(name='2 metre relative humidity')[0]
+            message = grbs.select(name='2 metre relative humidity')[0]
             values = message['values']
-            for i in range(len(self.domain_stations)):
-                station = self.domain_stations[i]
+            for i in range(len(domain_stations)): # pylint: disable=consider-using-enumerate
+                station = domain_stations[i]
                 geo_index = self.get_geo_index(fcst_valid_epoch,station['geo'])
-                rh = gg.interpGridBox(
+                _rh = gg.interpGridBox(
                     values, station['geo'][geo_index]['y_gridpoint'], station['geo'][geo_index]['x_gridpoint'])
-                expected_station_data['data'][i]['RH'] = rh if not np.ma.is_masked(rh) else None
+                expected_station_data['data'][i]['RH'] = _rh if not np.ma.is_masked(_rh) else None
 
             # Wind Speed
-            message = self.grbs.select(name='10 metre U wind component')[0]
+            message = grbs.select(name='10 metre U wind component')[0]
             uwind_values = message['values']
 
-            vwind_message = self.grbs.select(
+            vwind_message = grbs.select(
                 name='10 metre V wind component')[0]
             vwind_values = vwind_message['values']
 
-            for i in range(len(self.domain_stations)):
-                station = self.domain_stations[i]
+            for i in range(len(domain_stations)): # pylint: disable=consider-using-enumerate
+                station = domain_stations[i]
                 geo_index = self.get_geo_index(fcst_valid_epoch,station['geo'])
                 uwind_ms = gg.interpGridBox(
                     uwind_values, station['geo'][geo_index]['y_gridpoint'], station['geo'][geo_index]['x_gridpoint'])
@@ -1155,68 +1174,67 @@ class TestGribBuilderV01(unittest.TestCase):
                     vwind_values, station['geo'][geo_index]['y_gridpoint'], station['geo'][geo_index]['x_gridpoint'])
                 # Convert from U-V components to speed and direction (requires rotation if grid is not earth relative)
                 # wind speed then convert to mph
-                ws_ms = math.sqrt((uwind_ms*uwind_ms)+(vwind_ms*vwind_ms))
+                ws_ms = math.sqrt((uwind_ms*uwind_ms)+(vwind_ms*vwind_ms)) # pylint: disable=c-extension-no-member
                 ws_mph = (ws_ms/0.447) + 0.5
                 expected_station_data['data'][i]['WS'] = ws_mph if not np.ma.is_masked(ws_mph) else None
 
                 # wind direction   - lon is the lon of the station
-                station = self.domain_stations[i]
+                station = domain_stations[i]
                 theta = gg.getWindTheta(vwind_message, station['geo'][geo_index]['lon'])
-                radians = math.atan2(uwind_ms, vwind_ms)
-                wd = (radians*57.2958) + theta + 180
+                radians = math.atan2(uwind_ms, vwind_ms) # pylint: disable=c-extension-no-member
+                _wd = (radians*57.2958) + theta + 180
                 # adjust for outliers
-                if wd < 0:
-                    wd = wd + 360
-                if wd > 360:
-                    wd = wd - 360
+                if _wd < 0:
+                    _wd = _wd + 360
+                if _wd > 360:
+                    _wd = _wd - 360
 
-                expected_station_data['data'][i]['WD'] = wd if not np.ma.is_masked(wd) else None
+                expected_station_data['data'][i]['WD'] = _wd if not np.ma.is_masked(_wd) else None
 
             # Visibility
-            message = self.grbs.select(name='Visibility')[0]
+            message = grbs.select(name='Visibility')[0]
             values = message['values']
-            for i in range(len(self.domain_stations)):
-                station = self.domain_stations[i]
+            for i in range(len(domain_stations)): # pylint: disable=consider-using-enumerate
+                station = domain_stations[i]
                 geo_index = self.get_geo_index(fcst_valid_epoch,station['geo'])
                 value = values[round(station['geo'][geo_index]['y_gridpoint']), round(
                     station['geo'][geo_index]['x_gridpoint'])]
                 expected_station_data['data'][i]['Visibility'] = value / 1609.344 if not np.ma.is_masked(value) else None
-            self.grbs.close()
+            grbs.close()
 
-            for i in range(len(self.domain_stations)):
+            for i in range(len(domain_stations)): # pylint: disable=consider-using-enumerate
                 if expected_station_data['data'][i]['Ceiling'] is not None:
                     self.assertAlmostEqual(expected_station_data['data'][i]['Ceiling'],
-                                       vxIngest_output_data[0]['data'][i]['Ceiling'], msg="Expected Ceiling and derived Ceiling are not equal")
+                                       vx_ingest_output_data[0]['data'][i]['Ceiling'], msg="Expected Ceiling and derived Ceiling are not equal")
 
                 if expected_station_data['data'][i]['Surface Pressure'] is not None:
                     self.assertAlmostEqual(expected_station_data['data'][i]['Surface Pressure'],
-                                       vxIngest_output_data[0]['data'][i]['Surface Pressure'], msg="Expected Surface Pressure and derived Surface Pressure are not equal")
+                                       vx_ingest_output_data[0]['data'][i]['Surface Pressure'], msg="Expected Surface Pressure and derived Surface Pressure are not equal")
 
                 if expected_station_data['data'][i]['Temperature'] is not None:
                     self.assertAlmostEqual(expected_station_data['data'][i]['Temperature'],
-                                       vxIngest_output_data[0]['data'][i]['Temperature'], msg="Expected Temperature and derived Temperature are not equal")
+                                       vx_ingest_output_data[0]['data'][i]['Temperature'], msg="Expected Temperature and derived Temperature are not equal")
 
                 if expected_station_data['data'][i]['DewPoint'] is not None:
                     self.assertAlmostEqual(expected_station_data['data'][i]['DewPoint'],
-                                       vxIngest_output_data[0]['data'][i]['DewPoint'], msg="Expected DewPoint and derived DewPoint are not equal")
+                                       vx_ingest_output_data[0]['data'][i]['DewPoint'], msg="Expected DewPoint and derived DewPoint are not equal")
 
                 if expected_station_data['data'][i]['RH'] is not None:
                     self.assertAlmostEqual(expected_station_data['data'][i]['RH'],
-                                       vxIngest_output_data[0]['data'][i]['RH'], msg="Expected RH and derived RH are not equal")
+                                       vx_ingest_output_data[0]['data'][i]['RH'], msg="Expected RH and derived RH are not equal")
 
                 if expected_station_data['data'][i]['WS'] is not None:
                     self.assertAlmostEqual(expected_station_data['data'][i]['WS'],
-                                       vxIngest_output_data[0]['data'][i]['WS'], msg="Expected WS and derived WS are not equal")
+                                       vx_ingest_output_data[0]['data'][i]['WS'], msg="Expected WS and derived WS are not equal")
 
                 if expected_station_data['data'][i]['WD'] is not None:
                     self.assertAlmostEqual(expected_station_data['data'][i]['WD'],
-                                       vxIngest_output_data[0]['data'][i]['WD'], msg="Expected WD and derived WD are not equal")
+                                       vx_ingest_output_data[0]['data'][i]['WD'], msg="Expected WD and derived WD are not equal")
 
                 if expected_station_data['data'][i]['Visibility'] is not None:
                     self.assertAlmostEqual(expected_station_data['data'][i]['Visibility'],
-                                       vxIngest_output_data[0]['data'][i]['Visibility'], msg="Expected Visibility and derived Visibility are not equal")
+                                       vx_ingest_output_data[0]['data'][i]['Visibility'], msg="Expected Visibility and derived Visibility are not equal")
 
-        except:
+        except: # pylint: disable=bare-except
             self.fail("TestGribBuilderV01 Exception failure: " +
                       str(sys.exc_info()[0]))
-        return

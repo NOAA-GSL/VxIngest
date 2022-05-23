@@ -11,6 +11,8 @@ import time
 import json
 from pathlib import Path
 from couchbase.exceptions import TimeoutException
+from couchbase.cluster import Cluster, ClusterOptions
+from couchbase_core.cluster import PasswordAuthenticator
 
 
 class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attributes
@@ -94,16 +96,31 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
         if self.cluster:
             self.cluster.disconnect()
 
-    def set_connection(self):
+    def connect_cb(self):
         """
         create a couchbase connection and maintain the collection and cluster objects.
+        See the note at the top of vx_ingest.py for an explanation of why this seems redundant.
         """
-        logging.info(
-            "%s: data_type_manager - Connecting to couchbase", self.thread_name
-        )
+        logging.info("%s: data_type_manager - Connecting to couchbase")
         # get a reference to our cluster
-        self.cluster = self.load_spec["cluster"]
-        self.collection = self.load_spec["collection"]
+        # noinspection PyBroadException
+        try:
+            options = ClusterOptions(
+                PasswordAuthenticator(
+                    self.load_spec["cb_credentials"]["user"], self.load_spec["cb_credentials"]["password"]
+                )
+            )
+            self.cluster = Cluster(
+                "couchbase://" + self.load_spec["cb_credentials"]["host"], options
+            )
+            self.collection = self.cluster.bucket("mdata").default_collection()
+            # stash the database connection for the builders to reuse
+            self.load_spec['cluster'] = self.cluster
+            self.load_spec['collection'] = self.collection
+            logging.info("%s: Couchbase connection success")
+        except Exception as _e:  # pylint:disable=broad-except
+            logging.error("*** %s in connect_cb ***", str(_e))
+            sys.exit("*** Error when connecting to cb database: ")
 
     # entry point of the thread. Is invoked automatically when the thread is
     # started.
@@ -120,7 +137,7 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
         try:
             logging.getLogger().setLevel(logging.INFO)
             # get a connection
-            self.set_connection()
+            self.connect_cb()
             # infinite loop terminates when the file_name_queue is empty
             empty_count = 0
             while True:

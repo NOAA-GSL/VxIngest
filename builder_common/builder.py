@@ -11,12 +11,10 @@ class Builder:  # pylint: disable=too-many-arguments disable=too-many-instance-a
     Parent class for all Builders
     """
 
-    def __init__(self, load_spec, ingest_document, cluster, collection):
+    def __init__(self, load_spec, ingest_document):
         self.ingest_document = ingest_document
         self.template = ingest_document["template"]
         self.load_spec = load_spec
-        self.cluster = cluster
-        self.collection = collection
         self.an_id = None
         self.document_map = {}
         # self.do_profiling = True  # set to True to enable build_document profiling

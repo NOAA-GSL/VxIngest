@@ -71,7 +71,7 @@ class NetcdfBuilder(Builder):  # pylint disable=too-many-instance-attributes
             new_id = ":".join(new_parts)
             return new_id
         except Exception as _e:  # pylint:disable=broad-except
-            logging.error("NetcdfBuilder.derive_id: Exception  error: %s", str(_e))
+            logging.exception("NetcdfBuilder.derive_id: Exception  error: %s")
             return None
 
     def translate_template_item(self, variable, rec_num):

@@ -49,7 +49,7 @@ def test_credentials_and_load_spec():
     """test the get_credentials and load_spec"""
     try:
         vx_ingest, vx_ingest_manager = setup_ingest()
-        assert vx_ingest.load_spec["cb_connection"]["user"] == "cb_user"
+        assert vx_ingest.load_spec["cb_connection"]["user"] == "avid"
         vx_ingest_manager.close_cb()
     except Exception as _e:  # pylint:disable=broad-except
         assert False, f"test_credentials_and_load_spec Exception failure: {_e}"

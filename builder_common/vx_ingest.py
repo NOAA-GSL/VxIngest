@@ -139,7 +139,7 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
             )
             self.collection = self.cluster.bucket("mdata").default_collection()
             # stash the credentials for the VxIngestManager - see NOTE at the top of this file.
-            self.load_spec['cb_credentials'] = self.cb_credentials
+            self.load_spec["cb_credentials"] = self.cb_credentials
             logging.info("%s: Couchbase connection success")
         except Exception as _e:  # pylint:disable=broad-except
             logging.error("*** %s in connect_cb ***", str(_e))

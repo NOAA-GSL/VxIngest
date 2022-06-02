@@ -107,7 +107,8 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
         try:
             options = ClusterOptions(
                 PasswordAuthenticator(
-                    self.load_spec["cb_credentials"]["user"], self.load_spec["cb_credentials"]["password"]
+                    self.load_spec["cb_credentials"]["user"],
+                    self.load_spec["cb_credentials"]["password"],
                 )
             )
             self.cluster = Cluster(
@@ -115,8 +116,8 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
             )
             self.collection = self.cluster.bucket("mdata").default_collection()
             # stash the database connection for the builders to reuse
-            self.load_spec['cluster'] = self.cluster
-            self.load_spec['collection'] = self.collection
+            self.load_spec["cluster"] = self.cluster
+            self.load_spec["collection"] = self.collection
             logging.info("%s: Couchbase connection success")
         except Exception as _e:  # pylint:disable=broad-except
             logging.error("*** %s in connect_cb ***", str(_e))

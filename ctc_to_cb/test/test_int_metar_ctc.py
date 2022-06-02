@@ -41,7 +41,7 @@ class TestCTCBuilderV01(unittest.TestCase):
 
     def test_check_fcst_valid_epoch_fcst_valid_iso(self):
         """
-            integration test to check fcst_valid_epoch is derived correctly
+        integration test to check fcst_valid_epoch is derived correctly
         """
         try:
             credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
@@ -80,7 +80,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                 self.assertTrue(
                     (fve % 3600) == 0, "fcstValidEpoch is not at top of hour"
                 )
-        except Exception as _e: # pylint: disable=bare-except, disable=broad-except
+        except Exception as _e:  # pylint: disable=bare-except, disable=broad-except
             self.fail(
                 "TestGsdIngestManager.test_check_fcstValidEpoch_fcstValidIso Exception failure: "
                 + str(_e)
@@ -112,8 +112,8 @@ class TestCTCBuilderV01(unittest.TestCase):
             )
             load_spec_file = LoadYamlSpecFile({"spec_file": spec_file})
             load_spec = dict(load_spec_file.read())
-            load_spec['cluster'] = cluster
-            load_spec['collection'] = collection
+            load_spec["cluster"] = cluster
+            load_spec["collection"] = collection
             ingest_document_result = collection.get(
                 "MD-TEST:V01:METAR:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest"
             )
@@ -165,7 +165,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                     len(stations_difference) < 1000,
                     "difference between expected and actual greater than 100",
                 )
-        except Exception as _e: # pylint: disable=broad-except
+        except Exception as _e:  # pylint: disable=broad-except
             self.fail("TestGsdIngestManager Exception failure: " + str(_e))
 
     def calculate_mysql_ctc(self, epoch, fcst_len, threshold, model, region, obs_table):
@@ -250,7 +250,7 @@ class TestCTCBuilderV01(unittest.TestCase):
         ctc = cursor.fetchall()[0]
         return ctc
 
-    def calculate_mysql_ctc_loop( #pylint: disable=dangerous-default-value, missing-function-docstring
+    def calculate_mysql_ctc_loop(  # pylint: disable=dangerous-default-value, missing-function-docstring
         self, epoch, fcst_len, threshold, model, region, obs_table, reject_stations=[]
     ):
         credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
@@ -342,7 +342,7 @@ class TestCTCBuilderV01(unittest.TestCase):
         }
         return ctc
 
-    def calculate_cb_ctc( #pylint: disable=dangerous-default-value,missing-function-docstring
+    def calculate_cb_ctc(  # pylint: disable=dangerous-default-value,missing-function-docstring
         self,
         spec_file_name,
         epoch,
@@ -366,9 +366,11 @@ class TestCTCBuilderV01(unittest.TestCase):
         load_spec_file = LoadYamlSpecFile({"spec_file": spec_file_name})
         load_spec = dict(load_spec_file.read())
         options = ClusterOptions(PasswordAuthenticator(user, password))
-        load_spec['cluster'] = Cluster("couchbase://" + host, options)
-        load_spec['collection'] = load_spec['cluster'].bucket("mdata").default_collection()
-        ingest_document_result = load_spec['collection'].get(
+        load_spec["cluster"] = Cluster("couchbase://" + host, options)
+        load_spec["collection"] = (
+            load_spec["cluster"].bucket("mdata").default_collection()
+        )
+        ingest_document_result = load_spec["collection"].get(
             "MD:V01:{subset}:{model}:ALL_HRRR:CTC:CEILING:ingest".format(
                 subset=subset, model=model
             )
@@ -395,16 +397,16 @@ class TestCTCBuilderV01(unittest.TestCase):
         )
         print("cb_ctc model_id:", model_id, " obs_id:", obs_id)
         try:
-            full_model_data = load_spec['collection'].get(model_id).content
-        except: # pylint: disable=bare-except
+            full_model_data = load_spec["collection"].get(model_id).content
+        except:  # pylint: disable=bare-except
             time.sleep(0.25)
-            full_model_data = load_spec['collection'].get(model_id).content
+            full_model_data = load_spec["collection"].get(model_id).content
         self.cb_model_obs_data = []
         try:
-            full_obs_data = load_spec['collection'].get(obs_id).content
-        except: # pylint: disable=bare-except
+            full_obs_data = load_spec["collection"].get(obs_id).content
+        except:  # pylint: disable=bare-except
             time.sleep(0.25)
-            full_obs_data = load_spec['collection'].get(obs_id).content
+            full_obs_data = load_spec["collection"].get(obs_id).content
         for station in self.stations:
             # find observation data for this station
             obs_data = None
@@ -532,7 +534,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                 for _elem in docs:
                     fcst_lens.append(_elem["fcstLen"])
                 output_file.close()
-            except: # pylint: disable=bare-except
+            except:  # pylint: disable=bare-except
                 self.fail(
                     "TestCTCBuilderV01 Exception failure opening output: "
                     + str(sys.exc_info()[0])
@@ -604,7 +606,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                             "There are differences between the mysql and CB station names"
                             + str(name_diffs),
                         )
-                    except: # pylint: disable=bare-except
+                    except:  # pylint: disable=bare-except
                         # recalculate without the differences
                         self.cb_model_obs_data = []
                         cb_ctc = {}
@@ -635,7 +637,9 @@ class TestCTCBuilderV01(unittest.TestCase):
                     #     len(self.cb_model_obs_data),
                     #     "model_obs_data are not the same length",
                     # )
-                    for _r in range(len(self.mysql_model_obs_data)): # pylint: disable=consider-using-enumerate
+                    for _r in range(
+                        len(self.mysql_model_obs_data)
+                    ):  # pylint: disable=consider-using-enumerate
                         delta = round(
                             (
                                 self.mysql_model_obs_data[_r]["model_value"] * 10
@@ -650,7 +654,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                                 msg="mysql and cb model values differ",
                                 delta=delta,
                             )
-                        except: # pylint: disable=bare-except
+                        except:  # pylint: disable=bare-except
                             print(
                                 _i,
                                 "model",
@@ -670,7 +674,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                                 msg="mysql and cb obs values differ",
                                 delta=delta,
                             )
-                        except: # pylint: disable=bare-except
+                        except:  # pylint: disable=bare-except
                             print(
                                 _i,
                                 "obs",
@@ -684,7 +688,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                                 delta,
                             )
 
-        except: # pylint: disable=bare-except
+        except:  # pylint: disable=bare-except
             self.fail("TestCTCBuilderV01 Exception failure: " + str(sys.exc_info()[0]))
         return
 
@@ -915,15 +919,17 @@ class TestCTCBuilderV01(unittest.TestCase):
                         0,
                         "There are differences between the mysql and CB station names",
                     )
-                    cb_ctc_nodiffs = self.calculate_cb_ctc( # pylint: disable=unused-variable
-                        spec_file_name=spec_file,
-                        epoch=fcst_valid_epoch,
-                        model="HRRR_OPS",
-                        subset="METAR",
-                        region="ALL_HRRR",
-                        fcst_len=_i,
-                        threshold=int(_t),
-                        reject_stations=name_diffs,
+                    cb_ctc_nodiffs = (
+                        self.calculate_cb_ctc(  # pylint: disable=unused-variable
+                            spec_file_name=spec_file,
+                            epoch=fcst_valid_epoch,
+                            model="HRRR_OPS",
+                            subset="METAR",
+                            region="ALL_HRRR",
+                            fcst_len=_i,
+                            threshold=int(_t),
+                            reject_stations=name_diffs,
+                        )
                     )
                     try:
                         self.assertEqual(
@@ -931,7 +937,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                             len(self.cb_model_obs_data),
                             "model_obs_data are not the same length",
                         )
-                    except: # pylint: disable=bare-except
+                    except:  # pylint: disable=bare-except
                         print(
                             "model_obs_data are not the same length",
                             len(self.mysql_model_obs_data),
@@ -975,7 +981,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                                     msg="mysql and cb model values differ",
                                     delta=delta,
                                 )
-                            except: # pylint: disable=bare-except
+                            except:  # pylint: disable=bare-except
                                 print(
                                     _r,
                                     "model",
@@ -995,7 +1001,7 @@ class TestCTCBuilderV01(unittest.TestCase):
                                     msg="mysql and cb obs values differ",
                                     delta=delta,
                                 )
-                            except: # pylint: disable=bare-except
+                            except:  # pylint: disable=bare-except
                                 print(
                                     _r,
                                     "obs",
@@ -1008,11 +1014,11 @@ class TestCTCBuilderV01(unittest.TestCase):
                                     delta,
                                 )
 
-        except: # pylint: disable=bare-except
+        except:  # pylint: disable=bare-except
             self.fail("TestCTCBuilderV01 Exception failure: " + str(sys.exc_info()[0]))
         return
 
-    def test_ctc_data_hrrr_ops_all_hrrr(self): # pylint: disable=too-many-locals
+    def test_ctc_data_hrrr_ops_all_hrrr(self):  # pylint: disable=too-many-locals
         # noinspection PyBroadException
         """
         This test is a comprehensive test of the ctcBuilder data. It will retrieve CTC documents
@@ -1255,6 +1261,6 @@ class TestCTCBuilderV01(unittest.TestCase):
                             t=_t,
                         ),
                     )
-        except: # pylint: disable=bare-except
+        except:  # pylint: disable=bare-except
             self.fail("TestCTCBuilderV01 Exception failure: " + str(sys.exc_info()[0]))
         return

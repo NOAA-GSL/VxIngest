@@ -328,7 +328,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                     obs_id = re.sub(self.model, "obs", obs_id)
                     logging.info("Looking up model document: %s", fve["id"])
                     try:
-                        _model_doc = self.load_spec['collection'].get(fve["id"])
+                        _model_doc = self.load_spec["collection"].get(fve["id"])
                         self.model_data = _model_doc.content
                     except Exception as _e:  # pylint: disable=broad-except
                         logging.error(
@@ -350,7 +350,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                             or (_obs_data["id"] != obs_id)
                             or not self.obs_data
                         ):
-                            _obs_doc = self.load_spec['collection'].get(obs_id)
+                            _obs_doc = self.load_spec["collection"].get(obs_id)
                             _obs_data = _obs_doc.content
                             for entry in _obs_data["data"]:
                                 self.obs_data[entry["name"]] = entry
@@ -405,7 +405,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
             self.not_found_station_count = 0
 
             # First get the latest fcstValidEpoch for the ctc's for this model and region.
-            result = self.load_spec['cluster'].query(
+            result = self.load_spec["cluster"].query(
                 """SELECT RAW MAX(mdata.fcstValidEpoch)
                     FROM mdata
                     WHERE type='DD'
@@ -419,7 +419,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                 region=self.region,
                 subDocType=self.sub_doc_type,
                 subset=self.subset,
-                read_only=True
+                read_only=True,
             )
             max_ctc_fcst_valid_epochs = self.load_spec["first_last_params"][
                 "first_epoch"
@@ -431,7 +431,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
             # model and the obs for all fcstValidEpochs greater than the first_epoch ctc
             # and less than the last_epoch.
             # this could be done with implicit join but this seems to be faster when the results are large.
-            result = self.load_spec['cluster'].query(
+            result = self.load_spec["cluster"].query(
                 """SELECT fve.fcstValidEpoch, fve.fcstLen, meta().id
                     FROM mdata fve
                     WHERE fve.type='DD'
@@ -445,12 +445,12 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                     model=self.model,
                     subset=self.subset,
                     first_epoch=self.load_spec["first_last_params"]["first_epoch"],
-                    last_epoch=self.load_spec["first_last_params"]["last_epoch"]
+                    last_epoch=self.load_spec["first_last_params"]["last_epoch"],
                 ),
                 read_only=True,
             )
             _tmp_model_fve = list(result)
-            result1 = self.load_spec['cluster'].query(
+            result1 = self.load_spec["cluster"].query(
                 """SELECT raw obs.fcstValidEpoch
                         FROM mdata obs
                         WHERE obs.type='DD'
@@ -514,7 +514,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
             list: the list of stations within this region
         """
         try:
-            result = self.load_spec['cluster'].query(
+            result = self.load_spec["cluster"].query(
                 """SELECT
                     geo.bottom_right.lat as br_lat,
                     geo.bottom_right.lon as br_lon,
@@ -531,7 +531,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
             )
             _boundingbox = list(result)[0]
             _domain_stations = []
-            _result1 = self.load_spec['cluster'].search_query(
+            _result1 = self.load_spec["cluster"].search_query(
                 "station_geo",
                 GeoBoundingBoxQuery(
                     top_left=(_boundingbox["tl_lon"], _boundingbox["tl_lat"]),
@@ -562,7 +562,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
         """
         try:
             classic_station_id = "MD-TEST:V01:CLASSIC_STATIONS:" + region_name
-            doc = self.load_spec['collection'].get(classic_station_id.strip())
+            doc = self.load_spec["collection"].get(classic_station_id.strip())
             classic_stations = doc.content["stations"]
             classic_stations.sort()
             return classic_stations
@@ -583,7 +583,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
         """
         # get the bounding box for this region
         try:
-            result = self.load_spec['cluster'].query(
+            result = self.load_spec["cluster"].query(
                 """SELECT  geo.bottom_right.lat as br_lat,
                     geo.bottom_right.lon as br_lon,
                     geo.top_left.lat as tl_lat,
@@ -600,7 +600,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
             _boundingbox = list(result)[0]
             _domain_stations = []
             # get the stations that are within this boundingbox - this metadata is always subset METAR
-            result = self.load_spec['cluster'].query(
+            result = self.load_spec["cluster"].query(
                 """SELECT
                     mdata.geo,
                     name
@@ -711,7 +711,7 @@ class CTCModelObsBuilderV01(CTCBuilder):
             data_elem = {}
             # get the thresholds
             if self.thresholds is None:
-                result = self.load_spec['cluster'].query(
+                result = self.load_spec["cluster"].query(
                     """
                     SELECT RAW mdata.thresholdDescriptions
                     FROM mdata

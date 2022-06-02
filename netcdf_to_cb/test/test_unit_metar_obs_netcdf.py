@@ -492,7 +492,9 @@ class TestNetcdfObsBuilderV01Unit(TestCase):
             # find the rec_num of the stationName ZBAA
             for i in range(rec_num_length):
                 if (
-                    str(nc.chartostring(_builder.ncdf_data_set["stationName"][i])) # pylint: disable=no-member
+                    str(
+                        nc.chartostring(_builder.ncdf_data_set["stationName"][i])
+                    )  # pylint: disable=no-member
                     == "ZBAA"
                 ):  # pylint:disable=no-member
                     break

@@ -333,7 +333,7 @@ class NetcdfBuilder(Builder):  # pylint disable=too-many-instance-attributes
             # pylint: disable=no-member
             self.ncdf_data_set = nc.Dataset(queue_element)
             if len(self.stations) == 0:
-                result = self.load_spec['cluster'].query(
+                result = self.load_spec["cluster"].query(
                     """SELECT mdata.*
                     FROM mdata
                     WHERE type = 'MD'

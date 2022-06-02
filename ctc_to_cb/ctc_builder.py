@@ -228,7 +228,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
         # noinspection PyBroadException
         try:
             if key == "id":
-                an_id = self.derive_id(template=self.template["id"])
+                an_id = self.derive_id(template_id=self.template["id"])
                 if not an_id in doc:
                     doc["id"] = an_id
                 return doc

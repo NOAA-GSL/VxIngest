@@ -181,9 +181,10 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
                         # (if it is not in the df_full_names - add it)
                         if filename not in df_full_names:
                             logging.info(
-                                    "%s - File %s is added because it isn't in df_full_names",
+                                    "%s - File %s is added because it isn't in df_full_names - %s",
                                     self.__class__.__name__,
                                     filename,
+                                    str(df_full_names),
                                 )
                             file_names.append(filename)
                         else:

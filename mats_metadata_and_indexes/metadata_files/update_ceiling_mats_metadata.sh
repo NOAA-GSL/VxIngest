@@ -23,7 +23,7 @@ cb_user=$(grep cb_user ${credentials} | awk '{print $2}')
 cb_pwd=$(grep cb_password ${credentials} | awk '{print $2}')
 cred="${cb_user}:${cb_pwd}"
 #get needed models
-models_requiring_metadata=($(curl -s -u ${cred} http://${cb_host}:8093/query/service -d statement='SELECT DISTINCT RAW (SPLIT(meta(mdata).id,':')[3]) model FROM mdata WHERE type="DD" AND docType="CTC" AND subDocType="CEILING" AND version="V01";' | jq -r '.results[]'))
+models_requiring_metadata=($(curl -s -u ${cred} http://${cb_host}:8093/query/service -d statement='SELECT DISTINCT RAW (SPLIT(meta(mdata).id,":")[3]) model FROM mdata WHERE type="DD" AND docType="CTC" AND subDocType="CEILING" AND version="V01";' | jq -r '.results[]'))
 echo "------models_requiring metadata--${models_requiring_metadata[@]}"
 #get models having metadata but no data (remove metadata for these)
 #(note 'like %' is changed to 'like %25')

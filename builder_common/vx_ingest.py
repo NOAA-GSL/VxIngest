@@ -169,7 +169,17 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
             # Things like tests or special ingest operations may need to wait for consistency. In that case do another query with
             # scan consistency set outside of this operation.
             result = self.cluster.query(df_query)
+            logging.info(
+                    "%s df_query is - %s",
+                    self.__class__.__name__,
+                    df_query,
+                )
             df_elements = list(result)
+            logging.info(
+                    "%s df_elements is - %s",
+                    self.__class__.__name__,
+                    str(df_elements),
+                )
             df_full_names = [element["url"] for element in df_elements]
             if os.path.exists(directory) and os.path.isdir(directory):
                 file_list = sorted(

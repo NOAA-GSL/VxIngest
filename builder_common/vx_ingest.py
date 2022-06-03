@@ -194,7 +194,7 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
                                 for element in df_elements
                                 if element["url"] == filename
                             )
-                            if os.path.getmtime(filename) > int(df_entry["mtime"]):
+                            if int(os.path.getmtime(filename)) > int(df_entry["mtime"]):
                                 logging.info(
                                     "%s - File %s is added because file mtime %s is greater than df mtime %s",
                                     self.__class__.__name__,

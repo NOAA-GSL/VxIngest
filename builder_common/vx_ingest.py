@@ -180,6 +180,11 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
                         # check to see if this file has already been ingested
                         # (if it is not in the df_full_names - add it)
                         if filename not in df_full_names:
+                            logging.info(
+                                    "%s - File %s is added because it isn't in df_full_names",
+                                    self.__class__.__name__,
+                                    filename,
+                                )
                             file_names.append(filename)
                         else:
                             # it was already processed so check to see if the mtime of the
@@ -190,10 +195,17 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
                                 if element["url"] == filename
                             )
                             if os.path.getmtime(filename) > int(df_entry["mtime"]):
+                                logging.info(
+                                    "%s - File %s is added because file mtime %s is greater than df mtime %s",
+                                    self.__class__.__name__,
+                                    filename,
+                                    os.path.getmtime(filename),
+                                    int(df_entry["mtime"]),
+                                )
                                 file_names.append(filename)
                             else:
                                 logging.info(
-                                    "%s - File %s has already been processed",
+                                    "%s - File %s has already been processed - not adding",
                                     self.__class__.__name__,
                                     filename,
                                 )

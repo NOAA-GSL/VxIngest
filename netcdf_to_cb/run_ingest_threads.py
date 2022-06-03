@@ -209,7 +209,7 @@ class VXIngest(CommonVxIngest):
             SELECT url, mtime
             FROM mdata
             WHERE
-            subset={subset}
+            subset='{subset}'
             AND type='DF'
             AND fileType='netcdf'
             AND originType='madis' order by url;

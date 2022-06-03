@@ -219,11 +219,11 @@ class VXIngest(CommonVxIngest):
             SELECT url, mtime
             FROM mdata
             WHERE
-            subset={subset}
+            subset='{subset}'
             AND type='DF'
             AND fileType='grib2'
-            AND originType='model'
-            AND model='{model}' order by url;
+            AND originType='{model}'
+            order by url;
             """.format(
             subset=self.ingest_document["subset"], model=model
         )

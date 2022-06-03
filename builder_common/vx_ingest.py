@@ -199,7 +199,7 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
                                     "%s - File %s is added because file mtime %s is greater than df mtime %s",
                                     self.__class__.__name__,
                                     filename,
-                                    os.path.getmtime(filename),
+                                    int(os.path.getmtime(filename)),
                                     int(df_entry["mtime"]),
                                 )
                                 file_names.append(filename)

@@ -181,10 +181,10 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
                         # (if it is not in the df_full_names - add it)
                         if filename not in df_full_names:
                             logging.info(
-                                    "%s - File %s is added because it isn't in any datafile document",
-                                    self.__class__.__name__,
-                                    filename,
-                                )
+                                "%s - File %s is added because it isn't in any datafile document",
+                                self.__class__.__name__,
+                                filename,
+                            )
                             file_names.append(filename)
                         else:
                             # it was already processed so check to see if the mtime of the

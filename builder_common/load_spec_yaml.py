@@ -25,9 +25,9 @@ import yaml
 
 class LoadYamlSpecFile:
     """! Class to read in load_spec file
-        file should be a yaml file
-        Returns:
-           N/A
+    file should be a yaml file
+    Returns:
+       N/A
     """
 
     def __init__(self, args):
@@ -42,8 +42,8 @@ class LoadYamlSpecFile:
 
     def read(self):
         """! Read in load_spec file, store values as class attributes
-            Returns:
-               N/A
+        Returns:
+           N/A
         """
 
         logging.debug("[--- Start read_spec_file ---]")
@@ -52,7 +52,9 @@ class LoadYamlSpecFile:
 
             # check for existence of file
             if not Path(self.spec_file_name).is_file():
-                sys.exit("*** load_spec file " + self.spec_file_name + " can not be found!")
+                sys.exit(
+                    "*** load_spec file " + self.spec_file_name + " can not be found!"
+                )
             _f = open(self.spec_file_name)
             self.yaml_data = yaml.load(_f, yaml.SafeLoader)
             self.yaml_data = {k.lower(): v for k, v in self.yaml_data.items()}
@@ -65,9 +67,9 @@ class LoadYamlSpecFile:
         try:
             # process  yaml file
             # yaml.dump(self.yaml_data)
-            for k in self.yaml_data['load_spec'].keys():
-                self.load_spec[k] = self.yaml_data['load_spec'][k]
-        except Exception: # pylint: disable=bare-except, disable=broad-except
+            for k in self.yaml_data["load_spec"].keys():
+                self.load_spec[k] = self.yaml_data["load_spec"][k]
+        except Exception:  # pylint: disable=bare-except, disable=broad-except
             logging.error("*** %s in read yaml ***", sys.exc_info()[0])
             sys.exit("*** Error(s) found while reading YAML file!")
 

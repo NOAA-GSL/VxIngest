@@ -13,29 +13,35 @@ import argparse
 import sys
 import plotly.express as px
 
+
 def parse_args(args):
     """
     Parse command line arguments
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument("-f", "--file", type=str,
-                        help="Please provide required input filename "
-                             "-f file")
+    parser.add_argument(
+        "-f",
+        "--file",
+        type=str,
+        help="Please provide required input filename " "-f file",
+    )
     args = parser.parse_args(args)
     return args
 
-class HistBuilder():
+
+class HistBuilder:
     delta_file = ""
+
     def runit(self, args):
         """
         This is the entry point for delta_models_hist.py
         """
-        self.delta_file = args['file'].strip()
+        self.delta_file = args["file"].strip()
         try:
-            datasets={}
+            datasets = {}
             unitset = {}
-            f=open(self.delta_file,"r")
-            lines=f.readlines()
+            f = open(self.delta_file, "r")
+            lines = f.readlines()
             for x in lines:
                 if x.startswith("var"):
                     columns = x.split()
@@ -44,23 +50,28 @@ class HistBuilder():
                     units = columns[6]
                     if field not in datasets.keys():
                         datasets[field] = []
-                    if delta == 'None':
+                    if delta == "None":
                         continue
                     datasets[field].append(float(delta))
                     unitset[field] = units
             f.close()
-            keys=datasets.keys()
+            keys = datasets.keys()
             for field in keys:
-                fig = px.histogram(x=datasets[field], nbins=20, title=self.delta_file + " - " + field.upper(), labels={"x":unitset[field]})
+                fig = px.histogram(
+                    x=datasets[field],
+                    nbins=20,
+                    title=self.delta_file + " - " + field.upper(),
+                    labels={"x": unitset[field]},
+                )
                 fig.show()
         except:
-            print(
-                "*** Error in  HistBuilder ***" + str(sys.exc_info()))
+            print("*** Error in  HistBuilder ***" + str(sys.exc_info()))
 
     def main(self):
         args = parse_args(sys.argv[1:])
         self.runit(vars(args))
         sys.exit("*** FINISHED ***")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     HistBuilder().main()

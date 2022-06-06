@@ -9,94 +9,41 @@ Colorado, NOAA/OAR/ESRL/GSL
 import calendar
 import copy
 import cProfile
+import datetime as dt
 import logging
 import math
 import os
 import re
 import time
 import traceback
-from datetime import datetime, timedelta
 from pstats import Stats
-
 import netCDF4 as nc
 import numpy.ma as ma
+from builder_common.builder_utilities import convert_to_iso
+from builder_common.builder_utilities import truncate_round
+from builder_common.builder_utilities import initialize_data_array
+from builder_common.builder import Builder
 
 
-def truncate_round(_n, decimals=0):
-    """
-    Round a float to a specific number of places in an expected manner
-    Args:
-        n (int): the number of decimal places to use as a multiplier and divider
-        decimals (int, optional): [description]. Defaults to 0.
-    Returns:
-        float: The number multiplied by n and then divided by n
-    """
-    multiplier = 10 ** decimals
-    return int(_n * multiplier) / multiplier
-
-
-def convert_to_iso(an_epoch):
-    """
-    convert an epoch to ISO format
-    """
-    if not isinstance(an_epoch, int):
-        an_epoch = int(an_epoch)
-    valid_time_str = datetime.utcfromtimestamp(an_epoch).strftime("%Y-%m-%dT%H:%M:%SZ")
-    return valid_time_str
-
-
-def initialize_data(doc):
-    """initialize the data by just making sure the template data element has been removed.
-    All the data elements are going to be top level elements"""
-    if "data" in doc.keys():
-        del doc["data"]
-    return doc
-
-
-class NetcdfBuilder:  # pylint disable=too-many-instance-attributes
+class NetcdfBuilder(Builder):  # pylint disable=too-many-instance-attributes
     """parent class for netcdf builders"""
 
-    def __init__(self, load_spec, ingest_document, cluster, collection):
+    def __init__(self, load_spec, ingest_document):
+        super().__init__(load_spec, ingest_document)
+
         self.ingest_document = ingest_document
         self.template = ingest_document["template"]
+        self.subset = self.template["subset"]
         self.load_spec = load_spec
-        self.cluster = cluster
-        self.collection = collection
-        self.an_id = None
-        self.document_map = {}
+        # NetcdfBuilder specific
         self.ncdf_data_set = None
         self.stations = []
         self.file_name = None
-        # self.do_profiling = True  # set to True to enable build_document profiling
-        self.do_profiling = False
 
-    def initialize_document_map(self):  # pylint: disable=missing-function-docstring
-        pass
+        # self.do_profiling = False  - in super
+        # set to True to enable build_document profiling
 
-    def load_data(
-        self, doc, key, element
-    ):  # pylint: disable=missing-function-docstring
-        pass
-
-    def get_document_map(self):  # pylint: disable=missing-function-docstring
-        pass
-
-    def handle_recNum(
-        self, row
-    ):  # pylint: disable=missing-function-docstring, disable=invalid-name
-        pass
-
-    def build_datafile_doc(
-        self, file_name, data_file_id
-    ):  # pylint: disable=missing-function-docstring
-        pass
-
-    def create_data_file_id(
-        self, file_name
-    ):  # pylint: disable=missing-function-docstring
-        pass
-
-    def derive_id(self, template_id, rec_num):
+    def derive_id(self, **kwargs):
         """
         This is a private method to derive a document id from the current recNum,
         substituting *values from the corresponding grib fields as necessary. A *field
@@ -108,6 +55,8 @@ class NetcdfBuilder:  # pylint disable=too-many-instance-attributes
             [string]: The processed id with substitutions made for elements in the id template
         """
         try:
+            template_id = kwargs["template_id"]
+            rec_num = kwargs["rec_num"]
             parts = template_id.split(":")
             new_parts = []
             for part in parts:
@@ -122,7 +71,7 @@ class NetcdfBuilder:  # pylint disable=too-many-instance-attributes
             new_id = ":".join(new_parts)
             return new_id
         except Exception as _e:  # pylint:disable=broad-except
-            logging.error("NetcdfBuilder.derive_id: Exception  error: %s", str(_e))
+            logging.exception("NetcdfBuilder.derive_id: Exception  error: %s")
             return None
 
     def translate_template_item(self, variable, rec_num):
@@ -190,13 +139,19 @@ class NetcdfBuilder:  # pylint disable=too-many-instance-attributes
                             # it desn't need to be a string
                             return self.ncdf_data_set[variable][rec_num]
         except Exception as _e:  # pylint:disable=broad-except
-            logging.error(
-                "NetcdfBuilder.translate_template_item: Exception  error: %s", str(_e)
+            logging.exception(
+                "Builder.translate_template_item for variable %s: replacements: %s",
+                str(variable),
+                str(replacements),
             )
         return value
 
     def handle_document(self):
         """
+        This routine processes the complete document (essentially a complete grib file)
+        Each template key or value that corresponds to a variable will be selected from
+        the grib file into a pygrib message and then
+        each station will get values from the grib message.
         :return: The modified document_map
         """
         # noinspection PyBroadException
@@ -207,11 +162,13 @@ class NetcdfBuilder:  # pylint disable=too-many-instance-attributes
                 return
             # make a copy of the template, which will become the new document
             # once all the translations have occured
-            new_document = initialize_data(new_document)
+            new_document = initialize_data_array(new_document)
             for rec_num in range(rec_num_data_size):
                 for key in self.template.keys():
                     if key == "data":
-                        new_document = self.handle_data(new_document, rec_num)
+                        new_document = self.handle_data(
+                            doc=new_document, rec_num=rec_num
+                        )
                         continue
                     new_document = self.handle_key(new_document, rec_num, key)
             # put document into document map
@@ -247,7 +204,9 @@ class NetcdfBuilder:  # pylint disable=too-many-instance-attributes
         # noinspection PyBroadException
         try:
             if key == "id":
-                an_id = self.derive_id(self.template["id"], _rec_num)
+                an_id = self.derive_id(
+                    template_id=self.template["id"], rec_num=_rec_num
+                )
                 if not an_id in doc:
                     doc["id"] = an_id
                 return doc
@@ -267,10 +226,9 @@ class NetcdfBuilder:  # pylint disable=too-many-instance-attributes
                 doc[key] = self.translate_template_item(doc[key], _rec_num)
             return doc
         except Exception as _e:  # pylint:disable=broad-except
-            logging.error(
-                "%s NetcdfBuilder.handle_key: Exception in builder:  error: %s",
+            logging.exception(
+                "%s NetcdfBuilder.handle_key: Exception in builder",
                 self.__class__.__name__,
-                str(_e),
             )
         return doc
 
@@ -290,6 +248,7 @@ class NetcdfBuilder:  # pylint disable=too-many-instance-attributes
         :_recNum the recNum being processed.
         """
         # noinspection PyBroadException
+        func = None
         try:
             func = named_function_def.split("|")[0].replace("&", "")
             params = named_function_def.split("|")[1].split(",")
@@ -301,12 +260,14 @@ class NetcdfBuilder:  # pylint disable=too-many-instance-attributes
             replace_with = getattr(self, func)(dict_params)
         except Exception as _e:  # pylint:disable=broad-except
             logging.exception(
-                "%s handle_named_function: Exception instantiating builder:",
+                "%s handle_named_function: %s params %s: Exception instantiating builder:",
                 self.__class__.__name__,
+                func,
+                params,
             )
         return replace_with
 
-    def handle_data(self, doc, rec_num):
+    def handle_data(self, **kwargs):
         """This method iterates the template entries, deciding for each entry to either
         handle_named_function (if the entry starts with a '&') or to translate_template_item
         if it starts with an '*'. It handles both keys and values for each template entry.
@@ -316,6 +277,8 @@ class NetcdfBuilder:  # pylint disable=too-many-instance-attributes
             (Object): this is the data document that is being built
         """
         try:
+            doc = kwargs["doc"]
+            rec_num = kwargs["rec_num"]
             data_elem = {}
             data_key = next(iter(self.template["data"]))
             data_template = self.template["data"][data_key]
@@ -330,7 +293,7 @@ class NetcdfBuilder:  # pylint disable=too-many-instance-attributes
                 except Exception as _e:  # pylint:disable=broad-except
                     value = None
                     logging.warning(
-                        "%s NetcdfBuilder.handle_data - value is None",
+                        "%s Builder.handle_data - value is None",
                         self.__class__.__name__,
                     )
                 data_elem[key] = value
@@ -340,21 +303,19 @@ class NetcdfBuilder:  # pylint disable=too-many-instance-attributes
                 data_key = self.translate_template_item(data_key, rec_num)
             if data_key is None:
                 logging.warning(
-                    "%s NetcdfBuilder.handle_data - _data_key is None",
+                    "%s Builder.handle_data - _data_key is None",
                     self.__class__.__name__,
                 )
-            # pylint: disable=assignment-from-no-return
-            doc = self.load_data(doc, data_key, data_elem)
+            self.load_data(doc, data_key, data_elem)
             return doc
         except Exception as _e:  # pylint:disable=broad-except
-            logging.error(
-                "%s handle_data: Exception instantiating builder:  error: %s",
+            logging.exception(
+                "%s handle_data: Exception instantiating builder",
                 self.__class__.__name__,
-                str(_e),
             )
         return doc
 
-    def build_document(self, file_name):
+    def build_document(self, queue_element):
         """This is the entry point for the NetcfBuilders from the ingestManager.
         These documents are id'd by fcstValidEpoch. The data section is an array
         each element of which contains variable data and a station name. To process this
@@ -368,23 +329,25 @@ class NetcdfBuilder:  # pylint disable=too-many-instance-attributes
         # noinspection PyBroadException
         try:
             # stash the file_name so that it can be used later
-            self.file_name = os.path.basename(file_name)
+            self.file_name = os.path.basename(queue_element)
             # pylint: disable=no-member
-            self.ncdf_data_set = nc.Dataset(file_name)
+            self.ncdf_data_set = nc.Dataset(queue_element)
             if len(self.stations) == 0:
-                result = self.cluster.query(
+                result = self.load_spec["cluster"].query(
                     """SELECT mdata.*
                     FROM mdata
                     WHERE type = 'MD'
                     AND docType = 'station'
-                    AND subset = 'METAR'
+                    AND subset = self.subset
                     AND version = 'V01';"""
                 )
                 self.stations = list(result)
 
             self.initialize_document_map()
             logging.info(
-                "%s building documents for file %s", self.__class__.__name__, file_name
+                "%s building documents for file %s",
+                self.__class__.__name__,
+                queue_element,
             )
             if self.do_profiling:
                 with cProfile.Profile() as _pr:
@@ -399,18 +362,19 @@ class NetcdfBuilder:  # pylint disable=too-many-instance-attributes
                 self.handle_document()
             # pylint: disable=assignment-from-no-return
             document_map = self.get_document_map()
-            data_file_id = self.create_data_file_id(file_name=file_name)
+            data_file_id = self.create_data_file_id(
+                self.subset, "netcdf", "madis", queue_element
+            )
             data_file_doc = self.build_datafile_doc(
-                file_name=file_name,
-                data_file_id=data_file_id,
+                file_name=queue_element, data_file_id=data_file_id, origin_type="madis"
             )
             document_map[data_file_doc["id"]] = data_file_doc
             return document_map
         except Exception as _e:  # pylint:disable=broad-except
-            logging.error(
-                "%s: Exception with builder build_document: error: %s",
+            logging.exception(
+                "%s: Exception with builder build_document: file_name: %s",
                 self.__class__.__name__,
-                str(_e),
+                queue_element,
             )
             return {}
 
@@ -423,7 +387,7 @@ class NetcdfMetarObsBuilderV01(
     This is the builder for observation data that is ingested from netcdf (madis) files
     """
 
-    def __init__(self, load_spec, ingest_document, cluster, collection):
+    def __init__(self, load_spec, ingest_document):
         """
         This builder creates a set of V01 obs documents using the V01 station documents.
         This builder loads V01 station data into memory, and uses them to associate a station with an observation
@@ -439,9 +403,7 @@ class NetcdfMetarObsBuilderV01(
         :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
         :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
         """
-        NetcdfBuilder.__init__(self, load_spec, ingest_document, cluster, collection)
-        self.cluster = cluster
-        self.collection = collection
+        NetcdfBuilder.__init__(self, load_spec, ingest_document)
         self.same_time_rows = []
         self.time = 0
         self.interpolated_time = 0
@@ -452,15 +414,7 @@ class NetcdfMetarObsBuilderV01(
         # self.do_profiling = True  # set to True to enable build_document profiling
         self.do_profiling = False  # set to True to enable build_document profiling
 
-    def create_data_file_id(self, file_name):
-        """
-        This method creates a metar netcdf_to_cb datafile id from the parameters
-        """
-        base_name = os.path.basename(file_name)
-        an_id = "DF:" + self.subset + ":obs:netcdf:{n}".format(n=base_name)
-        return an_id
-
-    def build_datafile_doc(self, file_name, data_file_id):
+    def build_datafile_doc(self, file_name, data_file_id, origin_type):
         """
         This method will build a dataFile document for GribBuilder. The dataFile
         document will represent the file that is ingested by the GribBuilder. The document
@@ -475,7 +429,7 @@ class NetcdfMetarObsBuilderV01(
             "subset": self.subset,
             "type": "DF",
             "fileType": "netcdf",
-            "originType": "madis",
+            "originType": origin_type,
             "loadJobId": self.load_spec["load_job_doc"]["id"],
             "dataSourceId": "madis3",
             "url": file_name,
@@ -591,7 +545,7 @@ class NetcdfMetarObsBuilderV01(
             mSCT = re.compile(".*SCT.*")  # pylint:disable=invalid-name
             mBKN = re.compile(".*BKN.*")  # Broken pylint:disable=invalid-name
             mOVC = re.compile(".*OVC.*")  # Overcast pylint:disable=invalid-name
-            mVV = re.compile( #pylint: disable=invalid-name
+            mVV = re.compile(  # pylint: disable=invalid-name
                 ".*VV.*"
             )  # Vertical Visibility pylint:disable=invalid-name
             mask_array = ma.getmaskarray(skyLayerBase)
@@ -600,41 +554,33 @@ class NetcdfMetarObsBuilderV01(
             )
             # check for unmasked ceiling values - broken, overcast, vertical visibility - return associated skyLayerBase
             # name = str(nc.chartostring(self.ncdf_data_set['stationName'][params_dict['recNum']]))
-            for index in range(  # pylint:disable=consider-using-enumerate
-                len(skyCover_array)
-            ):
+            for index, sca_val in enumerate(skyCover_array):
                 # also convert meters to feet (* 3.281)
                 if (not mask_array[index]) and (
-                    mBKN.match(skyCover_array[index])
-                    or mOVC.match(skyCover_array[index])
-                    or mVV.match(skyCover_array[index])
+                    mBKN.match(sca_val) or mOVC.match(sca_val) or mVV.match(sca_val)
                 ):
                     return math.floor(  # pylint: disable=c-extension-no-member
                         skyLayerBase[index] * 3.281
                     )  # pylint:disable=c-extension-no-member
             # check for unmasked ceiling values - all the others - CLR, SKC, NSC, FEW, SCT - return 60000
-            for index in range(  # pylint:disable=consider-using-enumerate
-                len(skyCover_array)
-            ):  # pylint:disable=consider-using-enumerate
+            for index, sca_val in enumerate(skyCover_array):
                 # 60000 is aldready feet
                 if (not mask_array[index]) and (
-                    mCLR.match(skyCover_array[index])
-                    or mSKC.match(skyCover_array[index])
-                    or mNSC.match(skyCover_array[index])
-                    or mFEW.match(skyCover_array[index])
-                    or mSCT.match(skyCover_array[index])
+                    mCLR.match(sca_val)
+                    or mSKC.match(sca_val)
+                    or mNSC.match(sca_val)
+                    or mFEW.match(sca_val)
+                    or mSCT.match(sca_val)
                 ):
                     return 60000
             # nothing was unmasked - return 60000 if there is a ceiling value in skycover array
-            for index in range(  # pylint:disable=consider-using-enumerate
-                len(skyCover_array)
-            ):  # pylint:disable=consider-using-enumerate
+            for index, sca_val in enumerate(skyCover_array):
                 if (
-                    mCLR.match(skyCover_array[index])
-                    or mSKC.match(skyCover_array[index])
-                    or mNSC.match(skyCover_array[index])
-                    or mFEW.match(skyCover_array[index])
-                    or mSCT.match(skyCover_array[index])
+                    mCLR.match(sca_val)
+                    or mSKC.match(sca_val)
+                    or mNSC.match(sca_val)
+                    or mFEW.match(sca_val)
+                    or mSCT.match(sca_val)
                 ):
                     return 60000
             #  masked and no ceiling value in skyCover_array
@@ -758,8 +704,8 @@ class NetcdfMetarObsBuilderV01(
             for key in params_dict.keys():
                 if key != "recNum":
                     break
-            _file_utc_time = datetime.strptime(self.file_name, params_dict[key])
-            epoch = (_file_utc_time - datetime(1970, 1, 1)).total_seconds()
+            _file_utc_time = dt.datetime.strptime(self.file_name, params_dict[key])
+            epoch = (_file_utc_time - dt.datetime(1970, 1, 1)).total_seconds()
             iso = convert_to_iso(epoch)
             return iso
         except Exception as _e:  # pylint:disable=broad-except
@@ -782,8 +728,8 @@ class NetcdfMetarObsBuilderV01(
             for key in params_dict.keys():
                 if key != "recNum":
                     break
-            _file_utc_time = datetime.strptime(self.file_name, params_dict[key])
-            epoch = (_file_utc_time - datetime(1970, 1, 1)).total_seconds()
+            _file_utc_time = dt.datetime.strptime(self.file_name, params_dict[key])
+            epoch = (_file_utc_time - dt.datetime(1970, 1, 1)).total_seconds()
             return int(epoch)
         except Exception as _e:  # pylint:disable=broad-except
             logging.error(
@@ -806,10 +752,10 @@ class NetcdfMetarObsBuilderV01(
                 return None
             # if I get here process the _thistime
             delta_minutes = self.delta / 60
-            _ret_time = datetime.utcfromtimestamp(_thistime)
+            _ret_time = dt.datetime.utcfromtimestamp(_thistime)
             _ret_time = _ret_time.replace(
                 second=0, microsecond=0, minute=0, hour=_ret_time.hour
-            ) + timedelta(hours=_ret_time.minute // delta_minutes)
+            ) + dt.timedelta(hours=_ret_time.minute // delta_minutes)
             return calendar.timegm(_ret_time.timetuple())
 
         except Exception as _e:  # pylint:disable=broad-except
@@ -827,7 +773,7 @@ class NetcdfMetarObsBuilderV01(
         try:
             _time = None
             _time = self.interpolate_time(params_dict)
-            _time = datetime.utcfromtimestamp(_time)
+            _time = dt.datetime.utcfromtimestamp(_time)
             # convert this iso
             if _time is None:
                 return None
@@ -900,9 +846,9 @@ class NetcdfMetarObsBuilderV01(
             lon = truncate_round(float(netcdf["longitude"]), 5)
             station = None
             station_index = None
-            for station_index in range(len(self.stations)):
-                if self.stations[station_index]["name"] == station_name:
-                    station = self.stations[station_index]
+            for station_index, a_station in enumerate(self.stations):
+                if a_station["name"] == station_name:
+                    station = a_station
                     break
             if station is None:
                 # get the netcdf fields for comparing or adding new
@@ -976,10 +922,9 @@ class NetcdfMetarObsBuilderV01(
                 self.document_map[an_id] = self.stations[station_index]
             return params_dict["stationName"]
         except Exception as _e:  # pylint:disable=broad-except
-            logging.error(
-                "%s netcdfObsBuilderV01.handle_station: Exception finding or creating station to match station_name error: %s params: %s",
+            logging.exception(
+                "%s netcdfObsBuilderV01.handle_station: Exception finding or creating station to match station_name: params: %s",
                 self.__class__.__name__,
-                str(_e),
                 str(params_dict),
             )
             return ""

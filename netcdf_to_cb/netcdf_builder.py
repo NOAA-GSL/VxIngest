@@ -852,10 +852,6 @@ class NetcdfMetarObsBuilderV01(
                     break
             if station is None:
                 # get the netcdf fields for comparing or adding new
-                logging.info(
-                    "netcdfObsBuilderV01.handle_station - adding station %s",
-                    netcdf["name"],
-                )
                 an_id = "MD:V01:METAR:station:" + netcdf["name"]
                 new_station = {
                     "id": an_id,

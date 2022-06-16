@@ -46,7 +46,9 @@ def test_utility_script():  # pylint: disable=too-many-locals
         current_clock = result.rows()[0] / 1000
         current_time = time.time()
 
-        assert current_clock == pytest.approx(current_time), "SELECT RAW CLOCK_MILLIS() did not return current time"
+        assert current_clock == pytest.approx(
+            current_time
+        ), "SELECT RAW CLOCK_MILLIS() did not return current time"
 
         # Grab the projection information from the test file
         grib2_file = "/opt/public/data/grids/hrrr/conus/wrfprs/grib2/2119614000018"

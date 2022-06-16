@@ -8,6 +8,7 @@ import glob
 import json
 import math
 import os
+import time
 from glob import glob
 
 import numpy as np
@@ -16,6 +17,7 @@ import pymysql
 import pyproj
 import pytest
 import yaml
+import couchbase.exceptions
 from couchbase.cluster import Cluster, ClusterOptions
 from couchbase_core.cluster import PasswordAuthenticator
 
@@ -63,7 +65,7 @@ def get_geo_index(fcst_valid_epoch, geo):
         assert False, f"GribBuilder.get_geo_index: Exception  error: {_e}"
 
 
-def test_compare_model_to_mysql():
+def test_compare_model_to_mysql(allclose):
     """This test attempts to find recent models that match in both the mysql and the CB
     databases and compare them. This test isn't likely to succeed unless both the legacy
     ingest and the VxIngest have recently run.
@@ -146,39 +148,54 @@ def test_compare_model_to_mysql():
         valid_times = [
             value for value in intersect_mysql_times if value in intersect_cb_times
         ]
-
-        result = cluster.query(
-            """SELECT raw mdata.units
-                FROM mdata
-                UNNEST mdata.data AS data_item
-                WHERE mdata.type='DD'
-                    AND mdata.docType="obs"
-                    AND mdata.version='V01'
-                    AND mdata.subset='METAR'
-                    AND data_item.name=$station
-                    AND mdata.fcstValidEpoch=$time""",
-            time=valid_times[0],
-            station=station,
-        )
+        deadline=DT.datetime.now() + DT.timedelta(seconds=60)
+        while True:
+            try:
+                result = cluster.query(
+                    """SELECT raw mdata.units
+                        FROM mdata
+                        UNNEST mdata.data AS data_item
+                        WHERE mdata.type='DD'
+                            AND mdata.docType="obs"
+                            AND mdata.version='V01'
+                            AND mdata.subset='METAR'
+                            AND data_item.name=$station
+                            AND mdata.fcstValidEpoch=$fve_time""",
+                    fve_time=valid_times[0],
+                    station=station,
+                )
+                break
+            except couchbase.exceptions.TimeoutException:
+                if DT.datetime.now()>=deadline:
+                    raise
+                time.sleep(5) # don't hammer the server too hard
         units = list(result)[0]
 
-        for time in valid_times:
+        for v_time in valid_times:
             # get the common fcst lengths
-            result = cluster.query(
-                """SELECT raw mdata.fcstLen
-                    FROM mdata
-                    UNNEST mdata.data AS data_item
-                    WHERE mdata.type='DD'
-                        AND mdata.docType="model"
-                        AND mdata.model="HRRR_OPS"
-                        AND mdata.version='V01'
-                        AND mdata.subset='METAR'
-                        AND data_item.name=$station
-                        AND mdata.fcstValidEpoch=$time
-                        ORDER BY mdata.fcstLen""",
-                time=time,
-                station=station,
-            )
+            deadline=DT.datetime.now() + DT.timedelta(seconds=60)
+            while True:
+                try:
+                    result = cluster.query(
+                        """SELECT raw mdata.fcstLen
+                            FROM mdata
+                            UNNEST mdata.data AS data_item
+                            WHERE mdata.type='DD'
+                                AND mdata.docType="model"
+                                AND mdata.model="HRRR_OPS"
+                                AND mdata.version='V01'
+                                AND mdata.subset='METAR'
+                                AND data_item.name=$station
+                                AND mdata.fcstValidEpoch=$time
+                                ORDER BY mdata.fcstLen""",
+                        time=v_time,
+                        station=station,
+                    )
+                    break
+                except couchbase.exceptions.TimeoutException:
+                    if DT.datetime.now()>=deadline:
+                        raise
+                    time.sleep(5) # don't hammer the server too hard
             cb_model_fcst_lens = list(result)
 
             statement = """SELECT DISTINCT m0.fcst_len
@@ -190,7 +207,7 @@ def test_compare_model_to_mysql():
                         AND m0.time >= %s - 1800
                         AND m0.time < %s + 1800
                     ORDER  BY m0.fcst_len; """
-            cursor.execute(statement, (time, time))
+            cursor.execute(statement, (v_time, v_time))
             mysql_model_fcst_lens_dict = cursor.fetchall()
             mysql_model_fcst_lens = [v["fcst_len"] for v in mysql_model_fcst_lens_dict]
             intersect_fcst_len = [
@@ -199,29 +216,36 @@ def test_compare_model_to_mysql():
             if len(intersect_fcst_len) == 0:
                 # no fcst_len in common
                 continue
-
-            result = cluster.query(
-                """SELECT DISTINCT mdata.fcstValidEpoch,
-                    mdata.fcstLen, data_item
-                    FROM mdata
-                    UNNEST mdata.data AS data_item
-                    WHERE mdata.type='DD'
-                        AND mdata.docType="model"
-                        AND mdata.model="HRRR_OPS"
-                        AND mdata.version='V01'
-                        AND mdata.subset='METAR'
-                        AND data_item.name=$station
-                        AND mdata.fcstValidEpoch=$time
-                        AND mdata.fcstLen IN $fcst_lens
-                        ORDER BY mdata.fcstLen""",
-                station=station,
-                time=time,
-                fcst_lens=intersect_fcst_len,
-            )
+            deadline=DT.datetime.now() + DT.timedelta(seconds=60)
+            while True:
+                try:
+                    result = cluster.query(
+                        """SELECT DISTINCT mdata.fcstValidEpoch,
+                            mdata.fcstLen, data_item
+                            FROM mdata
+                            UNNEST mdata.data AS data_item
+                            WHERE mdata.type='DD'
+                                AND mdata.docType="model"
+                                AND mdata.model="HRRR_OPS"
+                                AND mdata.version='V01'
+                                AND mdata.subset='METAR'
+                                AND data_item.name=$station
+                                AND mdata.fcstValidEpoch=$time
+                                AND mdata.fcstLen IN $fcst_lens
+                                ORDER BY mdata.fcstLen""",
+                        station=station,
+                        time=v_time,
+                        fcst_lens=intersect_fcst_len,
+                    )
+                    break
+                except couchbase.exceptions.TimeoutException:
+                    if DT.datetime.now()>=deadline:
+                        raise
+                    time.sleep(5) # don't hammer the server too hard
             cb_model_values = list(result)
 
             format_strings = ",".join(["%s"] * len(intersect_fcst_len))
-            params = [station, time, time]
+            params = [station, v_time, v_time]
             params.extend(intersect_fcst_len)
             statement = (
                 """select m0.*
@@ -341,7 +365,7 @@ def test_compare_model_to_mysql():
                     ), f"TestGsdIngestManager Exception failure for ceiling or visibility: {_e}"
                 print(
                     "time: {0}\t\tfcst_len: {1}\t\tstation:{2}".format(
-                        time, _i, station
+                        v_time, _i, station
                     )
                 )
                 print("field\t\tmysql\t\tcb\t\t\t\tdelta\t\t\tunits")
@@ -512,103 +536,87 @@ def test_compare_model_to_mysql():
                     intersect_data_dict[_i]["mysql"]["press"] is not None
                     and intersect_data_dict[_i]["cb"]["Surface Pressure"] is not None
                 ):
-                    np.testing.assert_allclose(
+                    assert allclose(
                         intersect_data_dict[_i]["mysql"]["press"],
                         intersect_data_dict[_i]["cb"]["Surface Pressure"],
                         atol=1.5,
                         rtol=0,
-                        err_msg="MYSQL Pressure and CB Surface Pressure are not approximately equal",
-                        verbose=True,
-                    )
+                    ), "MYSQL Pressure and CB Surface Pressure are not approximately equal"
                 if (
                     intersect_data_dict[_i]["mysql"]["temp"] is not None
                     and intersect_data_dict[_i]["cb"]["Temperature"] is not None
                 ):
-                    np.testing.assert_allclose(
+                    assert allclose(
                         intersect_data_dict[_i]["mysql"]["temp"],
                         intersect_data_dict[_i]["cb"]["Temperature"],
                         atol=3,
                         rtol=0,
-                        err_msg="MYSQL temp and CB Temperature are not approximately equal",
-                        verbose=True,
-                    )
+                    ), "MYSQL temp and CB Temperature are not approximately equal"
                 if (
                     intersect_data_dict[_i]["mysql"]["dp"] is not None
                     and intersect_data_dict[_i]["cb"]["DewPoint"] is not None
                 ):
-                    np.testing.assert_allclose(
+                    assert allclose(
                         intersect_data_dict[_i]["mysql"]["dp"],
                         intersect_data_dict[_i]["cb"]["DewPoint"],
                         atol=5,
                         rtol=0,
-                        err_msg="MYSQL dp and CB Dew Point are not approximately equal",
-                        verbose=True,
-                    )
+                    ), "MYSQL dp and CB Dew Point are not approximately equal"
                 if (
                     intersect_data_dict[_i]["mysql"]["rh"] is not None
                     and intersect_data_dict[_i]["cb"]["RH"] is not None
                 ):
-                    np.testing.assert_allclose(
+                    assert allclose(
                         intersect_data_dict[_i]["mysql"]["rh"],
                         intersect_data_dict[_i]["cb"]["RH"],
                         atol=20,
                         rtol=0,
-                        err_msg="MYSQL rh and CB RH are not approximately equal",
-                        verbose=True,
-                    )
+                    ), "MYSQL rh and CB RH are not approximately equal"
                 if (
                     intersect_data_dict[_i]["mysql"]["wd"] is not None
                     and intersect_data_dict[_i]["cb"]["WD"] is not None
                 ):
-                    np.testing.assert_allclose(
+                    assert allclose(
                         intersect_data_dict[_i]["mysql"]["wd"],
                         intersect_data_dict[_i]["cb"]["WD"],
                         atol=9999999,
                         rtol=0,
-                        err_msg="MYSQL wd and CB WD are not approximately equal",
-                        verbose=True,
-                    )
+                    ), "MYSQL wd and CB WD are not approximately equal"
                 if (
                     intersect_data_dict[_i]["mysql"]["ws"] is not None
                     and intersect_data_dict[_i]["cb"]["WS"] is not None
                 ):
-                    np.testing.assert_allclose(
+                    assert allclose(
                         intersect_data_dict[_i]["mysql"]["ws"],
                         intersect_data_dict[_i]["cb"]["WS"],
                         atol=3,
                         rtol=0,
-                        err_msg="MYSQL ws and CB WS are not approximately equal",
-                        verbose=True,
-                    )
+                    ), "MYSQL ws and CB WS are not approximately equal"
                 if (
                     intersect_data_dict[_i]["mysql"]["visibility"] is not None
                     and intersect_data_dict[_i]["cb"]["Visibility"] is not None
                 ):
-                    np.testing.assert_allclose(
+                    assert allclose(
                         intersect_data_dict[_i]["mysql"]["visibility"],
                         intersect_data_dict[_i]["cb"]["Visibility"],
                         atol=99999,
                         rtol=0,
-                        err_msg="MYSQL Visibility and CB Visibility are not approximately equal",
-                        verbose=True,
-                    )
+                    ), "MYSQL Visibility and CB Visibility are not approximately equal"
                 if (
                     intersect_data_dict[_i]["mysql"]["ceiling"] is not None
                     and intersect_data_dict[_i]["cb"]["Ceiling"] is not None
                 ):
-                    np.testing.assert_allclose(
+                    assert allclose(
                         intersect_data_dict[_i]["mysql"]["ceiling"],
                         intersect_data_dict[_i]["cb"]["Ceiling"],
                         atol=99999,
                         rtol=0,
-                        err_msg="MYSQL Ceiling and CB Ceiling are not approximately equal",
-                        verbose=True,
-                    )
+                    ), "MYSQL Ceiling and CB Ceiling are not approximately equal"
     except Exception as _e:  # pylint: disable=broad-except
         assert False, f"TestGsdIngestManager Exception failure: {_e}"
 
 
-def test_compare_model_to_mysql_all_stations():
+def test_compare_model_to_mysql_all_stations(allclose):
     """This test attempts to find recent models that match in both the mysql and the CB
     databases and compare them for all stations for one fcstValidEpoch.
     This test isn't likely to succeed unless both the legacy
@@ -708,7 +716,7 @@ def test_compare_model_to_mysql_all_stations():
         )
         units = list(result)[0]
 
-        for time in valid_times:
+        for v_time in valid_times:
             # get the common fcst lengths
             result = cluster.query(
                 """SELECT raw mdata.fcstLen
@@ -722,7 +730,7 @@ def test_compare_model_to_mysql_all_stations():
                         AND data_item.name=$station
                         AND mdata.fcstValidEpoch=$time
                         ORDER BY mdata.fcstLen""",
-                time=time,
+                time=v_time,
                 station=station,
             )
             cb_model_fcst_lens = list(result)
@@ -736,7 +744,7 @@ def test_compare_model_to_mysql_all_stations():
                         AND m0.time >= %s - 1800
                         AND m0.time < %s + 1800
                     ORDER  BY m0.fcst_len; """
-            cursor.execute(statement, (station, time, time))
+            cursor.execute(statement, (station, v_time, v_time))
             mysql_model_fcst_lens_dict = cursor.fetchall()
             mysql_model_fcst_lens = [v["fcst_len"] for v in mysql_model_fcst_lens_dict]
             intersect_fcst_len = [
@@ -761,13 +769,13 @@ def test_compare_model_to_mysql_all_stations():
                         AND mdata.fcstLen IN $fcst_lens
                         ORDER BY mdata.fcstLen""",
                 station=station,
-                time=time,
+                time=v_time,
                 fcst_lens=intersect_fcst_len,
             )
             cb_model_values = list(result)
 
             format_strings = ",".join(["%s"] * len(intersect_fcst_len))
-            params = [station, time, time]
+            params = [station, v_time, v_time]
             params.extend(intersect_fcst_len)
             statement = (
                 """select m0.*
@@ -878,7 +886,7 @@ def test_compare_model_to_mysql_all_stations():
                     ), f"TestGsdIngestManager Exception failure for ceiling or visibility: {_e}"
                 print(
                     "time: {0}\t\tfcst_len: {1}\t\tstation:{2}".format(
-                        time, _i, station
+                        v_time, _i, station
                     )
                 )
                 print("field\t\tmysql\t\tcb\t\t\t\tdelta\t\t\tunits")
@@ -1049,98 +1057,82 @@ def test_compare_model_to_mysql_all_stations():
                     intersect_data_dict[_i]["mysql"]["press"] is not None
                     and intersect_data_dict[_i]["cb"]["Surface Pressure"] is not None
                 ):
-                    np.testing.assert_allclose(
+                    assert allclose(
                         intersect_data_dict[_i]["mysql"]["press"],
                         intersect_data_dict[_i]["cb"]["Surface Pressure"],
                         atol=1.5,
                         rtol=0,
-                        err_msg="MYSQL Pressure and CB Surface Pressure are not approximately equal",
-                        verbose=True,
-                    )
+                    ), "MYSQL Pressure and CB Surface Pressure are not approximately equal"
                 if (
                     intersect_data_dict[_i]["mysql"]["temp"] is not None
                     and intersect_data_dict[_i]["cb"]["Temperature"] is not None
                 ):
-                    np.testing.assert_allclose(
+                    assert allclose(
                         intersect_data_dict[_i]["mysql"]["temp"],
                         intersect_data_dict[_i]["cb"]["Temperature"],
                         atol=3,
                         rtol=0,
-                        err_msg="MYSQL temp and CB Temperature are not approximately equal",
-                        verbose=True,
-                    )
+                    ), "MYSQL temp and CB Temperature are not approximately equal"
                 if (
                     intersect_data_dict[_i]["mysql"]["dp"] is not None
                     and intersect_data_dict[_i]["cb"]["DewPoint"] is not None
                 ):
-                    np.testing.assert_allclose(
+                    assert allclose(
                         intersect_data_dict[_i]["mysql"]["dp"],
                         intersect_data_dict[_i]["cb"]["DewPoint"],
                         atol=5,
                         rtol=0,
-                        err_msg="MYSQL dp and CB Dew Point are not approximately equal",
-                        verbose=True,
-                    )
+                    ), "MYSQL dp and CB Dew Point are not approximately equal"
                 if (
                     intersect_data_dict[_i]["mysql"]["rh"] is not None
                     and intersect_data_dict[_i]["cb"]["RH"] is not None
                 ):
-                    np.testing.assert_allclose(
+                    assert allclose(
                         intersect_data_dict[_i]["mysql"]["rh"],
                         intersect_data_dict[_i]["cb"]["RH"],
                         atol=20,
                         rtol=0,
-                        err_msg="MYSQL rh and CB RH are not approximately equal",
-                        verbose=True,
-                    )
+                    ), "MYSQL rh and CB RH are not approximately equal"
                 if (
                     intersect_data_dict[_i]["mysql"]["wd"] is not None
                     and intersect_data_dict[_i]["cb"]["WD"] is not None
                 ):
-                    np.testing.assert_allclose(
+                    assert allclose(
                         intersect_data_dict[_i]["mysql"]["wd"],
                         intersect_data_dict[_i]["cb"]["WD"],
                         atol=9999999,
                         rtol=0,
-                        err_msg="MYSQL wd and CB WD are not approximately equal",
-                        verbose=True,
-                    )
+                    ), "MYSQL wd and CB WD are not approximately equal"
                 if (
                     intersect_data_dict[_i]["mysql"]["ws"] is not None
                     and intersect_data_dict[_i]["cb"]["WS"] is not None
                 ):
-                    np.testing.assert_allclose(
+                    assert allclose(
                         intersect_data_dict[_i]["mysql"]["ws"],
                         intersect_data_dict[_i]["cb"]["WS"],
                         atol=3,
                         rtol=0,
-                        err_msg="MYSQL ws and CB WS are not approximately equal",
-                        verbose=True,
-                    )
+                    ), "MYSQL ws and CB WS are not approximately equal"
                 if (
                     intersect_data_dict[_i]["mysql"]["visibility"] is not None
                     and intersect_data_dict[_i]["cb"]["Visibility"] is not None
                 ):
-                    np.testing.assert_allclose(
+                    assert allclose(
                         intersect_data_dict[_i]["mysql"]["visibility"],
                         intersect_data_dict[_i]["cb"]["Visibility"],
                         atol=99999,
                         rtol=0,
-                        err_msg="MYSQL Visibility and CB Visibility are not approximately equal",
-                        verbose=True,
-                    )
+                    ), "MYSQL Visibility and CB Visibility are not approximately equal"
                 if (
                     intersect_data_dict[_i]["mysql"]["ceiling"] is not None
                     and intersect_data_dict[_i]["cb"]["Ceiling"] is not None
                 ):
-                    np.testing.assert_allclose(
+                    assert allclose(
                         intersect_data_dict[_i]["mysql"]["ceiling"],
                         intersect_data_dict[_i]["cb"]["Ceiling"],
                         atol=99999,
                         rtol=0,
-                        err_msg="MYSQL Ceiling and CB Ceiling are not approximately equal",
-                        verbose=True,
-                    )
+                    ), "MYSQL Ceiling and CB Ceiling are not approximately equal"
     except Exception as _e:  # pylint: disable=broad-except
         assert False, f"TestGsdIngestManager Exception failure: {_e}"
 

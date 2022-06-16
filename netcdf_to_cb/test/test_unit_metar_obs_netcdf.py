@@ -155,21 +155,25 @@ def test_compare_stations_to_mysql():  # pylint: disable=too-many-locals
             )
             distance = geopyd.distance(coords_1, coords_2).km
             try:
-                assert cb_stations[station_name]["lat"] == pytest.approx(float(mysql_stations[station_name]["lat"]),2),"cb lat {c} does not equal mysql lat {m} for station {s} distance offset is {d} km".format(
-                        c=str(cb_stations[station_name]["lat"]),
-                        m=str(mysql_stations[station_name]["lat"]),
-                        s=station_name,
-                        d=distance,
-                    )
+                assert cb_stations[station_name]["lat"] == pytest.approx(
+                    float(mysql_stations[station_name]["lat"]), 2
+                ), "cb lat {c} does not equal mysql lat {m} for station {s} distance offset is {d} km".format(
+                    c=str(cb_stations[station_name]["lat"]),
+                    m=str(mysql_stations[station_name]["lat"]),
+                    s=station_name,
+                    d=distance,
+                )
             except Exception as _e1:  # pylint:disable=broad-except
                 print("test_compare_stations_to_mysql lat failure: " + str(_e1))
             try:
-                assert cb_stations[station_name]["lon"] == pytest.approx(float(mysql_stations[station_name]["lon"]),2),"cb lon {c} does not equal mysql lon {m} for station {s} distance offset is {d} km".format(
-                        c=str(cb_stations[station_name]["lon"]),
-                        m=str(mysql_stations[station_name]["lon"]),
-                        s=station_name,
-                        d=distance,
-                    )
+                assert cb_stations[station_name]["lon"] == pytest.approx(
+                    float(mysql_stations[station_name]["lon"]), 2
+                ), "cb lon {c} does not equal mysql lon {m} for station {s} distance offset is {d} km".format(
+                    c=str(cb_stations[station_name]["lon"]),
+                    m=str(mysql_stations[station_name]["lon"]),
+                    s=station_name,
+                    d=distance,
+                )
             except Exception as _e1:  # pylint:disable=broad-except
                 print("test_compare_stations_to_mysql lon failure: " + str(_e1))
     except Exception as _e:  # pylint:disable=broad-except
@@ -301,7 +305,8 @@ def test_vxingest_get_file_list():
                 "/tmp/test/f_fred_04",
                 "/tmp/test/f_fred_05",
                 "/tmp/test/f_fred_03",
-            ]), "get_file_list wrong list"
+            ]
+        ), "get_file_list wrong list"
         # update the mtime in the df record so that the file will not be included
         df_record["mtime"] = round(time.time())
         vx_ingest.collection.upsert("DF:metar:grib2:HRRR_OPS:f_fred_01", df_record)
@@ -311,13 +316,14 @@ def test_vxingest_get_file_list():
         )
         files = vx_ingest.get_file_list(query, "/tmp/test", "f_fred_*")
         # should not get f_fred_01 because the DF record has a newer mtime
-        assert set(files) == set (
+        assert set(files) == set(
             [
                 "/tmp/test/f_fred_02",
                 "/tmp/test/f_fred_04",
                 "/tmp/test/f_fred_05",
                 "/tmp/test/f_fred_03",
-            ]), "get_file_list wrong list"
+            ]
+        ), "get_file_list wrong list"
 
     except Exception as _e:  # pylint:disable=broad-except
         assert False, f"test_build_load_job_doc Exception failure: {_e}"

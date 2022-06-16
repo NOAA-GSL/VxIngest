@@ -32,7 +32,6 @@ from ctc_to_cb.run_ingest_threads import VXIngest
 cb_model_obs_data = []
 mysql_model_obs_data = []
 stations = []
-mysql_not_in_stations = []
 
 
 def test_check_fcst_valid_epoch_fcst_valid_iso():
@@ -237,6 +236,10 @@ def calculate_mysql_ctc(epoch, fcst_len, threshold, model, region, obs_table):
 def calculate_mysql_ctc_loop(  # pylint: disable=dangerous-default-value, missing-function-docstring
     epoch, fcst_len, threshold, model, region, obs_table, reject_stations=[]
 ):
+    global mysql_model_obs_data
+    global stations
+    mysql_not_in_stations = []
+
     credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
     assert Path(credentials_file).is_file(), "credentials_file Does not exist"
     _cf = open(credentials_file)
@@ -332,6 +335,9 @@ def calculate_cb_ctc(  # pylint: disable=dangerous-default-value,missing-functio
     region,
     reject_stations=[],
 ):
+    global cb_model_obs_data
+    global stations
+
     credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
     assert Path(credentials_file).is_file(), "credentials_file Does not exist"
     _f = open(credentials_file)
@@ -451,6 +457,10 @@ def test_ctc_builder_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
     algorithms. Use this test more for debugging.
     """
     # noinspection PyBroadException
+    global cb_model_obs_data
+    global mysql_model_obs_data
+    global stations
+
     try:
         cwd = os.getcwd()
         credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
@@ -665,6 +675,10 @@ def test_ctc_builder_hrrr_ops_all_hrrr_compare_model_obs_data():
     is compared and asserted against the mysql CTC.
     """
     # noinspection PyBroadException
+    global cb_model_obs_data
+    global mysql_model_obs_data
+    global stations
+
     try:
         credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
         assert Path(credentials_file).is_file(), "credentials_file Does not exist"
@@ -1142,10 +1156,14 @@ def test_ctc_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
                 for mysql_fcst_len_thrsh in mysql_fcst_len:
                     if mysql_fcst_len_thrsh["trsh"] * 10 == _t:
                         break
-                assert cb_results[cb_index_for_fcst_len]["mdata"]["data"][str(_t)][
-                    "hits"
-                ] == pytest.approx(
-                    mysql_fcst_len_thrsh["hits"], delta=1000
+                assert (
+                    abs(
+                        cb_results[cb_index_for_fcst_len]["mdata"]["data"][str(_t)][
+                            "hits"
+                        ]
+                        - mysql_fcst_len_thrsh["hits"]
+                    )
+                   < 1000
                 ), "mysql hits {mhits} do not match couchbase hits {chits} for fcst_len {f} and threshold {t}".format(
                     mhits=mysql_fcst_len_thrsh["hits"],
                     chits=cb_results[cb_index_for_fcst_len]["mdata"]["data"][str(_t)][
@@ -1154,10 +1172,14 @@ def test_ctc_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
                     f=fcst_len,
                     t=_t,
                 )
-                assert cb_results[cb_index_for_fcst_len]["mdata"]["data"][str(_t)][
-                    "misses"
-                ] == pytest.approx(
-                    mysql_fcst_len_thrsh["misses"], delta=1000
+                assert (
+                    abs(
+                        cb_results[cb_index_for_fcst_len]["mdata"]["data"][str(_t)][
+                            "misses"
+                        ]
+                        - mysql_fcst_len_thrsh["misses"]
+                    )
+                    < 1000
                 ), "mysql misses {mmisses} do not match couchbase misses {cmisses} for fcst_len {f} and threshold {t}".format(
                     mmisses=mysql_fcst_len_thrsh["misses"],
                     cmisses=cb_results[cb_index_for_fcst_len]["mdata"]["data"][str(_t)][
@@ -1166,10 +1188,14 @@ def test_ctc_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
                     f=fcst_len,
                     t=_t,
                 )
-                assert cb_results[cb_index_for_fcst_len]["mdata"]["data"][str(_t)][
-                    "false_alarms"
-                ] == pytest.approx(
-                    mysql_fcst_len_thrsh["false_alarms"], delta=1000
+                assert (
+                    abs(
+                        cb_results[cb_index_for_fcst_len]["mdata"]["data"][str(_t)][
+                            "false_alarms"
+                        ]
+                        - mysql_fcst_len_thrsh["false_alarms"]
+                    )
+                    < 1000
                 ), "mysql false_alarms {mfalse_alarms} do not match couchbase false_alarms {cfalse_alarms} for fcst_len {f} and threshold {t}".format(
                     mfalse_alarms=mysql_fcst_len_thrsh["false_alarms"],
                     cfalse_alarms=cb_results[cb_index_for_fcst_len]["mdata"]["data"][
@@ -1178,10 +1204,14 @@ def test_ctc_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
                     f=fcst_len,
                     t=_t,
                 )
-                assert cb_results[cb_index_for_fcst_len]["mdata"]["data"][str(_t)][
-                    "correct_negatives"
-                ] == pytest.approx(
-                    mysql_fcst_len_thrsh["correct_negatives"], delta=1000
+                assert (
+                    abs(
+                        cb_results[cb_index_for_fcst_len]["mdata"]["data"][str(_t)][
+                            "correct_negatives"
+                        ]
+                        - mysql_fcst_len_thrsh["correct_negatives"]
+                    )
+                    < 1000
                 ), "mysql correct_negatives {mcorrect_negatives} do not match couchbase correct_negatives {ccorrect_negatives} for fcst_len {f} and threshold {t}".format(
                     mcorrect_negatives=mysql_fcst_len_thrsh["correct_negatives"],
                     ccorrect_negatives=cb_results[cb_index_for_fcst_len]["mdata"][

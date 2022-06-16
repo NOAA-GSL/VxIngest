@@ -311,25 +311,21 @@ def test_compare_obs_to_mysql(allclose):
                 intersect_data_dict["cb"]["Surface Pressure"],
                 atol=1,
                 rtol=0,
-                err_msg="MYSQL Pressure and CB Surface Pressure are not approximately equal",
-                verbose=True,
-            )
+            ), "MYSQL Pressure and CB Surface Pressure are not approximately equal"
             assert allclose(
                 intersect_data_dict["mysql"]["temp"],
                 intersect_data_dict["cb"]["Temperature"],
                 atol=3,
                 rtol=0,
-                err_msg="MYSQL temp and CB Temperature are not approximately equal",
-                verbose=True,
-            )
+            ), "MYSQL temp and CB Temperature are not approximately equal"
+
             assert allclose(
                 intersect_data_dict["mysql"]["dp"],
                 intersect_data_dict["cb"]["DewPoint"],
                 atol=2.0,
                 rtol=0,
-                err_msg="MYSQL dp and CB Dew Point are not approximately equal",
-                verbose=True,
-            )
+            ), "MYSQL dp and CB Dew Point are not approximately equal"
+
             if (
                 intersect_data_dict["mysql"]["wd"] is not None
                 and intersect_data_dict["cb"]["WD"] is not None
@@ -339,9 +335,7 @@ def test_compare_obs_to_mysql(allclose):
                     intersect_data_dict["cb"]["WD"],
                     atol=10,
                     rtol=0,
-                    err_msg="MYSQL wd and CB WD are not approximately equal",
-                    verbose=True,
-                )
+                ), "MYSQL wd and CB WD are not approximately equal"
             if (
                 intersect_data_dict["mysql"]["ws"] is not None
                 and intersect_data_dict["cb"]["WS"] is not None
@@ -351,9 +345,7 @@ def test_compare_obs_to_mysql(allclose):
                     intersect_data_dict["cb"]["WS"],
                     atol=10,
                     rtol=0,
-                    err_msg="MYSQL ws and CB WS are not approximately equal",
-                    verbose=True,
-                )
+                ), "MYSQL ws and CB WS are not approximately equal"
             if (
                 intersect_data_dict["mysql"]["visibility"] is not None
                 and intersect_data_dict["cb"]["Visibility"] is not None
@@ -363,9 +355,7 @@ def test_compare_obs_to_mysql(allclose):
                     intersect_data_dict["cb"]["Visibility"],
                     atol=10,
                     rtol=0,
-                    err_msg="MYSQL Visibility and CB Visibility are not approximately equal",
-                    verbose=True,
-                )
+                ), "MYSQL Visibility and CB Visibility are not approximately equal"
             if (
                 intersect_data_dict["mysql"]["ceiling"] is not None
                 and intersect_data_dict["cb"]["Ceiling"] is not None
@@ -375,9 +365,7 @@ def test_compare_obs_to_mysql(allclose):
                     intersect_data_dict["cb"]["Ceiling"],
                     atol=30,
                     rtol=0,
-                    err_msg="MYSQL Ceiling and CB Ceiling are not approximately equal",
-                    verbose=True,
-                )
+                ), "MYSQL Ceiling and CB Ceiling are not approximately equal"
     except Exception as _e:  # pylint: disable=broad-except
         assert False, f"TestGsdIngestManager Exception failure: {_e}"
 
@@ -521,7 +509,7 @@ def test_one_thread_default():
                     "/opt/data/netcdf_to_cb/output/test3/LJ:METAR:netcdf_to_cb.run_ingest_threads:VXIngest:*.json"
                 )
             )
-            == 1
+            >= 1
         ), "there is no load job output file"
 
         # use file globbing to see if we got one output file for each input file plus one load job file

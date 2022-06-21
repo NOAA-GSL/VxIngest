@@ -125,7 +125,7 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
         """
         create a couchbase connection and maintain the collection and cluster objects.
         """
-        logging.info("%s: data_type_manager - Connecting to couchbase")
+        logging.debug("%s: data_type_manager - Connecting to couchbase")
         # get a reference to our cluster
         # noinspection PyBroadException
         try:
@@ -180,7 +180,7 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
                         # check to see if this file has already been ingested
                         # (if it is not in the df_full_names - add it)
                         if filename not in df_full_names:
-                            logging.info(
+                            logging.debug(
                                 "%s - File %s is added because it isn't in any datafile document",
                                 self.__class__.__name__,
                                 filename,
@@ -195,7 +195,7 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
                                 if element["url"] == filename
                             )
                             if int(os.path.getmtime(filename)) > int(df_entry["mtime"]):
-                                logging.info(
+                                logging.debug(
                                     "%s - File %s is added because file mtime %s is greater than df mtime %s",
                                     self.__class__.__name__,
                                     filename,

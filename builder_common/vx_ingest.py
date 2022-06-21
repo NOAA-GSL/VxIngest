@@ -204,7 +204,7 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
                                 )
                                 file_names.append(filename)
                             else:
-                                logging.info(
+                                logging.debug(
                                     "%s - File %s has already been processed - not adding",
                                     self.__class__.__name__,
                                     filename,

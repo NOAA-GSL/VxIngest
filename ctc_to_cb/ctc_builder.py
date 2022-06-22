@@ -739,7 +739,7 @@ class CTCModelObsBuilderV01(CTCBuilder):
                                 self.not_found_station_count + 1
                             )
                             if model_station["name"] not in self.not_found_stations:
-                                logging.info(
+                                logging.debug(
                                     "%s handle_data: model station %s was not found in the available observations.",
                                     self.__class__.__name__,
                                     model_station["name"],

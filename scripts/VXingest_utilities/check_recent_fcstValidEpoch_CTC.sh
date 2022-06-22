@@ -53,12 +53,12 @@ if [ -z "${pwd}" ]; then
   usage
 fi
 
-recent=$(curl -s -u "${user}:${pwd}" http://${host}:8093/query/service  -d "statement=SELECT fcstValidISO, fcstValidEpoch, model FROM mdata WHERE type='DD' AND version='V01' AND subset='${subset}' AND model='${model}' AND docType='CTC' AND subDocType='CEILING' AND fcstValidEpoch > (CLOCK_MILLIS() / 1000) - 3600 * ${hours} order by id desc Limit 1;" | jq -r '.results | .[] | .fcstValidEpoch')
-if [[ -z $recent ]]; then
+recently_added=$(curl -s -u "${user}:${pwd}" http://${host}:8093/query/service  -d "statement=SELECT COUNT(fcstValidEpoch) as recently_added FROM mdata WHERE type='DD' AND version='V01' AND subset='${subset}' AND model='${model}' AND docType='CTC' AND subDocType='CEILING' AND fcstValidEpoch > (CLOCK_MILLIS() / 1000) - 3600 * ${hours};" | jq -r '.results | .[] | .recently_added')
+if [[ -z $recently_added ]]; then
   echo "No recent CEILING CTC documents found for subset ${subset} and model ${model} within the last ${hours} hours."
   exit 1
 else
-  #echo $recent
+  echo $recently_added
   exit 0
 fi
 

@@ -23,7 +23,7 @@ cb_user=$(grep cb_user ${credentials} | awk '{print $2}')
 cb_pwd=$(grep cb_password ${credentials} | awk '{print $2}')
 cred="${cb_user}:${cb_pwd}"
 #get needed models
-models_requiring_metadata=($(curl -s -u ${cred} http://${cb_host}:8093/query/service -d statement='SELECT DISTINCT RAW (SPLIT(meta(mdata).id,":")[3]) model FROM mdata WHERE type="DD" AND docType="CTC" AND subDocType="CEILING" AND version="V01";' | jq -r '.results[]'))
+models_requiring_metadata=($(curl -s -u ${cred} http://${cb_host}:8093/query/service -d statement='SELECT DISTINCT RAW (SPLIT(meta(mdata).id,":")[3]) model FROM mdata WHERE type="DD" AND docType="CTC" AND subDocType="CEILING" AND version="V01" order by model;' | jq -r '.results[]'))
 echo "------models_requiring metadata--${models_requiring_metadata[@]}"
 #get models having metadata but no data (remove metadata for these)
 #(note 'like %' is changed to 'like %25')
@@ -69,8 +69,10 @@ for m in ${models_requiring_metadata[@]}; do
     fi
 done
 
+# get a sorted list of all the models_requiring_metadata
 # now update all the metdata for all the models that require it
-for model in "${models_requiring_metadata[@]}"; do
+for mindx in "${!models_requiring_metadata[@]}"; do
+    model="${models_requiring_metadata[$mindx]}"
     cmd=$(
         cat <<-%EODupdatemetadata
     UPDATE mdata
@@ -100,18 +102,40 @@ for model in "${models_requiring_metadata[@]}"; do
         AND rg.version='V01'
         AND rg.model='${model}'
     ORDER BY r.mdata.region),
-    displayText=(SELECT RAW m.standardizedModelList.${model}
+    --if exists use that value else use model name
+    displayText=(
+        SELECT raw CASE
+        WHEN  m.standardizedModelList.${model} IS NOT NULL
+        THEN m.standardizedModelList.${model}
+        ELSE "${model}"
+        END
         FROM mdata AS m
-        USE KEYS "MD:matsAux:COMMON:V01")[0],
-    displayCategory=(select raw 1)[0],
+        USE KEYS "MD:matsAux:COMMON:V01"
+        )[0],
+    --if it exists in primaryModelOrders should be 1 else use 2
+    displayCategory=(
+        SELECT raw CASE
+        WHEN  m.primaryModelOrders.${model} IS NOT NULL
+        THEN 1
+        ELSE 2
+        END
+        FROM mdata AS m
+        USE KEYS "MD:matsAux:COMMON:V01"
+        )[0],
+    --if it exists in document use that value else use the mindx i.e.
+    -- If the display order is discovered below it will be category 1 and the order comes from the document
+    -- ELSE set the order to the index of the model in models_requiring_metadata and set category to 2
     displayOrder=(
-        WITH k AS
-            ( SELECT RAW m.standardizedModelList.${model}
-            FROM mdata AS m
-            USE KEYS "MD:matsAux:COMMON:V01" )
-        SELECT RAW m.primaryModelOrders.[k[0]].m_order
-        FROM mdata AS m
-        USE KEYS "MD:matsAux:COMMON:V01")[0],
+        WITH k AS (
+            SELECT RAW m.standardizedModelList.${model}
+            FROM mdata AS m USE KEYS "MD:matsAux:COMMON:V01" )
+        SELECT RAW CASE
+        WHEN m.primaryModelOrders.[k[0]].m_order IS NOT NULL
+        THEN m.primaryModelOrders.[k[0]].m_order
+        ELSE ${mindx}
+        END
+        FROM mdata AS m USE KEYS "MD:matsAux:COMMON:V01"
+       )[0],
     mindate=(
         SELECT RAW MIN(mt.fcstValidEpoch) AS mintime
         FROM mdata AS mt

@@ -174,15 +174,34 @@ if [ ! -z "${textfile_dir}" ]; then
     echo "no textfile_dir s[ecified"
     usage
 fi
-
+#Get the error count from the lof file
+error_count=$(grep -i error ${log_file} | wc -l)
 # Get the meta().id pattern that can be used to query
 # for the metadata.cas fieds that have been changed
 # between the start_epoch and the finish_epoch
 pattern=$(get_id_pattern_from_load_spec(${load_spec}))
 metric_name=$(get_metric_name_from_pattern(${pattern}))
-job_start_epoch=start_epoch
-job_stop_epoch=finish_epoch
+log_file=${log_file}
+start_epoch=${start_epoch}
+stop_epoch=${finish_epoch}
 expected_duration_seconds=0
 actual_duration_seconds=$((${job_stop_epoch}-${job_start_epoch}))
-expected_record_count=get_record_count_from_log(${log_file})
+error_count=${error_count}
+intended_record_count=get_record_count_from_log(${log_file})
 recorded_record_count=$(curl -s http://adb-cb1.gsd.esrl.noaa.gov:8093/query/service -u'${cred}' -d "statement="select count(meta().id) from mdata where CEIL(meta().cas / 1000000000) BETWEEN ${start_epoch} AND ${finish_epoch}) AND meta().id like \"${pattern}\";'' | jq -r '.results | .[]'))
+
+tmp_metric_file=/tmp/${metric_name}_$$
+metric_file=${textfile_dir}/${metric_name}
+echo "${metric_name}" > ${tmp_metric_file}
+echo "{"  >> ${tmp_metric_file}
+echo "log_file=${log_file}," >> ${tmp_metric_file}
+echo "start_epoch=${start_epoch}," >> ${tmp_metric_file}
+echo "stop_epoch=${finish_epoch}," >> ${tmp_metric_file}
+echo "expected_duration_seconds=0," >> ${tmp_metric_file}
+echo "actual_duration_seconds=$((${job_stop_epoch}-${job_start_epoch}))," >> ${tmp_metric_file}
+echo "error_count=${error_count}," >> ${tmp_metric_file}
+echo "intended_record_count=get_record_count_from_log(${log_file})," >> ${tmp_metric_file}
+echo "recorded_record_count=$(curl -s http://adb-cb1.gsd.esrl.noaa.gov:8093/query/service -u'${cred}' -d "statement="select count(meta().id) from mdata where CEIL(meta().cas / 1000000000) BETWEEN ${start_epoch} AND ${finish_epoch}) AND meta().id like \"${pattern}\";'' | jq -r '.results | .[]')) >> ${tmp_metric_file}
+echo "exit_code=${exit_code}," >> ${tmp_metric_file}
+echo "}" >> ${tmp_metric_file}
+mv ${tmp_metric_file} ${metric_file}

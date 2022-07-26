@@ -258,9 +258,12 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
                 try:
                     file_name = os.path.basename(file_name) + ".json"
                     complete_file_name = os.path.join(self.output_dir, file_name)
+                    # how many documents are we writing? Log it for alert
+                    num_documents = len(list(document_map.values()))
                     logging.info(
-                        "%s: process_element writing documents into %s",
+                        "%s: process_element writing %s documents into %s",
                         self.thread_name,
+                        num_documents,
                         complete_file_name,
                     )
                     _f = open(complete_file_name, "w")

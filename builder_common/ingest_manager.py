@@ -239,18 +239,18 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
         """
         try:
             logging.info(
-                "%s: process_element writing documents into %s ingest_document :  ",
+                "%s: write_document_to_files output %s ingest_document :  ",
                 self.thread_name,
                 self.output_dir,
             )
             write_start_time = int(time.time())
             logging.info(
-                "process_element - executing write: start time: %s",
+                "write_document_to_files - executing write: start time: %s",
                 str(write_start_time),
             )
             if not document_map:
                 logging.info(
-                    "%s: process_element: would write documents but DOCUMENT_MAP IS EMPTY",
+                    "%s: write_document_to_files: would write documents but DOCUMENT_MAP IS EMPTY",
                     self.thread_name,
                 )
             else:
@@ -261,7 +261,7 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
                     # how many documents are we writing? Log it for alert
                     num_documents = len(list(document_map.values()))
                     logging.info(
-                        "%s: process_element writing %s documents into %s",
+                        "%s: write_document_to_files writing %s documents into %s",
                         self.thread_name,
                         num_documents,
                         complete_file_name,
@@ -271,14 +271,14 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
                     _f.write(json.dumps(list(document_map.values())))
                     _f.close()
                 except Exception as _e1:  # pylint:disable=broad-except
-                    logging.exception("process_element - trying write: Got Exception")
+                    logging.exception("write_document_to_files - trying write: Got Exception")
             write_stop_time = int(time.time())
             logging.info(
-                "process_element - executing file write: stop time: %s",
+                "write_document_to_files - executing file write: stop time: %s",
                 str(write_stop_time),
             )
             logging.info(
-                "process_element - executing file write: elapsed time: %s",
+                "write_document_to_files - executing file write: elapsed time: %s",
                 str(write_stop_time - write_start_time),
             )
         except Exception as _e:  # pylint:disable=broad-except

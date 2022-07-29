@@ -72,11 +72,13 @@ class LoadYamlSpecFile:
                 self.load_spec[k] = self.yaml_data["load_spec"][k]
                 # log message for scraping
                 if k.startswith("ingest_document_id"):
-                    if isinstance(self.yaml_data["load_spec"][k], list):
+                    if k.startswith("ingest_document_ids"):
+                        # plural case - convert to list and iterate
                         id_list = json.loads(self.yaml_data["load_spec"][k])
                         for _l in id_list:
                             logging.info("LoadYamlSpecFile ingest_document_id %s", self.yaml_data["load_spec"][k][_l])
                     else:
+                        # singular case
                         logging.info("LoadYamlSpecFile ingest_document_id %s", self.yaml_data["load_spec"][k])
 
         except Exception:  # pylint: disable=bare-except, disable=broad-except

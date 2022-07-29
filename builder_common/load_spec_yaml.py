@@ -74,9 +74,9 @@ class LoadYamlSpecFile:
                 if k.startswith("ingest_document_id"):
                     if k.startswith("ingest_document_ids"):
                         # plural case - convert to list and iterate
-                        id_list = json.loads(self.yaml_data["load_spec"][k])
+                        id_list = self.yaml_data["load_spec"][k]
                         for _l in id_list:
-                            logging.info("LoadYamlSpecFile ingest_document_id %s", self.yaml_data["load_spec"][k][_l])
+                            logging.info("LoadYamlSpecFile ingest_document_id %s", _l)
                     else:
                         # singular case
                         logging.info("LoadYamlSpecFile ingest_document_id %s", self.yaml_data["load_spec"][k])

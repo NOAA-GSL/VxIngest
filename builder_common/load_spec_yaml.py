@@ -69,8 +69,14 @@ class LoadYamlSpecFile:
             # yaml.dump(self.yaml_data)
             for k in self.yaml_data["load_spec"].keys():
                 self.load_spec[k] = self.yaml_data["load_spec"][k]
+                # log message for scraping
                 if k.startswith("ingest_document_id"):
-                    logging.info("LoadYamlSpecFile found ingest_document_id %s:%s",k, self.yaml_data["load_spec"][k])
+                    if isinstance(self.yaml_data["load_spec"][k], list):
+                        for _l in self.yaml_data["load_spec"][k]:
+                            logging.info("LoadYamlSpecFile ingest_document_id %s", self.yaml_data["load_spec"][k][_l])
+                    else:
+                        logging.info("LoadYamlSpecFile ingest_document_id %s", self.yaml_data["load_spec"][k])
+
         except Exception:  # pylint: disable=bare-except, disable=broad-except
             logging.error("*** %s in read yaml ***", sys.exc_info()[0])
             sys.exit("*** Error(s) found while reading YAML file!")

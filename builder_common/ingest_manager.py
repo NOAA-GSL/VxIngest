@@ -101,7 +101,7 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
         create a couchbase connection and maintain the collection and cluster objects.
         See the note at the top of vx_ingest.py for an explanation of why this seems redundant.
         """
-        logging.info("%s: data_type_manager - Connecting to couchbase")
+        logging.info("data_type_manager - Connecting to couchbase")
         # get a reference to our cluster
         # noinspection PyBroadException
         try:
@@ -118,7 +118,7 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
             # stash the database connection for the builders to reuse
             self.load_spec["cluster"] = self.cluster
             self.load_spec["collection"] = self.collection
-            logging.info("%s: Couchbase connection success")
+            logging.info("Couchbase connection success")
         except Exception as _e:  # pylint:disable=broad-except
             logging.error("*** %s in connect_cb ***", str(_e))
             sys.exit("*** Error when connecting to cb database: ")

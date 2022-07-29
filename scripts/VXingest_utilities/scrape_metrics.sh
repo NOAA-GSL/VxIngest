@@ -182,7 +182,6 @@ error_count=$(grep -i error ${log_file} | wc -l)
 # for the metadata.cas fieds that have been changed
 # between the start_epoch and the finish_epoch
 document_id_pattern=$(get_id_pattern_from_load_spec ${load_spec})
-echo "document_id_pattern is ${document_id_pattern}"
 
 # Get the metric name from the pattern
 metric_name=$(get_metric_name_from_pattern ${document_id_pattern})
@@ -192,7 +191,9 @@ actual_duration_seconds=$((stop_epoch-finish_epoch))
 error_count=${error_count}
 intended_record_count=$(get_record_count_from_log "${log_file}")
 # NOTE: curl URL's don't like '%' or ';' characters. replace them with '%25' and '%3B' respectively (you can leave the ';' at the end of the statement off, actually)
-recorded_record_count=$(curl -s http://adb-cb1.gsd.esrl.noaa.gov:8093/query/service -u"${cred}" -d "statement=select count(meta().id) from mdata where CEIL(meta().cas / 1000000000) BETWEEN ${start_epoch} AND ${finish_epoch} AND meta().id like \"${pattern}\"" | jq -r '.results | .[]')
+set -x
+recorded_record_count=$(curl -s http://adb-cb1.gsd.esrl.noaa.gov:8093/query/service -u"${cred}" -d "statement=select count(meta().id) from mdata where CEIL(meta().cas / 1000000000) BETWEEN ${start_epoch} AND ${finish_epoch} AND meta().id like \"${document_id_pattern}\"" | jq -r '.results | .[]')
+set +x
 tmp_metric_file=/tmp/${metric_name}_$$
 metric_file=${textfile_dir}/${metric_name}
 echo "${metric_name}" > ${tmp_metric_file}

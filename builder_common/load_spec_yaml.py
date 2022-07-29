@@ -18,6 +18,7 @@ Colorado, NOAA/OAR/ESRL/GSD
 
 import logging
 import sys
+import json
 from pathlib import Path
 
 import yaml
@@ -72,7 +73,8 @@ class LoadYamlSpecFile:
                 # log message for scraping
                 if k.startswith("ingest_document_id"):
                     if isinstance(self.yaml_data["load_spec"][k], list):
-                        for _l in self.yaml_data["load_spec"][k]:
+                        id_list = json.loads(self.yaml_data["load_spec"][k])
+                        for _l in id_list:
                             logging.info("LoadYamlSpecFile ingest_document_id %s", self.yaml_data["load_spec"][k][_l])
                     else:
                         logging.info("LoadYamlSpecFile ingest_document_id %s", self.yaml_data["load_spec"][k])

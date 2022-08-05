@@ -32,8 +32,12 @@ echo "netcdf obs and stations"
 outdir="/data/netcdf_to_cb/output/${pid}"
 mkdir $outdir
 runtime=`date +\%Y-\%m-\%d:\%H:\%M:\%S`
-python ${clonedir}/netcdf_to_cb/run_ingest_threads.py -s /data/netcdf_to_cb/load_specs/load_spec_netcdf_metar_obs_V01.yaml -c ~/adb-cb1-credentials -p /public/data/madis/point/metar/netcdf -m %Y%m%d_%H%M -o $outdir -t8 > /home/amb-verif/VxIngest/logs/load_spec_netcdf_metar_obs_V01-${runtime}
-${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p $outdir -n 8 -l ${clonedir}/logs > /home/amb-verif/VxIngest/logs/import-load_spec_netcdf_metar_obs_V01-${runtime}
+python ${clonedir}/netcdf_to_cb/run_ingest_threads.py -s /data/netcdf_to_cb/load_specs/load_spec_netcdf_metar_obs_V01.yaml -c ~/adb-cb1-credentials -p /public/data/madis/point/metar/netcdf -m %Y%m%d_%H%M -o $outdir -t8 > /home/amb-verif/VxIngest/logs/load_spec_netcdf_metar_obs_V01-${runtime}.log 2>&1
+exit_code=$?
+echo "exit_code:${exit_code}" >> /home/amb-verif/VxIngest/logs/load_spec_netcdf_metar_obs_V01-${runtime}.log
+${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p $outdir -n 8 -l ${clonedir}/logs > /home/amb-verif/VxIngest/logs/import-load_spec_netcdf_metar_obs_V01-${runtime}.log 2>&1
+exit_code=$?
+echo "exit_code:${exit_code}" >> /home/amb-verif/VxIngest/logs/import-load_spec_netcdf_metar_obs_V01-${runtime}.log
 
 echo "--------"
 echo "models"
@@ -42,16 +46,24 @@ echo "hrrr_ops"
 outdir="/data/grib2_to_cb/hrrr_ops/output/${pid}"
 mkdir $outdir
 runtime=`date +\%Y-\%m-\%d:\%H:\%M:\%S`
-python ${clonedir}/grib2_to_cb/run_ingest_threads.py -s /data/grib2_to_cb/load_specs/load_spec_grib_metar_hrrr_ops_V01.yaml -c ~/adb-cb1-credentials -p /public/data/grids/hrrr/conus/wrfprs/grib2 -m %y%j%H%f -o $outdir -t8 >  /home/amb-verif/VxIngest/logs/load_spec_grib_metar_hrrr_ops_V01-${runtime}
-${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p $outdir -n 8 -l ${clonedir}/logs > /home/amb-verif/VxIngest/logs/import-load_spec_grib_metar_hrrr_ops_V01-${runtime}
+python ${clonedir}/grib2_to_cb/run_ingest_threads.py -s /data/grib2_to_cb/load_specs/load_spec_grib_metar_hrrr_ops_V01.yaml -c ~/adb-cb1-credentials -p /public/data/grids/hrrr/conus/wrfprs/grib2 -m %y%j%H%f -o $outdir -t8 >  /home/amb-verif/VxIngest/logs/load_spec_grib_metar_hrrr_ops_V01-${runtime}.log 2>&1
+exit_code=$?
+echo "exit_code:${exit_code}" >> /home/amb-verif/VxIngest/logs/load_spec_grib_metar_hrrr_ops_V01-${runtime}.log
+${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p $outdir -n 8 -l ${clonedir}/logs > /home/amb-verif/VxIngest/logs/import-load_spec_grib_metar_hrrr_ops_V01-${runtime}.log 2>&1
+exit_code=$?
+echo "exit_code:${exit_code}" >> /home/amb-verif/VxIngest/logs/import-load_spec_grib_metar_hrrr_ops_V01-${runtime}.log
 
 echo "*************************************"
 echo "rap_ops_130"
 outdir="/data/grib2_to_cb/rap_ops_130/output/${pid}"
 mkdir $outdir
 runtime=`date +\%Y-\%m-\%d:\%H:\%M:\%S`
-python ${clonedir}/grib2_to_cb/run_ingest_threads.py -s /data/grib2_to_cb/load_specs/load_spec_grib_metar_rap_ops_130_V01.yaml -c ~/adb-cb1-credentials -p /public/data/grids/rap/iso_130/grib2 -m %y%j%H%f -o $outdir -t8 > /home/amb-verif/VxIngest/logs/load_spec_grib_metar_rap_ops_130_V01-${runtime}
-${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p $outdir -n 8 -l ${clonedir}/logs > /home/amb-verif/VxIngest/logs/import-load_spec_grib_metar_rap_ops_130_V01-${runtime}
+python ${clonedir}/grib2_to_cb/run_ingest_threads.py -s /data/grib2_to_cb/load_specs/load_spec_grib_metar_rap_ops_130_V01.yaml -c ~/adb-cb1-credentials -p /public/data/grids/rap/iso_130/grib2 -m %y%j%H%f -o $outdir -t8 > /home/amb-verif/VxIngest/logs/load_spec_grib_metar_rap_ops_130_V01-${runtime}.log 2>&1
+exit_code=$?
+echo "exit_code:${exit_code}" >> /home/amb-verif/VxIngest/logs/load_spec_grib_metar_rap_ops_130_V01-${runtime}.log
+${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p $outdir -n 8 -l ${clonedir}/logs > /home/amb-verif/VxIngest/logs/import-load_spec_grib_metar_rap_ops_130_V01-${runtime}.log 2>&1
+exit_code=$?
+echo "exit_code:${exit_code}" >> /home/amb-verif/VxIngest/logs/import-load_spec_grib_metar_rap_ops_130_V01-${runtime}.log
 
 echo "--------"
 echo "ctc's"
@@ -60,14 +72,20 @@ echo "hrrr_ops rap_ops_130"
 outdir="/data/ctc_to_cb/output/${pid}"
 mkdir $outdir
 runtime=`date +\%Y-\%m-\%d:\%H:\%M:\%S`
-python ${clonedir}/ctc_to_cb/run_ingest_threads.py -s /data/ctc_to_cb/load_specs/load_spec_metar_ctc_V01.yaml  -c ~/adb-cb1-credentials -o $outdir -t8 > /home/amb-verif/VxIngest/logs/load_spec_metar_ctc_V01-${runtime}
-${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p $outdir -n 8 -l ${clonedir}/logs > /home/amb-verif/VxIngest/logs/import-load_spec_metar_ctc_V01-${runtime}
+python ${clonedir}/ctc_to_cb/run_ingest_threads.py -s /data/ctc_to_cb/load_specs/load_spec_metar_ctc_V01.yaml  -c ~/adb-cb1-credentials -o $outdir -t8 > /home/amb-verif/VxIngest/logs/load_spec_metar_ctc_V01-${runtime}.log 2>&1
+exit_code=$?
+echo "exit_code:${exit_code}" >> /home/amb-verif/VxIngest/logs/load_spec_metar_ctc_V01-${runtime}.log
+${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p $outdir -n 8 -l ${clonedir}/logs > /home/amb-verif/VxIngest/logs/import-load_spec_metar_ctc_V01-${runtime}.log 2>&1
+exit_code=$?
+echo "exit_code:${exit_code}" >> /home/amb-verif/VxIngest/logs/import-load_spec_metar_ctc_V01-${runtime}.log
 
 echo "--------"
 date
 echo "*************************************"
 echo "update metadata"
 runtime=`date +\%Y-\%m-\%d:\%H:\%M:\%S`
-${clonedir}/mats_metadata_and_indexes/metadata_files/update_ceiling_mats_metadata.sh ~/adb-cb1-credentials > /home/amb-verif/VxIngest/logs/update_ceiling_mats_metadata-${runtime}
+${clonedir}/mats_metadata_and_indexes/metadata_files/update_ceiling_mats_metadata.sh ~/adb-cb1-credentials > /home/amb-verif/VxIngest/logs/update_ceiling_mats_metadata-${runtime}.log 2>&1
+exit_code=$?
+echo "exit_code:${exit_code}" >> /home/amb-verif/VxIngest/logs/update_ceiling_mats_metadata-${runtime}.log
 echo "FINISHED"
 date

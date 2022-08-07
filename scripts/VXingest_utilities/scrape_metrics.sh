@@ -2,17 +2,17 @@
 
 function is_epoch_rational {
     if [ -z "$1" ]; then
-        echo "ERROR: no start epoch specified"
+        echo "is_epoch_rational: ERROR: no epoch specified"
         usage
     fi
 
     if [ $1 -lt $(($(date +%s)-3600*24)) ]; then
-        echo "ERROR: irrational epoch - prior to yesterday at this time"
+        echo "is_epoch_rational: ERROR: irrational epoch - prior to yesterday at this time"
         usage
     fi
 
     if [ $1 -gt $(date +%s) ]; then
-        echo "ERROR: irrational epoch - beyond current time"
+        echo "is_epoch_rational: ERROR: irrational epoch - beyond current time"
         usage
     fi
 return 0
@@ -25,11 +25,11 @@ function derive_pattern_from_ids {
     # find the fields (':'seperated) that are not common
     # throught the list and substitute those fields with a "%25 (special char for %)" and return
     # that pattern.
-    ids=$1
+    ids=("$@")
     # get the number of columns in these ingest_ids - just use the first one as they should all be the same
     num_columns=$(echo ${ids[0]} | awk -F ":" '{print NF}')
     differing_columns=()
-    # find the columns that do not match for all the ingest ids
+    # find the columns that do not match for all the ingest ids - create an array of the differing column numbers
     for i in $(seq 1 $num_columns)
         do
             if [[ $(printf "%s\n" "${ids[@]}" | awk -F":" -vvar=$i '{print $var}' | awk '{$1=$1};1' | sort | uniq | wc -l) -ne 1 ]]
@@ -39,72 +39,23 @@ function derive_pattern_from_ids {
         done
     # now that we have the differing columns use the first id and replace the differing_columns with "%25 (special char for %)"
     pattern=${ids[0]}
-    for i in $differing_columns
+    for i in ${differing_columns[@]}
     do
-        pattern=$(echo $pattern | awk -F ":" -vfield=5 'BEGIN { OFS=":" }{$field="%25"; print}')
+        pattern=$(echo $pattern | awk -F ":" -vfield=$i 'BEGIN { OFS=":" }{$field="%25"; print}')
     done
-    echo ${pattern} | sed 's/:[&*].*$/:%25/g'
-}
-
-function get_id_pattern_from_load_spec {
-    # Given a load spec this routine will get the metadata ids from the load spec,
-    # if there are multiple type MD ids it will derive a common pattern for those
-    # metadata ids and substitute the differing fields with "%25 (special char for %)
-    # so that the common pattern can be used in an SQL++ query with a like statement.
-
-    load_spec_file=$1
-    # get the ingest documents from the load_spec - they are keyed with either "ingest_document_id"
-    # for singular ones or "ingest_document_ids" for pural ones.
-    # get the id field from the load_spec - these are ingest documents.
-    # the ingest_ids for the id_field might be plural or singular (awk '{$1=$1};1' strips white space)
-    id_field=$(grep ingest_document $load_spec_file | awk -F":" '{print $1}' | awk '{$1=$1};1')
-    md_ids=()
-    if [[ ${id_field} == "ingest_document_ids" ]];then 
-        IFS=', ' read -r -a md_ids <<< $(${HOME}/VXingest/scripts/VXingest_utilities/yq -r ".load_spec.${id_field}[]" ${load_spec_file})
-    else
-        IFS=', ' read -r -a md_ids <<< $(${HOME}/VXingest/scripts/VXingest_utilities/yq -r ".load_spec.${id_field}" ${load_spec_file})
-    fi
-    # if there are no md_ids just leave
-    if [[ ${#md_ids[@]} -eq 0 ]]; then
-        echo "ERROR: no ingest document ids to process"
-        exit 1
-    fi
-
-    # if there is only one md_ids use that, no need for an id pattern
-    if [[ ${#md_ids[@]} -eq 1 ]]; then
-        md_pattern="${md_ids[0]}"
-    else
-        md_pattern=$(derive_pattern_from_ids ${md_ids})
-    fi
-    #now get the DD document template ids for the pattern of all of the ingest documents from the load_spec
-    # NOTE: curl URL's don't like '%' or ';' characters. replace them with '%25' and '%3B' respectively (you can leave the ';' at the end of the statement off, actually)
-    template_ids=()
-    IFS=', ' read -r -a template_ids <<< $(curl -s http://adb-cb1.gsd.esrl.noaa.gov:8093/query/service -u"${cred}" -d "statement=select raw template.id from mdata where meta().id like \"${md_pattern}\"" | jq -r '.results | .[]' | sed 's/:[&*].*$/:%25/g')
-    template_pattern=$(derive_pattern_from_ids ${template_ids})
-    echo ${template_pattern}
-}
-
-function get_metric_name_from_pattern {
-    pattern=$1
-    hostname=$(hostname -s)
-    metric_name=$(echo ${pattern} | sed 's/:/_/g' | sed 's/%25/_wc_/g')
-    # add hostname
-    metric_name="${metric_name}_${hostname}"
-    echo ${metric_name}
+    echo ${pattern}
 }
 
 function get_record_count_from_log(){
     log_file=$1
     num_docs=0
-    num_docs=$(grep "write_document_to_files writing .* documents" $log_file | awk '{Total=Total+$4} END{print Total}')
+    num_docs=$(grep "write_document_to_files writing .* documents" $log_file | wc -l)
     echo $num_docs
 }
 
 function usage {
-  echo "Usage $0 -c credentials-file -s start_epoch -f finish_epoch -l log_file -L load_spec -t textfile directory -e exit code"
+  echo "Usage $0 -c credentials-file -l log_file -d textfile directory"
   echo "The credentials-file specifies cb_host, cb_user, and cb_password."
-  echo "The start and finish epochs should be in seconds"
-  echo "Thee metric name is the name used in the generated metrics as well as the prefix of the file name."
   echo "Metrics will be written into the textfile directory (-t)"
   echo "The load spec should be the load_spec file with its full path that was used for the ingest process"
   echo "The scrape_metrics.sh script scans the log for the intended_record_count, and any errors,"
@@ -112,7 +63,7 @@ function usage {
   exit 1
 }
 
-while getopts 'c:s:f:l:L:t:e:' param; do
+while getopts 'c:l:d:' param; do
   case "${param}" in
   c)
     credentials_file=${OPTARG}
@@ -125,12 +76,6 @@ while getopts 'c:s:f:l:L:t:e:' param; do
     cb_pwd=$(grep cb_password ${credentials_file} | awk '{print $2}')
     cred="${cb_user}:${cb_pwd}"
     ;;
-  s)
-    start_epoch=${OPTARG}
-    ;;
-  f)
-    finish_epoch=${OPTARG}
-    ;;
   l)
     log_file=${OPTARG}
     if [[ ! -f "${log_file}" ]]; then
@@ -138,22 +83,12 @@ while getopts 'c:s:f:l:L:t:e:' param; do
       usage
     fi
     ;;
-  L)
-    load_spec=${OPTARG}
-    if [[ ! -f "${load_spec}" ]]; then
-      echo "ERROR: load spec file ${load_spec} does not exist"
-      usage
-    fi
-    ;;
-  t)
+  d)
     textfile_dir=${OPTARG}
     if [[ ! -d "${textfile_dir}" ]]; then
       echo "ERROR: text file directory ${textfile_dir} does not exist"
       usage
     fi
-    ;;
-  e)
-    exit_code=${OPTARG}
     ;;
   *)
     echo "ERROR: wrong parameter, I don't do ${param}"
@@ -162,50 +97,81 @@ while getopts 'c:s:f:l:L:t:e:' param; do
   esac
 done
 
-if [ -z "${start_epoch}" ]; then
-    is_epoch_rational ${start_epoch}
-fi
-
-if [ -z "${finish_epoch}" ]; then
-    is_epoch_rational ${finish_epoch}
-fi
-
 if [ -z "${textfile_dir}" ]; then
     echo "ERROR: no textfile_dir specified"
     usage
 fi
 
-#Get the error count from the g file
+metric_name=$(grep 'metric_name' ${log_file} | awk '{print $2}')
+start_epoch=$(date -d "$(grep -A1 Start ${log_file} | tail -n1 | awk '{print $3." "$4}')" +"%s")
+is_epoch_rational ${start_epoch}
+
+finish_epoch=$(date -d "$(grep -B2 FINISHED ${log_file} | head -n1 | awk '{print $3" "$4}')" +"%s")
+is_epoch_rational ${finish_epoch}
+
+#Get the error count from the log file
 error_count=$(grep -i error ${log_file} | wc -l)
 
-# Get the meta().id pattern that can be used to query
-# for the metadata.cas fieds that have been changed
-# between the start_epoch and the finish_epoch
-document_id_pattern=$(get_id_pattern_from_load_spec ${load_spec})
+#Get the exit code from the log file
+exit_code=$(grep exit_code ${log_file} | cut -d':' -f2)
 
-# Get the metric name from the pattern
-metric_name=$(get_metric_name_from_pattern ${document_id_pattern})
-
+# get the list of data document ids by greping "adding document DD:" from the log and awking the 5th param
+# and determine the common pattern  
+dids=()
+IFS=$'\r\n' dids=($(grep 'adding document DD:' ${log_file} | grep 'DD:' | awk  '{print $5}'))
+document_id_pattern=$(derive_pattern_from_ids "${dids[@]}")
+# do not know how to do that yet, perhaps from the prior metrics - actual_duration_seconds?
 expected_duration_seconds=0
-actual_duration_seconds=$((stop_epoch-finish_epoch))
+actual_duration_seconds=$((finish_epoch - start_epoch))
 error_count=${error_count}
+
+# the cas meta field in couchbase is going to reflect the time that a document was imported, not when it was created.
+# We need to get the start and stop epochs from the corresponding import log
+start_import_epoch=$(grep Start "$(dirname $log_file)/import-$(basename $log_file)" | awk '{print $2}')
+finish_import_epoch=$(grep Stop "$(dirname $log_file)/import-$(basename $log_file)" | awk '{print $2}')
+# add 60 seconds for latency?
+finish_import_epoch=$((finish_import_epoch + 60))
 intended_record_count=$(get_record_count_from_log "${log_file}")
 # NOTE: curl URL's don't like '%' or ';' characters. replace them with '%25' and '%3B' respectively (you can leave the ';' at the end of the statement off, actually)
-set -x
-recorded_record_count=$(curl -s http://adb-cb1.gsd.esrl.noaa.gov:8093/query/service -u"${cred}" -d "statement=select count(meta().id) from mdata where CEIL(meta().cas / 1000000000) BETWEEN ${start_epoch} AND ${finish_epoch} AND meta().id like \"${document_id_pattern}\"" | jq -r '.results | .[]')
-set +x
+if [[ -z $start_import_epoch ]] || [[ -z $finish_import_epoch ]]; then
+	# there wasn't any start or finish time in the import - no records to import
+	recorded_record_count=0
+else
+	recorded_record_count=$(curl -s http://adb-cb1.gsd.esrl.noaa.gov:8093/query/service -u"${cred}" -d "statement=select raw count(meta().id) from mdata where CEIL(meta().cas / 1000000000) BETWEEN ${start_import_epoch} AND ${finish_import_epoch} AND meta().id like \"${document_id_pattern}\"" | jq -r '.results | .[]')
+fi
 tmp_metric_file=/tmp/${metric_name}_$$
-metric_file=${textfile_dir}/${metric_name}
-echo "${metric_name}" > ${tmp_metric_file}
-echo "{"  >> ${tmp_metric_file}
-echo "log_file=${log_file}," >> ${tmp_metric_file}
-echo "start_epoch=${start_epoch}," >> ${tmp_metric_file}
-echo "stop_epoch=${finish_epoch}," >> ${tmp_metric_file}
-echo "expected_duration_seconds=0," >> ${tmp_metric_file}
-echo "actual_duration_seconds=${actual_duration_seconds}," >> ${tmp_metric_file}
-echo "error_count=${error_count}," >> ${tmp_metric_file}
-echo "intended_record_count=${intended_record_count}," >> ${tmp_metric_file}
-echo "recorded_record_count=${recorded_record_count}," >> ${tmp_metric_file}
-echo "exit_code=${exit_code}" >> ${tmp_metric_file}
-echo "}" >> ${tmp_metric_file}
+record_count_difference=$((recorded_record_count - intended_record_count))
+metric_file=${textfile_dir}/${metric_name}.prom
+metric_name=$(echo "${metric_name}" | tr '[:upper:]' '[:lower:]')
+
+#job_v01_metar_grib2_model_rap_ops_130_adb_cb1_run_time{log_file="/home/amb-verif/VxIngest/logs/load_spec_grib_metar_rap_ops_130_V01-2022-08-07:17:02:14.log"} 1659891775000
+#job_v01_metar_grib2_model_rap_ops_130_adb_cb1_start_epoch 1659891735
+#job_v01_metar_grib2_model_rap_ops_130_adb_cb1_stop_epoch 1659891775
+#job_v01_metar_grib2_model_rap_ops_130_adb_cb1_expected_duration_seconds 0
+#job_v01_metar_grib2_model_rap_ops_130_adb_cb1_actual_duration_seconds 40
+#job_v01_metar_grib2_model_rap_ops_130_adb_cb1_error_count 0
+#job_v01_metar_grib2_model_rap_ops_130_adb_cb1_intended_record_count 22
+#job_v01_metar_grib2_model_rap_ops_130_adb_cb1_recorded_record_count 22
+#job_v01_metar_grib2_model_rap_ops_130_adb_cb1_record_count_difference 0
+#job_v01_metar_grib2_model_rap_ops_130_adb_cb1_exit_code 1
+
+
+
+echo "${metric_name}_run_time{log_file=\"${log_file}\"} $((start_epoch * 1000))" > ${tmp_metric_file}
+echo "${metric_name}_start_epoch ${start_epoch}" >> ${tmp_metric_file}
+echo "${metric_name}_stop_epoch ${finish_epoch}" >> ${tmp_metric_file}
+echo "${metric_name}_expected_duration_seconds 0" >> ${tmp_metric_file}
+echo "${metric_name}_actual_duration_seconds ${actual_duration_seconds}" >> ${tmp_metric_file}
+echo "${metric_name}_error_count ${error_count}" >> ${tmp_metric_file}
+echo "${metric_name}_intended_record_count ${intended_record_count}" >> ${tmp_metric_file}
+echo "${metric_name}_recorded_record_count ${recorded_record_count}" >> ${tmp_metric_file}
+echo "${metric_name}_record_count_difference ${record_count_difference}" >> ${tmp_metric_file}
+echo "${metric_name}_exit_code ${exit_code}" >> ${tmp_metric_file}
 mv ${tmp_metric_file} ${metric_file}
+# archive the log_file
+dirname_log_file=$(dirname ${log_file})
+basename_log_file=$(basename ${log_file})
+import_log_file="${dirname_log_file}/import-${basename_log_file}"
+mv ${log_file} ${dirname_log_file}/archive
+# archive the import log_file
+mv ${import_log_file} ${dirname_log_file}/archive

@@ -1148,18 +1148,14 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus():
         # 1632423600  September 23, 2021 19:00:00 2126617000001
         # first_epoch = 1634252400 - 10
         # last_epoch = 1634252400 + 10
-        cwd = os.getcwd()
         credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
-        spec_file = (
-            cwd + "/grib2_to_cb/test/test_load_spec_grib_metar_hrrr_ops_V01.yaml"
-        )
         # remove output files
         for _f in glob("/opt/data/grib2_to_cb/output/test1/*.json"):
             os.remove(_f)
         vx_ingest = VXIngest()
         vx_ingest.runit(
             {
-                "spec_file": spec_file,
+                "job_id": "JOB:V01:METAR:GRIB2:MODEL:HRRR",
                 "credentials_file": credentials_file,
                 "path": "/opt/public/data/grids/hrrr/conus/wrfprs/grib2",
                 "file_name_mask": "%y%j%H%f",
@@ -1190,18 +1186,14 @@ def test_grib_builder_two_threads_file_pattern_hrrr_ops_conus():
         # 1632423600  September 23, 2021 19:00:00 2126617000001
         # first_epoch = 1634252400 - 10
         # last_epoch = 1634252400 + 10
-        cwd = os.getcwd()
         credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
-        spec_file = (
-            cwd + "/grib2_to_cb/test/test_load_spec_grib_metar_hrrr_ops_V01.yaml"
-        )
         # remove output files
         for _f in glob("/opt/data/grib2_to_cb/output/test2/*.json"):
             os.remove(_f)
         vx_ingest = VXIngest()
         vx_ingest.runit(
             {
-                "spec_file": spec_file,
+                "job_id": "JOB:V01:METAR:GRIB2:MODEL:HRRR",
                 "credentials_file": credentials_file,
                 "path": "/opt/public/data/grids/hrrr/conus/wrfprs/grib2",
                 "file_name_mask": "%y%j%H%f",
@@ -1231,15 +1223,11 @@ def test_grib_builder_verses_script():  # pylint: disable=too-many-locals, too-m
         # list_of_input_files = glob('/opt/public/data/grids/hrrr/conus/wrfprs/grib2/*')
         # latest_input_file = max(list_of_input_files, key=os.path.getctime)
         # file_utc_time = datetime.datetime.strptime(os.path.basename(latest_input_file), '%y%j%H%f')
-        cwd = os.getcwd()
         credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
-        spec_file = (
-            cwd + "/grib2_to_cb/test/test_load_spec_grib_metar_hrrr_ops_V01.yaml"
-        )
         vx_ingest = VXIngest()
         vx_ingest.runit(
             {
-                "spec_file": spec_file,
+                "job_id": "JOB:V01:METAR:GRIB2:MODEL:HRRR",
                 "credentials_file": credentials_file,
                 "path": "/opt/public/data/grids/hrrr/conus/wrfprs/grib2",
                 "file_name_mask": "%y%j%H%f",
@@ -1337,11 +1325,13 @@ def test_grib_builder_verses_script():  # pylint: disable=too-many-locals, too-m
             == vx_ingest_output_data[0]["fcstValidISO"]
         ), "expected fcstValidISO and derived fcstValidISO are not the same"
         expected_station_data["id"] = (
-            "DD-TEST:V01:METAR:HRRR_OPS:"
+            "DD:V01:METAR:HRRR_OPS:"
             + str(expected_station_data["fcstValidEpoch"])
             + ":"
             + str(grbm.forecastTime)
         )
+        # NOTE: This test was originally supposed to use a test job-spec.
+        # which would retrieve "DD-TEST:V01:METAR:HRRR_OPS:"
         assert (
             expected_station_data["id"] == vx_ingest_output_data[0]["id"]
         ), "expected id and derived id are not the same"

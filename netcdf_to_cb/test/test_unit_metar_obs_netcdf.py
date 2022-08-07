@@ -12,7 +12,6 @@ import numpy as np
 import pymysql
 import pytest
 import yaml
-from builder_common.load_spec_yaml import LoadYamlSpecFile
 from couchbase.cluster import MutationState, QueryOptions, QueryScanConsistency
 from netcdf_to_cb.netcdf_builder import NetcdfMetarObsBuilderV01
 from netcdf_to_cb.run_ingest_threads import VXIngest
@@ -54,17 +53,11 @@ def setup_mysql_connection():
 def setup_connection():
     """test setup"""
     try:
-        cwd = os.getcwd()
         _vx_ingest = VXIngest()
-        _vx_ingest.spec_file = (
-            cwd + "/netcdf_to_cb/test/test_load_spec_netcdf_metar_obs_V01.yaml"
-        )
         _vx_ingest.credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
-        _load_spec_file = LoadYamlSpecFile({"spec_file": _vx_ingest.spec_file})
-        # read in the load_spec file
-        _vx_ingest.load_spec = dict(_load_spec_file.read())
         _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
         _vx_ingest.connect_cb()
+        _vx_ingest.load_spec['ingest_document_ids'] = _vx_ingest.collection.get("JOB:V01:METAR:NETCDF:OBS").content["ingest_document_ids"]
         return _vx_ingest
     except Exception as _e:  # pylint:disable=broad-except
         assert False, f"test_credentials_and_load_spec Exception failure: {_e}"
@@ -204,7 +197,6 @@ def test_build_load_job_doc():
         vx_ingest.load_job_id = "test_id"
         vx_ingest.path = "/tmp"
         vx_ingest.load_spec["load_job_doc"] = {"test": "a line of text"}
-        vx_ingest.spec_file = "/tmp/test_file"
         ljd = vx_ingest.build_load_job_doc(vx_ingest.path)
         assert ljd["id"].startswith("LJ:METAR:netcdf_to_cb.run_ingest_threads:VXIngest")
     except Exception as _e:  # pylint:disable=broad-except
@@ -236,8 +228,8 @@ def test_umask_value_transform():
         vx_ingest = setup_connection()
         _collection = vx_ingest.collection
         load_spec = vx_ingest.load_spec
-        ingest_document_id = vx_ingest.load_spec["ingest_document_id"]
-        ingest_document = _collection.get(ingest_document_id).content
+        ingest_document_ids = vx_ingest.load_spec["ingest_document_ids"]
+        ingest_document = _collection.get(ingest_document_ids[0]).content
         builder = NetcdfMetarObsBuilderV01(load_spec, ingest_document)
         builder.file_name = "20210920_1700"
         # assign our temporary in-memory dataset to the builder
@@ -340,8 +332,8 @@ def test_interpolate_time():
         _cluster = vx_ingest.cluster
         _collection = vx_ingest.collection
         _load_spec = vx_ingest.load_spec
-        _ingest_document_id = vx_ingest.load_spec["ingest_document_id"]
-        _ingest_document = _collection.get(_ingest_document_id).content
+        _ingest_document_ids = vx_ingest.load_spec["ingest_document_ids"]
+        _ingest_document = _collection.get(_ingest_document_ids[0]).content
         _builder = NetcdfMetarObsBuilderV01(_load_spec, _ingest_document)
         for delta in [
             0,
@@ -398,8 +390,8 @@ def test_interpolate_time_iso():
         _cluster = vx_ingest.cluster
         _collection = vx_ingest.collection
         load_spec = vx_ingest.load_spec
-        ingest_document_id = vx_ingest.load_spec["ingest_document_id"]
-        ingest_document = _collection.get(ingest_document_id).content
+        ingest_document_ids = vx_ingest.load_spec["ingest_document_ids"]
+        ingest_document = _collection.get(ingest_document_ids[0]).content
         _builder = NetcdfMetarObsBuilderV01(load_spec, ingest_document)
         for delta in [
             0,
@@ -461,8 +453,8 @@ def test_handle_station():
         _cluster = vx_ingest.cluster
         _collection = vx_ingest.collection
         load_spec = vx_ingest.load_spec
-        ingest_document_id = vx_ingest.load_spec["ingest_document_id"]
-        ingest_document = _collection.get(ingest_document_id).content
+        ingest_document_ids = vx_ingest.load_spec["ingest_document_ids"]
+        ingest_document = _collection.get(ingest_document_ids[0]).content
         _builder = NetcdfMetarObsBuilderV01(load_spec, ingest_document)
         _builder.file_name = "20211108_0000"
         _pattern = "%Y%m%d_%H%M"
@@ -836,8 +828,8 @@ def test_derive_valid_time_epoch():
         vx_ingest = setup_connection()
         _collection = vx_ingest.collection
         load_spec = vx_ingest.load_spec
-        ingest_document_id = vx_ingest.load_spec["ingest_document_id"]
-        ingest_document = _collection.get(ingest_document_id).content
+        ingest_document_ids = vx_ingest.load_spec["ingest_document_ids"]
+        ingest_document = _collection.get(ingest_document_ids[0]).content
         _builder = NetcdfMetarObsBuilderV01(load_spec, ingest_document)
         _builder.file_name = "20211108_0000"
         _pattern = "%Y%m%d_%H%M"
@@ -860,8 +852,8 @@ def test_derive_valid_time_iso():
         _cluster = vx_ingest.cluster
         _collection = vx_ingest.collection
         load_spec = vx_ingest.load_spec
-        ingest_document_id = vx_ingest.load_spec["ingest_document_id"]
-        ingest_document = _collection.get(ingest_document_id).content
+        ingest_document_ids = vx_ingest.load_spec["ingest_document_ids"]
+        ingest_document = _collection.get(ingest_document_ids[0]).content
         _builder = NetcdfMetarObsBuilderV01(load_spec, ingest_document)
         _builder.file_name = "20211108_0000"
         derived_epoch = _builder.derive_valid_time_iso(

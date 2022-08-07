@@ -91,9 +91,9 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
         stream = os.popen("git rev-parse HEAD")
         git_hash = stream.read().strip()
         _document_id = (
-            self.load_spec["ingest_document_id"]
-            if "ingest_document_id" in self.load_spec.keys()
-            else self.load_spec["ingest_document_ids"][0]
+            self.load_spec["ingest_document_ids"][0]
+            if "ingest_document_ids" in self.load_spec.keys()
+            else None
         )
         subset = _document_id.split(":")[2]
         self.load_job_id = "LJ:{s}:{m}:{c}:{t}".format(

@@ -141,8 +141,8 @@ echo "*************************************"
 echo "update metadata"
 runtime=`date +\%Y-\%m-\%d:\%H:\%M:\%S`
 log_file="/home/amb-verif/VxIngest/logs/update_ceiling_mats_metadata-${runtime}.log"
-#${clonedir}/mats_metadata_and_indexes/metadata_files/update_ceiling_mats_metadata.sh ~/adb-cb1-credentials >> ${log_file} 2>&1
-#exit_code=$?
+${clonedir}/mats_metadata_and_indexes/metadata_files/update_ceiling_mats_metadata.sh ~/adb-cb1-credentials >> ${log_file} 2>&1
+exit_code=$?
 echo "exit_code:${exit_code}" >> ${log_file}
 
 echo "FINISHED"

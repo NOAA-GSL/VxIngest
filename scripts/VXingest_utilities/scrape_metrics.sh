@@ -103,10 +103,10 @@ if [ -z "${textfile_dir}" ]; then
 fi
 
 metric_name=$(grep 'metric_name' ${log_file} | awk '{print $2}')
-start_epoch=$(date -d "$(grep -A1 Start ${log_file} | tail -n1 | awk '{print $3." "$4}')" +"%s")
+start_epoch=$(date -d "$(grep  'Begin a_time:' ${log_file} | awk '{print $3" "$4}' | awk '{print $3." "$4}')" +"%s")
 is_epoch_rational ${start_epoch}
 
-finish_epoch=$(date -d "$(grep -B2 FINISHED ${log_file} | head -n1 | awk '{print $3" "$4}')" +"%s")
+finish_epoch=$(date -d "$(grep  'End a_time:' ${log_file} | awk '{print $3" "$4}' | awk '{print $3" "$4}')" +"%s")
 is_epoch_rational ${finish_epoch}
 
 #Get the error count from the log file
@@ -144,9 +144,7 @@ record_count_difference=$((recorded_record_count - intended_record_count))
 metric_file=${textfile_dir}/${metric_name}.prom
 metric_name=$(echo "${metric_name}" | tr '[:upper:]' '[:lower:]')
 
-#job_v01_metar_grib2_model_rap_ops_130_adb_cb1_run_time{log_file="/home/amb-verif/VxIngest/logs/load_spec_grib_metar_rap_ops_130_V01-2022-08-07:17:02:14.log"} 1659891775000
-#job_v01_metar_grib2_model_rap_ops_130_adb_cb1_start_epoch 1659891735
-#job_v01_metar_grib2_model_rap_ops_130_adb_cb1_stop_epoch 1659891775
+#job_v01_metar_grib2_model_rap_ops_130_adb_cb1_run_time{log_file="/home/amb-verif/VxIngest/logs/load_spec_grib_metar_rap_ops_130_V01-2022-08-07:17:02:14.log",start_epoch="1659891735",stop_epoch="1659891775"} 1
 #job_v01_metar_grib2_model_rap_ops_130_adb_cb1_expected_duration_seconds 0
 #job_v01_metar_grib2_model_rap_ops_130_adb_cb1_actual_duration_seconds 40
 #job_v01_metar_grib2_model_rap_ops_130_adb_cb1_error_count 0
@@ -157,9 +155,7 @@ metric_name=$(echo "${metric_name}" | tr '[:upper:]' '[:lower:]')
 
 
 
-echo "${metric_name}_run_time{log_file=\"${log_file}\"} $((start_epoch * 1000))" > ${tmp_metric_file}
-echo "${metric_name}_start_epoch ${start_epoch}" >> ${tmp_metric_file}
-echo "${metric_name}_stop_epoch ${finish_epoch}" >> ${tmp_metric_file}
+echo "${metric_name}_run_time{log_file=\"${log_file}\",start_epoch=\"${start_epoch}\",stop_epoch=\"${finish_epoch}\"} 1" > ${tmp_metric_file}
 echo "${metric_name}_expected_duration_seconds 0" >> ${tmp_metric_file}
 echo "${metric_name}_actual_duration_seconds ${actual_duration_seconds}" >> ${tmp_metric_file}
 echo "${metric_name}_error_count ${error_count}" >> ${tmp_metric_file}

@@ -159,7 +159,7 @@ echo "${metric_name}{ingest_id=\"ingest_actual_duration_seconds\"} ${actual_dura
 
 echo "${metric_name}{ingest_id=\"ingest_error_count\"} ${error_count}" >> ${tmp_metric_file}
 
-echo "${metric_name}{ingest_id=\"ingest_intended_record_coun\"} ${intended_record_count}" >> ${tmp_metric_file}
+echo "${metric_name}{ingest_id=\"ingest_intended_record_count\"} ${intended_record_count}" >> ${tmp_metric_file}
 
 echo "${metric_name}{ingest_id=\"ingest_recorded_record_count\"} ${recorded_record_count}" >> ${tmp_metric_file}
 

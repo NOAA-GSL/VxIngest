@@ -49,7 +49,7 @@ function derive_pattern_from_ids {
 function get_record_count_from_log(){
     log_file=$1
     num_docs=0
-    num_docs=$(grep "write_document_to_files writing .* documents" $log_file | wc -l)
+    num_docs=$(grep "write_document_to_files writing .* documents" $log_file | sort | uniq | wc -l)
     echo $num_docs
 }
 
@@ -103,10 +103,10 @@ if [ -z "${textfile_dir}" ]; then
 fi
 
 metric_name=$(grep 'metric_name' ${log_file} | awk '{print $2}')
-start_epoch=$(date -d "$(grep  'Begin a_time:' ${log_file} | awk '{print $3" "$4}' | awk '{print $3." "$4}')" +"%s")
+start_epoch=$(date -d "$(grep  'Begin a_time:' ${log_file} | awk '{print $3" "$4}')" +"%s")
 is_epoch_rational ${start_epoch}
 
-finish_epoch=$(date -d "$(grep  'End a_time:' ${log_file} | awk '{print $3" "$4}' | awk '{print $3" "$4}')" +"%s")
+finish_epoch=$(date -d "$(grep  'End a_time:' ${log_file} | awk '{print $3" "$4}')" +"%s")
 is_epoch_rational ${finish_epoch}
 
 #Get the error count from the log file
@@ -133,6 +133,10 @@ finish_import_epoch=$(grep Stop "$(dirname $log_file)/import-$(basename $log_fil
 finish_import_epoch=$((finish_import_epoch + 60))
 intended_record_count=$(get_record_count_from_log "${log_file}")
 # NOTE: curl URL's don't like '%' or ';' characters. replace them with '%25' and '%3B' respectively (you can leave the ';' at the end of the statement off, actually)
+echo "start_import_epoch is ${start_import_epoch}"
+echo "finish_import_epoch is ${finish_import_epoch}"
+echo "document_id_pattern is ${document_id_pattern}"
+echo "log_file is ${log_file}"
 if [[ -z $start_import_epoch ]] || [[ -z $finish_import_epoch ]]; then
 	# there wasn't any start or finish time in the import - no records to import
 	recorded_record_count=0
@@ -144,25 +148,25 @@ record_count_difference=$((recorded_record_count - intended_record_count))
 metric_file=${textfile_dir}/${metric_name}.prom
 metric_name=$(echo "${metric_name}" | tr '[:upper:]' '[:lower:]')
 
-#job_v01_metar_grib2_model_rap_ops_130_adb_cb1_run_time{log_file="/home/amb-verif/VxIngest/logs/load_spec_grib_metar_rap_ops_130_V01-2022-08-07:17:02:14.log",start_epoch="1659891735",stop_epoch="1659891775"} 1
-#job_v01_metar_grib2_model_rap_ops_130_adb_cb1_expected_duration_seconds 0
-#job_v01_metar_grib2_model_rap_ops_130_adb_cb1_actual_duration_seconds 40
-#job_v01_metar_grib2_model_rap_ops_130_adb_cb1_error_count 0
-#job_v01_metar_grib2_model_rap_ops_130_adb_cb1_intended_record_count 22
-#job_v01_metar_grib2_model_rap_ops_130_adb_cb1_recorded_record_count 22
-#job_v01_metar_grib2_model_rap_ops_130_adb_cb1_record_count_difference 0
-#job_v01_metar_grib2_model_rap_ops_130_adb_cb1_exit_code 1
+# example metric name 'job_v01_metar_grib2_model_hrrr_adb_cb1'
 
 
+echo "${metric_name}{ingest_id=\"ingest_run_time\",log_file=\"${log_file}\",start_epoch=\"${start_epoch}\",stop_epoch=\"${finish_epoch}\"} 1" >> ${tmp_metric_file}
 
-echo "${metric_name}_run_time{log_file=\"${log_file}\",start_epoch=\"${start_epoch}\",stop_epoch=\"${finish_epoch}\"} 1" > ${tmp_metric_file}
-echo "${metric_name}_expected_duration_seconds 0" >> ${tmp_metric_file}
-echo "${metric_name}_actual_duration_seconds ${actual_duration_seconds}" >> ${tmp_metric_file}
-echo "${metric_name}_error_count ${error_count}" >> ${tmp_metric_file}
-echo "${metric_name}_intended_record_count ${intended_record_count}" >> ${tmp_metric_file}
-echo "${metric_name}_recorded_record_count ${recorded_record_count}" >> ${tmp_metric_file}
-echo "${metric_name}_record_count_difference ${record_count_difference}" >> ${tmp_metric_file}
-echo "${metric_name}_exit_code ${exit_code}" >> ${tmp_metric_file}
+echo "${metric_name}{ingest_id=\"ingest_expected_duration_seconds\"} 0" >> ${tmp_metric_file}
+
+echo "${metric_name}{ingest_id=\"ingest_actual_duration_seconds\"} ${actual_duration_seconds}" >> ${tmp_metric_file}
+
+echo "${metric_name}{ingest_id=\"ingest_error_count\"} ${error_count}" >> ${tmp_metric_file}
+
+echo "${metric_name}{ingest_id=\"ingest_intended_record_coun\"} ${intended_record_count}" >> ${tmp_metric_file}
+
+echo "${metric_name}{ingest_id=\"ingest_recorded_record_count\"} ${recorded_record_count}" >> ${tmp_metric_file}
+
+echo "${metric_name}{ingest_id=\"ingest_record_count_difference\"} ${record_count_difference}" >> ${tmp_metric_file}
+
+echo "${metric_name}{ingest_id=\"ingest_exit_code\"} ${exit_code}" >> ${tmp_metric_file}
+
 mv ${tmp_metric_file} ${metric_file}
 # archive the log_file
 dirname_log_file=$(dirname ${log_file})

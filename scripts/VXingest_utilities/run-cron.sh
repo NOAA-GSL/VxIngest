@@ -127,7 +127,7 @@ echo "exit_code:${exit_code}" >> ${log_file}
 # save the import metric name the metric name will eventually be derived from the job_id but for now it is just created here
 metric_name="import_job_v01_metar_sum_ctc_model_hrrr_rap_130_${hname}"
 echo "metric_name ${metric_name}" > ${import_log_file} 
-${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p $outdir -n 8 -l ${clonedir}/logs >> ${import-log-file} 2>&1
+${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p $outdir -n 8 -l ${clonedir}/logs >> ${import_log_file} 2>&1
 exit_code=$?
 echo "exit_code:${exit_code}" >> ${import_log_file}
 

@@ -49,7 +49,7 @@ function derive_pattern_from_ids {
 function get_record_count_from_log(){
     log_file=$1
     num_docs=0
-    num_docs=$(grep "write_document_to_files writing .* documents" $log_file | sort | uniq | wc -l)
+    num_docs=$(grep "adding document DD" $log_file | sort | uniq | wc -l)
     echo $num_docs
 }
 
@@ -118,7 +118,7 @@ exit_code=$(grep exit_code ${log_file} | cut -d':' -f2)
 # get the list of data document ids by greping "adding document DD:" from the log and awking the 5th param
 # and determine the common pattern  
 dids=()
-IFS=$'\r\n' dids=($(grep 'adding document DD:' ${log_file} | grep 'DD:' | awk  '{print $5}'))
+IFS=$'\r\n' dids=($(grep 'adding document DD:' ${log_file} | grep 'DD:' | sort | uniq | awk  '{print $5}'))
 document_id_pattern=$(derive_pattern_from_ids "${dids[@]}")
 # do not know how to do that yet, perhaps from the prior metrics - actual_duration_seconds?
 expected_duration_seconds=0

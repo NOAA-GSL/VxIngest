@@ -102,6 +102,7 @@ tmp_log_dir="${tmp_dir}/logs"
 mkdir ${tmp_log_dir}
 find ${input_file_path} -name "*.json" | split -d -l $(($(find ${input_file_path} -name "*.json" | wc -l) / ${number_of_processes} + 1))
 # each file is a list of files
+echo "Start $(date +%s)"
 for f in ${tmp_dir}/*; do
     fname=$(basename ${f})
     do_import ${f} > ${tmp_log_dir}/${fname} 2>&1 &
@@ -109,6 +110,7 @@ done
 echo "cbimport commands submitted, now waiting"
 wait
 echo "cbimport commands submitted, done waiting"
+echo "Stop $(date +%s)"
 cd ${curdir}
 grep -i successfully ${tmp_log_dir}/x* | awk '{print $2}' | awk 'BEGIN { FS="file:///" }; {print $2}' | tr -d "\`" | while read f_input; do
     rm -rf $f_input

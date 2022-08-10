@@ -18,6 +18,7 @@ Colorado, NOAA/OAR/ESRL/GSD
 
 import logging
 import sys
+import json
 from pathlib import Path
 
 import yaml
@@ -69,6 +70,17 @@ class LoadYamlSpecFile:
             # yaml.dump(self.yaml_data)
             for k in self.yaml_data["load_spec"].keys():
                 self.load_spec[k] = self.yaml_data["load_spec"][k]
+                # log message for scraping
+                if k.startswith("ingest_document_id"):
+                    if k.startswith("ingest_document_ids"):
+                        # plural case - convert to list and iterate
+                        id_list = self.yaml_data["load_spec"][k]
+                        for _l in id_list:
+                            logging.info("LoadYamlSpecFile ingest_document_id %s", _l)
+                    else:
+                        # singular case
+                        logging.info("LoadYamlSpecFile ingest_document_id %s", self.yaml_data["load_spec"][k])
+
         except Exception:  # pylint: disable=bare-except, disable=broad-except
             logging.error("*** %s in read yaml ***", sys.exc_info()[0])
             sys.exit("*** Error(s) found while reading YAML file!")

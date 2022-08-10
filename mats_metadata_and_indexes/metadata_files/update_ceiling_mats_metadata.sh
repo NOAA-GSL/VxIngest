@@ -23,11 +23,11 @@ cb_user=$(grep cb_user ${credentials} | awk '{print $2}')
 cb_pwd=$(grep cb_password ${credentials} | awk '{print $2}')
 cred="${cb_user}:${cb_pwd}"
 #get needed models
-models_requiring_metadata=($(curl -s -u ${cred} http://${cb_host}:8093/query/service -d statement='SELECT DISTINCT RAW (SPLIT(meta(mdata).id,":")[3]) model FROM mdata WHERE type="DD" AND docType="CTC" AND subDocType="CEILING" AND version="V01" order by model;' | jq -r '.results[]'))
+models_requiring_metadata=($(curl -s -u ${cred} http://${cb_host}:8093/query/service -d statement='SELECT DISTINCT RAW (SPLIT(meta(mdata).id,":")[3]) model FROM mdata WHERE type="DD" AND docType="CTC" AND subDocType="CEILING" AND version="V01" order by model' | jq -r '.results[]'))
 echo "------models_requiring metadata--${models_requiring_metadata[@]}"
 #get models having metadata but no data (remove metadata for these)
 #(note 'like %' is changed to 'like %25')
-remove_metadata_for_models=($(curl -s -u ${cred} http://${cb_host}:8093/query/service -d statement='SELECT raw m FROM (SELECT RAW SPLIT(META().id,":")[3] AS model FROM mdata WHERE META().id LIKE "MD:matsGui:cb-ceiling:%25:COMMON:V01" AND type="MD" AND docType="matsGui" AND version="V01" ORDER BY model) AS m WHERE m not IN (select distinct raw model from mdata where type="DD" and docType="CTC" and subDocType="CEILING" and version="V01" order by model);' | jq -r '.results[]'))
+remove_metadata_for_models=($(curl -s -u ${cred} http://${cb_host}:8093/query/service -d statement='SELECT raw m FROM (SELECT RAW SPLIT(META().id,":")[3] AS model FROM mdata WHERE META().id LIKE "MD:matsGui:cb-ceiling:%25:COMMON:V01" AND type="MD" AND docType="matsGui" AND version="V01" ORDER BY model) AS m WHERE m not IN (select distinct raw model from mdata where type="DD" and docType="CTC" and subDocType="CEILING" and version="V01" order by model)' | jq -r '.results[]'))
 echo "------models not requiring metadata (remove metadata)--${remove_metadata_for_models[@]}" # process models
 # remove metadata for models with no data
 for model in ${remove_metadata_for_models[@]}; do
@@ -36,7 +36,7 @@ for model in ${remove_metadata_for_models[@]}; do
      curl -s -u ${cred} http://${cb_host}:8093/query/service -d "statement=${cmd}"
 done
 # initialize the metadata for the models for which the metadata does not exist
-models_with_existing_metadata=($(curl -s -u ${cred} http://${cb_host}:8093/query/service -d statement='select raw SPLIT(meta().id,":")[3]  FROM mdata WHERE type="MD" AND docType="matsGui" AND subset="COMMON" AND version="V01" AND app="cb-ceiling" AND META().id LIKE "MD:matsGui:cb-ceiling:%25:COMMON:V01";' | jq -r '.results[]'))
+models_with_existing_metadata=($(curl -s -u ${cred} http://${cb_host}:8093/query/service -d statement='select raw SPLIT(meta().id,":")[3]  FROM mdata WHERE type="MD" AND docType="matsGui" AND subset="COMMON" AND version="V01" AND app="cb-ceiling" AND META().id LIKE "MD:matsGui:cb-ceiling:%25:COMMON:V01"' | jq -r '.results[]'))
 for m in ${models_requiring_metadata[@]}; do
     if [[ ! " ${models_with_existing_metadata[@]} " =~ " ${m} " ]]; then
         # initialize the metadata for this model - it will get updated in the next step
@@ -163,7 +163,7 @@ for mindx in "${!models_requiring_metadata[@]}"; do
         AND subset='COMMON'
         AND version='V01'
         AND app='cb-ceiling'
-        AND META().id='MD:matsGui:cb-ceiling:${model}:COMMON:V01';
+        AND META().id='MD:matsGui:cb-ceiling:${model}:COMMON:V01'
 %EODupdatemetadata
     )
 

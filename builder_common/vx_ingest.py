@@ -213,7 +213,7 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
                         # don't care, it just means it wasn't a properly formatted file per the mask
                         continue
             if len(file_names) == 0:
-                raise Exception("No files to Process!")
+                logging.info("get_file_list: No files to Process!")
             return file_names
         except Exception as _e:  # pylint: disable=bare-except, disable=broad-except
             logging.error(

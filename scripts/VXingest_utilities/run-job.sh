@@ -157,7 +157,7 @@ for i in "${!ids[@]}"; do
   # translate '_' to '__' and ':' to '_' for names
   name=$(echo "${ids[$i]}" | sed 's/_/__/g' | sed 's/:/_/g')
   offset_minute="${offset_minutes[$i]}"
-  run_priority = "${run_priorities[$i]}"
+  run_priority="${run_priorities[$i]}"
   sub_type="${sub_types[$i]}"
   input_data_path="${input_data_paths[$i]}"
 

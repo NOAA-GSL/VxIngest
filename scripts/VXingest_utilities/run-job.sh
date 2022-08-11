@@ -1,10 +1,10 @@
 #!/usr/bin/env sh
 
-# read the active jobs and determine which ones to run, and run them. 
+# read the active jobs and determine which ones to run, and run them.
 # Job documents have an interval_minutes and an offset_minutes field as well as a run_priority.
 # This script is expected to run on quarter hour intervals
-# and determine the current qurter hour from "date" and use that to 
-# to select the job documents that are scheduled for this 
+# and determine the current qurter hour from "date" and use that to
+# to select the job documents that are scheduled for this
 # run quarter hour and run hour, and then use the run_priority and "at" to schedule the
 # the job for running at offset minutes from when this script is run.
 # This script expects to execute inside the clone directory of the VxIngest repo.
@@ -39,7 +39,7 @@ while getopts 'c:d:l:m:o:' param; do
     ;;
   d)
     # remove the last '/' if it is there
-    clonedir=${OPTARG} | sed 's|/$||'
+    clonedir=$(echo "${OPTARG}" | sed 's|/$||')
     if [[ ! -d "${clonedir}" ]]; then
       echo "ERROR: VxIngest clone directory ${clonedir} does not exist"
       usage
@@ -47,7 +47,7 @@ while getopts 'c:d:l:m:o:' param; do
     ;;
   l)
     # remove the last '/' if it is there
-    log_dir=echo "${OPTARG}" | sed 's|/$||'
+    log_dir=$(echo "${OPTARG}" | sed 's|/$||')
     if [[ ! -d "${log_dir}" ]]; then
       echo "ERROR: VxIngest log directory ${log_dir} does not exist"
       usage
@@ -55,7 +55,7 @@ while getopts 'c:d:l:m:o:' param; do
     ;;
   m)
     # remove the last '/' if it is there
-    metrics_dir=${OPTARG} | sed 's|/$||'
+    metrics_dir=$(echo "${OPTARG}" | sed 's|/$||')
     if [[ ! -d "${metrics_dir}" ]]; then
       echo "ERROR: VxIngest metrics directory ${metrics_dir} does not exist"
       usage
@@ -63,7 +63,7 @@ while getopts 'c:d:l:m:o:' param; do
     ;;
   o)
     # remove the last '/' if it is there
-    output_dir=${OPTARG} | sed 's|/$||'
+    output_dir=$(echo "${OPTARG}" | sed 's|/$||')
     if [[ ! -d "${output_dir}" ]]; then
       echo "ERROR: VxIngest input directory ${output_dir} does not exist"
       usage

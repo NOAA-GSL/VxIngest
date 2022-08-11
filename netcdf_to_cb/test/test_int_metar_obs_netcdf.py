@@ -372,15 +372,13 @@ def test_compare_obs_to_mysql(allclose):
 
 def test_one_thread_spedicfy_file_pattern():  # pylint:disable=missing-function-docstring
     try:
-        cwd = os.getcwd()
-        spec_file = cwd + "/netcdf_to_cb/test/test_load_spec_netcdf_metar_obs_V01.yaml"
         # setup - remove output files
         for _f in glob("/opt/data/netcdf_to_cb/output/test1/*.json"):
             os.remove(_f)
         vx_ingest = VXIngest()
         vx_ingest.runit(
             {
-                "spec_file": spec_file,
+                "job_id": "JOB:V01:METAR:NETCDF:OBS",
                 "credentials_file": os.environ["HOME"] + "/adb-cb1-credentials",
                 "path": "/opt/data/netcdf_to_cb/input_files",
                 "file_name_mask": "%Y%m%d_%H%M",
@@ -423,15 +421,13 @@ def test_two_threads_spedicfy_file_pattern():
     integration test for testing multithreaded capability
     """
     try:
-        cwd = os.getcwd()
-        spec_file = cwd + "/netcdf_to_cb/test/test_load_spec_netcdf_metar_obs_V01.yaml"
         # setup - remove output files
         for _f in glob("/opt/data/netcdf_to_cb/output/test2/*.json"):
             os.remove(_f)
         vx_ingest = VXIngest()
         vx_ingest.runit(
             {
-                "spec_file": spec_file,
+                "job_id": "JOB:V01:METAR:NETCDF:OBS",
                 "credentials_file": os.environ["HOME"] + "/adb-cb1-credentials",
                 "path": "/opt/data/netcdf_to_cb/input_files",
                 "file_name_mask": "%Y%m%d_%H%M",
@@ -477,15 +473,13 @@ def test_one_thread_default():
     you will need to run the scripts in the matsmetadata directory to load the local metadata.
     Remove any documents type DD prior to using this test."""
     try:
-        cwd = os.getcwd()
-        spec_file = cwd + "/netcdf_to_cb/test/test_load_spec_netcdf_metar_obs_V01.yaml"
         # setup - remove output files
         for _f in glob("/opt/data/netcdf_to_cb/output/test3/*.json"):
             os.remove(_f)
         vx_ingest = VXIngest()
         vx_ingest.runit(
             {
-                "spec_file": spec_file,
+                "job_id": "JOB:V01:METAR:NETCDF:OBS",
                 "credentials_file": os.environ["HOME"] + "/adb-cb1-credentials",
                 "path": "/opt/data/netcdf_to_cb/input_files",
                 "file_name_mask": "%Y%m%d_%H%M",
@@ -537,15 +531,13 @@ def test_two_threads_default():
     you will need to run the scripts in the matsmetadata directory to load the local metadata.
     Remove any documents type DD prior to using this test."""
     try:
-        cwd = os.getcwd()
-        spec_file = cwd + "/netcdf_to_cb/test/test_load_spec_netcdf_metar_obs_V01.yaml"
         # setup - remove output files
         for _f in glob("/opt/data/netcdf_to_cb/output/test4/*.json"):
             os.remove(_f)
         vx_ingest = VXIngest()
         vx_ingest.runit(
             {
-                "spec_file": spec_file,
+                "job_id": "JOB:V01:METAR:NETCDF:OBS",
                 "credentials_file": os.environ["HOME"] + "/adb-cb1-credentials",
                 "path": "/opt/data/netcdf_to_cb/input_files",
                 "file_name_mask": "%Y%m%d_%H%M",

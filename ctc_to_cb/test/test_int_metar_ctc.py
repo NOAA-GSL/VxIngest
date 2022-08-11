@@ -15,7 +15,6 @@ import yaml
 from pymysql.constants import CLIENT
 from couchbase.auth import PasswordAuthenticator
 from couchbase.cluster import Cluster, ClusterOptions
-from builder_common.load_spec_yaml import LoadYamlSpecFile
 from ctc_to_cb import ctc_builder
 from ctc_to_cb.run_ingest_threads import VXIngest
 
@@ -92,14 +91,11 @@ def test_get_stations_geo_search():
         options = ClusterOptions(PasswordAuthenticator(user, password))
         cluster = Cluster("couchbase://" + host, options)
         collection = cluster.bucket("mdata").default_collection()
-        cwd = os.getcwd()
-        spec_file = (
-            cwd + "/ctc_to_cb/test/test_load_spec_metar_hrrr_ops_all_hrrr_ctc_V01.yaml"
-        )
-        load_spec_file = LoadYamlSpecFile({"spec_file": spec_file})
-        load_spec = dict(load_spec_file.read())
+        load_spec = {}
         load_spec["cluster"] = cluster
         load_spec["collection"] = collection
+        load_spec['ingest_document_ids'] = ["MD:V01:METAR:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest"]
+        # get the ingest document id.
         ingest_document_result = collection.get(
             "MD-TEST:V01:METAR:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest"
         )
@@ -326,7 +322,6 @@ def calculate_mysql_ctc_loop(  # pylint: disable=dangerous-default-value, missin
 
 
 def calculate_cb_ctc(  # pylint: disable=dangerous-default-value,missing-function-docstring
-    spec_file_name,
     epoch,
     fcst_len,
     threshold,
@@ -346,8 +341,7 @@ def calculate_cb_ctc(  # pylint: disable=dangerous-default-value,missing-functio
     user = yaml_data["cb_user"]
     password = yaml_data["cb_password"]
     _f.close()
-    load_spec_file = LoadYamlSpecFile({"spec_file": spec_file_name})
-    load_spec = dict(load_spec_file.read())
+    load_spec = {}
     options = ClusterOptions(PasswordAuthenticator(user, password))
     load_spec["cluster"] = Cluster("couchbase://" + host, options)
     load_spec["collection"] = load_spec["cluster"].bucket("mdata").default_collection()
@@ -462,11 +456,8 @@ def test_ctc_builder_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
     global stations
 
     try:
-        cwd = os.getcwd()
         credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
-        spec_file = (
-            cwd + "/ctc_to_cb/test/test_load_spec_metar_hrrr_ops_all_hrrr_ctc_V01.yaml"
-        )
+        job_id="JOB:V01:METAR:SUM:CTC:MODEL:HRRR_RAP_130"
         outdir = "/opt/data/ctc_to_cb/hrrr_ops/output"
         filepaths = outdir + "/*.json"
         files = glob.glob(filepaths)
@@ -478,7 +469,7 @@ def test_ctc_builder_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
         vx_ingest = VXIngest()
         vx_ingest.runit(
             {
-                "spec_file": spec_file,
+                "job_id": job_id,
                 "credentials_file": credentials_file,
                 "output_dir": outdir,
                 "threads": 1,
@@ -526,7 +517,6 @@ def test_ctc_builder_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
                     )
                 )
                 cb_ctc = calculate_cb_ctc(
-                    spec_file_name=spec_file,
                     epoch=_elem["fcstValidEpoch"],
                     fcst_len=_i,
                     threshold=int(_t),
@@ -583,7 +573,6 @@ def test_ctc_builder_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
                     cb_model_obs_data = []  # pylint: disable=redefined-outer-name
                     cb_ctc = {}
                     cb_ctc = calculate_cb_ctc(
-                        spec_file_name=spec_file,
                         epoch=_elem["fcstValidEpoch"],
                         fcst_len=_i,
                         threshold=int(_t),
@@ -705,10 +694,6 @@ def test_ctc_builder_hrrr_ops_all_hrrr_compare_model_obs_data():
             client_flag=CLIENT.MULTI_STATEMENTS,
         )
         cursor = connection.cursor(pymysql.cursors.SSDictCursor)
-        cwd = os.getcwd()
-        spec_file = (
-            cwd + "/ctc_to_cb/test/test_load_spec_metar_hrrr_ops_all_hrrr_ctc_V01.yaml"
-        )
         # get the ceiling thresholds from the metadata
         result = cluster.query(
             """
@@ -841,7 +826,6 @@ def test_ctc_builder_hrrr_ops_all_hrrr_compare_model_obs_data():
                 )
                 # calculate_cb_ctc derives the cb data for the compare
                 cb_ctc = calculate_cb_ctc(
-                    spec_file_name=spec_file,
                     epoch=fcst_valid_epoch,
                     model="HRRR_OPS",
                     subset="METAR",
@@ -887,7 +871,6 @@ def test_ctc_builder_hrrr_ops_all_hrrr_compare_model_obs_data():
                 ), "There are differences between the mysql and CB station names"
                 cb_ctc_nodiffs = (  # pylint: disable=unused-variable
                     calculate_cb_ctc(  # pylint: disable=unused-variable
-                        spec_file_name=spec_file,
                         epoch=fcst_valid_epoch,
                         model="HRRR_OPS",
                         subset="METAR",

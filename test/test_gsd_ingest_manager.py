@@ -28,12 +28,10 @@ class TestGsdIngestManager(TestCase):
         # noinspection PyBroadException
         try:
             self.connect_cb()
-            cwd = os.getcwd()
-            self.spec_file = cwd + '/load_spec_gsd-test-SqlIngestManager-V01.yaml'
             self.thread_count = 1
             self.cert_path = None
             vx_ingest = VXIngestGSD()
-            vx_ingest.runit({'spec_file': self.spec_file,
+            vx_ingest.runit({'job_id': "JOB:V01:METAR:NETCDF:OBS",
                              'credentials_file':
                                  os.environ['HOME'] + '/adb-credentials-local',
                              'threads': self.thread_count,
@@ -47,7 +45,6 @@ class TestGsdIngestManager(TestCase):
             self.assertEqual(test_document['lastTime'], 10, "test document lastTime is not 10 and it should be")
             self.assertIsNotNone(test_document['updateTime'], "test document has None for updateTime")
             # tests pass = delete the document
-            
         except:
             self.collection.remove("MD:V01:METAR:test:SqlIngestManager")
             if self.cluster:

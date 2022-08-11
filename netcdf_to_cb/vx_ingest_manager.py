@@ -1,5 +1,5 @@
 """
-Program Name: Class NetcdfIngestManager
+Program Name: Class IngestManager
 Contact(s): Randy Pierce
 Abstract:
 
@@ -22,9 +22,8 @@ When IngestManager finishes a document specification  it  writes the document to
 if an output directory was specified.
 
         Attributes:
-            name a threadName for logging and debugging purposes.
-            load_spec a load_spec object contains ingest_document_id, credentials, and first and last epoch
-            ingest_document an ingest document from the database
+            name -a threadName for logging and debugging purposes.
+            credentials, first and last epoch,
             file_name_queue a shared queue of filenames.
             output_dir where the output documents will be written
             collection couchbase collection object for data service access
@@ -50,8 +49,8 @@ class VxIngestManager(
     builders to ingest data from GSD grib2 files or netcdf files into documents that can be
     inserted into couchbase or written to json files in the specified output directory.
 
-    This class will process data by reading an ingest_document_id
-    and instantiating a builder class of the type specified in the
+    This class will process data by retrieving an ingest_document specified
+    by an ingest_document_id and instantiating a builder class of the type specified in the
     ingest_document.
     The ingest document specifies the builder class, and a template that defines
     how to place the variable values into a couchbase document and how to
@@ -70,21 +69,27 @@ class VxIngestManager(
     and dies.
     """
 
-    def __init__(self, name, load_spec, ingest_document, element_queue, output_dir):
+    def __init__(
+        self,
+        name,
+        load_spec,
+        element_queue,
+        output_dir,
+    ):
         """constructor for VxIngestManager
         Args:
             name (string): the thread name for this IngestManager
             load_spec (Object): contains Couchbase credentials
-            ingest_document (Object): the ingest document
             element_queue (Queue): reference to the element Queue
             output_dir (string): output directory path
         """
         # The Constructor for the RunCB class.
         self.thread_name = name
         self.load_spec = load_spec
-        self.ingest_document = ingest_document
         self.cb_credentials = self.load_spec["cb_connection"]
-        self.ingest_document_id = self.load_spec["ingest_document_id"]
+        self.ingest_document_ids = self.load_spec["ingest_document_ids"]
+        # use the first one, there aren't multiples anyway
+        self.ingest_document = self.load_spec["ingest_documents"][self.ingest_document_ids[0]]
         self.ingest_type_builder_name = None
         self.queue = element_queue
         self.builder_map = {}
@@ -95,7 +100,6 @@ class VxIngestManager(
         super().__init__(
             self.thread_name,
             self.load_spec,
-            self.ingest_document,
             self.queue,
             self.output_dir,
         )
@@ -142,7 +146,10 @@ class VxIngestManager(
                 builder = self.builder_map[self.ingest_type_builder_name]
             else:
                 builder_class = getattr(my_builder, self.ingest_type_builder_name)
-                builder = builder_class(self.load_spec, self.ingest_document)
+                builder = builder_class(
+                    self.load_spec,
+                    self.ingest_document
+                )
                 self.builder_map[self.ingest_type_builder_name] = builder
             document_map = builder.build_document(queue_element)
             if self.output_dir:

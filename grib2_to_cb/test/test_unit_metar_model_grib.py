@@ -2,24 +2,16 @@
 import os
 import shutil
 from pathlib import Path
-
-from builder_common.load_spec_yaml import LoadYamlSpecFile
 from grib2_to_cb.run_ingest_threads import VXIngest
 
 def setup_connection_multiple_ingest_ids():
     """test setup - used to test multiple ingest_document_ids"""
     try:
-        cwd = os.getcwd()
         _vx_ingest = VXIngest()
-        _vx_ingest.spec_file = (
-            cwd + "/ctc_to_cb/test/load_spec_metar_ctc_V01.yaml"
-        )
         _vx_ingest.credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
         _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
-        _load_spec_file = LoadYamlSpecFile({"spec_file": _vx_ingest.spec_file})
-        # read in the load_spec file
-        _vx_ingest.load_spec = dict(_load_spec_file.read())
         _vx_ingest.connect_cb()
+        _vx_ingest.load_spec['ingest_document_ids'] = _vx_ingest.collection.get("JOB:V01:METAR:GRIB2:MODEL:HRRR").content["ingest_document_ids"]
         return _vx_ingest
     except Exception as _e:  # pylint:disable=broad-except
         assert False, f"test_credentials_and_load_spec Exception failure: {_e}"
@@ -30,17 +22,11 @@ def setup_connection_multiple_ingest_ids():
 def setup_connection():
     """test setup"""
     try:
-        cwd = os.getcwd()
         _vx_ingest = VXIngest()
-        _vx_ingest.spec_file = (
-            cwd + "/grib2_to_cb/test/test_load_spec_grib_metar_hrrr_ops_V01.yaml"
-        )
         _vx_ingest.credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
         _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
-        _load_spec_file = LoadYamlSpecFile({"spec_file": _vx_ingest.spec_file})
-        # read in the load_spec file
-        _vx_ingest.load_spec = dict(_load_spec_file.read())
         _vx_ingest.connect_cb()
+        _vx_ingest.load_spec['ingest_document_ids'] = _vx_ingest.collection.get("JOB:V01:METAR:GRIB2:MODEL:HRRR").content["ingest_document_ids"]
         return _vx_ingest
     except Exception as _e:  # pylint:disable=broad-except
         assert False, f"test_credentials_and_load_spec Exception failure: {_e}"
@@ -103,7 +89,6 @@ def test_build_load_job_doc():
         vx_ingest.load_job_id = "test_id"
         vx_ingest.path = "/tmp"
         vx_ingest.load_spec["load_job_doc"] = {"test": "a line of text"}
-        vx_ingest.spec_file = "/tmp/test_file"
         lineage = "CTC"
         ljd = vx_ingest.build_load_job_doc(lineage)
         assert True, ljd["id"].startswith(

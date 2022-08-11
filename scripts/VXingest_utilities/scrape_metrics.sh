@@ -153,19 +153,19 @@ metric_name=$(echo "${metric_name}" | tr '[:upper:]' '[:lower:]')
 
 echo "${metric_name}{ingest_id=\"ingest_run_time\",log_file=\"${log_file}\",start_epoch=\"${start_epoch}\",stop_epoch=\"${finish_epoch}\"} 1" >> ${tmp_metric_file}
 
-echo "${metric_name}{ingest_id=\"ingest_expected_duration_seconds\"} 0" >> ${tmp_metric_file}
+echo "${metric_name}{ingest_id=\"ingest_expected_duration_seconds\",log_file=\"${log_file}\"} 0" >> ${tmp_metric_file}
 
-echo "${metric_name}{ingest_id=\"ingest_actual_duration_seconds\"} ${actual_duration_seconds}" >> ${tmp_metric_file}
+echo "${metric_name}{ingest_id=\"ingest_actual_duration_seconds\",log_file=\"${log_file}\"} ${actual_duration_seconds}" >> ${tmp_metric_file}
 
-echo "${metric_name}{ingest_id=\"ingest_error_count\"} ${error_count}" >> ${tmp_metric_file}
+echo "${metric_name}{ingest_id=\"ingest_error_count\",log_file=\"${log_file}\"} ${error_count}" >> ${tmp_metric_file}
 
-echo "${metric_name}{ingest_id=\"ingest_intended_record_count\"} ${intended_record_count}" >> ${tmp_metric_file}
+echo "${metric_name}{ingest_id=\"ingest_intended_record_count\",log_file=\"${log_file}\"} ${intended_record_count}" >> ${tmp_metric_file}
 
-echo "${metric_name}{ingest_id=\"ingest_recorded_record_count\"} ${recorded_record_count}" >> ${tmp_metric_file}
+echo "${metric_name}{ingest_id=\"ingest_recorded_record_count\",log_file=\"${log_file}\"} ${recorded_record_count}" >> ${tmp_metric_file}
 
-echo "${metric_name}{ingest_id=\"ingest_record_count_difference\"} ${record_count_difference}" >> ${tmp_metric_file}
+echo "${metric_name}{ingest_id=\"ingest_record_count_difference\",log_file=\"${log_file}\"} ${record_count_difference}" >> ${tmp_metric_file}
 
-echo "${metric_name}{ingest_id=\"ingest_exit_code\"} ${exit_code}" >> ${tmp_metric_file}
+echo "${metric_name}{ingest_id=\"ingest_exit_code\",log_file=\"${log_file}\"} ${exit_code}" >> ${tmp_metric_file}
 
 mv ${tmp_metric_file} ${metric_file}
 # archive the log_file

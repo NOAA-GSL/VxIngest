@@ -269,7 +269,7 @@ class VXIngest(CommonVxIngest):
         logging.info("PYTHONPATH: %s", os.environ["PYTHONPATH"])
         args = parse_args(sys.argv[1:])
         self.runit(vars(args))
-        sys.exit("*** FINISHED ***")
+        sys.exit(0)
 
 
 if __name__ == "__main__":

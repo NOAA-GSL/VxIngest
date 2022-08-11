@@ -6,6 +6,26 @@ from pathlib import Path
 from builder_common.load_spec_yaml import LoadYamlSpecFile
 from grib2_to_cb.run_ingest_threads import VXIngest
 
+def setup_connection_multiple_ingest_ids():
+    """test setup - used to test multiple ingest_document_ids"""
+    try:
+        cwd = os.getcwd()
+        _vx_ingest = VXIngest()
+        _vx_ingest.spec_file = (
+            cwd + "/ctc_to_cb/test/load_spec_metar_ctc_V01.yaml"
+        )
+        _vx_ingest.credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
+        _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
+        _load_spec_file = LoadYamlSpecFile({"spec_file": _vx_ingest.spec_file})
+        # read in the load_spec file
+        _vx_ingest.load_spec = dict(_load_spec_file.read())
+        _vx_ingest.connect_cb()
+        return _vx_ingest
+    except Exception as _e:  # pylint:disable=broad-except
+        assert False, f"test_credentials_and_load_spec Exception failure: {_e}"
+        return None
+
+
 
 def setup_connection():
     """test setup"""
@@ -37,6 +57,15 @@ def test_credentials_and_load_spec():
     finally:
         vx_ingest.close_cb()
 
+def test_credentials_and_load_spec_multiple_ingest_ids():
+    """test the get_credentials and load_spec"""
+    try:
+        vx_ingest = setup_connection_multiple_ingest_ids()
+        assert True, vx_ingest.load_spec["cb_connection"]["user"] == "cb_user"
+    except Exception as _e:  # pylint:disable=broad-except
+        assert False, f"test_credentials_and_load_spec Exception failure: {_e}"
+    finally:
+        vx_ingest.close_cb()
 
 def test_cb_connect_disconnect():
     """test the cb connect and close"""

@@ -192,6 +192,7 @@ for i in "${!ids[@]}"; do
 
   # run the scraper
   sleep 2
+  echo "RUNNING - ${clonedir}/scripts/VXingest_utilities/scrape_metrics.sh -c ~/adb-cb1-credentials -l ${log_file} -d ${metrics_dir}"
   ${clonedir}/scripts/VXingest_utilities/scrape_metrics.sh -c ~/adb-cb1-credentials -l ${log_file} -d ${metrics_dir}
   echo "--------"
 done

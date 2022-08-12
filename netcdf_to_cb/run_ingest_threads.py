@@ -174,12 +174,14 @@ class VXIngest(CommonVxIngest):
             self.load_spec["ingest_documents"] = {}
             for _id in self.load_spec["ingest_document_ids"]:
                 self.load_spec["ingest_documents"][_id]= self.collection.get(_id).content
-            # load the fmask into the load_spec
-            stmnt="Select file_mask from mdata where meta().id = \"{id}\"".format(id=self.job_document_id)
+            # load the fmask and input_data_path into the load_spec
+            stmnt="Select file_mask, input_data_path from mdata where meta().id = \"{id}\"".format(id=self.job_document_id)
             result = self.cluster.query(stmnt)
             result_list = list(result)
             self.fmask = result_list[0]["file_mask"]
             self.path = result_list[0]["input_data_path"]
+            self.load_spec["fmask"] = self.fmask
+            self.load_spec["input_data_path"] = self.path
             #stash the load_job in the load_spec
             self.load_spec["load_job_doc"] = self.build_load_job_doc("madis")
         except (RuntimeError, TypeError, NameError, KeyError):

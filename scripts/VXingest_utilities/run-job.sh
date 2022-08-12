@@ -171,7 +171,7 @@ for i in "${!ids[@]}"; do
 
   # run the ingest job
   metric_name="${name}_${hname}"
-  echo "${metric_name}" > ${log_file}
+  echo "metric_name ${metric_name}" > ${log_file}
   # provide an input_data_path if there was one in the job spec (netcdf and grib)
   input_data_path_param=""
   if [[ "${input_data_paths[3]}" != "null" ]]; then
@@ -184,7 +184,7 @@ for i in "${!ids[@]}"; do
 
   # run the import job
   metric_name="import_${name}_${hname}"
-  echo ${metric_name} > ${import_log_file}
+  echo "metric_name ${metric_name}" > ${import_log_file}
   echo "RUNNING - ${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p ${outdir} -n 8 -l ${clonedir}/logs"
   ${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p ${outdir} -n 8 -l ${clonedir}/logs >> ${import_log_file} 2>&1
   exit_code=$?

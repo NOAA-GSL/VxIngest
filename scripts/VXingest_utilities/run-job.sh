@@ -155,7 +155,7 @@ for i in "${!ids[@]}"; do
   job_id="${ids[$i]}"
   echo "*****${job_id}*****"
   # translate '_' to '__' and ':' to '_' for names
-  name=$(echo "${ids[$i]}" | sed 's/_/__/g' | sed 's/:/_/g')
+  name=$(echo "${names[$i]}" | sed 's/_/__/g' | sed 's/:/_/g')
   offset_minute="${offset_minutes[$i]}"
   run_priority="${run_priorities[$i]}"
   sub_type="${sub_types[$i]}"

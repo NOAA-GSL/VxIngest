@@ -101,13 +101,6 @@ def parse_args(args):
         "-t", "--threads", type=int, default=1, help="Number of threads to use"
     )
     parser.add_argument(
-        "-p",
-        "--path",
-        type=str,
-        default="./",
-        help="Specify the input directory that contains the input files",
-    )
-    parser.add_argument(
         "-f",
         "--file_pattern",
         type=str,
@@ -171,7 +164,6 @@ class VXIngest(CommonVxIngest):
         This is the entry point for run_ingest_threads.py
         """
         self.credentials_file = args["credentials_file"].strip()
-        self.path = args["path"].strip()
         self.thread_count = args["threads"]
         self.output_dir = args["output_dir"].strip()
         self.job_document_id = args["job_id"].strip()
@@ -198,7 +190,9 @@ class VXIngest(CommonVxIngest):
             # load the fmask into the load_spec
             stmnt="Select file_mask from mdata where meta().id = \"{id}\"".format(id=self.job_document_id)
             result = self.cluster.query(stmnt)
-            self.fmask = list(result)[0]["file_mask"]
+            result_list = list(result)
+            self.fmask = result_list[0]["file_mask"]
+            self.path = result_list[0]["input_data_path"]
             #stash the load_job in the load_spec
             self.load_spec["load_job_doc"] = self.build_load_job_doc("madis")
         except (RuntimeError, TypeError, NameError, KeyError):
@@ -230,7 +224,7 @@ class VXIngest(CommonVxIngest):
             """.format(
             subset=subset, model=model
         )
-        file_names = self.get_file_list(file_query, self.path, self.file_pattern)
+        file_names = self.get_file_list(file_query, self.path, self.fmask)
         for _f in file_names:
             _q.put(_f)
 

@@ -177,7 +177,7 @@ for i in "${!ids[@]}"; do
   if [[ "${input_data_paths[3]}" != "null" ]]; then
      input_data_path_param="-p ${input_data_path}"
   fi
-  python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${jid} -c ~/adb-cb1-credentials ${input_data_path_param} -o $outdir -t8 >> ${log_file} 2>&1
+  python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ~/adb-cb1-credentials ${input_data_path_param} -o $outdir -t8 >> ${log_file} 2>&1
   exit_code=$?
   echo "exit_code:${exit_code}" >> ${log_file}
 

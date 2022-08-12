@@ -176,6 +176,8 @@ class VXIngest(CommonVxIngest):
             self.first_last_params = {}
             self.first_last_params["first_epoch"] = 0
             self.first_last_params["last_epoch"] = sys.maxsize
+        # stash the first_last_params into the load spec
+        self.load_spec["first_last_params"] = self.first_last_params
         try:
             # put the real credentials into the load_spec
             self.cb_credentials = self.get_credentials(self.load_spec)

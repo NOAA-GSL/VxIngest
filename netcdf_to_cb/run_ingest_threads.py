@@ -189,7 +189,7 @@ class VXIngest(CommonVxIngest):
                 "*** Error occurred in Main reading load_spec: %s ***",
                 str(sys.exc_info()),
             )
-            sys.exit("*** Error reading load_spec: ")
+            sys.exit("*** Error reading load_spec:")
 
         # load the my_queue with filenames that match the mask and have not already been ingested
         # (do not have associated datafile documents)
@@ -211,7 +211,7 @@ class VXIngest(CommonVxIngest):
             """.format(
             subset=subset
         )
-        file_names = self.get_file_list(file_query, self.path, self.fmask)
+        file_names = self.get_file_list(file_query, self.path, self.file_pattern)
         for _f in file_names:
             _q.put(_f)
 

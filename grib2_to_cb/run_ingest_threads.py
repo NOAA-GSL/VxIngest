@@ -226,7 +226,7 @@ class VXIngest(CommonVxIngest):
             """.format(
             subset=subset, model=model
         )
-        file_names = self.get_file_list(file_query, self.path, self.fmask)
+        file_names = self.get_file_list(file_query, self.path, self.file_pattern)
         for _f in file_names:
             _q.put(_f)
 
@@ -267,7 +267,7 @@ class VXIngest(CommonVxIngest):
         logging.info("PYTHONPATH: %s", os.environ["PYTHONPATH"])
         args = parse_args(sys.argv[1:])
         self.runit(vars(args))
-        logging.info(0)
+        logging.info("*** FINISHED ***")
         sys.exit(0)
 
 

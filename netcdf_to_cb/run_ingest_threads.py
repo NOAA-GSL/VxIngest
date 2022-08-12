@@ -163,7 +163,6 @@ class VXIngest(CommonVxIngest):
         """
         self.credentials_file = args["credentials_file"].strip()
         self.path = args["path"].strip()
-        self.fmask = args["file_name_mask"].strip()
         self.thread_count = args["threads"]
         self.output_dir = args["output_dir"].strip()
         self.job_document_id = args["job_id"].strip()

@@ -177,6 +177,7 @@ for i in "${!ids[@]}"; do
   if [[ "${input_data_paths[3]}" != "null" ]]; then
      input_data_path_param="-p ${input_data_path}"
   fi
+  echo "RUNNING - python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ~/adb-cb1-credentials ${input_data_path_param} -o $outdir -t8"
   python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ~/adb-cb1-credentials ${input_data_path_param} -o $outdir -t8 >> ${log_file} 2>&1
   exit_code=$?
   echo "exit_code:${exit_code}" >> ${log_file}
@@ -184,6 +185,7 @@ for i in "${!ids[@]}"; do
   # run the import job
   metric_name="import_${name}_${hname}"
   echo ${metric_name} > ${import_log_file}
+  echo "RUNNING - ${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p ${outdir} -n 8 -l ${clonedir}/logs"
   ${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p ${outdir} -n 8 -l ${clonedir}/logs >> ${import_log_file} 2>&1
   exit_code=$?
   echo "exit_code:${exit_code}" >> ${import_log_file}

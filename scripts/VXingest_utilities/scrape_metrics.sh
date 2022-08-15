@@ -150,22 +150,28 @@ metric_name=$(echo "${metric_name}" | tr '[:upper:]' '[:lower:]')
 
 # example metric name 'job_v01_metar_grib2_model_hrrr_adb_cb1'
 
+# for getting historical data from promql...
+min_recorded_record_count_average=$(/home/amb-verif/vx-prometheus/promql --no-headers --host "http://adb-cb1.gsd.esrl.noaa.gov:9090"  "floor(min(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_recorded_record_count'}[6h:1h])))" | awk '{print $1}')
+max_recorded_record_count_average=$(/home/amb-verif/vx-prometheus/promql --no-headers --host "http://adb-cb1.gsd.esrl.noaa.gov:9090"  "ceil(max(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_recorded_record_count'}[6h:1h])))" | awk '{print $1}')
+
+min_actual_duration_seconds_average=$(/home/amb-verif/vx-prometheus/promql --no-headers --host "http://adb-cb1.gsd.esrl.noaa.gov:9090"  "floor(min(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_actual_duration_seconds'}[6h:1h])))" | awk '{print $1}')
+max_actual_duration_seconds_average=$(/home/amb-verif/vx-prometheus/promql --no-headers --host "http://adb-cb1.gsd.esrl.noaa.gov:9090"  "ceil(max(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_actual_duration_seconds'}[6h:1h])))" | awk '{print $1}')
 
 echo "${metric_name}{ingest_id=\"ingest_run_time\",log_file=\"${log_file}\",start_epoch=\"${start_epoch}\",stop_epoch=\"${finish_epoch}\"} 1" >> ${tmp_metric_file}
 
-echo "${metric_name}{ingest_id=\"ingest_expected_duration_seconds\"} 0" >> ${tmp_metric_file}
+echo "${metric_name}{ingest_id=\"ingest_min_actual_duration_average_seconds\",log_file=\"${log_file}\"} ${min_actual_duration_seconds_average}" >> ${tmp_metric_file}
+echo "${metric_name}{ingest_id=\"ingest_max_actual_duration_average_seconds\",log_file=\"${log_file}\"} ${max_actual_duration_seconds_average}" >> ${tmp_metric_file}
+echo "${metric_name}{ingest_id=\"ingest_actual_duration_seconds\",log_file=\"${log_file}\"} ${actual_duration_seconds}" >> ${tmp_metric_file}
 
-echo "${metric_name}{ingest_id=\"ingest_actual_duration_seconds\"} ${actual_duration_seconds}" >> ${tmp_metric_file}
+echo "${metric_name}{ingest_id=\"ingest_error_count\",log_file=\"${log_file}\"} ${error_count}" >> ${tmp_metric_file}
 
-echo "${metric_name}{ingest_id=\"ingest_error_count\"} ${error_count}" >> ${tmp_metric_file}
+echo "${metric_name}{ingest_id=\"ingest_min_recorded_record_count_average\",log_file=\"${log_file}\"} ${min_recorded_record_count_average}" >> ${tmp_metric_file}
+echo "${metric_name}{ingest_id=\"ingest_max_recorded_record_count_average\",log_file=\"${log_file}\"} ${max_recorded_record_count_average}" >> ${tmp_metric_file}
+echo "${metric_name}{ingest_id=\"ingest_recorded_record_count\",log_file=\"${log_file}\"} ${recorded_record_count}" >> ${tmp_metric_file}
 
-echo "${metric_name}{ingest_id=\"ingest_intended_record_count\"} ${intended_record_count}" >> ${tmp_metric_file}
+echo "${metric_name}{ingest_id=\"ingest_record_count_difference\",log_file=\"${log_file}\"} ${record_count_difference}" >> ${tmp_metric_file}
 
-echo "${metric_name}{ingest_id=\"ingest_recorded_record_count\"} ${recorded_record_count}" >> ${tmp_metric_file}
-
-echo "${metric_name}{ingest_id=\"ingest_record_count_difference\"} ${record_count_difference}" >> ${tmp_metric_file}
-
-echo "${metric_name}{ingest_id=\"ingest_exit_code\"} ${exit_code}" >> ${tmp_metric_file}
+echo "${metric_name}{ingest_id=\"ingest_exit_code\",log_file=\"${log_file}\"} ${exit_code}" >> ${tmp_metric_file}
 
 mv ${tmp_metric_file} ${metric_file}
 # archive the log_file

@@ -47,7 +47,7 @@ class VxIngestManager(
     builders to ingest data from GSD couchbase documents, producing new documents
     that can be inserted into couchbase or written to json files in the specified output directory.
 
-    This class will process data by reading an ingest_document_id
+    This class will process data by reading an ingest_document
     and instantiating a builder class of the type specified in the
     ingest_document.
 
@@ -68,30 +68,37 @@ class VxIngestManager(
     and dies.
     """
 
-    def __init__(self, name, load_spec, element_queue, output_dir):
+    def __init__(
+        self,
+        name,
+        load_spec,
+        element_queue,
+        output_dir,
+    ):
         """constructor for VxIngestManager
         Args:
             name (string): the thread name for this IngestManager
             load_spec (Object): contains Couchbase credentials
-            element_queue (Object): the element Queue
+            element_queue (Queue): reference to the element Queue
             output_dir (string): output directory path
         """
         # The Constructor for the RunCB class.
         self.thread_name = name
         self.load_spec = load_spec
-        self.ingest_document = None
         self.cb_credentials = self.load_spec["cb_connection"]
-        self.ingest_document_id = None
+        self.ingest_document_ids = self.load_spec["ingest_document_ids"]
+        # use the first one, there aren't multiples anyway
+        self.ingest_document = self.load_spec["ingest_documents"][self.ingest_document_ids[0]]
         self.ingest_type_builder_name = None
         self.queue = element_queue
         self.builder_map = {}
         self.cluster = None
         self.collection = None
         self.output_dir = output_dir
+
         super().__init__(
             self.thread_name,
             self.load_spec,
-            self.ingest_document,
             self.queue,
             self.output_dir,
         )
@@ -103,9 +110,7 @@ class VxIngestManager(
         if queue_element is None:
             raise Exception("ingest_document is undefined")
         try:
-            ingest_document_result = self.collection.get(queue_element)
-            self.ingest_document = ingest_document_result.content
-            self.ingest_type_builder_name = self.ingest_document["builder_type"]
+            self.ingest_type_builder_name = self.load_spec["ingest_documents"][queue_element]["builder_type"]
         except Exception as _e:  # pylint:disable=broad-except
             logging.exception(
                 "%s: process_element: Exception getting ingest document for %s",
@@ -141,7 +146,10 @@ class VxIngestManager(
                 builder = self.builder_map[self.ingest_type_builder_name]
             else:
                 builder_class = getattr(my_builder, self.ingest_type_builder_name)
-                builder = builder_class(self.load_spec, self.ingest_document)
+                builder = builder_class(
+                    self.load_spec,
+                    self.ingest_document
+                )
                 self.builder_map[self.ingest_type_builder_name] = builder
             document_map = builder.build_document(queue_element)
             if self.output_dir:

@@ -21,8 +21,15 @@ function usage {
   echo "This script expects to execute inside the clone directory of the VxIngest repo"
   echo "This script expects to be run as user amb-verif"
   echo "This script expects to have a python virtual environment in the amb-verif home directory in the subdirectory vxingest-env"
+  failed_import_count=$((failed_import_count+1))
   exit 1
 }
+
+success_import_count=0
+failed_import_count=0
+success_scrape_count=0
+failed_scrape_count=0
+start=$(date +%s)
 
 while getopts 'c:d:l:t:m:' param; do
   case "${param}" in
@@ -131,11 +138,22 @@ fi
     ${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ${credentials_file} -p ${t_dir} -n 8 -l ${clonedir}/logs >> ${import_log_file} 2>&1
     exit_code=$?
     echo "exit_code:${exit_code}" >> ${import_log_file}
+    if [[ "${exit_code}" -ne "0" ]]; then
+      failed_import_count=$((failed_job_count+1))
+    else
+      success_import_count=$((success_job_count+1))
+    fi
 
     # run the scraper
     sleep 2  # eventually consistent data - give it a little time
     echo "RUNNING - ${clonedir}/scripts/VXingest_utilities/scrape_metrics.sh -c ${credentials_file} -l ${log_file} -d ${metrics_dir}"
     ${clonedir}/scripts/VXingest_utilities/scrape_metrics.sh -c ${credentials_file} -l ${log_file} -d ${metrics_dir}
+    exit_code=$?
+    if [[ "${exit_code}" -ne "0" ]]; then
+      failed_scrape_count=$((failed_scrape_count+1))
+    else
+      success_scrape_count=$((success_scrape_count+1))
+    fi
     echo "--------"
 done
 
@@ -144,5 +162,14 @@ echo "update metadata"
 ${clonedir}/mats_metadata_and_indexes/metadata_files/update_ceiling_mats_metadata.sh ${credentials_file}
 # eventually we need to scrape the update....
 echo "FINISHED"
-date
+end=$(date +%s)
+m_file=$(mktemp)
+echo "run_import_duration $((end-start))" > m_file
+echo "run_import_success_count ${success_import_count}" >> m_file
+echo "run_import_failure_count ${failed_import_count}" >> m_file
+echo "run_scrape_success_count ${success_scrape_count}" >> m_file
+echo "run_scrape_failure_count ${failed_scrape_count}" >> m_file
+cp ${m_file} ${metrics_dir}/run_import_metrics.prom
+rm ${m_file}
+
 exit 0

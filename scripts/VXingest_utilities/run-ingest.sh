@@ -29,9 +29,10 @@ function usage {
   exit 1
 }
 
-run-ingest-duration-metric="run_ingest_duration"=""
-run-ingest-job-count-metric="run_ingest_job_count"=""
 
+success_job_count=0
+failed_job_count=0
+start=$(date +%s)
 while getopts 'c:d:l:m:o:' param; do
   case "${param}" in
   c)
@@ -196,6 +197,11 @@ for i in "${!ids[@]}"; do
   echo "RUNNING - python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ${credentials_file} ${input_data_path_param} -o $out_dir -t8"
   python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ${credentials_file} ${input_data_path_param} -o $out_dir -t8 >> ${log_file} 2>&1
   exit_code=$?
+  if [[ "${exit_code}" -ne "0" ]]; then
+    failed_job_count=$((failed_job_count+1))
+  else
+    success_job_count=$((success_job_count+1))
+  fi
   echo "exit_code:${exit_code}" >> ${log_file}
   tar_file_name="${metric_name}_$(date + %s).tar.gz"
 
@@ -207,5 +213,11 @@ for i in "${!ids[@]}"; do
   find ${outdir} -depth -type d -empty -exec rmdir {} \;
 done
 echo "FINISHED"
-date
+end=$(date +%s)
+m_file=$(mktemp)
+echo "run_ingest_duration $((end-start))" > m_file
+echo "run_ingest_success_count ${success_job_count}" >> m_file
+echo "run_ingest_failure_count ${failed_job_count}" >> m_file
+cp ${m_file} ${metrics_dir}/run_ingest_metrics.prom
+rm ${m_file}
 exit 0

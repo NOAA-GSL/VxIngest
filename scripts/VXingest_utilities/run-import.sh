@@ -109,17 +109,19 @@ fi
 
 # Check the load directory for new tar balls.
 # This script is expected to run in two minute intervals
-  # create the output dir from the sub_type i.e. /data/netcdf_to_cb/output/
-  # create subtype sub directory for code path and output path
+  # create a temporary log_dir
+  # create an archive dir (might already exist)
+  # The load_dir is where the program will look for the tar files
+  # the t_dir is where the tarball will be untar'd
   log_dir=$(mktemp -d -p ${tar_dir})
   archive_dir="${tar_dir}/archive"
   mkdir -p "${archive_dir}"
   runtime=`date +\%Y-\%m-\%d:\%H:\%M:\%S`
   shopt -s nullglob  # make sure an empty directory gives an empty array
-  for i in ${}
   tarfile_names=(${load_dir}/*)
   for f in ${tarfile_names}; do
     # process the file
+    t_dir=$(mktemp -d -p ${tar_dir})
     tar -xzf $f -C ${t_dir}
     cd ${t_dir}
     log_files=(*.log)
@@ -128,20 +130,22 @@ fi
       echo "moved tar file ${f} to ${archive_dir}"
       echo " - exiting"
       mv $f $archive_dir
+      rm -rf ${t_dir}
       usage
     fi
-    # ok - have one log file and one job_doc
+    # ok - have one log file
     log_file=${log_files[0]}
+    mv ${log_file} ${log_dir}
+    log_file=${log_dir}/${log_file}
     log_file_basename=$(basename ${log_file})
     log_file_dirname=$(dirname ${log_file})
     import_log_file="${log_file_dirname}/import-${log_file_basename}-${runtime}.log"
-
+    mv ${import_log_file} ${log_dir}
+    import_log_file=${log_dir}/${import_log_file}
     # run the import job
-
     metric_name="$(grep metric_name ${log_file})"
     import_metric_name="import_${log_metric_name}"
-    echo "metric_name ${metric_name}" > ${import_log_file}
-
+    echo "metric_name ${metric_name}" > ${log_file}
     echo "metric_name ${import_metric_name}" > ${import_log_file}
     echo "RUNNING - ${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ${credentials_file} -p ${outdir} -n 8 -l ${clonedir}/logs"
     ${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ${credentials_file} -p ${t_dir} -n 8 -l ${clonedir}/logs >> ${import_log_file} 2>&1

@@ -82,6 +82,15 @@ while getopts 'c:d:l:t:m:' param; do
     ;;
   esac
 done
+if [[ -z ${credentials_file} ]] || [[ -z ${clonedir} ]] || [[ -z ${load_dir} ]] || [[ -z ${metrics_dir} ]] || [[ -z ${tar_dir} ]]; then
+  echo "*missing parameter*"
+  echo "provided credentials_file is ${credentials_file}"
+  echo "provided clonedir is ${clonedir}"
+  echo "provided load_dir is ${load_dir}"
+  echo "provided metrics_dir is ${metrics_dir}"
+  echo "provided tar_dir is ${tar_dir}"
+  usage
+fi
 
 pid=$$
 if [ "$(whoami)" != "amb-verif" ]; then

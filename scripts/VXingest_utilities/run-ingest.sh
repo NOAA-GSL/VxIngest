@@ -200,7 +200,7 @@ for i in "${!ids[@]}"; do
   metric_name="${name}_${hname}"
   echo "metric_name ${metric_name}" > ${log_file}
   # provide an input_data_path if there was one in the job spec (netcdf and grib)
-  # if there isn't an input_data_path 
+  # if there isn't an input_data_path
   input_data_path_param=""
   if [[ "${input_data_path}" != "null" ]]; then
      input_data_path_param="-p ${input_data_path}"
@@ -214,7 +214,7 @@ for i in "${!ids[@]}"; do
     success_job_count=$((success_job_count+1))
   fi
   echo "exit_code:${exit_code}" >> ${log_file}
-  tar_file_name="${metric_name}_$(date + %s).tar.gz"
+  tar_file_name="${metric_name}_$(date +%s).tar.gz"
 
   # cp the log_file to the output dir
   cp ${log_file} ${out_dir}

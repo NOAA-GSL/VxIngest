@@ -33,7 +33,7 @@ function usage {
 success_job_count=0
 failed_job_count=0
 start=$(date +%s)
-while getopts 'c:d:l:m:o:' param; do
+while getopts 'c:d:l:m:o:x:' param; do
   case "${param}" in
   c)
     credentials_file=${OPTARG}
@@ -92,6 +92,17 @@ while getopts 'c:d:l:m:o:' param; do
     ;;
   esac
 done
+
+if [[ -z ${credentials_file} ]] || [[ -z ${clonedir} ]] || [[ -z ${log_dir} ]] || [[ -z ${metrics_dir} ]] || [[ -z ${output_dir} ]] || [[ -z ${xfer_dir} ]]; then
+  echo "*missing parameter*"
+  echo "provided credentials_file is ${credentials_file}"
+  echo "provided clonedir is ${clonedir}"
+  echo "provided log_dir is ${log_dir}"
+  echo "provided metrics_dir is ${metrics_dir}"
+  echo "provided output_dir is ${output_dir}"
+  echo "provided xfer_dir is ${xfer_dir}"
+  usage
+fi
 
 pid=$$
 if [ "$(whoami)" != "amb-verif" ]; then

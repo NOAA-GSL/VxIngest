@@ -1,3 +1,6 @@
+"""
+    test the connection to couhbase, data and query service
+"""
 import sys
 import os
 from pathlib import Path
@@ -8,16 +11,27 @@ from couchbase_core.cluster import PasswordAuthenticator
 
 
 class TestConnection(TestCase):
+    """
+        test connection, get, query to adb-cb1, adb-cb4
+    """
     def get_credentials(self, _credentials_file):
+        """
+        get the arguments from the credentials file
+        Args:
+            _credentials_file: a credentials file
+        """
         _f = open(_credentials_file)
         _yaml_data = yaml.load(_f, yaml.SafeLoader)
-        self.cb_host = _yaml_data['cb_host']
-        self.cb_user = _yaml_data['cb_user']
-        self.cb_password = _yaml_data['cb_password']
+        cb_host = _yaml_data['cb_host']
+        cb_user = _yaml_data['cb_user']
+        cb_password = _yaml_data['cb_password']
         _f.close()
-        return
+        return cb_host, cb_user, cb_password
 
     def test_adb_cb1_connection_no_cert(self):
+        """
+            test connection, get, query to adb-cb1
+        """
         # noinspection PyBroadException
         try:
             _credentials_file = os.environ['HOME'] + "/adb-cb1-credentials"
@@ -25,20 +39,22 @@ class TestConnection(TestCase):
             # username and password to be passed to the cluster.
             if not Path(_credentials_file).is_file():
                 sys.exit("*** credentials_file file " + _credentials_file + " can not be found!")
-            self.get_credentials(_credentials_file)
-            cluster = Cluster('couchbase://' + self.cb_host, ClusterOptions(PasswordAuthenticator(self.cb_user,
-                                                                                                  self.cb_password)))
+            cb_host, cb_user, cb_password = self.get_credentials(_credentials_file)
+            cluster = Cluster('couchbase://' + cb_host, ClusterOptions(PasswordAuthenticator(cb_user,cb_password)))
             # following a successful authentication, a bucket can be opened.
             # access a bucket in that cluster
             bucket = cluster.bucket('mdata')
             collection = bucket.default_collection()
             ingest_document_result = collection.get("MD:V01:METAR:stations:ingest")
             print("test_adb_cb1_connection_no_cert: successfully read ", ingest_document_result.content)
-        except:
+        except:   # pylint:disable=(bare-except)
             self.fail("test_adb_cb1_connection_no_cert: TestConnection.test_connection Exception failure: " +
                       str(sys.exc_info()))
-    
+
     def test_adb_cb4_connection_no_cert(self):
+        """
+            test connection, get, query to adb-cb4
+        """
         # noinspection PyBroadException
         try:
             _credentials_file = os.environ['HOME'] + "/adb-cb4-credentials"
@@ -47,15 +63,14 @@ class TestConnection(TestCase):
             if not Path(_credentials_file).is_file():
                 sys.exit("*** credentials_file file " + _credentials_file + " can not be found!")
             self.get_credentials(_credentials_file)
-            cluster = Cluster('couchbase://' + self.cb_host, ClusterOptions(PasswordAuthenticator(self.cb_user,
-                                                                                                  self.cb_password)))
+            cb_host, cb_user, cb_password = self.get_credentials(_credentials_file)
+            cluster = Cluster('couchbase://' + cb_host, ClusterOptions(PasswordAuthenticator(cb_user,cb_password)))
             # following a successful authentication, a bucket can be opened.
             # access a bucket in that cluster
             bucket = cluster.bucket('mdata')
             collection = bucket.default_collection()
             ingest_document_result = collection.get("MD:V01:METAR:stations:ingest")
             print("test_adb_cb4_connection_no_cert: successfully read ", ingest_document_result.content)
-        except:
+        except:   # pylint:disable=(bare-except)
             self.fail("test_adb_cb4_connection_no_cert: TestConnection.test_connection Exception failure: " +
                       str(sys.exc_info()))
-

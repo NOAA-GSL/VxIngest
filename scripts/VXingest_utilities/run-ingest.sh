@@ -201,12 +201,8 @@ for i in "${!ids[@]}"; do
   echo "metric_name ${metric_name}" > ${log_file}
   # provide an input_data_path if there was one in the job spec (netcdf and grib)
   # if there isn't an input_data_path
-  input_data_path_param=""
-  if [[ "${input_data_path}" != "null" ]]; then
-     input_data_path_param="-p ${input_data_path}"
-  fi
   echo "RUNNING - python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ${credentials_file} ${input_data_path_param} -o $out_dir -t8"
-  python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ${credentials_file} ${input_data_path_param} -o $out_dir -t8 >> ${log_file} 2>&1
+  python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ${credentials_file} -o $out_dir -t8 >> ${log_file} 2>&1
   exit_code=$?
   if [[ "${exit_code}" -ne "0" ]]; then
     failed_job_count=$((failed_job_count+1))

@@ -141,7 +141,7 @@ fi
     log_file_dirname=$(dirname ${log_file})
     import_log_file="${log_file_dirname}/import-${log_file_basename}-${runtime}.log"
     mv ${import_log_file} ${log_dir}
-    import_log_file=${log_dir}/${import_log_file}
+    import_log_file="${log_dir}/${import_log_file}"
     # run the import job
     metric_name="$(grep metric_name ${log_file})"
     import_metric_name="import_${log_metric_name}"

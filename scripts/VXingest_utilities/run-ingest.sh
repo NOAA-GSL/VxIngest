@@ -222,9 +222,9 @@ done
 echo "FINISHED"
 end=$(date +%s)
 m_file=$(mktemp)
-echo "run_ingest_duration $((end-start))" > m_file
-echo "run_ingest_success_count ${success_job_count}" >> m_file
-echo "run_ingest_failure_count ${failed_job_count}" >> m_file
-cp ${m_file} ${metrics_dir}/run_ingest_metrics.prom
+echo "run_ingest_duration $((end-start))" > ${m_file}
+echo "run_ingest_success_count ${success_job_count}" >> ${m_file}
+echo "run_ingest_failure_count ${failed_job_count}" >> ${m_file}
+cp ${m_file} "${metrics_dir}/run_ingest_metrics.prom"
 rm ${m_file}
 exit 0

@@ -117,7 +117,7 @@ fi
   mkdir -p "${archive_dir}"
   runtime=`date +\%Y-\%m-\%d:\%H:\%M:\%S`
   shopt -s nullglob  # make sure an empty directory gives an empty array
-  tarfile_names=(${load_dir}/*)
+  tarfile_names=$(find /data/temp -type f -name "*.gz")
   for f in ${tarfile_names}; do
     # process the file
     t_dir=$(mktemp -d -p ${tar_dir})
@@ -141,7 +141,7 @@ fi
     import_log_file="${log_dir}/import-${log_file_name}"
     # run the import job
     metric_name="$(grep metric_name ${log_file})"
-    import_metric_name="import_${log_metric_name}"
+    import_metric_name="import_${metric_name}"
     echo "metric_name ${metric_name}" > ${log_file}
     echo "metric_name ${import_metric_name}" > ${import_log_file}
     echo "RUNNING - ${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ${credentials_file} -p ${t_dir} -n 8 -l ${clonedir}/logs >> ${import_log_file}"

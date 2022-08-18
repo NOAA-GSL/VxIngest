@@ -130,6 +130,7 @@ for f in ${tarfile_names}; do
     echo "There is not just one log_file in this tarbal"
     echo "moved tar file ${f} to ${archive_dir}"
     echo " - exiting"
+    failed_import_count=$((failed_import_count+1))
     mv $f $archive_dir
     rm -rf ${t_dir}
     usage
@@ -148,13 +149,13 @@ for f in ${tarfile_names}; do
   exit_code=$?
   echo "exit_code:${exit_code}" >> ${import_log_file}
   if [[ "${exit_code}" -ne "0" ]]; then
-    failed_import_count=$((failed_job_count+1))
+    failed_import_count=$((failed_import_count+1))
     echo "import failed for $f"
     echo "moving tar file ${f} to ${archive_dir}"
     mv $f $archive_dir
     # don't exit - let the scraper record the error
   else
-    success_import_count=$((success_job_count+1))
+    success_import_count=$((success_import_count+1))
   fi
 
   # run the scraper

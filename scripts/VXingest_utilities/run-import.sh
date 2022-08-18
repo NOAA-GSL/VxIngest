@@ -109,73 +109,72 @@ fi
 
 # Check the load directory for new tar balls.
 # This script is expected to run in two minute intervals
-  # create a temporary log_dir
-  # create an archive dir (might already exist)
-  # The load_dir is where the program will look for the tar files
-  # the t_dir is where the tarball will be untar'd
-  archive_dir="${tar_dir}/archive"
-  mkdir -p "${archive_dir}"
-  runtime=`date +\%Y-\%m-\%d:\%H:\%M:\%S`
-  shopt -s nullglob  # make sure an empty directory gives an empty array
-  tarfile_names=$(find /data/temp -type f -name "*.gz")
-  for f in ${tarfile_names}; do
-    # process the file
-    t_dir=$(mktemp -d -p ${tar_dir})
-    tar -xzf $f -C ${t_dir}
-    cdir=$(pwd)
-    cd ${t_dir}
-    log_files=(*.log)
-    cd ${cdir}
-    if [[ ${#log_files[@]} -ne 1 ]]; then
-      echo "There is not just one log_file in this tarbal"
-      echo "moved tar file ${f} to ${archive_dir}"
-      echo " - exiting"
-      mv $f $archive_dir
-      rm -rf ${t_dir}
-      usage
-    fi
-    # ok - have one log file
-    log_file=${t_dir}/${log_files[0]}
-    log_dir=$(dirname ${log_file})
-    log_file_name=$(basename $log_file)
-    import_log_file="${log_dir}/import-${log_file_name}"
-    # run the import job
-    metric_name="$(grep metric_name ${log_file})"
-    import_metric_name="import_${metric_name}"
-    echo "metric_name ${metric_name}" > ${log_file}
-    echo "metric_name ${import_metric_name}" > ${import_log_file}
-    echo "RUNNING - ${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ${credentials_file} -p ${t_dir} -n 8 -l ${clonedir}/logs >> ${import_log_file}"
-    ${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ${credentials_file} -p ${t_dir} -n 8 -l ${clonedir}/logs >> ${import_log_file} 2>&1
-    exit_code=$?
-    echo "exit_code:${exit_code}" >> ${import_log_file}
-    if [[ "${exit_code}" -ne "0" ]]; then
-      failed_import_count=$((failed_job_count+1))
-      echo "import failed for $f"
-      echo "moving tar file ${f} to ${archive_dir}"
-      mv $f $archive_dir
-      # don't exit - let the scraper record the error
-    else
-      success_import_count=$((success_job_count+1))
-    fi
-
-    # run the scraper
-    sleep 2  # eventually consistent data - give it a little time
-    echo "RUNNING - ${clonedir}/scripts/VXingest_utilities/scrape_metrics.sh -c ${credentials_file} -l ${log_file} -d ${metrics_dir}"
-    ${clonedir}/scripts/VXingest_utilities/scrape_metrics.sh -c ${credentials_file} -l ${log_file} -d ${metrics_dir}
-    exit_code=$?
-    if [[ "${exit_code}" -ne "0" ]]; then
-      failed_scrape_count=$((failed_scrape_count+1))
-    else
-      success_scrape_count=$((success_scrape_count+1))
-    fi
-    echo "--------"
-    # now clean up the files
-    # remove the tar file (if it failed it should have been archived)
-    echo "removing tar file - $f"
-    rm $f
-    # remove the data files ($t_dir)
-    echo "removing data directory - ${t_dir}"
+# create a temporary log_dir
+# create an archive dir (might already exist)
+# The load_dir is where the program will look for the tar files
+# the t_dir is where the tarball will be untar'd
+archive_dir="${tar_dir}/archive"
+mkdir -p "${archive_dir}"
+runtime=`date +\%Y-\%m-\%d:\%H:\%M:\%S`
+shopt -s nullglob  # make sure an empty directory gives an empty array
+tarfile_names=$(find /data/temp -type f -name "*.gz")
+for f in ${tarfile_names}; do
+  # process the file
+  t_dir=$(mktemp -d -p ${tar_dir})
+  tar -xzf $f -C ${t_dir}
+  cdir=$(pwd)
+  cd ${t_dir}
+  log_files=(*.log)
+  cd ${cdir}
+  if [[ ${#log_files[@]} -ne 1 ]]; then
+    echo "There is not just one log_file in this tarbal"
+    echo "moved tar file ${f} to ${archive_dir}"
+    echo " - exiting"
+    mv $f $archive_dir
     rm -rf ${t_dir}
+    usage
+  fi
+  # ok - have one log file
+  log_file=${t_dir}/${log_files[0]}
+  log_dir=$(dirname ${log_file})
+  log_file_name=$(basename $log_file)
+  import_log_file="${log_dir}/import-${log_file_name}"
+  # run the import job
+  metric_name="$(grep metric_name ${log_file})"
+  import_metric_name="import_${metric_name}"
+  echo "metric_name ${import_metric_name}" > ${import_log_file}
+  echo "RUNNING - ${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ${credentials_file} -p ${t_dir} -n 8 -l ${clonedir}/logs >> ${import_log_file}"
+  ${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ${credentials_file} -p ${t_dir} -n 8 -l ${clonedir}/logs >> ${import_log_file} 2>&1
+  exit_code=$?
+  echo "exit_code:${exit_code}" >> ${import_log_file}
+  if [[ "${exit_code}" -ne "0" ]]; then
+    failed_import_count=$((failed_job_count+1))
+    echo "import failed for $f"
+    echo "moving tar file ${f} to ${archive_dir}"
+    mv $f $archive_dir
+    # don't exit - let the scraper record the error
+  else
+    success_import_count=$((success_job_count+1))
+  fi
+
+  # run the scraper
+  sleep 2  # eventually consistent data - give it a little time
+  echo "RUNNING - ${clonedir}/scripts/VXingest_utilities/scrape_metrics.sh -c ${credentials_file} -l ${log_file} -d ${metrics_dir}"
+  ${clonedir}/scripts/VXingest_utilities/scrape_metrics.sh -c ${credentials_file} -l ${log_file} -d ${metrics_dir}
+  exit_code=$?
+  if [[ "${exit_code}" -ne "0" ]]; then
+    failed_scrape_count=$((failed_scrape_count+1))
+  else
+    success_scrape_count=$((success_scrape_count+1))
+  fi
+  echo "--------"
+  # now clean up the files
+  # remove the tar file (if it failed it should have been archived)
+  echo "removing tar file - $f"
+  rm $f
+  # remove the data files ($t_dir)
+  echo "removing data directory - ${t_dir}"
+  rm -rf ${t_dir}
 done
 
 echo "*************************************"

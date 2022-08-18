@@ -113,7 +113,6 @@ fi
   # create an archive dir (might already exist)
   # The load_dir is where the program will look for the tar files
   # the t_dir is where the tarball will be untar'd
-  log_dir=$(mktemp -d -p ${tar_dir})
   archive_dir="${tar_dir}/archive"
   mkdir -p "${archive_dir}"
   runtime=`date +\%Y-\%m-\%d:\%H:\%M:\%S`
@@ -123,8 +122,10 @@ fi
     # process the file
     t_dir=$(mktemp -d -p ${tar_dir})
     tar -xzf $f -C ${t_dir}
+    cdir=$(pwd)
     cd ${t_dir}
     log_files=(*.log)
+    cd ${cdir}
     if [[ ${#log_files[@]} -ne 1 ]]; then
       echo "There is not just one log_file in this tarbal"
       echo "moved tar file ${f} to ${archive_dir}"
@@ -134,20 +135,16 @@ fi
       usage
     fi
     # ok - have one log file
-    log_file=${log_files[0]}
-    mv ${log_file} ${log_dir}
-    log_file=${log_dir}/${log_file}
-    log_file_basename=$(basename ${log_file})
-    log_file_dirname=$(dirname ${log_file})
-    import_log_file="${log_file_dirname}/import-${log_file_basename}-${runtime}.log"
-    mv ${import_log_file} ${log_dir}
-    import_log_file="${log_dir}/${import_log_file}"
+    log_file=${t_dir}/${log_files[0]}
+    log_dir=$(dirname ${log_file})
+    log_file_name=$(basename $log_file)
+    import_log_file="${log_dir}/import-${log_file_name}"
     # run the import job
     metric_name="$(grep metric_name ${log_file})"
     import_metric_name="import_${log_metric_name}"
     echo "metric_name ${metric_name}" > ${log_file}
     echo "metric_name ${import_metric_name}" > ${import_log_file}
-    echo "RUNNING - ${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ${credentials_file} -p ${outdir} -n 8 -l ${clonedir}/logs"
+    echo "RUNNING - ${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ${credentials_file} -p ${t_dir} -n 8 -l ${clonedir}/logs >> ${import_log_file}"
     ${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ${credentials_file} -p ${t_dir} -n 8 -l ${clonedir}/logs >> ${import_log_file} 2>&1
     exit_code=$?
     echo "exit_code:${exit_code}" >> ${import_log_file}
@@ -173,16 +170,15 @@ done
 echo "*************************************"
 echo "update metadata"
 ${clonedir}/mats_metadata_and_indexes/metadata_files/update_ceiling_mats_metadata.sh ${credentials_file}
-# eventually we need to scrape the update....
 echo "FINISHED"
 end=$(date +%s)
 m_file=$(mktemp)
-echo "run_import_duration $((end-start))" > m_file
-echo "run_import_success_count ${success_import_count}" >> m_file
-echo "run_import_failure_count ${failed_import_count}" >> m_file
-echo "run_scrape_success_count ${success_scrape_count}" >> m_file
-echo "run_scrape_failure_count ${failed_scrape_count}" >> m_file
-cp ${m_file} ${metrics_dir}/run_import_metrics.prom
+echo "run_import_duration $((end-start))" > ${m_file}
+echo "run_import_success_count ${success_import_count}" >> ${m_file}
+echo "run_import_failure_count ${failed_import_count}" >> ${m_file}
+echo "run_scrape_success_count ${success_scrape_count}" >> ${m_file}
+echo "run_scrape_failure_count ${failed_scrape_count}" >> ${m_file}
+cp ${m_file} "${metrics_dir}/run_import_metrics.prom"
 rm ${m_file}
 
 exit 0

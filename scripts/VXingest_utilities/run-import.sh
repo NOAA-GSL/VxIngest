@@ -150,6 +150,10 @@ fi
     echo "exit_code:${exit_code}" >> ${import_log_file}
     if [[ "${exit_code}" -ne "0" ]]; then
       failed_import_count=$((failed_job_count+1))
+      echo "import failed for $f"
+      echo "moving tar file ${f} to ${archive_dir}"
+      mv $f $archive_dir
+      # don't exit - let the scraper record the error
     else
       success_import_count=$((success_job_count+1))
     fi
@@ -165,6 +169,11 @@ fi
       success_scrape_count=$((success_scrape_count+1))
     fi
     echo "--------"
+    # now clean up the files
+    # remove the tar file (if it failed it should have been archived)
+    rm $f
+    # remove the data files ($t_dir)
+    rm -rf ${t_dir}
 done
 
 echo "*************************************"

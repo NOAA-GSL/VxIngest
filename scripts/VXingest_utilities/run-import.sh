@@ -171,15 +171,19 @@ fi
     echo "--------"
     # now clean up the files
     # remove the tar file (if it failed it should have been archived)
+    echo "removing tar file - $f"
     rm $f
     # remove the data files ($t_dir)
+    echo "removing data directory - ${t_dir}"
     rm -rf ${t_dir}
 done
 
 echo "*************************************"
-echo "update metadata"
-${clonedir}/mats_metadata_and_indexes/metadata_files/update_ceiling_mats_metadata.sh ${credentials_file}
-echo "FINISHED"
+if [[ "${success_import_count}" -ne "0" ]]; then
+    echo "update metadata"
+    ${clonedir}/mats_metadata_and_indexes/metadata_files/update_ceiling_mats_metadata.sh ${credentials_file}
+    echo "FINISHED"
+fi
 end=$(date +%s)
 m_file=$(mktemp)
 echo "run_import_duration $((end-start))" > ${m_file}

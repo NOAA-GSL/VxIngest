@@ -440,6 +440,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                         AND fve.model='{model}'
                         AND fve.version='V01'
                         AND fve.subset='{subset}'
+                        AND fve.fcstValidEpoch >= 1661385600
                         AND fve.fcstValidEpoch >= {first_epoch}
                         AND fve.fcstValidEpoch <= {last_epoch}
                     ORDER BY fve.fcstValidEpoch, fcstLen""".format(
@@ -458,6 +459,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                             AND obs.docType='obs'
                             AND obs.version='V01'
                             AND obs.subset='{subset}'
+                            AND obs.fcstValidEpoch >= 1661385600
                             AND obs.fcstValidEpoch >= {max_fcst_epoch}
                             AND obs.fcstValidEpoch <= {last_epoch}
                     ORDER BY obs.fcstValidEpoch""".format(
@@ -723,7 +725,7 @@ class CTCModelObsBuilderV01(CTCBuilder):
                     read_only=True,
                 )
                 self.thresholds = list(
-                    map(int, list((list(result)[0])[self.variable].keys()))
+                    map(float, list((list(result)[0])[self.variable].keys()))
                 )
             for threshold in self.thresholds:
                 hits = 0

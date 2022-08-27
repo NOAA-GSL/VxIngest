@@ -137,7 +137,8 @@ for f in ${tarfile_names}; do
   fi
   # ok - have one log file
   log_file=${t_dir}/${log_files[0]}
-  log_dir=$(dirname ${log_file})
+  #log_dir=$(dirname ${log_file})
+  log_dir=${clonedir}/logs
   log_file_name=$(basename $log_file)
   import_log_file="${log_dir}/import-${log_file_name}"
   # run the import job
@@ -147,6 +148,7 @@ for f in ${tarfile_names}; do
   echo "RUNNING - ${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ${credentials_file} -p ${t_dir} -n 8 -l ${clonedir}/logs >> ${import_log_file}"
   ${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ${credentials_file} -p ${t_dir} -n 8 -l ${clonedir}/logs >> ${import_log_file} 2>&1
   exit_code=$?
+  wait
   echo "exit_code:${exit_code}" >> ${import_log_file}
   if [[ "${exit_code}" -ne "0" ]]; then
     failed_import_count=$((failed_import_count+1))
@@ -178,12 +180,26 @@ for f in ${tarfile_names}; do
   rm -rf ${t_dir}
 done
 
-echo "*************************************"
+#echo "*************************************"
+
 if [[ "${success_import_count}" -ne "0" ]]; then
-    echo "update metadata"
-    ${clonedir}/mats_metadata_and_indexes/metadata_files/update_ceiling_mats_metadata.sh ${credentials_file}
-    echo "FINISHED"
+	LOCKDIR="/data/import_lock"
+	if mkdir -- "$LOCKDIR"; then
+	    echo "update metadata"
+	    ${clonedir}/mats_metadata_and_indexes/metadata_files/update_ceiling_mats_metadata.sh ${credentials_file}
+            ret=$?
+            if [[ "${ret}" -ne "0" ]]; then
+               echo "import failed with exit code ${ret}"
+            fi
+	    if rmdir -- "$LOCKDIR"
+	    then
+		echo "import finished"
+	    else
+		echo "IMPORT ERROR: Could not remove import lock dir" >&2
+	    fi
+	fi
 fi
+echo "FINISHED"
 end=$(date +%s)
 m_file=$(mktemp)
 echo "run_import_duration $((end-start))" > ${m_file}

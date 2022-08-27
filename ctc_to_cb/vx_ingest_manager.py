@@ -87,8 +87,9 @@ class VxIngestManager(
         self.load_spec = load_spec
         self.cb_credentials = self.load_spec["cb_connection"]
         self.ingest_document_ids = self.load_spec["ingest_document_ids"]
-        # use the first one, there aren't multiples anyway
-        self.ingest_document = self.load_spec["ingest_documents"][self.ingest_document_ids[0]]
+        # # use the first one, there aren't multiples anyway
+        # self.ingest_document = self.load_spec["ingest_documents"][self.ingest_document_ids[0]]
+        self.ingest_document = None
         self.ingest_type_builder_name = None
         self.queue = element_queue
         self.builder_map = {}
@@ -146,6 +147,7 @@ class VxIngestManager(
                 builder = self.builder_map[self.ingest_type_builder_name]
             else:
                 builder_class = getattr(my_builder, self.ingest_type_builder_name)
+                self.ingest_document = self.load_spec["ingest_documents"][queue_element]
                 builder = builder_class(
                     self.load_spec,
                     self.ingest_document

@@ -170,7 +170,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
             return value
         except Exception as _e:  # pylint: disable=broad-except
             logging.error(
-                "GribBuilder.translate_template_item: Exception  error: %s", str(_e)
+                "CtcBuilder.translate_template_item: Exception  error: %s", str(_e)
             )
             return None
 
@@ -198,18 +198,18 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
             # put document into document map
             if new_document["id"]:
                 logging.info(
-                    "GribBuilder.handle_document - adding document %s",
+                    "CTCBuilder.handle_document - adding document %s",
                     new_document["id"],
                 )
                 self.document_map[new_document["id"]] = new_document
             else:
                 logging.info(
-                    "GribBuilder.handle_document - cannot add document with key %s",
+                    "CtcBuilder.handle_document - cannot add document with key %s",
                     str(new_document["id"]),
                 )
         except Exception as _e:  # pylint: disable=broad-except
             logging.error(
-                "%s GribBuilder.handle_document: Exception instantiating builder:  error %s",
+                "%s CtcBuilder.handle_document: Exception instantiating builder:  error %s",
                 self.__class__.__name__,
                 str(_e),
             )
@@ -249,7 +249,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
             return doc
         except Exception as _e:  # pylint:disable=broad-except
             logging.exception(
-                "%s GribBuilder.handle_key: Exception in builder",
+                "%s CtcBuilder.handle_key: Exception in builder",
                 self.__class__.__name__,
             )
         return doc

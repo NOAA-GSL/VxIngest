@@ -137,8 +137,7 @@ for f in ${tarfile_names}; do
   fi
   # ok - have one log file
   log_file=${t_dir}/${log_files[0]}
-  #log_dir=$(dirname ${log_file})
-  log_dir=${clonedir}/logs
+  log_dir=$(dirname ${log_file})
   log_file_name=$(basename $log_file)
   import_log_file="${log_dir}/import-${log_file_name}"
   # run the import job
@@ -170,6 +169,8 @@ for f in ${tarfile_names}; do
   else
     success_scrape_count=$((success_scrape_count+1))
   fi
+  # save the import log file
+  cp ${import_log_file} ${clonedir}/logs
   echo "--------"
   # now clean up the files
   # remove the tar file (if it failed it should have been archived)
@@ -180,7 +181,7 @@ for f in ${tarfile_names}; do
   rm -rf ${t_dir}
 done
 
-#echo "*************************************"
+echo "*************************************"
 
 if [[ "${success_import_count}" -ne "0" ]]; then
 	LOCKDIR="/data/import_lock"

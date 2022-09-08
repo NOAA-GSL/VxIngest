@@ -186,11 +186,17 @@ echo "*************************************"
 if [[ "${success_import_count}" -ne "0" ]]; then
 	LOCKDIR="/data/import_lock"
 	if mkdir -- "$LOCKDIR"; then
-	    echo "update metadata"
+	    echo "update ceiling metadata"
 	    ${clonedir}/mats_metadata_and_indexes/metadata_files/update_ceiling_mats_metadata.sh ${credentials_file}
             ret=$?
             if [[ "${ret}" -ne "0" ]]; then
-               echo "import failed with exit code ${ret}"
+               echo "ceiling metadata update failed with exit code ${ret}"
+            fi
+      echo "update visibility metadata"
+	    ${clonedir}/mats_metadata_and_indexes/metadata_files/update_visibility_mats_metadata.sh ${credentials_file}
+            ret=$?
+            if [[ "${ret}" -ne "0" ]]; then
+               echo "visibility import failed with exit code ${ret}"
             fi
 	    if rmdir -- "$LOCKDIR"
 	    then

@@ -99,6 +99,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
         self.region = ingest_document["region"]
         self.subset = ingest_document["subset"]
         self.sub_doc_type = self.template["subDocType"]
+        self.variable = self.sub_doc_type.lower()
         self.model_fcst_valid_epochs = []
         self.model_data = (
             {}
@@ -607,8 +608,9 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                     from mdata
                     where type='MD'
                     and docType='station'
-                    and subset='METAR'
+                    and subset=$subset
                     and version='V01'""",
+                subset=self.subset,
                 read_only=True,
             )
             for row in result:
@@ -721,7 +723,7 @@ class CTCModelObsBuilderV01(CTCBuilder):
                     read_only=True,
                 )
                 self.thresholds = list(
-                    map(int, list((list(result)[0])["ceiling"].keys()))
+                    map(float, list((list(result)[0])[self.variable].keys()))
                 )
             for threshold in self.thresholds:
                 hits = 0
@@ -747,32 +749,32 @@ class CTCModelObsBuilderV01(CTCBuilder):
                                 self.not_found_stations.add(model_station["name"])
                             continue
                         if (
-                            model_station["Ceiling"] is None
-                            or self.obs_data[model_station["name"]]["Ceiling"] is None
+                            model_station[self.variable.capitalize()] is None
+                            or self.obs_data[model_station["name"]][self.variable.capitalize()] is None
                         ):
                             none_count = none_count + 1
                             continue
                         if (
-                            model_station["Ceiling"] < threshold
-                            and self.obs_data[model_station["name"]]["Ceiling"]
+                            model_station[self.variable.capitalize()] < threshold
+                            and self.obs_data[model_station["name"]][self.variable.capitalize()]
                             < threshold
                         ):
                             hits = hits + 1
                         if (
-                            model_station["Ceiling"] < threshold
-                            and not self.obs_data[model_station["name"]]["Ceiling"]
+                            model_station[self.variable.capitalize()] < threshold
+                            and not self.obs_data[model_station["name"]][self.variable.capitalize()]
                             < threshold
                         ):
                             false_alarms = false_alarms + 1
                         if (
-                            not model_station["Ceiling"] < threshold
-                            and self.obs_data[model_station["name"]]["Ceiling"]
+                            not model_station[self.variable.capitalize()] < threshold
+                            and self.obs_data[model_station["name"]][self.variable.capitalize()]
                             < threshold
                         ):
                             misses = misses + 1
                         if (
-                            not model_station["Ceiling"] < threshold
-                            and not self.obs_data[model_station["name"]]["Ceiling"]
+                            not model_station[self.variable.capitalize()] < threshold
+                            and not self.obs_data[model_station["name"]][self.variable.capitalize()]
                             < threshold
                         ):
                             correct_negatives = correct_negatives + 1

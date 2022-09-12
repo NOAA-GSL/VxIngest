@@ -86,20 +86,21 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
     """
 
     def __init__(self, load_spec, ingest_document):
-
+        # CTC builders do not init the ingest_document. That happens in build_document
         super().__init__(load_spec, ingest_document)
 
-        self.ingest_document = ingest_document
-        self.template = ingest_document["template"]
-        self.subset = self.template["subset"]
         self.load_spec = load_spec
-        # CTC builder specific
         self.domain_stations = []
-        self.model = ingest_document["model"]
-        self.region = ingest_document["region"]
-        self.subset = ingest_document["subset"]
-        self.sub_doc_type = self.template["subDocType"]
-        self.variable = self.sub_doc_type.lower()
+        # CTC builder specific
+        # These following need to be declared here but assigned in
+        # build_document because each ingest_id might redifne them
+        self.ingest_document = None
+        self.template = None
+        self.subset = None
+        self.model = None
+        self.region = None
+        self.sub_doc_type = None
+        self.variable = None
         self.model_fcst_valid_epochs = []
         self.model_data = (
             {}
@@ -404,6 +405,18 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
             # reset the builders document_map for a new file
             self.initialize_document_map()
             self.not_found_station_count = 0
+            # CTC builder specific
+            self.domain_stations = []
+            # queue_element is an ingest document id
+            # get the ingest document
+
+            self.ingest_document = self.load_spec['ingest_documents'][queue_element]
+            self.model = self.ingest_document['model']
+            self.region = self.ingest_document['region']
+            self.sub_doc_type = self.ingest_document['subDocType']
+            self.variable = self.ingest_document['subDocType'].lower()
+            self.subset = self.ingest_document['subset']
+            self.template = self.ingest_document['template']
 
             # First get the latest fcstValidEpoch for the ctc's for this model and region.
             result = self.load_spec["cluster"].query(
@@ -689,6 +702,14 @@ class CTCModelObsBuilderV01(CTCBuilder):
         """
         CTCBuilder.__init__(self, load_spec, ingest_document)
         self.template = ingest_document["template"]
+        self.ingest_document = None
+        self.template = None
+        self.subset = None
+        self.model = None
+        self.region = None
+        self.sub_doc_type = None
+        self.variable = None
+
         # self.do_profiling = True  # set to True to enable build_document profiling
         self.do_profiling = False  # set to True to enable build_document profiling
 

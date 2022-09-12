@@ -457,7 +457,7 @@ def test_ctc_builder_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
 
     try:
         credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
-        job_id="JOB:V01:METAR:SUM:CTC:MODEL:HRRR_RAP_130"
+        job_id="JOB:V01:METAR:CTC:SUM:MODEL:HRRR_RAP_130"
         outdir = "/opt/data/ctc_to_cb/hrrr_ops/output"
         filepaths = outdir + "/*.json"
         files = glob.glob(filepaths)

@@ -13,7 +13,7 @@ def setup_ingest():
         _vx_ingest.load_spec = {}
         _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
         _vx_ingest.connect_cb()
-        _vx_ingest.load_spec["ingest_document_ids"] = _vx_ingest.collection.get("JOB:V01:METAR:SUM:CTC:MODEL:HRRR_RAP_130").content["ingest_document_ids"]
+        _vx_ingest.load_spec["ingest_document_ids"] = _vx_ingest.collection.get("JOB:V01:METAR:CTC:SUM:MODEL:HRRR_RAP_130").content["ingest_document_ids"]
         _vx_ingest.load_spec["ingest_documents"] = {}
         for _id in _vx_ingest.load_spec["ingest_document_ids"]:
             _vx_ingest.load_spec["ingest_documents"][_id]= _vx_ingest.collection.get(_id).content

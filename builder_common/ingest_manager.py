@@ -128,12 +128,15 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
                         + ": IngestManager - processing "
                         + queue_element
                     )
-                    self.process_queue_element(queue_element)
-                    logging.info(
-                        self.thread_name
-                        + ": IngestManager - finished processing "
-                        + queue_element
-                    )
+                    if queue_element is not None:
+                        # it seems it is possible to have an empty queue_element
+                        # but we cannot process one so skip it
+                        self.process_queue_element(queue_element)
+                        logging.info(
+                            self.thread_name
+                            + ": IngestManager - finished processing "
+                            + queue_element
+                        )
                     self.queue.task_done()
                 except queue.Empty:
                     # three strikes and your out! finished! kaput!

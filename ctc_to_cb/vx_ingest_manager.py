@@ -151,10 +151,13 @@ class VxIngestManager(
                     self.ingest_document
                 )
                 self.builder_map[self.ingest_type_builder_name] = builder
+            logging.info("building document map for %s", queue_element)
             document_map = builder.build_document(queue_element)
             if self.output_dir:
+                logging.info("writing document map for %s to %s", queue_element, self.output_dir)
                 self.write_document_to_files(queue_element, document_map)
             else:
+                logging.info("writing document map for %s to database", queue_element)
                 self.write_document_to_cb(queue_element, document_map)
         except Exception as _e:  # pylint:disable=broad-except
             logging.exception(

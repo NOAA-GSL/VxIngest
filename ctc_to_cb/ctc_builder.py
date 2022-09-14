@@ -417,7 +417,14 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
             self.variable = self.ingest_document['subDocType'].lower()
             self.subset = self.ingest_document['subset']
             self.template = self.ingest_document['template']
-
+            logging.info("%s.build_document queue_element:%s model:%s region:%s variable:%s subset:%s",
+                self.__class__.__name__,
+                queue_element,
+                self.model,
+                self.region,
+                self.variable,
+                self.subset
+                )
             # First get the latest fcstValidEpoch for the ctc's for this model and region.
             result = self.load_spec["cluster"].query(
                 """SELECT RAW MAX(mdata.fcstValidEpoch)

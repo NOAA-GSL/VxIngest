@@ -359,19 +359,19 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                                 self.obs_station_names.append(entry["name"])
                             self.obs_station_names.sort()
                         self.handle_document()
-                    except Exception as _e:  # pylint: disable=broad-except
-                        logging.error(
-                            "%s Error getting obs document: %s",
+                    except DocumentNotFoundException:
+                        logging.info(
+                            "%s handle_fcstValidEpochs: document %s was not found! ",
                             self.__class__.__name__,
-                            str(_e),
+                            fve["id"],
                         )
-
-                except DocumentNotFoundException:
+                except Exception as _e:  # pylint: disable=broad-except
                     logging.info(
-                        "%s handle_fcstValidEpochs: document %s was not found! ",
+                        "%s problem getting obs document: %s",
                         self.__class__.__name__,
-                        fve["id"],
+                        str(_e),
                     )
+
         except Exception as _e:  # pylint: disable=broad-except
             logging.error(
                 "%s handle_fcstValidEpochs: Exception instantiating builder:  error: %s",

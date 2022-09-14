@@ -225,11 +225,6 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
                 self.thread_name,
                 self.output_dir,
             )
-            write_start_time = int(time.time())
-            logging.info(
-                "write_document_to_files - executing write: start time: %s",
-                str(write_start_time),
-            )
             if not document_map:
                 logging.info(
                     "%s: write_document_to_files: would write documents but DOCUMENT_MAP IS EMPTY",
@@ -254,15 +249,6 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
                     _f.close()
                 except Exception as _e1:  # pylint:disable=broad-except
                     logging.exception("write_document_to_files - trying write: Got Exception")
-            write_stop_time = int(time.time())
-            logging.info(
-                "write_document_to_files - executing file write: stop time: %s",
-                str(write_stop_time),
-            )
-            logging.info(
-                "write_document_to_files - executing file write: elapsed time: %s",
-                str(write_stop_time - write_start_time),
-            )
         except Exception as _e:  # pylint:disable=broad-except
             logging.exception(
                 ": *** %s Error writing to files: in process_element writing document***",

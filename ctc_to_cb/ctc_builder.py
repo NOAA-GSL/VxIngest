@@ -448,6 +448,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                     logging.info("build_document start query %s", stmnt)
                     result = self.load_spec["cluster"].query(stmnt,read_only=True)
                     success = True
+                    logging.info("build_document finished query %s", stmnt)
                 except TimeoutException:
                     logging.info("%s.build_document TimeoutException retrying %s: %s", self.__class__.__name__, error_count, stmnt)
                     if error_count > 2:
@@ -459,7 +460,6 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
             ]
             if list(result)[0] is not None:
                 max_ctc_fcst_valid_epochs = list(result)[0]
-            logging.info("build_document finished query %s", stmnt)
 
 
             # Second get the intersection of the fcstValidEpochs that correspond for this
@@ -488,6 +488,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                     logging.info("build_document start query %s", stmnt)
                     result = self.load_spec["cluster"].query(stmnt,read_only=True)
                     success = True
+                    logging.info("build_document finished query %s", stmnt)
                 except TimeoutException:
                     logging.info("%s.build_document TimeoutException retrying %s: %s", self.__class__.__name__, error_count, stmnt)
                     if error_count > 2:
@@ -495,7 +496,6 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                     time.sleep(2) # don't hammer the server too hard
                     error_count = error_count + 1
             _tmp_model_fve = list(result)
-            logging.info("build_document finished query %s", stmnt)
 
             error_count = 0
             success = False
@@ -517,6 +517,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                     logging.info("build_document start query %s", stmnt)
                     result1 = self.load_spec["cluster"].query(stmnt,read_only=True)
                     success = True
+                    logging.info("build_document finished query %s", stmnt)
                 except TimeoutException:
                     logging.info("%s.build_document TimeoutException retrying %s: %s", self.__class__.__name__, error_count, stmnt)
                     if error_count > 2:
@@ -524,7 +525,6 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                     time.sleep(2) # don't hammer the server too hard
                     error_count = error_count + 1
             _tmp_obs_fve = list(result1)
-            logging.info("build_document finished query %s", stmnt)
 
             # this will give us a list of {fcstValidEpoch:fve, fcslLen:fl, id:an_id}
             # where we know that each entry has a corresponding valid observation

@@ -427,6 +427,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                 self.subset
                 )
             # First get the latest fcstValidEpoch for the ctc's for this model and region.
+            stmnt=""
             error_count = 0
             success = False
             while error_count < 3 or success is True:
@@ -482,7 +483,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                             model=self.model,
                             subset=self.subset,
                             first_epoch=self.load_spec["first_last_params"]["first_epoch"],
-                            last_epoch=self.load_spec["first_last_params"]["last_epoch"],
+                            last_epoch=self.load_spec["first_last_params"]["last_epoch"]
                         )
                     logging.info("build_document start query %s", stmnt)
                     result = self.load_spec["cluster"].query(stmnt,read_only=True)
@@ -511,7 +512,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                             ORDER BY obs.fcstValidEpoch""".format(
                             max_fcst_epoch=max_ctc_fcst_valid_epochs,
                             last_epoch=self.load_spec["first_last_params"]["last_epoch"],
-                            subset=self.subset,
+                            subset=self.subset
                         )
                     logging.info("build_document start query %s", stmnt)
                     result1 = self.load_spec["cluster"].query(stmnt,read_only=True)

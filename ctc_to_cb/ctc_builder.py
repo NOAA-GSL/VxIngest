@@ -428,7 +428,8 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                 )
             # First get the latest fcstValidEpoch for the ctc's for this model and region.
             error_count = 0
-            while error_count < 3:
+            success = False
+            while error_count < 3 or success is True:
                 try:
                     result = self.load_spec["cluster"].query(
                         """SELECT RAW MAX(mdata.fcstValidEpoch)
@@ -465,7 +466,8 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
             # and less than the last_epoch.
             # this could be done with implicit join but this seems to be faster when the results are large.
             error_count = 0
-            while error_count < 3:
+            success = False
+            while error_count < 3 or success is True:
                 try:
                     result = self.load_spec["cluster"].query(
                         """SELECT fve.fcstValidEpoch, fve.fcstLen, meta().id
@@ -494,7 +496,8 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                     error_count = error_count + 1
             _tmp_model_fve = list(result)
             error_count = 0
-            while error_count < 3:
+            success = False
+            while error_count < 3 or success is True:
                 try:
                     result1 = self.load_spec["cluster"].query(
                         """SELECT raw obs.fcstValidEpoch
@@ -512,6 +515,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                         ),
                         read_only=True,
                     )
+                    success = True
                 except TimeoutException:
                     logging.info("%s.build_document TimeoutException retrying %s: SELECT raw obs.fcstValidEpoch",
                         self.__class__.__name__, error_count)

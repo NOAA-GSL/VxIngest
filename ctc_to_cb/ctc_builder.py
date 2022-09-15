@@ -430,7 +430,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
             stmnt=""
             error_count = 0
             success = False
-            while error_count < 3 or success is True:
+            while error_count < 3 and success is False:
                 try:
                     stmnt="""SELECT RAW MAX(mdata.fcstValidEpoch)
                             FROM mdata
@@ -468,7 +468,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
             # this could be done with implicit join but this seems to be faster when the results are large.
             error_count = 0
             success = False
-            while error_count < 3 or success is True:
+            while error_count < 3 and success is False:
                 try:
                     stmnt="""SELECT fve.fcstValidEpoch, fve.fcstLen, meta().id
                             FROM mdata fve
@@ -499,7 +499,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
 
             error_count = 0
             success = False
-            while error_count < 3 or success is True:
+            while error_count < 3 and success is False:
                 try:
                     stmnt="""SELECT raw obs.fcstValidEpoch
                                 FROM mdata obs

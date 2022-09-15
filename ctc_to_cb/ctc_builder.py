@@ -11,9 +11,10 @@ import cProfile
 import logging
 import datetime as dt
 import re
+import time
 from pstats import Stats
 
-from couchbase.exceptions import DocumentNotFoundException
+from couchbase.exceptions import DocumentNotFoundException, TimeoutException
 from couchbase.search import GeoBoundingBoxQuery, SearchOptions
 from builder_common.builder_utilities import convert_to_iso
 from builder_common.builder_utilities import get_geo_index
@@ -426,22 +427,33 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                 self.subset
                 )
             # First get the latest fcstValidEpoch for the ctc's for this model and region.
-            result = self.load_spec["cluster"].query(
-                """SELECT RAW MAX(mdata.fcstValidEpoch)
-                    FROM mdata
-                    WHERE type='DD'
-                    AND docType='CTC'
-                    AND subDocType=$subDocType
-                    AND model=$model
-                    AND region=$region
-                    AND version='V01'
-                    AND subset=$subset""",
-                model=self.model,
-                region=self.region,
-                subDocType=self.sub_doc_type,
-                subset=self.subset,
-                read_only=True,
-            )
+            error_count = 0
+            while error_count < 3:
+                try:
+                    result = self.load_spec["cluster"].query(
+                        """SELECT RAW MAX(mdata.fcstValidEpoch)
+                            FROM mdata
+                            WHERE type='DD'
+                            AND docType='CTC'
+                            AND subDocType=$subDocType
+                            AND model=$model
+                            AND region=$region
+                            AND version='V01'
+                            AND subset=$subset""",
+                        model=self.model,
+                        region=self.region,
+                        subDocType=self.sub_doc_type,
+                        subset=self.subset,
+                        read_only=True,
+                    )
+                except TimeoutException:
+                    logging.info("%s.build_document TimeoutException SELECT RAW MAX(mdata.fcstValidEpoch) retrying %s:",
+                        self.__class__.__name__, error_count)
+                    if error_count > 2:
+                        raise
+                    time.sleep(2) # don't hammer the server too hard
+                    error_count = error_count + 1
+
             max_ctc_fcst_valid_epochs = self.load_spec["first_last_params"][
                 "first_epoch"
             ]
@@ -452,41 +464,61 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
             # model and the obs for all fcstValidEpochs greater than the first_epoch ctc
             # and less than the last_epoch.
             # this could be done with implicit join but this seems to be faster when the results are large.
-            result = self.load_spec["cluster"].query(
-                """SELECT fve.fcstValidEpoch, fve.fcstLen, meta().id
-                    FROM mdata fve
-                    WHERE fve.type='DD'
-                        AND fve.docType='model'
-                        AND fve.model='{model}'
-                        AND fve.version='V01'
-                        AND fve.subset='{subset}'
-                        AND fve.fcstValidEpoch >= {first_epoch}
-                        AND fve.fcstValidEpoch <= {last_epoch}
-                    ORDER BY fve.fcstValidEpoch, fcstLen""".format(
-                    model=self.model,
-                    subset=self.subset,
-                    first_epoch=self.load_spec["first_last_params"]["first_epoch"],
-                    last_epoch=self.load_spec["first_last_params"]["last_epoch"],
-                ),
-                read_only=True,
-            )
+            error_count = 0
+            while error_count < 3:
+                try:
+                    result = self.load_spec["cluster"].query(
+                        """SELECT fve.fcstValidEpoch, fve.fcstLen, meta().id
+                            FROM mdata fve
+                            WHERE fve.type='DD'
+                                AND fve.docType='model'
+                                AND fve.model='{model}'
+                                AND fve.version='V01'
+                                AND fve.subset='{subset}'
+                                AND fve.fcstValidEpoch >= {first_epoch}
+                                AND fve.fcstValidEpoch <= {last_epoch}
+                            ORDER BY fve.fcstValidEpoch, fve.fcstLen""".format(
+                            model=self.model,
+                            subset=self.subset,
+                            first_epoch=self.load_spec["first_last_params"]["first_epoch"],
+                            last_epoch=self.load_spec["first_last_params"]["last_epoch"],
+                        ),
+                        read_only=True,
+                    )
+                except TimeoutException:
+                    logging.info("%s.build_document TimeoutException retrying %s: SELECT fve.fcstValidEpoch, fve.fcstLen, meta().id",
+                        self.__class__.__name__, error_count)
+                    if error_count > 2:
+                        raise
+                    time.sleep(2) # don't hammer the server too hard
+                    error_count = error_count + 1
             _tmp_model_fve = list(result)
-            result1 = self.load_spec["cluster"].query(
-                """SELECT raw obs.fcstValidEpoch
-                        FROM mdata obs
-                        WHERE obs.type='DD'
-                            AND obs.docType='obs'
-                            AND obs.version='V01'
-                            AND obs.subset='{subset}'
-                            AND obs.fcstValidEpoch >= {max_fcst_epoch}
-                            AND obs.fcstValidEpoch <= {last_epoch}
-                    ORDER BY obs.fcstValidEpoch""".format(
-                    max_fcst_epoch=max_ctc_fcst_valid_epochs,
-                    last_epoch=self.load_spec["first_last_params"]["last_epoch"],
-                    subset=self.subset,
-                ),
-                read_only=True,
-            )
+            error_count = 0
+            while error_count < 3:
+                try:
+                    result1 = self.load_spec["cluster"].query(
+                        """SELECT raw obs.fcstValidEpoch
+                                FROM mdata obs
+                                WHERE obs.type='DD'
+                                    AND obs.docType='obs'
+                                    AND obs.version='V01'
+                                    AND obs.subset='{subset}'
+                                    AND obs.fcstValidEpoch >= {max_fcst_epoch}
+                                    AND obs.fcstValidEpoch <= {last_epoch}
+                            ORDER BY obs.fcstValidEpoch""".format(
+                            max_fcst_epoch=max_ctc_fcst_valid_epochs,
+                            last_epoch=self.load_spec["first_last_params"]["last_epoch"],
+                            subset=self.subset,
+                        ),
+                        read_only=True,
+                    )
+                except TimeoutException:
+                    logging.info("%s.build_document TimeoutException retrying %s: SELECT raw obs.fcstValidEpoch",
+                        self.__class__.__name__, error_count)
+                    if error_count > 2:
+                        raise
+                    time.sleep(2) # don't hammer the server too hard
+                    error_count = error_count + 1
             _tmp_obs_fve = list(result1)
 
             # this will give us a list of {fcstValidEpoch:fve, fcslLen:fl, id:an_id}

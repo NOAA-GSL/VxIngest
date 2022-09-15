@@ -83,6 +83,7 @@ for mindx in "${!models_requiring_metadata[@]}"; do
             FROM mdata AS object_names_t
             WHERE object_names_t.type='DD'
                 AND object_names_t.docType='CTC'
+                AND object_names_t.subDocType='VISIBILITY'
                 AND object_names_t.version='V01'
                 AND object_names_t.model='${model}') AS d
         UNNEST d.thresholds AS d_thresholds),
@@ -91,6 +92,7 @@ for mindx in "${!models_requiring_metadata[@]}"; do
     FROM mdata as fl
     WHERE fl.type='DD'
         AND fl.docType='CTC'
+        AND fl.subDocType='VISIBILITY'
         AND fl.version='V01'
         AND fl.model='${model}'
         ORDER BY fl.fcstLen),
@@ -99,6 +101,7 @@ for mindx in "${!models_requiring_metadata[@]}"; do
     FROM mdata as rg
     WHERE rg.type='DD'
         AND rg.docType='CTC'
+        AND rg.subDocType='VISIBILITY'
         AND rg.version='V01'
         AND rg.model='${model}'
     ORDER BY r.mdata.region),
@@ -141,6 +144,7 @@ for mindx in "${!models_requiring_metadata[@]}"; do
         FROM mdata AS mt
         WHERE mt.type='DD'
             AND mt.docType='CTC'
+            AND mt.subDocType='VISIBILITY'
             AND mt.version='V01'
             AND mt.model='${model}')[0],
     maxdate=(
@@ -148,6 +152,7 @@ for mindx in "${!models_requiring_metadata[@]}"; do
         FROM mdata AS mat
         WHERE mat.type='DD'
             AND mat.docType='CTC'
+            AND mat.subDocType='VISIBILITY'
             AND mat.version='V01'
             AND mat.model='${model}')[0],
     numrecs=(
@@ -155,6 +160,7 @@ for mindx in "${!models_requiring_metadata[@]}"; do
         FROM mdata AS n
         WHERE n.type='DD'
             AND n.docType='CTC'
+            AND n.subDocType='VISIBILITY'
             AND n.version='V01'
             AND n.model='${model}')[0],
     updated=(SELECT RAW FLOOR(NOW_MILLIS()/1000))[0]

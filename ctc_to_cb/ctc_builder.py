@@ -445,10 +445,10 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                         region=self.region,
                         subDocType=self.sub_doc_type,
                         subset=self.subset)
-                    logging.info("build_document start query %s", stmnt)
+                    #logging.info("build_document start query %s", stmnt)
                     result = self.load_spec["cluster"].query(stmnt,read_only=True)
                     success = True
-                    logging.info("build_document finished query %s", stmnt)
+                    #logging.info("build_document finished query %s", stmnt)
                 except TimeoutException:
                     logging.info("%s.build_document TimeoutException retrying %s: %s", self.__class__.__name__, error_count, stmnt)
                     if error_count > 2:
@@ -485,10 +485,10 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                             first_epoch=self.load_spec["first_last_params"]["first_epoch"],
                             last_epoch=self.load_spec["first_last_params"]["last_epoch"]
                         )
-                    logging.info("build_document start query %s", stmnt)
+                    #logging.info("build_document start query %s", stmnt)
                     result = self.load_spec["cluster"].query(stmnt,read_only=True)
                     success = True
-                    logging.info("build_document finished query %s", stmnt)
+                    #logging.info("build_document finished query %s", stmnt)
                 except TimeoutException:
                     logging.info("%s.build_document TimeoutException retrying %s: %s", self.__class__.__name__, error_count, stmnt)
                     if error_count > 2:
@@ -514,10 +514,10 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                             last_epoch=self.load_spec["first_last_params"]["last_epoch"],
                             subset=self.subset
                         )
-                    logging.info("build_document start query %s", stmnt)
+                    #logging.info("build_document start query %s", stmnt)
                     result1 = self.load_spec["cluster"].query(stmnt,read_only=True)
                     success = True
-                    logging.info("build_document finished query %s", stmnt)
+                    #logging.info("build_document finished query %s", stmnt)
                 except TimeoutException:
                     logging.info("%s.build_document TimeoutException retrying %s: %s", self.__class__.__name__, error_count, stmnt)
                     if error_count > 2:

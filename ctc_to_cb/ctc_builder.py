@@ -429,11 +429,9 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
             # First get the latest fcstValidEpoch for the ctc's for this model and region.
             error_count = 0
             success = False
-            logging.info("build_document start query RAW MAX(mdata.fcstValidEpoch)")
             while error_count < 3 or success is True:
                 try:
-                    result = self.load_spec["cluster"].query(
-                        """SELECT RAW MAX(mdata.fcstValidEpoch)
+                    stmnt="""SELECT RAW MAX(mdata.fcstValidEpoch)
                             FROM mdata
                             WHERE type='DD'
                             AND docType='CTC'
@@ -441,17 +439,16 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                             AND model=$model
                             AND region=$region
                             AND version='V01'
-                            AND subset=$subset""",
+                            AND subset=$subset""".format(
                         model=self.model,
                         region=self.region,
                         subDocType=self.sub_doc_type,
-                        subset=self.subset,
-                        read_only=True,
-                    )
+                        subset=self.subset)
+                    logging.info("build_document start query %s", stmnt)
+                    result = self.load_spec["cluster"].query(stmnt,read_only=True)
                     success = True
                 except TimeoutException:
-                    logging.info("%s.build_document TimeoutException SELECT RAW MAX(mdata.fcstValidEpoch) retrying %s:",
-                        self.__class__.__name__, error_count)
+                    logging.info("%s.build_document TimeoutException retrying %s: %s", self.__class__.__name__, error_count, stmnt)
                     if error_count > 2:
                         raise
                     time.sleep(2) # don't hammer the server too hard
@@ -461,7 +458,8 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
             ]
             if list(result)[0] is not None:
                 max_ctc_fcst_valid_epochs = list(result)[0]
-            logging.info("build_document finished query RAW MAX(mdata.fcstValidEpoch)")
+            logging.info("build_document finished query %s", stmnt)
+
 
             # Second get the intersection of the fcstValidEpochs that correspond for this
             # model and the obs for all fcstValidEpochs greater than the first_epoch ctc
@@ -469,11 +467,9 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
             # this could be done with implicit join but this seems to be faster when the results are large.
             error_count = 0
             success = False
-            logging.info("build_document start query fve.fcstValidEpoch, fve.fcstLen, meta().id")
             while error_count < 3 or success is True:
                 try:
-                    result = self.load_spec["cluster"].query(
-                        """SELECT fve.fcstValidEpoch, fve.fcstLen, meta().id
+                    stmnt="""SELECT fve.fcstValidEpoch, fve.fcstLen, meta().id
                             FROM mdata fve
                             WHERE fve.type='DD'
                                 AND fve.docType='model'
@@ -487,27 +483,24 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                             subset=self.subset,
                             first_epoch=self.load_spec["first_last_params"]["first_epoch"],
                             last_epoch=self.load_spec["first_last_params"]["last_epoch"],
-                        ),
-                        read_only=True,
-                    )
+                        )
+                    logging.info("build_document start query %s", stmnt)
+                    result = self.load_spec["cluster"].query(stmnt,read_only=True)
                     success = True
                 except TimeoutException:
-                    logging.info("%s.build_document TimeoutException retrying %s: SELECT fve.fcstValidEpoch, fve.fcstLen, meta().id",
-                        self.__class__.__name__, error_count)
+                    logging.info("%s.build_document TimeoutException retrying %s: %s", self.__class__.__name__, error_count, stmnt)
                     if error_count > 2:
                         raise
                     time.sleep(2) # don't hammer the server too hard
                     error_count = error_count + 1
             _tmp_model_fve = list(result)
-            logging.info("build_document finished query fve.fcstValidEpoch, fve.fcstLen, meta().id")
+            logging.info("build_document finished query %s", stmnt)
 
             error_count = 0
             success = False
-            logging.info("build_document start query raw obs.fcstValidEpoch")
             while error_count < 3 or success is True:
                 try:
-                    result1 = self.load_spec["cluster"].query(
-                        """SELECT raw obs.fcstValidEpoch
+                    stmnt="""SELECT raw obs.fcstValidEpoch
                                 FROM mdata obs
                                 WHERE obs.type='DD'
                                     AND obs.docType='obs'
@@ -519,19 +512,18 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                             max_fcst_epoch=max_ctc_fcst_valid_epochs,
                             last_epoch=self.load_spec["first_last_params"]["last_epoch"],
                             subset=self.subset,
-                        ),
-                        read_only=True,
-                    )
+                        )
+                    logging.info("build_document start query %s", stmnt)
+                    result1 = self.load_spec["cluster"].query(stmnt,read_only=True)
                     success = True
                 except TimeoutException:
-                    logging.info("%s.build_document TimeoutException retrying %s: SELECT raw obs.fcstValidEpoch",
-                        self.__class__.__name__, error_count)
+                    logging.info("%s.build_document TimeoutException retrying %s: %s", self.__class__.__name__, error_count, stmnt)
                     if error_count > 2:
                         raise
                     time.sleep(2) # don't hammer the server too hard
                     error_count = error_count + 1
             _tmp_obs_fve = list(result1)
-            logging.info("build_document finished query raw obs.fcstValidEpoch")
+            logging.info("build_document finished query %s", stmnt)
 
             # this will give us a list of {fcstValidEpoch:fve, fcslLen:fl, id:an_id}
             # where we know that each entry has a corresponding valid observation

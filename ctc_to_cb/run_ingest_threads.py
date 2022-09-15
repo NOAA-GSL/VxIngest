@@ -242,11 +242,15 @@ class VXIngest(CommonVxIngest):
         """
         This is the entry for run_ingest_threads
         """
-        logging.info("PYTHONPATH: %s", os.environ["PYTHONPATH"])
-        args = parse_args(sys.argv[1:])
-        self.runit(vars(args))
-        logging.info("*** FINISHED ***")
-        sys.exit(0)
+        try:
+            logging.info("PYTHONPATH: %s", os.environ["PYTHONPATH"])
+            args = parse_args(sys.argv[1:])
+            self.runit(vars(args))
+            logging.info("*** FINISHED ***")
+            sys.exit(0)
+        except Exception as _e: # pylint:disable=broad-except
+            logging.info("*** FINISHED with exception %s***", str(_e))
+
 
 if __name__ == "__main__":
     VXIngest().main()

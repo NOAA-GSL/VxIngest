@@ -473,7 +473,8 @@ def test_ctc_builder_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
                 "credentials_file": credentials_file,
                 "output_dir": outdir,
                 "threads": 1,
-                "first_epoch": 100,
+                "first_epoch": 1638489600,
+                "last_epoch": 1638496800
             }
         )
 

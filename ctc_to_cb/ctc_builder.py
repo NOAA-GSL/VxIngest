@@ -436,11 +436,11 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                             FROM mdata
                             WHERE type='DD'
                             AND docType='CTC'
-                            AND subDocType={subDocType}
-                            AND model={model}
-                            AND region={region}
+                            AND subDocType='{subDocType}'
+                            AND model='{model}'
+                            AND region='{region}'
                             AND version='V01'
-                            AND subset={subset}""".format(
+                            AND subset='{subset}'""".format(
                         model=self.model,
                         region=self.region,
                         subDocType=self.sub_doc_type,
@@ -665,7 +665,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                     from mdata
                     where type='MD'
                     and docType='station'
-                    and subset=$subset
+                    and subset='$subset'
                     and version='V01'""",
                 subset=self.subset,
                 read_only=True,

@@ -333,14 +333,13 @@ class NetcdfBuilder(Builder):  # pylint disable=too-many-instance-attributes
             # pylint: disable=no-member
             self.ncdf_data_set = nc.Dataset(queue_element)
             if len(self.stations) == 0:
-                result = self.load_spec["cluster"].query(
-                    """SELECT mdata.*
+                stmnt = """SELECT mdata.*
                     FROM mdata
                     WHERE type = 'MD'
                     AND docType = 'station'
-                    AND subset = self.subset
-                    AND version = 'V01';"""
-                )
+                    AND subset = '{subset}'
+                    AND version = 'V01';""".format (subset=self.subset)
+                result = self.load_spec["cluster"].query(stmnt)
                 self.stations = list(result)
 
             self.initialize_document_map()

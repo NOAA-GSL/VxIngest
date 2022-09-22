@@ -216,5 +216,6 @@ echo "run_scrape_success_count ${success_scrape_count}" >> ${m_file}
 echo "run_scrape_failure_count ${failed_scrape_count}" >> ${m_file}
 cp ${m_file} "${metrics_dir}/run_import_metrics.prom"
 rm ${m_file}
-
+# purge the old files
+rm -rf $(for d in $(find /data -type d -name "*purge"); do find $d -type f -mtime +3 -print; done)
 exit 0

@@ -3,21 +3,21 @@ import os
 from multiprocessing import JoinableQueue
 from ctc_to_cb.run_ingest_threads import VXIngest
 from ctc_to_cb.vx_ingest_manager import VxIngestManager
-from builder_common.load_spec_yaml import LoadYamlSpecFile
 
 
 def setup_ingest():
     """test setup"""
     try:
-        cwd = os.getcwd()
         _vx_ingest = VXIngest()
-        _vx_ingest.spec_file = cwd + "/ctc_to_cb/test/test_load_spec_metar_ctc_V01.yaml"
         _vx_ingest.credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
-        _load_spec_file = LoadYamlSpecFile({"spec_file": _vx_ingest.spec_file})
-        # read in the load_spec file
-        _vx_ingest.load_spec = dict(_load_spec_file.read())
+        _vx_ingest.load_spec = {}
         _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
         _vx_ingest.connect_cb()
+        _vx_ingest.load_spec["ingest_document_ids"] = _vx_ingest.collection.get("JOB:V01:METAR:CTC:SUM:MODEL:HRRR_RAP_130").content["ingest_document_ids"]
+        _vx_ingest.load_spec["ingest_documents"] = {}
+        for _id in _vx_ingest.load_spec["ingest_document_ids"]:
+            _vx_ingest.load_spec["ingest_documents"][_id]= _vx_ingest.collection.get(_id).content
+
         vx_ingest_manager = VxIngestManager(
             "test", _vx_ingest.load_spec, JoinableQueue(), "/tmp"
         )
@@ -79,7 +79,6 @@ def test_build_load_job_doc():
         vx_ingest.load_job_id = "test_id"
         vx_ingest.path = "/tmp"
         vx_ingest.load_spec["load_job_doc"] = {"test": "a line of text"}
-        vx_ingest.spec_file = "/tmp/test_file"
         ljd = vx_ingest.build_load_job_doc("ctc")
         assert ljd["id"].startswith(
             "LJ:METAR:ctc_to_cb.run_ingest_threads:VXIngest"

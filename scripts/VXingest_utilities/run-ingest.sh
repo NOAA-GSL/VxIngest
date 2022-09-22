@@ -1,22 +1,27 @@
 #!/usr/bin/env sh
 
-# read the active jobs and determine which ones to run, and run them.
-# Job documents have an interval_minutes and an offset_minutes field as well as a run_priority.
+# Read the active job spec documents and determine which ones to run, and run them.
+# Job spec documents have a schedule field as well as a run_priority.
 # This script is expected to run on quarter hour intervals
-# and determine the current qurter hour from "date" and use that to
-# to select the job documents that are scheduled for this
-# run quarter hour and run hour, and then use the run_priority and "at" to schedule the
-# the job for running at offset minutes from when this script is run.
+# and select the job documents that are scheduled for this
+# run-quarter, and then use the run_priority and to schedule the
+# the jobs. If the offset minutes is specified then the job will
+# be scheduled with 'at' for running at offset minutes from when this script is run.
+# For all the jobs where the offset minutes is zero the jobs will be run in sequence
+# in priority order. Each waiting for the previous to finish.
 # This script expects to execute inside the clone directory of the VxIngest repo.
 # This script expects to be run as user amb-verif.
 # This script expects to have a python virtual environment in the amb-verif home directory in the subdirectory vxingest-env.
+# This script will collect metrics about its own running, how many jobs run, what their job spec ids are,
+# and this scripts run duration in seconds.
 
 function usage {
-  echo "Usage $0 -c credentials-file -d VxIngest directory -l log directory -o output_dir -m metrics_directory"
+  echo "Usage $0 -c credentials-file -d VxIngest directory -l log directory -o output directory -m metrics directory -x transfer directory"
   echo "The credentials-file specifies cb_host, cb_user, and cb_password."
   echo "The VxIngest directory specifies the directory where The VxIngest repo has been cloned."
   echo "The log directory is where the program will put its log files"
-  echo "The output_dir is where the ingest will write its result documents"
+  echo "The output directory is where the ingest will write its result documents"
+  echo "The transfer directory is where this script will put a tarball of the output data for importing"
   echo "The metrics directory is where the scraper will place the metrics"
   echo "This script expects to execute inside the clone directory of the VxIngest repo"
   echo "This script expects to be run as user amb-verif"
@@ -24,7 +29,11 @@ function usage {
   exit 1
 }
 
-while getopts 'c:d:l:m:o:' param; do
+
+success_job_count=0
+failed_job_count=0
+start=$(date +%s)
+while getopts 'c:d:l:m:o:x:' param; do
   case "${param}" in
   c)
     credentials_file=${OPTARG}
@@ -69,6 +78,14 @@ while getopts 'c:d:l:m:o:' param; do
       usage
     fi
     ;;
+  x)
+    # remove the last '/' if it is there
+    xfer_dir=$(echo "${OPTARG}" | sed 's|/$||')
+    if [[ ! -d "${xfer_dir}" ]]; then
+      echo "ERROR: Transfer directory ${xfer_dir} does not exist"
+      usage
+    fi
+    ;;
   *)
     echo "ERROR: wrong parameter, I don't do ${param}"
     usage
@@ -76,10 +93,21 @@ while getopts 'c:d:l:m:o:' param; do
   esac
 done
 
+if [[ -z ${credentials_file} ]] || [[ -z ${clonedir} ]] || [[ -z ${log_dir} ]] || [[ -z ${metrics_dir} ]] || [[ -z ${output_dir} ]] || [[ -z ${xfer_dir} ]]; then
+  echo "*missing parameter*"
+  echo "provided credentials_file is ${credentials_file}"
+  echo "provided clonedir is ${clonedir}"
+  echo "provided log_dir is ${log_dir}"
+  echo "provided metrics_dir is ${metrics_dir}"
+  echo "provided output_dir is ${output_dir}"
+  echo "provided xfer_dir is ${xfer_dir}"
+  usage
+fi
+
 pid=$$
 if [ "$(whoami)" != "amb-verif" ]; then
         echo "Script must be run as user: amb-verif"
-        exit 255
+        usage
 fi
 
 source ${HOME}/vxingest-env/bin/activate
@@ -88,7 +116,7 @@ cd ${clonedir} && export PYTHONPATH=`pwd`
 gitroot=$(git rev-parse --show-toplevel)
 if [ "$gitroot" != "$(pwd)" ];then
         echo "$(pwd) is not a git root directory: Usage $0 VxIngest_clonedir"
-        exit 1
+        usage
 fi
 
 # read the active jobs and determine which ones to run, and run them.
@@ -130,7 +158,7 @@ ORDER BY offset_minutes,
          run_priority
 %EndOfStatement
 
-job_docs=$(curl -s http://adb-cb1.gsd.esrl.noaa.gov:8093/query/service -u"${cred}" -d "statement=${statement}" | jq -r '.results | .[]')
+job_docs=$(curl -s http://${cb_host}:8093/query/service -u"${cred}" -d "statement=${statement}" | jq -r '.results | .[]')
 ids=($(echo $job_docs | jq -r .id))
 names=($(echo $job_docs | jq -r .name))
 offset_minutes=($(echo $job_docs | jq -r .offset_minutes))
@@ -164,42 +192,39 @@ for i in "${!ids[@]}"; do
   # create the output dir from the sub_type i.e. /data/netcdf_to_cb/output/
   # create subtype sub directory for code path and output path
   sub_dir="${sub_type}_to_cb"
-  outdir="${output_dir}/${sub_dir}/output/${pid}"
-  mkdir -p $outdir
+  out_dir="${output_dir}/${sub_dir}/output/${pid}"
+  mkdir -p $out_dir
   log_file="${log_dir}/${name}-${runtime}.log"
-  import_log_file="${log_dir}/import-${name}-${runtime}.log"
 
   # run the ingest job
   metric_name="${name}_${hname}"
   echo "metric_name ${metric_name}" > ${log_file}
   # provide an input_data_path if there was one in the job spec (netcdf and grib)
-  input_data_path_param=""
-  if [[ "${input_data_paths[3]}" != "null" ]]; then
-     input_data_path_param="-p ${input_data_path}"
+  # if there isn't an input_data_path
+  echo "RUNNING - python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ${credentials_file} ${input_data_path_param} -o $out_dir -t8"
+  python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ${credentials_file} -o $out_dir -t8 >> ${log_file} 2>&1
+  exit_code=$?
+  if [[ "${exit_code}" -ne "0" ]]; then
+    failed_job_count=$((failed_job_count+1))
+  else
+    success_job_count=$((success_job_count+1))
   fi
-  echo "RUNNING - python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ~/adb-cb1-credentials ${input_data_path_param} -o $outdir -t8"
-  python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ~/adb-cb1-credentials ${input_data_path_param} -o $outdir -t8 >> ${log_file} 2>&1
-  exit_code=$?
   echo "exit_code:${exit_code}" >> ${log_file}
+  tar_file_name="${metric_name}_$(date +%s).tar.gz"
 
-  # run the import job
-  metric_name="import_${name}_${hname}"
-  echo "metric_name ${metric_name}" > ${import_log_file}
-  echo "RUNNING - ${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p ${outdir} -n 8 -l ${clonedir}/logs"
-  ${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p ${outdir} -n 8 -l ${clonedir}/logs >> ${import_log_file} 2>&1
-  exit_code=$?
-  echo "exit_code:${exit_code}" >> ${import_log_file}
-
-  # run the scraper
-  sleep 2
-  echo "RUNNING - ${clonedir}/scripts/VXingest_utilities/scrape_metrics.sh -c ~/adb-cb1-credentials -l ${log_file} -d ${metrics_dir}"
-  ${clonedir}/scripts/VXingest_utilities/scrape_metrics.sh -c ~/adb-cb1-credentials -l ${log_file} -d ${metrics_dir}
-  echo "--------"
+  # cp the log_file to the output dir
+  cp ${log_file} ${out_dir}
+  # tar the output dir into the transfer directory and remove the files
+  tar -czf  ${xfer_dir}/${tar_file_name} --remove-files -C ${out_dir} .
+  # rm the output directory if it is empty
+  find ${outdir} -depth -type d -empty -exec rmdir {} \;
 done
-
-echo "*************************************"
-echo "update metadata"
-${clonedir}/mats_metadata_and_indexes/metadata_files/update_ceiling_mats_metadata.sh ~/adb-cb1-credentials
-# eventually we need to scrape the update....
 echo "FINISHED"
-date
+end=$(date +%s)
+m_file=$(mktemp)
+echo "run_ingest_duration $((end-start))" > ${m_file}
+echo "run_ingest_success_count ${success_job_count}" >> ${m_file}
+echo "run_ingest_failure_count ${failed_job_count}" >> ${m_file}
+cp ${m_file} "${metrics_dir}/run_ingest_metrics.prom"
+rm ${m_file}
+exit 0

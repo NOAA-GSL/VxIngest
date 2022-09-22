@@ -21,15 +21,9 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
     builders to ingest data from GSD grib2 files or netcdf files into documents that can be
     inserted into couchbase.
 
-    This class will process data by reading an ingest_document_id
-    and instantiating a builder class of the type specified in the
-    ingest_document.
-    The ingest document specifies the builder class, and a template that defines
-    how to place the variable values into a couchbase document and how to
-    construct the couchbase data document id.
-
-    It will then read file_names, one by one,
-    from the file_name_queue.  The builders use the template to create documents for
+    It will read queue_elements, one by one,
+    from the element_queue.  Elements might be file names or they might be ingest_document_ids.
+    The builders use the template to create documents for
     each filename and put them into the document map.
 
     When all of the result set entries for a file are processed, the IngestManager upserts
@@ -46,43 +40,26 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
         self,
         name,
         load_spec,
-        ingest_document,
         element_queue,
         output_dir,
-        number_stations=sys.maxsize,
     ):
         """constructor for VxIngestManager
         Args:
             name (string): the thread name for this IngestManager
             load_spec (Object): contains Couchbase credentials
-            ingest_document (Object): the ingest document
             element_queue (Queue): reference to the element Queue
             output_dir (string): output directory path
-            number_stations (int, optional): limit the number of stations to process (debugging). Defaults to sys.maxsize.
         """
         # The Constructor for the RunCB class.
         Process.__init__(self)
         self.thread_name = name
         self.load_spec = load_spec
-        self.ingest_document = ingest_document
-        # some managers operate on a list of keys and some on a single key, capture both cases
-        self.ingest_document_ids = (
-            self.load_spec["ingest_document_ids"]
-            if "ingest_document_ids" in self.load_spec.keys()
-            else None
-        )
-        self.ingest_document_id = (
-            self.load_spec["ingest_document_id"]
-            if "ingest_document_id" in self.load_spec.keys()
-            else None
-        )
         self.ingest_type_builder_name = None
         self.queue = element_queue
         self.builder_map = {}
         self.cluster = None
         self.collection = None
         self.output_dir = output_dir
-        self.number_stations = number_stations
 
     def process_queue_element(
         self, queue_element
@@ -95,6 +72,8 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
         """
         if self.cluster:
             self.cluster.disconnect()
+        self.cluster = None
+        self.collection = None
 
     def connect_cb(self):
         """
@@ -149,12 +128,15 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
                         + ": IngestManager - processing "
                         + queue_element
                     )
-                    self.process_queue_element(queue_element)
-                    logging.info(
-                        self.thread_name
-                        + ": IngestManager - finished processing "
-                        + queue_element
-                    )
+                    if queue_element is not None:
+                        # it seems it is possible to have an empty queue_element
+                        # but we cannot process one so skip it
+                        self.process_queue_element(queue_element)
+                        logging.info(
+                            self.thread_name
+                            + ": IngestManager - finished processing "
+                            + queue_element
+                        )
                     self.queue.task_done()
                 except queue.Empty:
                     # three strikes and your out! finished! kaput!
@@ -239,14 +221,9 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
         """
         try:
             logging.info(
-                "%s: write_document_to_files output %s ingest_document :  ",
+                "%s: write_document_to_files output %s:  ",
                 self.thread_name,
                 self.output_dir,
-            )
-            write_start_time = int(time.time())
-            logging.info(
-                "write_document_to_files - executing write: start time: %s",
-                str(write_start_time),
             )
             if not document_map:
                 logging.info(
@@ -272,15 +249,6 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
                     _f.close()
                 except Exception as _e1:  # pylint:disable=broad-except
                     logging.exception("write_document_to_files - trying write: Got Exception")
-            write_stop_time = int(time.time())
-            logging.info(
-                "write_document_to_files - executing file write: stop time: %s",
-                str(write_stop_time),
-            )
-            logging.info(
-                "write_document_to_files - executing file write: elapsed time: %s",
-                str(write_stop_time - write_start_time),
-            )
         except Exception as _e:  # pylint:disable=broad-except
             logging.exception(
                 ": *** %s Error writing to files: in process_element writing document***",

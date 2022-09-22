@@ -579,10 +579,10 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                     geo.top_left.lon as tl_lon
                     FROM mdata
                     WHERE type='MD'
-                    and docType='{region}'
+                    and docType='region'
                     and subset='COMMON'
                     and version='V01'
-                    and name=$region""".format(region=region_name)
+                    and name='{region}'""".format(region=region_name)
             result = self.load_spec["cluster"].query(stmnt,read_only=True)
             _boundingbox = list(result)[0]
             _domain_stations = []
@@ -644,10 +644,10 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                     geo.top_left.lon as tl_lon
                     FROM mdata
                     WHERE type='MD'
-                    and docType='{region}'
+                    and docType='region'
                     and subset='COMMON'
                     and version='V01'
-                    and name=$region""".format(region=region_name)
+                    and name='{region}'""".format(region=region_name)
             result = self.load_spec["cluster"].query(stmnt,read_only=True)
             _boundingbox = list(result)[0]
             _domain_stations = []

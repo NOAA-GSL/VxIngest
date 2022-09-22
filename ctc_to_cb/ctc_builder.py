@@ -572,21 +572,18 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
             list: the list of stations within this region
         """
         try:
-            result = self.load_spec["cluster"].query(
-                """SELECT
+            stmnt = """SELECT
                     geo.bottom_right.lat as br_lat,
                     geo.bottom_right.lon as br_lon,
                     geo.top_left.lat as tl_lat,
                     geo.top_left.lon as tl_lon
                     FROM mdata
                     WHERE type='MD'
-                    and docType='region'
+                    and docType='{region}'
                     and subset='COMMON'
                     and version='V01'
-                    and name=$region""",
-                region=region_name,
-                read_only=True,
-            )
+                    and name=$region""".format(region=region_name)
+            result = self.load_spec["cluster"].query(stmnt,read_only=True)
             _boundingbox = list(result)[0]
             _domain_stations = []
             _result1 = self.load_spec["cluster"].search_query(
@@ -641,35 +638,29 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
         """
         # get the bounding box for this region
         try:
-            result = self.load_spec["cluster"].query(
-                """SELECT  geo.bottom_right.lat as br_lat,
+            stmnt = """SELECT  geo.bottom_right.lat as br_lat,
                     geo.bottom_right.lon as br_lon,
                     geo.top_left.lat as tl_lat,
                     geo.top_left.lon as tl_lon
                     FROM mdata
                     WHERE type='MD'
-                    and docType='region'
+                    and docType='{region}'
                     and subset='COMMON'
                     and version='V01'
-                    and name=$region""",
-                region=region_name,
-                read_only=True,
-            )
+                    and name=$region""".format(region=region_name)
+            result = self.load_spec["cluster"].query(stmnt,read_only=True)
             _boundingbox = list(result)[0]
             _domain_stations = []
             # get the stations that are within this boundingbox - this metadata is always subset METAR
-            result = self.load_spec["cluster"].query(
-                """SELECT
+            stmnt="""SELECT
                     mdata.geo,
                     name
                     from mdata
                     where type='MD'
                     and docType='station'
-                    and subset='$subset'
-                    and version='V01'""",
-                subset=self.subset,
-                read_only=True,
-            )
+                    and subset='{subset}'
+                    and version='V01'""".format(subset=self.subset)
+            result = self.load_spec["cluster"].query(stmnt,read_only=True)
             for row in result:
                 geo_index = get_geo_index(valid_epoch, row["geo"])
                 rlat = row["geo"][geo_index]["lat"]
@@ -784,12 +775,8 @@ class CTCModelObsBuilderV01(CTCBuilder):
                     FROM mdata
                     WHERE type="MD"
                         AND docType="matsAux"
-                """,
-                    read_only=True,
-                )
-                self.thresholds = list(
-                    map(float, list((list(result)[0])[self.variable].keys()))
-                )
+                """,read_only=True)
+                self.thresholds = list(map(float, list((list(result)[0])[self.variable].keys())))
             for threshold in self.thresholds:
                 hits = 0
                 misses = 0

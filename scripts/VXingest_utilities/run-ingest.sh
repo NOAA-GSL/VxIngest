@@ -33,7 +33,9 @@ function usage {
 success_job_count=0
 failed_job_count=0
 start=$(date +%s)
-while getopts 'c:d:l:m:o:x:' param; do
+first_epoch=""
+last_epoch=""
+while getopts 'c:d:l:m:o:x:s:e:' param; do
   case "${param}" in
   c)
     credentials_file=${OPTARG}
@@ -85,6 +87,14 @@ while getopts 'c:d:l:m:o:x:' param; do
       echo "ERROR: Transfer directory ${xfer_dir} does not exist"
       usage
     fi
+    ;;
+  s)
+    # start epoch
+    first_epoch="-f ${OPTARG}"
+    ;;
+  e)
+    # last epoch
+    last_epoch="-l ${OPTARG}"
     ;;
   *)
     echo "ERROR: wrong parameter, I don't do ${param}"
@@ -193,6 +203,7 @@ for i in "${!ids[@]}"; do
   # create subtype sub directory for code path and output path
   sub_dir="${sub_type}_to_cb"
   out_dir="${output_dir}/${sub_dir}/output/${pid}"
+  out_dir_to_purge="${output_dir}/${sub_dir}/output_to_purge"
   mkdir -p $out_dir
   log_file="${log_dir}/${name}-${runtime}.log"
 
@@ -201,8 +212,8 @@ for i in "${!ids[@]}"; do
   echo "metric_name ${metric_name}" > ${log_file}
   # provide an input_data_path if there was one in the job spec (netcdf and grib)
   # if there isn't an input_data_path
-  echo "RUNNING - python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ${credentials_file} ${input_data_path_param} -o $out_dir -t8"
-  python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ${credentials_file} -o $out_dir -t8 >> ${log_file} 2>&1
+  echo "RUNNING - python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ${credentials_file} ${input_data_path_param} -o $out_dir -t8 ${first_epoch} ${last_epoch}"
+  python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ${credentials_file} -o $out_dir -t8 ${first_epoch} ${last_epoch} >> ${log_file} 2>&1
   exit_code=$?
   if [[ "${exit_code}" -ne "0" ]]; then
     failed_job_count=$((failed_job_count+1))
@@ -214,10 +225,12 @@ for i in "${!ids[@]}"; do
 
   # cp the log_file to the output dir
   cp ${log_file} ${out_dir}
-  # tar the output dir into the transfer directory and remove the files
-  tar -czf  ${xfer_dir}/${tar_file_name} --remove-files -C ${out_dir} .
-  # rm the output directory if it is empty
-  find ${outdir} -depth -type d -empty -exec rmdir {} \;
+  echo "tar the output dir ${out_dir} into the transfer directory ${xfer_dir}"
+  #tar -czf  ${xfer_dir}/${tar_file_name} --remove-files -C ${out_dir} .
+  tar -czf  ${xfer_dir}/${tar_file_name} -C ${out_dir} .
+  #find ${out_dir} -depth -type d -empty -exec rmdir {} \;
+  echo "mv'ing out_dir ${out_dir} to purge directory ${out_dir_to_purge}"
+  mv ${out_dir} ${out_dir_to_purge}
 done
 echo "FINISHED"
 end=$(date +%s)

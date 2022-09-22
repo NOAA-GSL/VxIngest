@@ -115,6 +115,8 @@ fi
 # the t_dir is where the tarball will be untar'd
 archive_dir="${tar_dir}/archive"
 mkdir -p "${archive_dir}"
+purge_dir="${tar_dir}/purge"
+mkdir -p "${purge_dir}"
 runtime=`date +\%Y-\%m-\%d:\%H:\%M:\%S`
 shopt -s nullglob  # make sure an empty directory gives an empty array
 tarfile_names=$(find /data/temp -type f -name "*.gz")
@@ -127,7 +129,7 @@ for f in ${tarfile_names}; do
   log_files=(*.log)
   cd ${cdir}
   if [[ ${#log_files[@]} -ne 1 ]]; then
-    echo "There is not just one log_file in this tarbal"
+    echo "There is not just one log_file in this tarball"
     echo "moved tar file ${f} to ${archive_dir}"
     echo " - exiting"
     failed_import_count=$((failed_import_count+1))
@@ -137,8 +139,9 @@ for f in ${tarfile_names}; do
   fi
   # ok - have one log file
   log_file=${t_dir}/${log_files[0]}
-  log_dir=$(dirname ${log_file})
+  # this log directory is temporary
   log_file_name=$(basename $log_file)
+  log_dir=$(dirname $log_file)
   import_log_file="${log_dir}/import-${log_file_name}"
   # run the import job
   metric_name="$(grep metric_name ${log_file})"
@@ -162,7 +165,7 @@ for f in ${tarfile_names}; do
   # run the scraper
   sleep 2  # eventually consistent data - give it a little time
   echo "RUNNING - ${clonedir}/scripts/VXingest_utilities/scrape_metrics.sh -c ${credentials_file} -l ${log_file} -d ${metrics_dir}"
-  ${clonedir}/scripts/VXingest_utilities/scrape_metrics.sh -c ${credentials_file} -l ${log_file} -d ${metrics_dir}
+  ${clonedir}/scripts/VXingest_utilities/scrape_metrics.sh -c ${credentials_file} -l ${log_file} -i ${import_log_file} -d ${metrics_dir}
   exit_code=$?
   if [[ "${exit_code}" -ne "0" ]]; then
     failed_scrape_count=$((failed_scrape_count+1))
@@ -170,15 +173,16 @@ for f in ${tarfile_names}; do
     success_scrape_count=$((success_scrape_count+1))
   fi
   # save the import log file
-  cp ${import_log_file} ${clonedir}/logs
+  mv ${import_log_file} ${clonedir}/logs
   echo "--------"
   # now clean up the files
-  # remove the tar file (if it failed it should have been archived)
-  echo "removing tar file - $f"
-  rm $f
+  # move the tar file to purge_dir (if it failed it should have been archived)
+  echo "moving tar file - $f to ${purge_dir}"
+  mv $f ${purge_dir}
   # remove the data files ($t_dir)
-  echo "removing data directory - ${t_dir}"
+  echo "removing temporary data directory - ${t_dir}"
   rm -rf ${t_dir}
+  rm -rf ${log_dir}
 done
 
 echo "*************************************"
@@ -192,7 +196,7 @@ if [[ "${success_import_count}" -ne "0" ]]; then
             if [[ "${ret}" -ne "0" ]]; then
                echo "ceiling metadata update failed with exit code ${ret}"
             fi
-      echo "update visibility metadata"
+            echo "update visibility metadata"
 	    ${clonedir}/mats_metadata_and_indexes/metadata_files/update_visibility_mats_metadata.sh ${credentials_file}
             ret=$?
             if [[ "${ret}" -ne "0" ]]; then

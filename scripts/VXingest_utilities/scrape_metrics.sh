@@ -23,7 +23,7 @@ function derive_pattern_from_ids {
     # in an sql query with a like statement.
     # Given a list of similar ids (same number of fields) this routine will
     # find the fields (':'seperated) that are not common
-    # throught the list and substitute those fields with a "%25 (special char for %)" and return
+    # throughout the list and substitute those fields with a "%25 (special char for %)" and return
     # that pattern.
     ids=("$@")
     # get the number of columns in these ingest_ids - just use the first one as they should all be the same
@@ -54,7 +54,7 @@ function get_record_count_from_log(){
 }
 
 function usage {
-  echo "Usage $0 -c credentials-file -l log_file -d textfile directory"
+  echo "Usage $0 -c credentials-file -l log_file -i import_log_file -d textfile directory"
   echo "The credentials-file specifies cb_host, cb_user, and cb_password."
   echo "Metrics will be written into the textfile directory (-t)"
   echo "The load spec should be the load_spec file with its full path that was used for the ingest process"
@@ -63,7 +63,7 @@ function usage {
   exit 1
 }
 
-while getopts 'c:l:d:' param; do
+while getopts 'c:l:i:d:' param; do
   case "${param}" in
   c)
     credentials_file=${OPTARG}
@@ -80,6 +80,13 @@ while getopts 'c:l:d:' param; do
     log_file=${OPTARG}
     if [[ ! -f "${log_file}" ]]; then
       echo "ERROR: log file ${log_file} does not exist"
+      usage
+    fi
+    ;;
+  i)
+    import_log_file=${OPTARG}
+    if [[ ! -f "${import_log_file}" ]]; then
+      echo "ERROR: import log file ${import_log_file} does not exist"
       usage
     fi
     ;;
@@ -127,8 +134,8 @@ error_count=${error_count}
 
 # the cas meta field in couchbase is going to reflect the time that a document was imported, not when it was created.
 # We need to get the start and stop epochs from the corresponding import log
-start_import_epoch=$(grep Start "$(dirname $log_file)/import-$(basename $log_file)" | awk '{print $2}')
-finish_import_epoch=$(grep Stop "$(dirname $log_file)/import-$(basename $log_file)" | awk '{print $2}')
+start_import_epoch=$(grep Start "${import_log_file}" | awk '{print $2}')
+finish_import_epoch=$(grep Stop "${import_log_file}" | awk '{print $2}')
 # add 60 seconds for latency?
 finish_import_epoch=$((finish_import_epoch + 60))
 intended_record_count=$(get_record_count_from_log "${log_file}")
@@ -177,7 +184,6 @@ mv ${tmp_metric_file} ${metric_file}
 # archive the log_file
 dirname_log_file=$(dirname ${log_file})
 basename_log_file=$(basename ${log_file})
-import_log_file="${dirname_log_file}/import-${basename_log_file}"
 mv ${log_file} ${dirname_log_file}/archive
 # archive the import log_file
 mv ${import_log_file} ${dirname_log_file}/archive

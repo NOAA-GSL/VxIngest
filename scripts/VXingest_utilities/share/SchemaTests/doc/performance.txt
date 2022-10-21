@@ -1,0 +1,36 @@
+Oct 17th, 2022
+Doc count: 100,000
+    CREATE INDEX model_idx0_fcstLen_fcstValidEpoch ON `default`:`mdatatest0`.`_default`.`model`(`idx0`,`fcstLen`,`fcstValidEpoch`)
+        - 22 s
+    CREATE INDEX model_idx0_fcstLen_fcstValidEpoch ON `default`:`mdatatest0`.`_default`.`obs`(`idx0`,`fcstLen`,`fcstValidEpoch`)
+        - 4 s
+
+tesla7
+xaa (100,000 documents) in 357093 ms.
+3,759,163             in 13967466 ms.  (3.8 Hours)
+
+idx0 vs index performance on "type,subset,version,model"
+    CREATE INDEX model_idx0 ON `default`:`mdatatest0`.`_default`.`model`(`idx0`)
+        - 8 min
+    select count(*) from `mdatatest0`.`_default`.`model` where idx0 = "DD:METAR:V01:HRRR_OPS"
+     - 116 ms
+
+    CREATE INDEX model_type_subset_version_model ON `default`:`mdatatest0`.`_default`.`model`(`type`,`subset`,`version`,`model`)
+    - too long to create index ?
+    select count(*) from `mdatatest0`.`_default`.`model` where type = "DD" and subset = "METAR" and version = "V01" and model = "HRRR_OPS"
+
+    CREATE INDEX model_idx0_fcstLen_fcstValidEpoch ON `default`:`mdatatest0`.`_default`.`model`(`idx0`,`fcstLen`,`fcstValidEpoch`)
+    CREATE INDEX obs_idx0_fcstLen_fcstValidEpoch ON `default`:`mdatatest0`.`_default`.`obs`(`idx0`,`fcstLen`,`fcstValidEpoch`)
+    - 8 min
+
+    CREATE INDEX model_idx0_object_names_stations ON `default`:`mdatatest0`.`_default`.`model`(object_names(`stations`))
+
+Oct 14, 2022
+gopapc - MATS.gopa/SchemaTests$ npm start
+INFO	[12:18:22.498]	obs :3474600	total:3759163
+INFO	[12:18:22.506]		in 9333500 ms. (156 min) (<3 hours for 3 million documents)
+
+
+
+gopamac
+xaa (100,000 documents) - too slow

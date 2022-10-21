@@ -1,0 +1,22 @@
+Query: queries/TimeSeries_Oct_19_Doc_mdatatest0.sql (4.6s)
+
+Sub-query: (1.6 s)
+
+SELECT trimData AS m0data,
+       mfve
+FROM `mdatatest0`._default.model AS m0
+LET mfve = m0.fcstValidEpoch,
+    trimData = ARRAY d FOR d IN ([m0.stations.KEWR, m0.stations.KJFK, m0.stations.KJRB, m0.stations.KLDJ, m0.stations.KLGA, m0.stations.KNYC, m0.stations.KTEB]) END
+WHERE 
+    m0.idx0 = "DD:METAR:V01:HRRR_OPS"
+    AND m0.fcstLen = 6
+    AND m0.fcstValidEpoch BETWEEN 1662249600 AND 1664841600
+
+Sub-query: (2.8s)
+SELECT trimData AS odata,
+           ofve
+    FROM `mdatatest0`._default.obs AS o
+    LET ofve = o.fcstValidEpoch,
+        trimData = ARRAY d FOR d IN ( [o.stations.KEWR, o.stations.KJFK, o.stations.KJRB, o.stations.KLDJ, o.stations.KLGA, o.stations.KNYC, o.stations.KTEB] ) END
+    WHERE idx0 = "DD:METAR:V01:undefined"
+        AND o.fcstValidEpoch BETWEEN 1662249600 AND 1664841600

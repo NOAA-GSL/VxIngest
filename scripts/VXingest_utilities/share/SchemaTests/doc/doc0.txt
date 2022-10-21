@@ -1,0 +1,8 @@
+NodeJS Typescript project initialization
+    https://khalilstemmler.com/blogs/typescript/node-starter-project/
+npm install
+npm i --save couchbase
+
+npx tsc
+npm run start:dev
+npm run build

@@ -27,7 +27,7 @@ class CbUpload
     // public clusterConnStr: string = 'couchbase://localhost'
     public clusterConnStr: string = 'adb-cb1.gsd.esrl.noaa.gov';
     public username: string = 'avid'
-    public password: string = 'pwd_av!d'
+    public password: string = 'pwd'
     public bucketName: string = 'mdatatest'
     public cluster: any = null;
     public bucket: any = null;

@@ -6,9 +6,9 @@ You need credential files in your home directory which can be retrieved (if you 
 
 ```scp www-data@model-vxtest.gsd.esrl.noaa.gov:~/adb-cb* .```
 
-You also have to export the PYTHONPATH to be the top level VxIngest directory (the directory where you cloned the repo).
+You also have to export the PYTHONPATH to be the top level VxIngest directory (the directory where you cloned the repo). You need to do this before starting vscode . There may be a way to set it within vscode but it works to export the env variable before starting vscode... like this
 for bash...
-```cd the_clone_dir_for_VxIngest; export PYTHONPATH=\`pwd\'```
+```cd the_clone_dir_for_VxIngest; export PYTHONPATH=\`pwd\'; code```
 
 ## environment
 

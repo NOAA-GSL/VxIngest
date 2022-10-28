@@ -1,3 +1,7 @@
+CREATE INDEX adv_docType_fcstLen_model_fcstValidEpoch_type_version_model ON `default`:`mdatatest`.`_default`.`METAR`(`model`, `fcstLen`, `fcstValidEpoch`) WHERE ((`docType` = 'model') AND (`type` = 'DD') and (`version` = 'V01'))
+CREATE INDEX adv_docType_fcstValidEpoch_type_version_obs ON `default`:`mdatatest`.`_default`.`METAR`(`fcstValidEpoch`) WHERE ((`docType` = 'obs') AND (`type` = 'DD') and (`version` = 'V01'))
+
+
 CREATE INDEX model_object_names_stations ON `default`:`mdata`.`_default`.`model`(object_names(`stations`))
 CREATE INDEX obs_object_names_stations ON `default`:`mdata`.`_default`.`obs`(object_names(`stations`))
 

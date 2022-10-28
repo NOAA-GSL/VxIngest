@@ -20,14 +20,14 @@ import { getEventListeners } from 'stream';
 
 class CbUpload
 {
+    public settingsFile = '/Users/gopa.padmanabhan/mats-settings/configurations/dev/settings/cb-ceiling/settings.json';
+    
     // public jsonFile = '/scratch/mdatatest/xaa';
     // public jsonFile = '/Users/gopa.padmanabhan/scratch/mdatatest/mdatatest_export_gopa.json';
     public jsonFile = '/Users/gopa.padmanabhan/scratch/mdatatest/xaa';
 
     // public clusterConnStr: string = 'couchbase://localhost'
     public clusterConnStr: string = 'adb-cb1.gsd.esrl.noaa.gov';
-    public username: string = 'avid'
-    public password: string = 'pwd'
     public bucketName: string = 'mdatatest'
     public cluster: any = null;
     public bucket: any = null;
@@ -39,9 +39,13 @@ class CbUpload
 
     public async init()
     {
+        var settings = JSON.parse(fs.readFileSync(this.settingsFile, 'utf-8'));
+        // App.log(LogLevel.INFO, "settings:" + JSON.stringify(settings, undefined, 2));
+        App.log(LogLevel.INFO, "user:" + settings.private.databases[0].user);
+
         this.cluster = await connect(this.clusterConnStr, {
-            username: this.username,
-            password: this.password,
+            username: settings.private.databases[0].user,
+            password: settings.private.databases[0].password,
             timeouts: {
                 kvTimeout: 10000, // milliseconds
             },

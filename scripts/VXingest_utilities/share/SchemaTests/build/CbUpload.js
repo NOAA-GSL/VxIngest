@@ -26,13 +26,12 @@ const App_1 = require("./App");
 const couchbase_1 = require("couchbase");
 class CbUpload {
     constructor() {
+        this.settingsFile = '/Users/gopa.padmanabhan/mats-settings/configurations/dev/settings/cb-ceiling/settings.json';
         // public jsonFile = '/scratch/mdatatest/xaa';
         // public jsonFile = '/Users/gopa.padmanabhan/scratch/mdatatest/mdatatest_export_gopa.json';
         this.jsonFile = '/Users/gopa.padmanabhan/scratch/mdatatest/xaa';
         // public clusterConnStr: string = 'couchbase://localhost'
         this.clusterConnStr = 'adb-cb1.gsd.esrl.noaa.gov';
-        this.username = 'avid';
-        this.password = 'pwd_av!d';
         this.bucketName = 'mdatatest';
         this.cluster = null;
         this.bucket = null;
@@ -43,9 +42,12 @@ class CbUpload {
     }
     init() {
         return __awaiter(this, void 0, void 0, function* () {
+            var settings = JSON.parse(fs_1.default.readFileSync(this.settingsFile, 'utf-8'));
+            // App.log(LogLevel.INFO, "settings:" + JSON.stringify(settings, undefined, 2));
+            App_1.App.log(App_1.LogLevel.INFO, "user:" + settings.private.databases[0].user);
             this.cluster = yield (0, couchbase_1.connect)(this.clusterConnStr, {
-                username: this.username,
-                password: this.password,
+                username: settings.private.databases[0].user,
+                password: settings.private.databases[0].password,
                 timeouts: {
                     kvTimeout: 10000, // milliseconds
                 },

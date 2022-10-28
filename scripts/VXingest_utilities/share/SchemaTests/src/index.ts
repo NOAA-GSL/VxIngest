@@ -8,7 +8,7 @@ async function main()
     let cbu : CbUpload = new CbUpload();
     await cbu.init();
     // await cbu.uploadJsonLinesDefault();
-    await cbu.uploadJsonLines();
+    // await cbu.uploadJsonLines();
     // await cbu.jsonLinesExamine0();
     
     let ts0 = new CbTimeSeries0();

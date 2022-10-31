@@ -1,0 +1,10 @@
+-- should execute in less than 200 ms
+SELECT RAW MAX(mdata.fcstValidEpoch)
+FROM mdata
+WHERE type='DD'
+AND docType='CTC'
+AND subDocType='CEILING'
+AND model='HRRR_OPS'
+AND region='ALL_HRRR'
+AND version='V01'
+AND subset='METAR'

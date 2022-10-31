@@ -1,0 +1,7 @@
+SELECT url, mtime
+FROM mdata
+WHERE
+subset='metar'
+AND type='DF'
+AND fileType='netcdf'
+AND originType='madis' order by url;

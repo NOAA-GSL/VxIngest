@@ -1,0 +1,5 @@
+-- should execute in less than 10 milliseconds
+SELECT RAW mdata.thresholdDescriptions
+FROM mdata
+WHERE type="MD"
+    AND docType="matsAux"

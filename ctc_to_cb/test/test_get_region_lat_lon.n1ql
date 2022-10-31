@@ -1,0 +1,12 @@
+-- should execute in under 10 milliseconds
+SELECT
+geo.bottom_right.lat as br_lat,
+geo.bottom_right.lon as br_lon,
+geo.top_left.lat as tl_lat,
+geo.top_left.lon as tl_lon
+FROM mdata
+WHERE type='MD'
+and docType='region'
+and subset='COMMON'
+and version='V01'
+and name='ALL_HRRR'

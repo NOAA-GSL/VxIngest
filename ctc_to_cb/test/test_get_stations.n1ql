@@ -1,0 +1,8 @@
+-- should complete in under 1.5 second
+SELECT mdata.geo,
+       name
+FROM mdata
+WHERE type='MD'
+    AND docType='station'
+    AND subset='METAR'
+    AND version='V01'

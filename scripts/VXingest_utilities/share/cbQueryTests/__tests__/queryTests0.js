@@ -5,7 +5,7 @@ const bucketName = 'mdatatest';
 const clusterConnStr = 'adb-cb1.gsd.esrl.noaa.gov';
 const settingsFile = '/Users/gopa.padmanabhan/mats-settings/configurations/dev/settings/cb-ceiling/settings.json';
 
-jest.setTimeout(20000);
+// jest.setTimeout(20000);
 
 describe("Connection function", () =>
 {

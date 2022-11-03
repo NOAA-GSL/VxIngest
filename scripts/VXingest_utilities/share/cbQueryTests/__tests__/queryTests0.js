@@ -21,10 +21,44 @@ describe("Connection function", () =>
         let res = await run_METAR_count(bucket);
         expect(res != undefined);
 
-        res = await run_q0(bucket);
+        res = await run_query_file(bucket, './test_queries/final_TimeSeries.sql');
+        expect(res != undefined);
+
+        res = await run_query_file(bucket, './test_queries/final_Map.sql');
+        expect(res != undefined);
+
+        res = await run_query_file(bucket, './test_queries/final_DieOff.sql');
+        expect(res != undefined);
+
+        res = await run_query_file(bucket, './test_queries/final_ValidTime.sql');
         expect(res != undefined);
     });
 });
+
+async function run_query_file(bckt, query_file)
+{
+    console.log("run_query_file(" + query_file + ")");
+
+    const clusterConnStr = 'adb-cb1.gsd.esrl.noaa.gov';
+    const qstr = fs.readFileSync(query_file, 'utf-8');
+
+    let startTime = (new Date()).valueOf();
+    const queryResult = await bckt.scope('_default')
+        .query(qstr, {
+            parameters: [],
+        });
+
+    /*
+    queryResult.rows.forEach((row) =>
+    {
+        console.log(row)
+    });
+    */
+
+    let endTime = (new Date()).valueOf();
+    console.log("\trun_query_file(" + query_file + ") in " + (endTime - startTime) + " ms.");
+    return queryResult;
+}
 
 async function connectToCb()
 {
@@ -74,29 +108,5 @@ async function run_METAR_count(bckt)
     return queryResult;
 }
 
-async function run_q0(bckt)
-{
-    console.log("run_q0(bckt)");
 
-    const clusterConnStr = 'adb-cb1.gsd.esrl.noaa.gov';
-    const queryFile = '/Users/gopa.padmanabhan/VxIngest/scripts/VXingest_utilities/share/cbQueryTests/test_queries/q0.sql';
-    const qstr = fs.readFileSync(queryFile, 'utf-8');
-
-    let startTime = (new Date()).valueOf();
-    const queryResult = await bckt.scope('_default')
-        .query(qstr, {
-            parameters: [],
-        });
-
-    /*
-    queryResult.rows.forEach((row) =>
-    {
-        console.log(row)
-    });
-    */
-
-    let endTime = (new Date()).valueOf();
-    console.log("\trun_q0() in " + (endTime - startTime) + " ms.");
-    return queryResult;
-}
 

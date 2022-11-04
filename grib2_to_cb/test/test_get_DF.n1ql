@@ -1,0 +1,8 @@
+SELECT url,
+    mtime
+FROM mdata
+WHERE subset = 'METAR'
+    AND type = 'DF'
+    AND fileType = 'grib2'
+    AND originType = 'HRRR_OPS'
+order by url;

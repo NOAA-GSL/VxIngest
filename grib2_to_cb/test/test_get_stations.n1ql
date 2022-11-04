@@ -1,0 +1,7 @@
+SELECT mdata.geo,
+    name
+from mdata
+where type = 'MD'
+    and docType = 'station'
+    and subset = 'METAR'
+    and version = 'V01';

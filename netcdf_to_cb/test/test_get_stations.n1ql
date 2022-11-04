@@ -1,0 +1,1 @@
+Select ingest_document_ids from mdata where meta().id = "MD:V01:METAR:obs:ingest:netcdf";

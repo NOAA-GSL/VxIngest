@@ -1,0 +1,1 @@
+Select file_mask, input_data_path from mdata where meta().id = "MD:V01:METAR:obs:ingest:netcdf";

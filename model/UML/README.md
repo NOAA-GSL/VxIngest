@@ -37,8 +37,10 @@ If you run pyreverse on an entire project it is too inclusive to be illuminating
 
 These are the commands that were used to create the drawings in this dirwectory. It is assumed that these are run from the top level of the VXingest project.
 
-cd ... VXingest
-export PYTHONPATH=`pwd`
+```
+> cd ... VXingest
+> export PYTHONPATH=`pwd`
+```
 
 #### VXIngest
 

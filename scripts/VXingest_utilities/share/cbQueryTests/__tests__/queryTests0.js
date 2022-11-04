@@ -7,29 +7,52 @@ const settingsFile = '/Users/gopa.padmanabhan/mats-settings/configurations/dev/s
 
 // jest.setTimeout(20000);
 
-describe("Connection function", () =>
+describe("CouchBase Query Tests", () =>
 {
-    test("Tests connnection to CouchBase server", async () =>
+    let cluster = null;
+    let bucket = null;
+    let collection_METAR = null;
+
+    test("Establish CouchBase connection", async () =>
     {
-        let cluster = await connectToCb();
+        cluster = await connectToCb();
         expect(cluster != undefined);
 
-        let bucket = cluster.bucket(bucketName);
+        bucket = cluster.bucket(bucketName);
         expect(bucket != undefined);
 
-        let collection_METAR = bucket.scope('_default').collection('METAR');
+        collection_METAR = bucket.scope('_default').collection('METAR');
+    });
+
+    test("Get METAR count", async () =>
+    {
+
         let res = await run_METAR_count(bucket);
         expect(res != undefined);
+    });
+
+    test("TimeSeries query", async () =>
+    {
 
         res = await run_query_file(bucket, './test_queries/final_TimeSeries.sql');
         expect(res != undefined);
+    });
+
+    test("MAP query", async () =>
+    {
 
         res = await run_query_file(bucket, './test_queries/final_Map.sql');
         expect(res != undefined);
+    });
 
+    test("DieOff query", async () =>
+    {
         res = await run_query_file(bucket, './test_queries/final_DieOff.sql');
         expect(res != undefined);
+    }, 200000);
 
+    test("ValidTime query", async () =>
+    {
         res = await run_query_file(bucket, './test_queries/final_ValidTime.sql');
         expect(res != undefined);
     });
@@ -65,14 +88,15 @@ async function connectToCb()
     console.log("connectToCb()");
 
     let startTime = (new Date()).valueOf();
-    
+
     var settings = JSON.parse(fs.readFileSync(settingsFile, 'utf-8'));
 
     let cluster = await couchbase.connect(clusterConnStr, {
         username: settings.private.databases[0].user,
         password: settings.private.databases[0].password,
         timeouts: {
-            kvTimeout: 10000, // milliseconds
+            kvTimeout: 10000,
+            queryTimeout: 300000
         },
     });
 

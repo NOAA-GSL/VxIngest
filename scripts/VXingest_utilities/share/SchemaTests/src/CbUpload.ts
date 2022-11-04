@@ -28,7 +28,7 @@ class CbUpload
 
     // public clusterConnStr: string = 'couchbase://localhost'
     public clusterConnStr: string = 'adb-cb1.gsd.esrl.noaa.gov';
-    public bucketName: string = 'mdatatest'
+    public bucketName: string = 'vxdata'
     public cluster: any = null;
     public bucket: any = null;
 
@@ -166,7 +166,7 @@ class CbUpload
             lineObj.data = undefined;
             let objStr = JSON.stringify(lineObj, undefined, 2);
             // App.log(LogLevel.INFO, objStr);
-            await this.collection_default.upsert(lineObj.id, lineObj)
+            // await this.collection_default.upsert(lineObj.id, lineObj)
             if (((++count) % 100) == 0)
             {
                 console.log(count);
@@ -194,6 +194,7 @@ class CbUpload
         let count_model: number = 0;
         let count_obs: number = 0;
         let count_METAR: number = 0;
+        let count_metar: number = 0;
         for await (const line of rl)
         {
             let lineObj = JSON.parse(line);
@@ -207,14 +208,22 @@ class CbUpload
                     lineObj.stations[lineObj.data[i].name] = lineObj.data[i];
                 }
             }
-            lineObj["idx0"] = lineObj.type + ":" + lineObj.subset + ":" + lineObj.version + ":" + lineObj.model;
+            // lineObj["idx0"] = lineObj.type + ":" + lineObj.subset + ":" + lineObj.version + ":" + lineObj.model;
             lineObj.data = undefined;
-            let objStr = JSON.stringify(lineObj, undefined, 2);
+            
+            if(lineObj.subset == "metar")
+            {
+                ++count_metar;
+                lineObj.subset = "METAR";
+                // App.log(LogLevel.INFO, "metar => METAR");
+                // let objStr = JSON.stringify(lineObj, undefined, 2);
+                // App.log(LogLevel.INFO, objStr);
+            }
             // App.log(LogLevel.INFO, objStr);
-            await this.collection_METAR.upsert(lineObj.id, lineObj);
+            // await this.collection_METAR.upsert(lineObj.id, lineObj);
             if (((++count_METAR) % 100) == 0)
             {
-                App.log(LogLevel.INFO, "METAR:" + count_METAR + "\ttotal:" + (count_METAR));
+                App.log(LogLevel.INFO, "METAR:" + count_METAR + "\tmetar => METAR:" + count_metar + "\ttotal:" + (count_METAR));
             }
             /*
             if (lineObj.docType === "model")

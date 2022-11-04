@@ -165,7 +165,7 @@ class CbUpload {
                     lineObj.data = undefined;
                     let objStr = JSON.stringify(lineObj, undefined, 2);
                     // App.log(LogLevel.INFO, objStr);
-                    yield this.collection_default.upsert(lineObj.id, lineObj);
+                    // await this.collection_default.upsert(lineObj.id, lineObj)
                     if (((++count) % 100) == 0) {
                         console.log(count);
                     }
@@ -197,6 +197,7 @@ class CbUpload {
             let count_model = 0;
             let count_obs = 0;
             let count_METAR = 0;
+            let count_metar = 0;
             try {
                 for (var rl_3 = __asyncValues(rl), rl_3_1; rl_3_1 = yield rl_3.next(), !rl_3_1.done;) {
                     const line = rl_3_1.value;
@@ -209,11 +210,17 @@ class CbUpload {
                     }
                     lineObj["idx0"] = lineObj.type + ":" + lineObj.subset + ":" + lineObj.version + ":" + lineObj.model;
                     lineObj.data = undefined;
-                    let objStr = JSON.stringify(lineObj, undefined, 2);
+                    if (lineObj.subset == "metar") {
+                        ++count_metar;
+                        lineObj.subset = "METAR";
+                        App_1.App.log(App_1.LogLevel.INFO, "metar => METAR");
+                        let objStr = JSON.stringify(lineObj, undefined, 2);
+                        App_1.App.log(App_1.LogLevel.INFO, objStr);
+                    }
                     // App.log(LogLevel.INFO, objStr);
-                    yield this.collection_METAR.upsert(lineObj.id, lineObj);
+                    // await this.collection_METAR.upsert(lineObj.id, lineObj);
                     if (((++count_METAR) % 100) == 0) {
-                        App_1.App.log(App_1.LogLevel.INFO, "METAR:" + count_METAR + "\ttotal:" + (count_METAR));
+                        App_1.App.log(App_1.LogLevel.INFO, "METAR:" + count_METAR + "\tmetar => METAR:" + count_metar + "\ttotal:" + (count_METAR));
                     }
                 }
             }

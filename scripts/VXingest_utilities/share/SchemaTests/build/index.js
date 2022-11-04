@@ -16,7 +16,7 @@ function main() {
         let cbu = new CbUpload_1.CbUpload();
         yield cbu.init();
         // await cbu.uploadJsonLinesDefault();
-        // await cbu.uploadJsonLines();
+        yield cbu.uploadJsonLines();
         // await cbu.jsonLinesExamine0();
         let ts0 = new CbTimeSeries0_1.CbTimeSeries0();
         // await ts0.doTimeSeriesQuery0(cbu.bucket, './queries/timeseries_mdata_3.sql');

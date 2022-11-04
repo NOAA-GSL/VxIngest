@@ -10,10 +10,12 @@ below list the necessary steps to install the required components and to recreat
 
 ### PIP
 
- python3.9 -m pip install --upgrade pip
- pip install pydot
- pip install graphviz
- pip install -U pylint
+```
+ > python3.9 -m pip install --upgrade pip
+ > pip install pydot
+ > pip install graphviz
+ > pip install -U pylint
+```
 
 ### Graphviz brew (for mac)
 

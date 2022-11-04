@@ -220,7 +220,7 @@ class CbUpload
                 // App.log(LogLevel.INFO, objStr);
             }
             // App.log(LogLevel.INFO, objStr);
-            // await this.collection_METAR.upsert(lineObj.id, lineObj);
+            await this.collection_METAR.upsert(lineObj.id, lineObj);
             if (((++count_METAR) % 100) == 0)
             {
                 App.log(LogLevel.INFO, "METAR:" + count_METAR + "\tmetar => METAR:" + count_metar + "\ttotal:" + (count_METAR));

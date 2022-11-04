@@ -20,6 +20,8 @@ below list the necessary steps to install the required components and to recreat
 ### Graphviz brew (for mac)
 
  brew install Graphviz
+ 
+ There is also a vscode extension for graphviz. [graphviz](https://marketplace.visualstudio.com/items?itemName=joaompinto.vscode-graphviz)
 
 ### pyreverse
 
@@ -30,6 +32,9 @@ pyreverse is actually part of pylint so you get it when you install pylint. The 
 
 You need a pdf reader extension for vscode so that you can view the pdf class diagrams.
 Use the vscode extension [vscode-pdf](https://marketplace.visualstudio.com/items?itemName=tomoki1207.pdf)
+There is also a vscode extension for graphviz. [graphviz](https://marketplace.visualstudio.com/items?itemName=joaompinto.vscode-graphviz)
+
+To use the extension you create the .dot file with pyreverse and then edit the file and while editing you do [cmd shift v] and it will create a graphical view.
 
 ### running pyreverse and dot
 

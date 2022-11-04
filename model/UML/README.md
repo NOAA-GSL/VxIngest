@@ -10,14 +10,18 @@ below list the necessary steps to install the required components and to recreat
 
 ### PIP
 
- python3.9 -m pip install --upgrade pip
- pip install pydot
- pip install graphviz
- pip install -U pylint
+```
+ > python3.9 -m pip install --upgrade pip
+ > pip install pydot
+ > pip install graphviz
+ > pip install -U pylint
+```
 
 ### Graphviz brew (for mac)
 
  brew install Graphviz
+ 
+ There is also a vscode extension for graphviz. [graphviz](https://marketplace.visualstudio.com/items?itemName=joaompinto.vscode-graphviz)
 
 ### pyreverse
 
@@ -28,6 +32,9 @@ pyreverse is actually part of pylint so you get it when you install pylint. The 
 
 You need a pdf reader extension for vscode so that you can view the pdf class diagrams.
 Use the vscode extension [vscode-pdf](https://marketplace.visualstudio.com/items?itemName=tomoki1207.pdf)
+There is also a vscode extension for graphviz. [graphviz](https://marketplace.visualstudio.com/items?itemName=joaompinto.vscode-graphviz)
+
+To use the extension you create the .dot file with pyreverse and then edit the file and while editing you do [cmd shift v] and it will create a graphical view.
 
 ### running pyreverse and dot
 
@@ -35,8 +42,10 @@ If you run pyreverse on an entire project it is too inclusive to be illuminating
 
 These are the commands that were used to create the drawings in this dirwectory. It is assumed that these are run from the top level of the VXingest project.
 
-cd ... VXingest
-export PYTHONPATH=`pwd`
+```
+> cd ... VXingest
+> export PYTHONPATH=`pwd`
+```
 
 #### VXIngest
 

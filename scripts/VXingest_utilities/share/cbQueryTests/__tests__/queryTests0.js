@@ -3,7 +3,7 @@ var couchbase = require('couchbase');
 
 const bucketName = 'mdatatest';
 const clusterConnStr = 'adb-cb1.gsd.esrl.noaa.gov';
-const configFile = "./config/testconfig.json";
+const configFile = "./config/config.json";
 const settingsFile = '/Users/gopa.padmanabhan/mats-settings/configurations/dev/settings/cb-ceiling/settings.json';
 
 var config = null;

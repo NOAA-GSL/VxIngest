@@ -3,8 +3,10 @@ var couchbase = require('couchbase');
 
 const bucketName = 'mdatatest';
 const clusterConnStr = 'adb-cb1.gsd.esrl.noaa.gov';
+const configFile = "./config/testconfig.json";
 const settingsFile = '/Users/gopa.padmanabhan/mats-settings/configurations/dev/settings/cb-ceiling/settings.json';
 
+var config = null;
 // jest.setTimeout(20000);
 
 describe("CouchBase Query Tests", () =>
@@ -15,6 +17,10 @@ describe("CouchBase Query Tests", () =>
 
     test("Establish CouchBase connection", async () =>
     {
+        config = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
+
+        console.log(config.queries.length + " queries loaded from config.")
+
         cluster = await connectToCb();
         expect(cluster != undefined);
 
@@ -24,41 +30,27 @@ describe("CouchBase Query Tests", () =>
         collection_METAR = bucket.scope('_default').collection('METAR');
     });
 
+    /*
     test("Get METAR count", async () =>
     {
 
         let res = await run_METAR_count(bucket);
         expect(res != undefined);
     });
+    */
 
-    test("TimeSeries query", async () =>
+    test("Run all queries", async () =>
     {
-
-        res = await run_query_file(bucket, './test_queries/final_TimeSeries.sql');
-        expect(res != undefined);
-    });
-
-    test("MAP query", async () =>
-    {
-
-        res = await run_query_file(bucket, './test_queries/final_Map.sql');
-        expect(res != undefined);
-    });
-
-    test("DieOff query", async () =>
-    {
-        res = await run_query_file(bucket, './test_queries/final_DieOff.sql');
-        expect(res != undefined);
-    }, 200000);
-
-    test("ValidTime query", async () =>
-    {
-        res = await run_query_file(bucket, './test_queries/final_ValidTime.sql');
-        expect(res != undefined);
+        for (let i = 0; i < config.queries.length; i++)
+        {
+            let elapsed = await run_query_file(bucket, config.queries[i].queryFile, config.queries[i].maxExecutionTime_ms);
+            // console.log("elapsed:" + elapsed + ",maxExecutionTime_ms:" + config.queries[i].maxExecutionTime_ms);
+            expect(elapsed).toBeLessThan(config.queries[i].maxExecutionTime_ms);
+        }
     });
 });
 
-async function run_query_file(bckt, query_file)
+async function run_query_file(bckt, query_file, maxExecutionTime_ms)
 {
     console.log("run_query_file(" + query_file + ")");
 
@@ -66,9 +58,11 @@ async function run_query_file(bckt, query_file)
     const qstr = fs.readFileSync(query_file, 'utf-8');
 
     let startTime = (new Date()).valueOf();
+
     const queryResult = await bckt.scope('_default')
         .query(qstr, {
             parameters: [],
+            timeout: maxExecutionTime_ms
         });
 
     /*
@@ -79,8 +73,9 @@ async function run_query_file(bckt, query_file)
     */
 
     let endTime = (new Date()).valueOf();
-    console.log("\trun_query_file(" + query_file + ") in " + (endTime - startTime) + " ms.");
-    return queryResult;
+    let elapsed = (endTime - startTime);
+    console.log("\trun_query_file(" + query_file + ") in " + elapsed + " ms.");
+    return elapsed;
 }
 
 async function connectToCb()

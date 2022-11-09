@@ -48,7 +48,7 @@ def test_epoch_fcstLen_model(request):
     """test"""
     try:
         _name = request.node.name
-        _expected_time = 1.0
+        _expected_time = 3.0
         _statement = open("./ctc_to_cb/test/test_epoch_fcstLen_model.n1ql").read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
         elapsed_time = result.metadata().metrics().elapsed_time().total_seconds()
@@ -63,7 +63,7 @@ def test_epoch_fcstLen_obs(request):
     """test"""
     try:
         _name = request.node.name
-        _expected_time = 0.01
+        _expected_time = 0.2
         _statement = open("./ctc_to_cb/test/test_epoch_fcstLen_obs.n1ql").read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
         elapsed_time = result.metadata().metrics().elapsed_time().total_seconds()
@@ -108,7 +108,7 @@ def test_get_stations(request):
     """test"""
     try:
         _name = request.node.name
-        _expected_time = 1.5
+        _expected_time = 1
         _statement = open("./ctc_to_cb/test/test_get_stations.n1ql").read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
         elapsed_time = result.metadata().metrics().elapsed_time().total_seconds()

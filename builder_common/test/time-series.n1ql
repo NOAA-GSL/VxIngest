@@ -54,10 +54,10 @@ SELECT m0.fcstValidEpoch AS AVTIME,
             ELSE '0'
         END
     ) AS subData
-FROM mdata AS m0 USE INDEX (
+FROM `mdatatest`._default.METAR AS m0 USE INDEX (
         ix_subset_version_model_fcstLen_fcstValidEpoc
     )
-    JOIN mdata AS o USE INDEX(
+    JOIN `mdatatest`._default.METAR AS o USE INDEX(
         adv_fcstValidEpoch_docType_subset_version_type
     ) ON o.fcstValidEpoch = m0.fcstValidEpoch UNNEST o.data AS odata UNNEST m0.data AS m0data
 WHERE o.type = 'DD'

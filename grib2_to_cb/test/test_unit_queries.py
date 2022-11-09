@@ -78,7 +78,7 @@ def test_get_DF(request):
     """test"""
     try:
         _name = request.node.name
-        _expected_time = 6
+        _expected_time = 5
         _statement = open("./grib2_to_cb/test/test_get_DF.n1ql").read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
         elapsed_time = result.metadata().metrics().elapsed_time().total_seconds()
@@ -93,8 +93,23 @@ def test_get_stations(request):
     """test"""
     try:
         _name = request.node.name
-        _expected_time = 5
+        _expected_time = 1
         _statement = open("./grib2_to_cb/test/test_get_stations.n1ql").read()
+        result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
+        elapsed_time = result.metadata().metrics().elapsed_time().total_seconds()
+        print(f"{_name}: elapsed_time is {elapsed_time}")
+        assert result is not None, "{_name}: result is None"
+        assert len(result.errors) == 0, f"{_name}: result has errors{result.errors}"
+        assert elapsed_time < _expected_time, f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
+    except Exception as _e:  # pylint:disable=broad-except
+        assert False, f"{_name} Exception failure: {_e}"
+
+def test_get_model_by_fcstValidEpoch(request):
+    """test"""
+    try:
+        _name = request.node.name
+        _expected_time = 0.6
+        _statement = open("./grib2_to_cb/test/test_get_model_by_fcstValidEpoch.n1ql").read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
         elapsed_time = result.metadata().metrics().elapsed_time().total_seconds()
         print(f"{_name}: elapsed_time is {elapsed_time}")

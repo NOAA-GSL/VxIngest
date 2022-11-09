@@ -1,6 +1,6 @@
 -- should execute less than 1 second
 SELECT fve.fcstValidEpoch, fve.fcstLen, meta().id
-FROM mdata fve
+FROM `mdatatest`._default.METAR fve
 WHERE fve.type='DD'
     AND fve.docType='model'
     AND fve.model='HRRR_OPS'

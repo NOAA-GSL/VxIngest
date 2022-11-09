@@ -1,6 +1,5 @@
-SELECT mdata.geo,
-    name
-from mdata
+SELECT geo, name
+from `mdatatest`._default.METAR
 where type = 'MD'
     and docType = 'station'
     and subset = 'METAR'

@@ -328,17 +328,21 @@ class NetcdfBuilder(Builder):  # pylint disable=too-many-instance-attributes
         """
         # noinspection PyBroadException
         try:
+            bucket = self.load_spec['cb_connection']['bucket']
+            scope = self.load_spec['cb_connection']['scope']
+            collection = self.load_spec['cb_connection']['collection']
+
             # stash the file_name so that it can be used later
             self.file_name = os.path.basename(queue_element)
             # pylint: disable=no-member
             self.ncdf_data_set = nc.Dataset(queue_element)
             if len(self.stations) == 0:
-                stmnt = """SELECT mdata.*
-                    FROM mdata
+                stmnt = """SELECT {subset}.*
+                    FROM `{bucket}`.{scope}.{collection}
                     WHERE type = 'MD'
                     AND docType = 'station'
                     AND subset = '{subset}'
-                    AND version = 'V01';""".format (subset=self.subset)
+                    AND version = 'V01';""".format (subset=self.subset, bucket=bucket, scope=scope, collection=collection)
                 result = self.load_spec["cluster"].query(stmnt)
                 self.stations = list(result)
 

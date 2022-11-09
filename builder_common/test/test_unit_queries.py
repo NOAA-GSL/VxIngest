@@ -47,7 +47,7 @@ def connect_cb():
 def test_map_station_query_no_let(request):
     """test"""
     try:
-        _expected_time = 10
+        _expected_time = 12
         _name = request.node.name
         _statement = open("./builder_common/test/map_station_query_no_let.n1ql").read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
@@ -63,7 +63,7 @@ def test_map_station_query_no_let(request):
 def test_map_station_query(request):
     """test"""
     try:
-        _expected_time = 10
+        _expected_time = 12
         _name = request.node.name
         _statement = open("./builder_common/test/map_station_query.n1ql").read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
@@ -95,7 +95,7 @@ def test_stations_fcst_valid_epoch(request):
 def test_stations_get_file_list_grib2(request):
     """test"""
     try:
-        _expected_time = 10
+        _expected_time = 5
         _name = request.node.name
         _statement = open("./builder_common/test/get_file_list_grib2.n1ql").read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
@@ -110,7 +110,7 @@ def test_stations_get_file_list_grib2(request):
 def test_stations_get_file_list_netcdf(request):
     """test"""
     try:
-        _expected_time = 10
+        _expected_time = 5
         _name = request.node.name
         _statement = open("./builder_common/test/get_file_list_netcdf.n1ql").read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))

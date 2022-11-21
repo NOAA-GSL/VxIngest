@@ -455,24 +455,6 @@ class NetcdfMetarObsBuilderV01(
         try:
             if len(self.same_time_rows) != 0:
                 self.handle_document()
-            # convert data map to a list
-            # document_map might be None
-            if self.document_map and isinstance(self.document_map, dict):
-                for _d in self.document_map.values():
-                    try:
-                        if "data" in _d.keys() and isinstance(_d["data"], dict):
-                            data_map = _d["data"]
-                            data_list = list(data_map.values())
-                            _d["data"] = sorted(
-                                data_list, key=lambda data_elem: data_elem["name"]
-                            )
-                    except Exception as _e1:  # pylint:disable=broad-except
-                        logging.error(
-                            "%s get_document_map list conversion: Exception processing%s:  error: %s",
-                            self.__class__.__name__,
-                            str(_d["data"]),
-                            str(_e1),
-                        )
             return self.document_map
         except Exception as _e:  # pylint:disable=broad-except
             logging.exception(
@@ -484,10 +466,10 @@ class NetcdfMetarObsBuilderV01(
 
     def load_data(self, doc, key, element):
         """
-        This method appends an observation to the data array -
+        This method adds an observation to the data dict -
         in fact we use a dict to hold data elems to ensure
-        the data elements are unique per station name, the map is converted
-        back to a list in get_document_map. Using a map ensures that the last
+        the data elements are unique per station name.
+        Using a map ensures that the last
         entry in the netcdf file is the one that gets captured.
         :param doc: The document being created
         :param key: Not used

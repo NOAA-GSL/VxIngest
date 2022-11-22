@@ -20,10 +20,7 @@ import { getEventListeners } from 'stream';
 
 class CbUpload
 {
-    public settingsFile = '/Users/gopa.padmanabhan/mats-settings/configurations/dev/settings/cb-ceiling/settings.json';
-    
     // public jsonFile = '/scratch/mdatatest/xaa';
-    // public jsonFile = '/Users/gopa.padmanabhan/scratch/mdatatest/mdatatest_export_gopa.json';
     public jsonFile = '/Users/gopa.padmanabhan/scratch/mdatatest/xaa';
 
     // public clusterConnStr: string = 'couchbase://localhost'
@@ -37,9 +34,9 @@ class CbUpload
     public collection_model: any = null;
     public collection_METAR: any = null;
 
-    public async init()
+    public async init(confFile)
     {
-        var settings = JSON.parse(fs.readFileSync(this.settingsFile, 'utf-8'));
+        var settings = JSON.parse(fs.readFileSync(confFile, 'utf-8'));
         // App.log(LogLevel.INFO, "settings:" + JSON.stringify(settings, undefined, 2));
         App.log(LogLevel.INFO, "user:" + settings.private.databases[0].user);
 
@@ -176,13 +173,16 @@ class CbUpload
         App.log(LogLevel.INFO, "\tin " + (endTime - startTime) + " ms.");
     }
 
-    public async uploadJsonLines()
+    /*
+        set maxCount = 0, to upload all
+    */
+    public async uploadJsonLines(jsonFile, maxCount)
     {
         App.log(LogLevel.INFO, "uploadJsonLines()");
 
         let startTime: number = (new Date()).valueOf();
 
-        let rs = fs.createReadStream(this.jsonFile);
+        let rs = fs.createReadStream(jsonFile);
 
         const rl = readline.createInterface({
             input: rs,
@@ -195,11 +195,28 @@ class CbUpload
         let count_obs: number = 0;
         let count_METAR: number = 0;
         let count_metar: number = 0;
+
+        let count_DocTypes = {};
+
         for await (const line of rl)
         {
             let lineObj = JSON.parse(line);
 
             lineObj.stations = {};
+
+            if(! count_DocTypes[lineObj.docType])
+            {
+                count_DocTypes[lineObj.docType] = 0;
+            }
+            else
+            {
+                ++count_DocTypes[lineObj.docType];
+            }
+
+            if(lineObj.docType == "CTC")
+            {
+                continue;
+            }
 
             if (lineObj.data)
             {
@@ -225,6 +242,10 @@ class CbUpload
             {
                 App.log(LogLevel.INFO, "METAR:" + count_METAR + "\tmetar => METAR:" + count_metar + "\ttotal:" + (count_METAR));
             }
+            if(maxCount > 0 && count_METAR >= maxCount)
+            {
+                break;
+            }
             /*
             if (lineObj.docType === "model")
             {
@@ -244,6 +265,7 @@ class CbUpload
             }
             */
         }
+        App.log(LogLevel.INFO, "count_DocTypes:" + JSON.stringify(count_DocTypes, undefined, 2));
         let endTime: number = (new Date()).valueOf();
         App.log(LogLevel.INFO, "\tin " + (endTime - startTime) + " ms.");
     }

@@ -14,9 +14,11 @@ const CbTimeSeries0_1 = require("./CbTimeSeries0");
 function main() {
     return __awaiter(this, void 0, void 0, function* () {
         let cbu = new CbUpload_1.CbUpload();
-        yield cbu.init();
+        yield cbu.init('/Users/gopa.padmanabhan/mats-settings/configurations/dev/settings/cb-ceiling/settings.json', 'vxdata');
+        // await cbu.init('/home/gopa/mats-settings/configurations/dev/settings/cb-ceiling/settings.json');
         // await cbu.uploadJsonLinesDefault();
-        yield cbu.uploadJsonLines();
+        yield cbu.uploadJsonLines('/Users/gopa.padmanabhan/scratch/mdatatest/mdatatest_export_gopa.json', 1000);
+        // await cbu.uploadJsonLines('/scratch/mdatatest/mdatatest_export_gopa.json', 10);
         // await cbu.jsonLinesExamine0();
         let ts0 = new CbTimeSeries0_1.CbTimeSeries0();
         // await ts0.doTimeSeriesQuery0(cbu.bucket, './queries/timeseries_mdata_3.sql');

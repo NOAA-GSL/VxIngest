@@ -26,13 +26,10 @@ const App_1 = require("./App");
 const couchbase_1 = require("couchbase");
 class CbUpload {
     constructor() {
-        this.settingsFile = '/Users/gopa.padmanabhan/mats-settings/configurations/dev/settings/cb-ceiling/settings.json';
         // public jsonFile = '/scratch/mdatatest/xaa';
-        // public jsonFile = '/Users/gopa.padmanabhan/scratch/mdatatest/mdatatest_export_gopa.json';
         this.jsonFile = '/Users/gopa.padmanabhan/scratch/mdatatest/xaa';
         // public clusterConnStr: string = 'couchbase://localhost'
         this.clusterConnStr = 'adb-cb1.gsd.esrl.noaa.gov';
-        this.bucketName = 'mdatatest';
         this.cluster = null;
         this.bucket = null;
         this.collection_default = null;
@@ -40,9 +37,9 @@ class CbUpload {
         this.collection_model = null;
         this.collection_METAR = null;
     }
-    init() {
+    init(confFile, bucketName) {
         return __awaiter(this, void 0, void 0, function* () {
-            var settings = JSON.parse(fs_1.default.readFileSync(this.settingsFile, 'utf-8'));
+            var settings = JSON.parse(fs_1.default.readFileSync(confFile, 'utf-8'));
             // App.log(LogLevel.INFO, "settings:" + JSON.stringify(settings, undefined, 2));
             App_1.App.log(App_1.LogLevel.INFO, "user:" + settings.private.databases[0].user);
             this.cluster = yield (0, couchbase_1.connect)(this.clusterConnStr, {
@@ -52,7 +49,7 @@ class CbUpload {
                     kvTimeout: 10000, // milliseconds
                 },
             });
-            this.bucket = this.cluster.bucket(this.bucketName);
+            this.bucket = this.cluster.bucket(bucketName);
             // Get a reference to the default collection, required only for older Couchbase server versions
             this.collection_default = this.bucket.defaultCollection();
             this.collection_obs = this.bucket.scope('_default').collection('obs');
@@ -182,12 +179,15 @@ class CbUpload {
             App_1.App.log(App_1.LogLevel.INFO, "\tin " + (endTime - startTime) + " ms.");
         });
     }
-    uploadJsonLines() {
+    /*
+        set maxCount = 0, to upload all
+    */
+    uploadJsonLines(jsonFile, maxCount) {
         var e_3, _a;
         return __awaiter(this, void 0, void 0, function* () {
             App_1.App.log(App_1.LogLevel.INFO, "uploadJsonLines()");
             let startTime = (new Date()).valueOf();
-            let rs = fs_1.default.createReadStream(this.jsonFile);
+            let rs = fs_1.default.createReadStream(jsonFile);
             const rl = readline.createInterface({
                 input: rs,
                 crlfDelay: Infinity
@@ -198,29 +198,41 @@ class CbUpload {
             let count_obs = 0;
             let count_METAR = 0;
             let count_metar = 0;
+            let count_DocTypes = {};
             try {
                 for (var rl_3 = __asyncValues(rl), rl_3_1; rl_3_1 = yield rl_3.next(), !rl_3_1.done;) {
                     const line = rl_3_1.value;
                     let lineObj = JSON.parse(line);
-                    lineObj.stations = {};
-                    if (lineObj.data) {
-                        for (let i = 0; i < lineObj.data.length; i++) {
-                            lineObj.stations[lineObj.data[i].name] = lineObj.data[i];
+                    let dataNew = {};
+                    if (undefined == count_DocTypes[lineObj.docType]) {
+                        count_DocTypes[lineObj.docType] = 1;
+                    }
+                    else {
+                        count_DocTypes[lineObj.docType] = count_DocTypes[lineObj.docType] + 1;
+                    }
+                    if (lineObj.docType !== "CTC") {
+                        if (lineObj.data) {
+                            // lineObj["idx0"] = lineObj.type + ":" + lineObj.subset + ":" + lineObj.version + ":" + lineObj.model;            
+                            for (let i = 0; i < lineObj.data.length; i++) {
+                                dataNew[lineObj.data[i].name] = lineObj.data[i];
+                            }
+                            lineObj.data = dataNew;
                         }
                     }
-                    lineObj["idx0"] = lineObj.type + ":" + lineObj.subset + ":" + lineObj.version + ":" + lineObj.model;
-                    lineObj.data = undefined;
                     if (lineObj.subset == "metar") {
                         ++count_metar;
                         lineObj.subset = "METAR";
-                        App_1.App.log(App_1.LogLevel.INFO, "metar => METAR");
-                        let objStr = JSON.stringify(lineObj, undefined, 2);
-                        App_1.App.log(App_1.LogLevel.INFO, objStr);
+                        // App.log(LogLevel.INFO, "metar => METAR");
+                        // let objStr = JSON.stringify(lineObj, undefined, 2);
+                        // App.log(LogLevel.INFO, objStr);
                     }
                     // App.log(LogLevel.INFO, objStr);
-                    // await this.collection_METAR.upsert(lineObj.id, lineObj);
+                    yield this.collection_METAR.upsert(lineObj.id, lineObj);
                     if (((++count_METAR) % 100) == 0) {
                         App_1.App.log(App_1.LogLevel.INFO, "METAR:" + count_METAR + "\tmetar => METAR:" + count_metar + "\ttotal:" + (count_METAR));
+                    }
+                    if (maxCount > 0 && count_METAR >= maxCount) {
+                        break;
                     }
                 }
             }
@@ -231,8 +243,9 @@ class CbUpload {
                 }
                 finally { if (e_3) throw e_3.error; }
             }
+            App_1.App.log(App_1.LogLevel.INFO, "\tcount_DocTypes:\n" + JSON.stringify(count_DocTypes, undefined, 2));
             let endTime = (new Date()).valueOf();
-            App_1.App.log(App_1.LogLevel.INFO, "\tin " + (endTime - startTime) + " ms.");
+            App_1.App.log(App_1.LogLevel.INFO, "\t" + count_METAR + " documents uploaded in " + (endTime - startTime) + " ms.");
         });
     }
     jsonLinesExamine0() {

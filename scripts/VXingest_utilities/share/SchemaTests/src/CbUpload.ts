@@ -7,14 +7,14 @@ import readline = require('readline');
 import { LogLevel, App } from "./App";
 
 import
-    {
-        Bucket,
-        Cluster,
-        Collection,
-        connect,
-        GetResult,
-        QueryResult,
-    } from 'couchbase'
+{
+    Bucket,
+    Cluster,
+    Collection,
+    connect,
+    GetResult,
+    QueryResult,
+} from 'couchbase'
 import { getEventListeners } from 'stream';
 
 
@@ -25,7 +25,6 @@ class CbUpload
 
     // public clusterConnStr: string = 'couchbase://localhost'
     public clusterConnStr: string = 'adb-cb1.gsd.esrl.noaa.gov';
-    public bucketName: string = 'vxdata'
     public cluster: any = null;
     public bucket: any = null;
 
@@ -34,7 +33,7 @@ class CbUpload
     public collection_model: any = null;
     public collection_METAR: any = null;
 
-    public async init(confFile)
+    public async init(confFile: string, bucketName: string)
     {
         var settings = JSON.parse(fs.readFileSync(confFile, 'utf-8'));
         // App.log(LogLevel.INFO, "settings:" + JSON.stringify(settings, undefined, 2));
@@ -48,7 +47,7 @@ class CbUpload
             },
         })
 
-        this.bucket = this.cluster.bucket(this.bucketName)
+        this.bucket = this.cluster.bucket(bucketName)
 
         // Get a reference to the default collection, required only for older Couchbase server versions
         this.collection_default = this.bucket.defaultCollection()
@@ -176,7 +175,7 @@ class CbUpload
     /*
         set maxCount = 0, to upload all
     */
-    public async uploadJsonLines(jsonFile, maxCount)
+    public async uploadJsonLines(jsonFile: string, maxCount: number)
     {
         App.log(LogLevel.INFO, "uploadJsonLines()");
 
@@ -196,39 +195,37 @@ class CbUpload
         let count_METAR: number = 0;
         let count_metar: number = 0;
 
-        let count_DocTypes = {};
+        let count_DocTypes: any = {};
 
         for await (const line of rl)
         {
             let lineObj = JSON.parse(line);
 
-            lineObj.stations = {};
+            let dataNew: any = {};
 
-            if(! count_DocTypes[lineObj.docType])
+            if (undefined == count_DocTypes[lineObj.docType])
             {
-                count_DocTypes[lineObj.docType] = 0;
+                count_DocTypes[lineObj.docType] = 1;
             }
             else
             {
-                ++count_DocTypes[lineObj.docType];
+                count_DocTypes[lineObj.docType] = count_DocTypes[lineObj.docType] + 1;
             }
 
-            if(lineObj.docType == "CTC")
+            if (lineObj.docType !== "CTC")
             {
-                continue;
-            }
-
-            if (lineObj.data)
-            {
-                for (let i = 0; i < lineObj.data.length; i++)
+                if (lineObj.data)
                 {
-                    lineObj.stations[lineObj.data[i].name] = lineObj.data[i];
+                    // lineObj["idx0"] = lineObj.type + ":" + lineObj.subset + ":" + lineObj.version + ":" + lineObj.model;            
+                    for (let i = 0; i < lineObj.data.length; i++)
+                    {
+                        dataNew[lineObj.data[i].name] = lineObj.data[i];
+                    }
+                    lineObj.data = dataNew;
                 }
             }
-            // lineObj["idx0"] = lineObj.type + ":" + lineObj.subset + ":" + lineObj.version + ":" + lineObj.model;
-            lineObj.data = undefined;
-            
-            if(lineObj.subset == "metar")
+
+            if (lineObj.subset == "metar")
             {
                 ++count_metar;
                 lineObj.subset = "METAR";
@@ -242,7 +239,7 @@ class CbUpload
             {
                 App.log(LogLevel.INFO, "METAR:" + count_METAR + "\tmetar => METAR:" + count_metar + "\ttotal:" + (count_METAR));
             }
-            if(maxCount > 0 && count_METAR >= maxCount)
+            if (maxCount > 0 && count_METAR >= maxCount)
             {
                 break;
             }
@@ -265,9 +262,9 @@ class CbUpload
             }
             */
         }
-        App.log(LogLevel.INFO, "count_DocTypes:" + JSON.stringify(count_DocTypes, undefined, 2));
+        App.log(LogLevel.INFO, "\tcount_DocTypes:\n" + JSON.stringify(count_DocTypes, undefined, 2));
         let endTime: number = (new Date()).valueOf();
-        App.log(LogLevel.INFO, "\tin " + (endTime - startTime) + " ms.");
+        App.log(LogLevel.INFO, "\t" + count_METAR + " documents uploaded in " + (endTime - startTime) + " ms.");
     }
 
     public async jsonLinesExamine0()

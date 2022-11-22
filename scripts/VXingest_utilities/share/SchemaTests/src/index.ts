@@ -6,9 +6,11 @@ import { CbTimeSeries0 } from "./CbTimeSeries0";
 async function main()
 {
     let cbu : CbUpload = new CbUpload();
-    await cbu.init('/Users/gopa.padmanabhan/mats-settings/configurations/dev/settings/cb-ceiling/settings.json');
+    await cbu.init('/Users/gopa.padmanabhan/mats-settings/configurations/dev/settings/cb-ceiling/settings.json', 'vxdata');
+    // await cbu.init('/home/gopa/mats-settings/configurations/dev/settings/cb-ceiling/settings.json');
     // await cbu.uploadJsonLinesDefault();
-    await cbu.uploadJsonLines('/Users/gopa.padmanabhan/scratch/mdatatest/mdatatest_export_gopa.json', 0);
+    await cbu.uploadJsonLines('/Users/gopa.padmanabhan/scratch/mdatatest/mdatatest_export_gopa.json', 1000);
+    // await cbu.uploadJsonLines('/scratch/mdatatest/mdatatest_export_gopa.json', 10);
     // await cbu.jsonLinesExamine0();
     
     let ts0 = new CbTimeSeries0();

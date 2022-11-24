@@ -8,7 +8,7 @@ SELECT
 FROM (
         SELECT trimData AS odata,
             ofve
-        FROM `mdatatest`._default.METAR AS obs LET ofve = obs.fcstValidEpoch,
+        FROM `vxdata`._default.METAR AS obs LET ofve = obs.fcstValidEpoch,
             trimData = ARRAY d FOR d IN (
                 [obs.stations.KEWR, obs.stations.KJFK, obs.stations.KJRB, obs.stations.KLDJ, obs.stations.KLGA, obs.stations.KNYC, obs.stations.KTEB]
             )
@@ -21,7 +21,7 @@ WHERE type = "DD"
 (
     SELECT trimData AS m0data,
         mfve
-    FROM `mdatatest`._default.METAR AS m0 LET mfve = m0.fcstValidEpoch,
+    FROM `vxdata`._default.METAR AS m0 LET mfve = m0.fcstValidEpoch,
         trimData = ARRAY d FOR d IN (
             [m0.stations.KEWR, m0.stations.KJFK, m0.stations.KJRB, m0.stations.KLDJ, m0.stations.KLGA, m0.stations.KNYC, m0.stations.KTEB]
         )

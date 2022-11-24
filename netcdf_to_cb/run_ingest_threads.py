@@ -170,7 +170,7 @@ class VXIngest(CommonVxIngest):
             self.cb_credentials = self.get_credentials(self.load_spec)
             # establish connections to cb, collection
             self.connect_cb()
-            # `mdatatest`._default.METAR
+            # `vxdata`._default.METAR
             bucket = self.load_spec['cb_connection']['bucket']
             scope = self.load_spec['cb_connection']['scope']
             collection = self.load_spec['cb_connection']['collection']

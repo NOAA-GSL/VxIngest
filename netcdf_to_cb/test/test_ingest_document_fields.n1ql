@@ -1,4 +1,4 @@
 Select file_mask,
     input_data_path
-from `mdatatest`._default.METAR
+from `vxdata`._default.METAR
 where meta().id = "MD:V01:METAR:obs:ingest:netcdf";

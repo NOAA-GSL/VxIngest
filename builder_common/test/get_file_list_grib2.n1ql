@@ -1,5 +1,5 @@
             SELECT url, mtime
-            FROM `mdatatest`._default.METAR
+            FROM `vxdata`._default.METAR
             WHERE
             subset='metar'
             AND type='DF'

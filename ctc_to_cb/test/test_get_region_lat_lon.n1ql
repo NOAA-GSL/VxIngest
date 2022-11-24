@@ -4,7 +4,7 @@ geo.bottom_right.lat as br_lat,
 geo.bottom_right.lon as br_lon,
 geo.top_left.lat as tl_lat,
 geo.top_left.lon as tl_lon
-FROM `mdatatest`._default.METAR
+FROM `vxdata`._default.METAR
 WHERE type='MD'
 and docType='region'
 and subset='COMMON'

@@ -95,7 +95,7 @@ def test_stations_fcst_valid_epoch(request):
 def test_stations_get_file_list_grib2(request):
     """test"""
     try:
-        _expected_time = 5
+        _expected_time = 10
         _name = request.node.name
         _statement = open("./builder_common/test/get_file_list_grib2.n1ql").read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))

@@ -25,6 +25,14 @@ Once you hacve sourced the environment you can load all of the necessary package
 
 - ```pip install -r requirements.txt```
 
+Here is the reference to vscode [virtual environments](https://code.visualstudio.com/docs/python/environments). test_venv has been put into gitignore. You can set up your .vscode/settings.json like this
+
+```
+"python.defaultInterpreterPath": "${workspaceFolder}/test_venv/bin/python3.9",
+```
+
+So if you create a virtual environment in the the top level of VXingest and name it test_venv and use the requirements.txt file (which is checked into the top of VXIngest) to populate the packages using pip, and add that line to the top of your settings.json, then when you come back from leave your python environment will still work and not cost you any time remembering how to set up your python environment.
+
 ## tests
 
 There are two kinds of tests in each test directory.

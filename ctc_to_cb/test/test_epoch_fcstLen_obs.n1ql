@@ -1,6 +1,6 @@
 -- should execute less than 10 miliseconds
 SELECT raw obs.fcstValidEpoch
-FROM `mdatatest`._default.METAR obs
+FROM `vxdata`._default.METAR obs
 WHERE obs.type='DD'
 AND obs.docType='obs'
 AND obs.version='V01'

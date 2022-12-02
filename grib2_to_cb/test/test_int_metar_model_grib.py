@@ -150,9 +150,10 @@ def test_grib_builder_verses_script():  # pylint: disable=too-many-locals, too-m
         # file_utc_time = datetime.datetime.strptime(os.path.basename(latest_input_file), '%y%j%H%f')
         credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
         vx_ingest = VXIngest()
+        # using a test JOB SPEC because the input path is local
         vx_ingest.runit(
             {
-                "job_id": "JOB:V01:METAR:GRIB2:MODEL:HRRR",
+                "job_id": "JOB-TEST:V01:METAR:GRIB2:MODEL:HRRR",
                 "credentials_file": credentials_file,
                 "path": "/opt/public/data/grids/hrrr/conus/wrfprs/grib2",
                 "file_name_mask": "%y%j%H%f",
@@ -175,7 +176,7 @@ def test_grib_builder_verses_script():  # pylint: disable=too-many-locals, too-m
         # Closing file
         _f.close()
         expected_station_data = {}
-
+        _f = open (credentials_file)
         _yaml_data = yaml.load(_f, yaml.SafeLoader)
         _host = _yaml_data["cb_host"]
         _user = _yaml_data["cb_user"]
@@ -213,16 +214,17 @@ def test_grib_builder_verses_script():  # pylint: disable=too-many-locals, too-m
             pyproj.Transformer.from_proj(proj_from=out_proj, proj_to=in_proj)
         )
         domain_stations = []
-        for i in vx_ingest_output_data[0]["data"]:
-            station_name = i["name"]
+        for i in vx_ingest_output_data[0]["data"].keys():
+            station_name = i
             result = cluster.query(
-                f"SELECT mdata.geo from `{_bucket}`.{_scope}.{_collection} where type='MD' and docType='station' and subset='METAR' and version='V01' and mdata.name = $name",
-                name=station_name,
+                f"SELECT {_collection}.geo from `{_bucket}`.{_scope}.{_collection} where type='MD' and docType='station' and subset='{_collection}' and version='V01' and {_collection}.name = '{station_name}'"
             )
+            if not list(result):
+                continue
             row = result.get_single_result()
             geo_index = get_geo_index(fcst_valid_epoch, row["geo"])
-            i["lat"] = row["geo"][geo_index]["lat"]
-            i["lon"] = row["geo"][geo_index]["lon"]
+            #i["lat"] = row["geo"][geo_index]["lat"]
+            #i["lon"] = row["geo"][geo_index]["lon"]
             _x, _y = transformer.transform(
                 row["geo"][geo_index]["lon"],
                 row["geo"][geo_index]["lat"],
@@ -274,9 +276,7 @@ def test_grib_builder_verses_script():  # pylint: disable=too-many-locals, too-m
         )[0]
         ceil_values = message["values"]
 
-        for i in range(
-            len(domain_stations)
-        ):  # pylint: disable=consider-using-enumerate
+        for i in range(len(domain_stations)):  # pylint: disable=consider-using-enumerate
             station = domain_stations[i]
             geo_index = get_geo_index(fcst_valid_epoch, station["geo"])
             surface = surface_hgt_values[
@@ -445,39 +445,40 @@ def test_grib_builder_verses_script():  # pylint: disable=too-many-locals, too-m
         for i in range(
             len(domain_stations)
         ):  # pylint: disable=consider-using-enumerate
+            station_name = domain_stations[i]['name']
             if expected_station_data["data"][i]["Ceiling"] is not None:
                 assert expected_station_data["data"][i]["Ceiling"] == pytest.approx(
-                    vx_ingest_output_data[0]["data"][i]["Ceiling"]
+                    vx_ingest_output_data[0]["data"][station_name]["Ceiling"]
                 ), "Expected Ceiling and derived Ceiling are not equal"
             if expected_station_data["data"][i]["Surface Pressure"] is not None:
                 assert expected_station_data["data"][i][
                     "Surface Pressure"
                 ] == pytest.approx(
-                    vx_ingest_output_data[0]["data"][i]["Surface Pressure"]
+                    vx_ingest_output_data[0]["data"][station_name]["Surface Pressure"]
                 ), "Expected Surface Pressure and derived Surface Pressure are not equal"
             if expected_station_data["data"][i]["Temperature"] is not None:
                 assert expected_station_data["data"][i]["Temperature"] == pytest.approx(
-                    vx_ingest_output_data[0]["data"][i]["Temperature"]
+                    vx_ingest_output_data[0]["data"][station_name]["Temperature"]
                 ), "Expected Temperature and derived Temperature are not equal"
             if expected_station_data["data"][i]["DewPoint"] is not None:
                 assert expected_station_data["data"][i]["DewPoint"] == pytest.approx(
-                    vx_ingest_output_data[0]["data"][i]["DewPoint"]
+                    vx_ingest_output_data[0]["data"][station_name]["DewPoint"]
                 ), "Expected DewPoint and derived DewPoint are not equal"
             if expected_station_data["data"][i]["RH"] is not None:
                 assert expected_station_data["data"][i]["RH"] == pytest.approx(
-                    vx_ingest_output_data[0]["data"][i]["RH"]
+                    vx_ingest_output_data[0]["data"][station_name]["RH"]
                 ), "Expected RH and derived RH are not equal"
             if expected_station_data["data"][i]["WS"] is not None:
                 assert expected_station_data["data"][i]["WS"] == pytest.approx(
-                    vx_ingest_output_data[0]["data"][i]["WS"]
+                    vx_ingest_output_data[0]["data"][station_name]["WS"]
                 ), "Expected WS and derived WS are not equal"
             if expected_station_data["data"][i]["WD"] is not None:
                 assert expected_station_data["data"][i]["WD"] == pytest.approx(
-                    vx_ingest_output_data[0]["data"][i]["WD"]
+                    vx_ingest_output_data[0]["data"][station_name]["WD"]
                 ), "Expected WD and derived WD are not equal"
             if expected_station_data["data"][i]["Visibility"] is not None:
                 assert expected_station_data["data"][i]["Visibility"] == pytest.approx(
-                    vx_ingest_output_data[0]["data"][i]["Visibility"]
+                    vx_ingest_output_data[0]["data"][station_name]["Visibility"]
                 ), "Expected Visibility and derived Visibility are not equal"
     except Exception as _e:  # pylint: disable=broad-except
         assert False, f"TestGribBuilderV01 Exception failure: {_e}"

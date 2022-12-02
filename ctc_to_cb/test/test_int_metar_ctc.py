@@ -59,18 +59,17 @@ def test_check_fcst_valid_epoch_fcst_valid_iso():
         )
         options = ClusterOptions(PasswordAuthenticator(_user, _password))
         cluster = Cluster("couchbase://" + _host, options)
-        result = cluster.query(
-            f"""SELECT m0.fcstValidEpoch fve, fcstValidISO fvi
+        stmnt = f"""SELECT m0.fcstValidEpoch fve, fcstValidISO fvi
             FROM `{_bucket}`.{_scope}.{_collection} m0
             WHERE
                 m0.type='DD'
                 AND m0.docType='CTC'
-                AND m0.subset='METAR'
+                AND m0.subset='{_collection}'
                 AND m0.version='V01'
                 AND m0.model='HRRR_OPS'
                 AND m0.region='ALL_HRRR'
         """
-        )
+        result = cluster.query(stmnt)
         for row in result:
             fve = row["fve"]
             utc_time = datetime.strptime(row["fvi"], "%Y-%m-%dT%H:%M:%S")
@@ -112,13 +111,19 @@ def test_get_stations_geo_search():
         load_spec = {}
         load_spec["cluster"] = cluster
         load_spec["collection"] = collection
-        load_spec['ingest_document_ids'] = ["MD:V01:METAR:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest"]
+        load_spec['ingest_document_ids'] = [f"MD:V01:{_collection}:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest"]
         # get the ingest document id.
-        ingest_document_result = collection.get("MD-TEST:V01:METAR:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest")
+        ingest_document_result = collection.get(f"MD-TEST:V01:{_collection}:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest")
         ingest_document = ingest_document_result.content
         # instantiate a ctcBuilder so we can use its get_station methods
         builder_class = getattr(ctc_builder, "CTCModelObsBuilderV01")
         builder = builder_class(load_spec, ingest_document)
+            # usually these would get assigned in build_document
+        builder.bucket = _bucket
+        builder.scope = _scope
+        builder.collection = _collection
+        builder.subset = _collection
+
         result = cluster.query(
             f"""
             SELECT name,
@@ -203,6 +208,11 @@ def calculate_cb_ctc(  # pylint: disable=dangerous-default-value,missing-functio
     # instantiate a ctcBuilder so we can use its get_station methods
     builder_class = getattr(ctc_builder, "CTCModelObsBuilderV01")
     builder = builder_class(load_spec, ingest_document)
+    # usually these would get assigned in build_document
+    builder.bucket = _bucket
+    builder.scope = _scope
+    builder.collection = _collection
+    builder.subset = _collection
     legacy_stations = sorted(
         #                builder.get_stations_for_region_by_geosearch(region, epoch)
         builder.get_stations_for_region_by_sort(region, epoch)
@@ -233,17 +243,13 @@ def calculate_cb_ctc(  # pylint: disable=dangerous-default-value,missing-functio
         full_obs_data = load_spec["collection"].get(obs_id).content
     for station in stations:
         # find observation data for this station
-        obs_data = None
-        for elem in full_obs_data["data"]:
-            if elem["name"] == station:
-                obs_data = elem
-                break
+        if not station in full_obs_data["data"].keys():
+            continue
+        obs_data = full_obs_data["data"][station]
         # find model data for this station
-        model_data = None
-        for elem in full_model_data["data"]:
-            if elem["name"] == station:
-                model_data = elem
-                break
+        if not station in full_model_data["data"].keys():
+            continue
+        model_data = full_model_data["data"][station]
         # add to model_obs_data
         if obs_data and model_data and obs_data["Ceiling"] and model_data["Ceiling"]:
             dat = {
@@ -416,7 +422,7 @@ def test_ctc_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
                 AND model='HRRR_OPS'
                 AND region='ALL_HRRR'
                 AND version='V01'
-                AND subset='METAR'"""
+                AND subset='{_collection}'"""
         )
         cb_fcst_valid_epochs = list(result)
         if len(cb_fcst_valid_epochs) == 0:
@@ -433,7 +439,7 @@ def test_ctc_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
                 AND model='HRRR_OPS'
                 AND region='ALL_HRRR'
                 AND version='V01'
-                AND subset='METAR'
+                AND subset='{_collection}'
                 AND fcstValidEpoch = {fcst_valid_epoch}
                 order by fcstLen
             """
@@ -462,7 +468,7 @@ def test_ctc_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
                 AND model='HRRR_OPS'
                 AND region='ALL_HRRR'
                 AND version='V01'
-                AND subset='METAR'
+                AND subset='{_collection}'
                 AND fcstValidEpoch = {fcst_valid_epoch}
                 AND fcstLen IN {cb_fcst_valid_lens}
                 order by fcstLen;
@@ -481,31 +487,31 @@ def test_ctc_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
                 AND model='HRRR_OPS'
                 AND region='ALL_HRRR'
                 AND version='V01'
-                AND subset='METAR'
+                AND subset='{_collection}'
                 AND fcstValidEpoch = {fcst_valid_epoch}
                 AND fcstLen IN {cb_fcst_valid_lens}
                 order by fcstLen;"""
         )
         for _cb_ctc in cb_results:
             fcstln = _cb_ctc['METAR']['fcstLen']
-            for threshold in _cb_ctc['METAR']['data'].keys():
+            for _threshold in _cb_ctc['METAR']['data'].keys():
                 _ctc=calculate_cb_ctc(
                     fcst_valid_epoch,
                     fcstln,
-                    threshold,
+                    int(float(_threshold)),
                     'HRRR_OPS',
-                    'METAR',
+                    _collection,
                     'ALL_HRRR'
                 )
                 # assert ctc values
                 fields= ['hits', 'misses', 'false_alarms', 'correct_negatives']
                 for field in fields:
                     _ctc_value = _ctc[field]
-                    _cb_ctc_value = _cb_ctc['METAR']['data'][threshold][field]
+                    _cb_ctc_value = _cb_ctc[_collection]['data'][_threshold][field]
                     assert _ctc_value == _cb_ctc_value, f"""
-                    For epoch : {_ctc['METAR']['fcstValidEpoch']}
-                    and fstLen: {_ctc['METAR']['fcstLen']}
-                    and threshold: {threshold}
+                    For epoch : {_ctc['fcst_valid_epoch']}
+                    and fstLen: {_ctc['fcst_len']}
+                    and threshold: {_threshold}
                     the derived CTC {field}: {_ctc_value} and caclulated CTC {field}: {_cb_ctc_value} values do not match"""
     except Exception as _e:  # pylint: disable=broad-except
         assert False, f"TestCTCBuilderV01 Exception failure:  {_e}"

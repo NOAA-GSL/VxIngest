@@ -78,7 +78,7 @@ def test_forecast_valid_epoch(request):
     """test"""
     try:
         _name = request.node.name
-        _expected_time = 0.5
+        _expected_time = 1.5
         _statement = open("./ctc_to_cb/test/test_forecast_valid_epoch.n1ql").read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
         elapsed_time = result.metadata().metrics().elapsed_time().total_seconds()

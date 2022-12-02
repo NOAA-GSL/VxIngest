@@ -543,12 +543,12 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
         """
         if "data" not in doc.keys() or doc["data"] is None:
             keys = list(element.keys())
-            doc["data"] = []
+            doc["data"] = {}
             for i in range(len(self.domain_stations)):
                 elem = {}
                 for key in keys:
                     elem[key] = element[key][i]
-                doc["data"].append(elem)
+                doc["data"][elem["name"]]=elem
         return doc
 
     # named functions

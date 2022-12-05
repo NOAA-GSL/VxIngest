@@ -208,9 +208,11 @@ class CbUpload
             {
                 try 
                 {
-                    lineObj = JSON.parse(line);
+                    lineObj = JSON.parse(lineFragment);
                     lineFragment = "";
                     ++count_errors;
+		    let objStr = JSON.stringify(lineObj, undefined, 2);
+                    App.log(LogLevel.INFO, "Multi-line Obj:\n" + objStr);
                 }
                 catch (error) 
                 {

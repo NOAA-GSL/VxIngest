@@ -18,7 +18,7 @@ function main() {
         yield cbu.init('/home/gopa/mats-settings/configurations/dev/settings/cb-ceiling/settings.json', 'vxdata');
         // await cbu.uploadJsonLinesDefault();
         // await cbu.uploadJsonLines('/Users/gopa.padmanabhan/scratch/mdatatest/mdatatest_export_gopa.json', 1000);
-        yield cbu.uploadJsonLines('/scratch/mdata_export.json', 0);
+        yield cbu.uploadJsonLines('/scratch/mdata/mdata_export.json', 0);
         // await cbu.uploadJsonLines('/scratch/mdatatest/xaa', 200);
         // await cbu.uploadJsonLines('/scratch/mdatatest/mdatatest_export_gopa.json', 10);
         // await cbu.jsonLinesExamine0();

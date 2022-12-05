@@ -269,6 +269,7 @@ class CbUpload
             catch (error) 
             {
                 ++count_errors;
+                App.log(LogLevel.ERROR, line);
             }
         }
         App.log(LogLevel.INFO, "\tcount_DocTypes:\n" + JSON.stringify(count_DocTypes, undefined, 2));

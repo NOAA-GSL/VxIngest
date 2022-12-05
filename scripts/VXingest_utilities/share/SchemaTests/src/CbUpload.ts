@@ -197,6 +197,7 @@ class CbUpload
 
         let count_DocTypes: any = {};
         let count_errors: number = 0;
+        let count_multi_line: number = 0;
 
         let lineFragment: string = "";
 
@@ -210,15 +211,15 @@ class CbUpload
                 {
                     lineObj = JSON.parse(lineFragment);
                     lineFragment = "";
-                    ++count_errors;
-		    let objStr = JSON.stringify(lineObj, undefined, 2);
+                    ++count_multi_line;
+                    let objStr = JSON.stringify(lineObj, undefined, 2);
                     App.log(LogLevel.INFO, "Multi-line Obj:\n" + objStr);
                 }
                 catch (error) 
                 {
                 }
             }
-            if(! lineObj)
+            if (!lineObj)
             {
                 try 
                 {
@@ -231,67 +232,74 @@ class CbUpload
                 }
             }
 
-            let dataNew: any = {};
+            try 
+            {
+                let dataNew: any = {};
 
-            if (undefined == count_DocTypes[lineObj.docType])
-            {
-                count_DocTypes[lineObj.docType] = 1;
-            }
-            else
-            {
-                count_DocTypes[lineObj.docType] = count_DocTypes[lineObj.docType] + 1;
-            }
-
-            if (lineObj.docType !== "CTC")
-            {
-                if (lineObj.data)
+                if (undefined == count_DocTypes[lineObj.docType])
                 {
-                    // lineObj["idx0"] = lineObj.type + ":" + lineObj.subset + ":" + lineObj.version + ":" + lineObj.model;            
-                    for (let i = 0; i < lineObj.data.length; i++)
+                    count_DocTypes[lineObj.docType] = 1;
+                }
+                else
+                {
+                    count_DocTypes[lineObj.docType] = count_DocTypes[lineObj.docType] + 1;
+                }
+
+                if (lineObj.docType !== "CTC")
+                {
+                    if (lineObj.data)
                     {
-                        dataNew[lineObj.data[i].name] = lineObj.data[i];
+                        // lineObj["idx0"] = lineObj.type + ":" + lineObj.subset + ":" + lineObj.version + ":" + lineObj.model;            
+                        for (let i = 0; i < lineObj.data.length; i++)
+                        {
+                            dataNew[lineObj.data[i].name] = lineObj.data[i];
+                        }
+                        lineObj.data = dataNew;
                     }
-                    lineObj.data = dataNew;
                 }
-            }
 
-            if (lineObj.subset == "metar")
-            {
-                ++count_metar;
-                lineObj.subset = "METAR";
-                // App.log(LogLevel.INFO, "metar => METAR");
-                // let objStr = JSON.stringify(lineObj, undefined, 2);
+                if (lineObj.subset == "metar")
+                {
+                    ++count_metar;
+                    lineObj.subset = "METAR";
+                    // App.log(LogLevel.INFO, "metar => METAR");
+                    // let objStr = JSON.stringify(lineObj, undefined, 2);
+                    // App.log(LogLevel.INFO, objStr);
+                }
                 // App.log(LogLevel.INFO, objStr);
-            }
-            // App.log(LogLevel.INFO, objStr);
-            await this.collection_METAR.upsert(lineObj.id, lineObj);
-            if (((++count_METAR) % 100) == 0)
-            {
-                App.log(LogLevel.INFO, "METAR:" + count_METAR + "\tmetar => METAR:" + count_metar + "\ttotal:" + (count_METAR) + "\terrors:" + count_errors);
-            }
-            if (maxCount > 0 && count_METAR >= maxCount)
-            {
-                break;
-            }
-            /*
-            if (lineObj.docType === "model")
-            {
-                await this.collection_model.upsert(lineObj.id, lineObj);
-                if (((++count_model) % 100) == 0)
+                await this.collection_METAR.upsert(lineObj.id, lineObj);
+                if (((++count_METAR) % 100) == 0)
                 {
-                    App.log(LogLevel.INFO, "model:" + count_model + "\ttotal:" + (count_model + count_obs));
+                    App.log(LogLevel.INFO, "METAR:" + count_METAR + "\tmetar => METAR:" + count_metar + "\ttotal:" + (count_METAR) + "\terrors:" + count_errors);
                 }
-            }
-            else
-            {
-                await this.collection_obs.upsert(lineObj.id, lineObj);
-                if (((++count_obs) % 100) == 0)
+                if (maxCount > 0 && count_METAR >= maxCount)
                 {
-                    App.log(LogLevel.INFO, "obs :" + count_obs + "\ttotal:" + (count_model + count_obs));
+                    break;
                 }
+                /*
+                if (lineObj.docType === "model")
+                {
+                    await this.collection_model.upsert(lineObj.id, lineObj);
+                    if (((++count_model) % 100) == 0)
+                    {
+                        App.log(LogLevel.INFO, "model:" + count_model + "\ttotal:" + (count_model + count_obs));
+                    }
+                }
+                else
+                {
+                    await this.collection_obs.upsert(lineObj.id, lineObj);
+                    if (((++count_obs) % 100) == 0)
+                    {
+                        App.log(LogLevel.INFO, "obs :" + count_obs + "\ttotal:" + (count_model + count_obs));
+                    }
+                }
+                */
             }
-            */
-
+            catch (error) 
+            {
+                App.log(LogLevel.INFO, "error:\n" + JSON.stringify(lineObj, undefined, 2));
+                ++count_errors;
+            }
         }
         App.log(LogLevel.INFO, "\tcount_DocTypes:\n" + JSON.stringify(count_DocTypes, undefined, 2));
         let endTime: number = (new Date()).valueOf();

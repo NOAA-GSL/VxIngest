@@ -78,7 +78,7 @@ def test_get_DF(request):
     """test"""
     try:
         _name = request.node.name
-        _expected_time = 5
+        _expected_time = 10
         _statement = open("./grib2_to_cb/test/test_get_DF.n1ql").read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
         elapsed_time = result.metadata().metrics().elapsed_time().total_seconds()
@@ -108,7 +108,7 @@ def test_get_model_by_fcstValidEpoch(request):
     """test"""
     try:
         _name = request.node.name
-        _expected_time = 0.6
+        _expected_time = 1.2
         _statement = open("./grib2_to_cb/test/test_get_model_by_fcstValidEpoch.n1ql").read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
         elapsed_time = result.metadata().metrics().elapsed_time().total_seconds()

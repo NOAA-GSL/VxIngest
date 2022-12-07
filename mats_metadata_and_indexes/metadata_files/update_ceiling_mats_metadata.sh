@@ -23,27 +23,27 @@ cb_user=$(grep cb_user ${credentials} | awk '{print $2}')
 cb_pwd=$(grep cb_password ${credentials} | awk '{print $2}')
 cred="${cb_user}:${cb_pwd}"
 #get needed models
-models_requiring_metadata=($(curl -s -u ${cred} http://${cb_host}:8093/query/service -d statement='SELECT DISTINCT RAW (SPLIT(meta(mdata).id,":")[3]) model FROM mdata WHERE type="DD" AND docType="CTC" AND subDocType="CEILING" AND version="V01" order by model' | jq -r '.results[]'))
+models_requiring_metadata=($(curl -s -u ${cred} http://${cb_host}:8093/query/service -d statement='SELECT DISTINCT RAW (SPLIT(meta().id,":")[3]) model FROM `vxdata`._default.METAR` WHERE type="DD" AND docType="CTC" AND subDocType="CEILING" AND version="V01" order by model' | jq -r '.results[]'))
 echo "------models_requiring metadata--${models_requiring_metadata[@]}"
 #get models having metadata but no data (remove metadata for these)
 #(note 'like %' is changed to 'like %25')
-remove_metadata_for_models=($(curl -s -u ${cred} http://${cb_host}:8093/query/service -d statement='SELECT raw m FROM (SELECT RAW SPLIT(META().id,":")[3] AS model FROM mdata WHERE META().id LIKE "MD:matsGui:cb-ceiling:%25:COMMON:V01" AND type="MD" AND docType="matsGui" AND version="V01" ORDER BY model) AS m WHERE m not IN (select distinct raw model from mdata where type="DD" and docType="CTC" and subDocType="CEILING" and version="V01" order by model)' | jq -r '.results[]'))
+remove_metadata_for_models=($(curl -s -u ${cred} http://${cb_host}:8093/query/service -d statement='SELECT raw m FROM (SELECT RAW SPLIT(meta().id,":")[3] AS model FROM `vxdata`._default.METAR` WHERE meta().id LIKE "MD:matsGui:cb-ceiling:%25:COMMON:V01" AND type="MD" AND docType="matsGui" AND version="V01" ORDER BY model) AS m WHERE m not IN (select distinct raw model from `vxdata`._default.METAR` where type="DD" and docType="CTC" and subDocType="CEILING" and version="V01" order by model)' | jq -r '.results[]'))
 echo "------models not requiring metadata (remove metadata)--${remove_metadata_for_models[@]}" # process models
 # remove metadata for models with no data
 for model in ${remove_metadata_for_models[@]}; do
-     cmd="delete FROM mdata WHERE type='MD' AND docType='matsGui' AND subset='COMMON' AND version='V01' AND app='cb-ceiling' AND META().id='MD:matsGui:cb-ceiling:${model}:COMMON:V01'"
+     cmd="delete FROM `vxdata`._default.METAR` WHERE type='MD' AND docType='matsGui' AND subset='COMMON' AND version='V01' AND app='cb-ceiling' AND META().id='MD:matsGui:cb-ceiling:${model}:COMMON:V01'"
      echo "curl -s -u ${cred} http://${cb_host}:8093/query/service -d \"statement=${cmd}\""
      curl -s -u ${cred} http://${cb_host}:8093/query/service -d "statement=${cmd}"
 done
 # initialize the metadata for the models for which the metadata does not exist
-models_with_existing_metadata=($(curl -s -u ${cred} http://${cb_host}:8093/query/service -d statement='select raw SPLIT(meta().id,":")[3]  FROM mdata WHERE type="MD" AND docType="matsGui" AND subset="COMMON" AND version="V01" AND app="cb-ceiling" AND META().id LIKE "MD:matsGui:cb-ceiling:%25:COMMON:V01"' | jq -r '.results[]'))
+models_with_existing_metadata=($(curl -s -u ${cred} http://${cb_host}:8093/query/service -d statement='select raw SPLIT(meta().id,":")[3]  FROM `vxdata`._default.METAR` WHERE type="MD" AND docType="matsGui" AND subset="COMMON" AND version="V01" AND app="cb-ceiling" AND META().id LIKE "MD:matsGui:cb-ceiling:%25:COMMON:V01"' | jq -r '.results[]'))
 for m in ${models_requiring_metadata[@]}; do
     if [[ ! " ${models_with_existing_metadata[@]} " =~ " ${m} " ]]; then
         # initialize the metadata for this model - it will get updated in the next step
         echo "initializing metadata for model $m"
         cmd=$(
             cat <<-%EODinsertmetadata
-            INSERT INTO mdata (KEY, VALUE)
+            INSERT INTO `vxdata`._default.METAR` (KEY, VALUE)
             VALUES ("MD:matsGui:cb-ceiling:${m}:COMMON:V01",
               {"id": "MD:matsGui:cb-ceiling:${m}:COMMON:V01",
                 "type": "MD",
@@ -75,21 +75,21 @@ for mindx in "${!models_requiring_metadata[@]}"; do
     model="${models_requiring_metadata[$mindx]}"
     cmd=$(
         cat <<-%EODupdatemetadata
-    UPDATE mdata
+    UPDATE `vxdata`._default.METAR`
     SET thresholds = (
         SELECT DISTINCT RAW d_thresholds
         FROM (
             SELECT OBJECT_NAMES(object_names_t.data) AS thresholds
-            FROM mdata AS object_names_t
+            FROM `vxdata`._default.METAR` AS object_names_t
             WHERE object_names_t.type='DD'
-                AND object_names_t.docType='CTC'                
+                AND object_names_t.docType='CTC'
                 AND object_names_t.subDocType='CEILING'
                 AND object_names_t.version='V01'
                 AND object_names_t.model='${model}') AS d
         UNNEST d.thresholds AS d_thresholds),
     fcstLens=(
     SELECT DISTINCT VALUE fl.fcstLen
-    FROM mdata as fl
+    FROM `vxdata`._default.METAR` as fl
     WHERE fl.type='DD'
         AND fl.docType='CTC'
         AND fl.subDocType='CEILING'
@@ -98,13 +98,13 @@ for mindx in "${!models_requiring_metadata[@]}"; do
         ORDER BY fl.fcstLen),
     regions=(
     SELECT DISTINCT VALUE rg.region
-    FROM mdata as rg
+    FROM `vxdata`._default.METAR` as rg
     WHERE rg.type='DD'
         AND rg.docType='CTC'
         AND rg.subDocType='CEILING'
         AND rg.version='V01'
         AND rg.model='${model}'
-    ORDER BY r.mdata.region),
+    ORDER BY r.METAR.region),
     --if exists use that value else use model name
     displayText=(
         SELECT raw CASE
@@ -112,7 +112,7 @@ for mindx in "${!models_requiring_metadata[@]}"; do
         THEN m.standardizedModelList.${model}
         ELSE "${model}"
         END
-        FROM mdata AS m
+        FROM `vxdata`._default.METAR` AS m
         USE KEYS "MD:matsAux:COMMON:V01"
         )[0],
     --if it exists in primaryModelOrders should be 1 else use 2
@@ -122,7 +122,7 @@ for mindx in "${!models_requiring_metadata[@]}"; do
         THEN 1
         ELSE 2
         END
-        FROM mdata AS m
+        FROM `vxdata`._default.METAR` AS m
         USE KEYS "MD:matsAux:COMMON:V01"
         )[0],
     --if it exists in document use that value else use the mindx i.e.
@@ -131,17 +131,17 @@ for mindx in "${!models_requiring_metadata[@]}"; do
     displayOrder=(
         WITH k AS (
             SELECT RAW m.standardizedModelList.${model}
-            FROM mdata AS m USE KEYS "MD:matsAux:COMMON:V01" )
+            FROM `vxdata`._default.METAR` AS m USE KEYS "MD:matsAux:COMMON:V01" )
         SELECT RAW CASE
         WHEN m.primaryModelOrders.[k[0]].m_order IS NOT NULL
         THEN m.primaryModelOrders.[k[0]].m_order
         ELSE ${mindx}
         END
-        FROM mdata AS m USE KEYS "MD:matsAux:COMMON:V01"
+        FROM `vxdata`._default.METAR` AS m USE KEYS "MD:matsAux:COMMON:V01"
        )[0],
     mindate=(
         SELECT RAW MIN(mt.fcstValidEpoch) AS mintime
-        FROM mdata AS mt
+        FROM `vxdata`._default.METAR` AS mt
         WHERE mt.type='DD'
             AND mt.docType='CTC'
             AND mt.subDocType='CEILING'
@@ -149,7 +149,7 @@ for mindx in "${!models_requiring_metadata[@]}"; do
             AND mt.model='${model}')[0],
     maxdate=(
         SELECT RAW MAX(mat.fcstValidEpoch) AS maxtime
-        FROM mdata AS mat
+        FROM `vxdata`._default.METAR` AS mat
         WHERE mat.type='DD'
             AND mat.docType='CTC'
             AND mat.subDocType='CEILING'
@@ -157,7 +157,7 @@ for mindx in "${!models_requiring_metadata[@]}"; do
             AND mat.model='${model}')[0],
     numrecs=(
         SELECT RAW COUNT(META().id)
-        FROM mdata AS n
+        FROM `vxdata`._default.METAR` AS n
         WHERE n.type='DD'
             AND n.docType='CTC'
             AND n.subDocType='CEILING'

@@ -160,7 +160,7 @@ class VXIngest(CommonVxIngest):
         self.job_document_id = args["job_id"].strip()
         # this assignment is only for integration tests to be able to override the input path
         # normally path will never be passed in as an arg
-        if args['path']:
+        if "path" in args.keys():
             self.path = args['path']
         if "file_pattern" in args.keys():
             self.file_pattern = args["file_pattern"].strip()

@@ -189,7 +189,7 @@ class VXIngest(CommonVxIngest):
             result = self.cluster.query(stmnt)
             result_list = list(result)
             self.fmask = result_list[0]["file_mask"]
-            self.path = args['path'] if args['path'] else result_list[0]["input_data_path"]
+            self.path = args['path'] if 'path' in args.keys() else result_list[0]["input_data_path"]
             self.load_spec["fmask"] = self.fmask
             self.load_spec["input_data_path"] = self.path
             #stash the load_job in the load_spec

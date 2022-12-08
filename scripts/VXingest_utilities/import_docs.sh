@@ -89,8 +89,8 @@ do_import() {
   file_list=$1
   sleep 10
   cat ${file_list} | while read f; do
-    echo 'cbimport json --cluster couchbase://${host} --bucket mdata --username ${user} --password ${pwd} --format list --generate-key %id% --dataset file:///${f}'
-    /opt/couchbase/bin/cbimport json --cluster couchbase://${host} --bucket mdata --username ${user} --password ${pwd} --format list --generate-key %id% --dataset file:///${f}
+    echo 'cbimport json --cluster couchbase://${host} --bucket vxdata --scope-collection-exp  --username ${user} --password ${pwd} --format list --generate-key %id% --dataset file:///${f}'
+    /opt/couchbase/bin/cbimport json --cluster couchbase://${host} --bucket vxdata --scope-collection-exp  --username ${user} --password ${pwd} --format list --generate-key %id% --dataset file:///${f}
   done
 }
 

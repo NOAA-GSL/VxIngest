@@ -12,4 +12,4 @@ host=`grep cb_host ${credentials_file} | awk '{print $2}'`
 user=`grep cb_user ${credentials_file} | awk '{print $2}'`
 pwd=`grep cb_password ${credentials_file} | awk '{print $2}'`
 
-curl -s -u "${user}:${pwd}" http://${host}:8093/query/service  -d 'statement=select min(mdata.fcstValidEpoch) as minfcstValidEpoch, max(mdata.fcstValidEpoch) as max_fcstValidEpoch from mdata WHERE type="DD" and docType = "obs" and subset = "METAR" and version is not missing' | jq -r '.results | .[] | .max_fcstValidEpoch'
+curl -s -u "${user}:${pwd}" http://${host}:8093/query/service  -d 'statement=select min(METAR.fcstValidEpoch) as minfcstValidEpoch, max(METAR.fcstValidEpoch) as max_fcstValidEpoch from vxdata --scope-collection-exp  WHERE type="DD" and docType = "obs" and subset = "METAR" and version is not missing' | jq -r '.results | .[] | .max_fcstValidEpoch'

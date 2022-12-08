@@ -50,5 +50,5 @@ if [ -z "${pwd}" ]; then
   usage
 fi
 
-curl -s -u "${user}:${pwd}" http://${host}:8093/query/service  -d "statement=SELECT fcstValidISO, fcstValidEpoch, model FROM vxdata --scope-collection-exp _default.METAR  WHERE type='DD' AND version='V01' AND subset='${subset}' AND model='${model}' AND docType='CTC' AND subDocType='CEILING' order by id desc Limit 1;" | jq -r '.results | .[] | .fcstValidEpoch'
+curl -s -u "${user}:${pwd}" http://${host}:8093/query/service  -d "statement=SELECT fcstValidISO, fcstValidEpoch, model FROM vxdata._default.METAR  WHERE type='DD' AND version='V01' AND subset='${subset}' AND model='${model}' AND docType='CTC' AND subDocType='CEILING' order by id desc Limit 1;" | jq -r '.results | .[] | .fcstValidEpoch'
 

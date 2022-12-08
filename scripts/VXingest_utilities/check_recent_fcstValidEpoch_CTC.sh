@@ -53,7 +53,7 @@ if [ -z "${pwd}" ]; then
   usage
 fi
 
-recently_added=$(curl -s -u "${user}:${pwd}" http://${host}:8093/query/service  -d "statement=SELECT COUNT(fcstValidEpoch) as recently_added FROM vxdata --scope-collection-exp _default.METAR  WHERE type='DD' AND version='V01' AND subset='${subset}' AND model='${model}' AND docType='CTC' AND subDocType='CEILING' AND fcstValidEpoch > (CLOCK_MILLIS() / 1000) - 3600 * ${hours};" | jq -r '.results | .[] | .recently_added')
+recently_added=$(curl -s -u "${user}:${pwd}" http://${host}:8093/query/service  -d "statement=SELECT COUNT(fcstValidEpoch) as recently_added FROM vxdata._default.METAR WHERE type='DD' AND version='V01' AND subset='${subset}' AND model='${model}' AND docType='CTC' AND subDocType='CEILING' AND fcstValidEpoch > (CLOCK_MILLIS() / 1000) - 3600 * ${hours};" | jq -r '.results | .[] | .recently_added')
 if [[ -z $recently_added ]]; then
   echo "No recent CEILING CTC documents found for subset ${subset} and model ${model} within the last ${hours} hours."
   exit 1

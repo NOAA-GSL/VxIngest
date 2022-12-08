@@ -141,7 +141,7 @@ if [[ -z $start_import_epoch ]] || [[ -z $finish_import_epoch ]]; then
 	# there wasn't any start or finish time in the import - no records to import
 	recorded_record_count=0
 else
-	recorded_record_count=$(curl -s http://adb-cb1.gsd.esrl.noaa.gov:8093/query/service -u"${cred}" -d "statement=select raw count(meta().id) from vxdata --scope-collection-exp  where CEIL(meta().cas / 1000000000) BETWEEN ${start_import_epoch} AND ${finish_import_epoch} AND meta().id like \"${document_id_pattern}\"" | jq -r '.results | .[]')
+	recorded_record_count=$(curl -s http://adb-cb1.gsd.esrl.noaa.gov:8093/query/service -u"${cred}" -d "statement=select raw count(meta().id) from vxdata --scope-collection-exp _default.METAR  where CEIL(meta().cas / 1000000000) BETWEEN ${start_import_epoch} AND ${finish_import_epoch} AND meta().id like \"${document_id_pattern}\"" | jq -r '.results | .[]')
 fi
 tmp_metric_file=/tmp/${metric_name}_$$
 record_count_difference=$((recorded_record_count - intended_record_count))

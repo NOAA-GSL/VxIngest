@@ -42,9 +42,9 @@ function DO_MODEL() {
   fi
 
   echo "find the max time in the couchbase"
-  echo "curl -s -u ${cred} http://${cb_host}:8093/query/service -d \"statement=select max(METAR.fcstValidEpoch) as max_fcstValidEpoch from vxdata --scope-collection-exp  WHERE type=\"DD\" and docType = \"model\" and model= \"${model}\" and subset = \"METAR\" and version = \"V01\"\""
+  echo "curl -s -u ${cred} http://${cb_host}:8093/query/service -d \"statement=select max(METAR.fcstValidEpoch) as max_fcstValidEpoch from vxdata --scope-collection-exp _default.METAR  WHERE type=\"DD\" and docType = \"model\" and model= \"${model}\" and subset = \"METAR\" and version = \"V01\"\""
   cb_start=$(curl -s -u ${cred} http://${cb_host}:8093/query/service \
-    -d "statement=select max(METAR.fcstValidEpoch) as max_fcstValidEpoch from vxdata --scope-collection-exp  \
+    -d "statement=select max(METAR.fcstValidEpoch) as max_fcstValidEpoch from vxdata --scope-collection-exp _default.METAR  \
     WHERE type=\"DD\" and docType=\"model\" and model=\"${model}\" and subset=\"METAR\" and version=\"V01\"" | jq -r '.results | .[] | .max_fcstValidEpoch')
   echo gsd_start is ${gsd_start} cb_start is ${cb_start}
   if [[ $cb_start == "null" ]]; then
@@ -79,9 +79,9 @@ function DO_CTC() {
     -e "select min(time) from ${ctc_table_name};")
   # find the max time in the couchbase
 
-  echo "curl -s -u ${cred} http://${cb_host}:8093/query/service -d \"statement=select max(METAR.fcstValidEpoch) as max_fcstValidEpoch from vxdata --scope-collection-exp  " \
+  echo "curl -s -u ${cred} http://${cb_host}:8093/query/service -d \"statement=select max(METAR.fcstValidEpoch) as max_fcstValidEpoch from vxdata --scope-collection-exp _default.METAR  " \
     "WHERE type=\\"DD\\" and docType = \\"CTC\\" and region=\\"${region}\\" and model=\\"${model}\\" and subset = \\"METAR\\" and version = \\"V01\\"\""
-  cb_start=$(curl -s -u ${cred} http://${cb_host}:8093/query/service -d "statement=select max(METAR.fcstValidEpoch) as max_fcstValidEpoch from vxdata --scope-collection-exp  WHERE type=\"DD\" and docType = \"CTC\" and region=\"${region}\" and subset = \"METAR\" and version = \"V01\"" | jq -r '.results | .[] | .max_fcstValidEpoch')
+  cb_start=$(curl -s -u ${cred} http://${cb_host}:8093/query/service -d "statement=select max(METAR.fcstValidEpoch) as max_fcstValidEpoch from vxdata --scope-collection-exp _default.METAR  WHERE type=\"DD\" and docType = \"CTC\" and region=\"${region}\" and subset = \"METAR\" and version = \"V01\"" | jq -r '.results | .[] | .max_fcstValidEpoch')
   echo gsd_start is ${gsd_start} cb_start is ${cb_start}
   if [[ $cb_start == "null" ]]; then
     echo Using minimum time from mysql database
@@ -108,8 +108,8 @@ function DO_OBS_AND_STATIONS() {
   # find the min time in the mysql database
   gsd_start=$(mysql -u${m_user} -p${m_password} -h${m_host} -B -N -e "select min(time) from madis3.obs; select min(time) from ceiling2.obs; select min(time) from visibility.obs;" | sort -n | tail -1)
   # find the max time in the couchbase
-  echo "curl -s -u ${cred} http://${cb_host}:8093/query/service -d 'statement=select max(METAR.fcstValidEpoch) as max_fcstValidEpoch from vxdata --scope-collection-exp  WHERE type=\"DD\" and docType=\"obs\" and subset=\"METAR\" and version=\"V01\"' | jq -r '.results | .[] | .max_fcstValidEpoch'"
-  cb_start=$(curl -s -u ${cred} http://${cb_host}:8093/query/service -d 'statement=select max(METAR.fcstValidEpoch) as max_fcstValidEpoch from vxdata --scope-collection-exp  WHERE type="DD" and docType="obs" and subset="METAR" and version="V01"' | jq -r '.results | .[] | .max_fcstValidEpoch')
+  echo "curl -s -u ${cred} http://${cb_host}:8093/query/service -d 'statement=select max(METAR.fcstValidEpoch) as max_fcstValidEpoch from vxdata --scope-collection-exp _default.METAR  WHERE type=\"DD\" and docType=\"obs\" and subset=\"METAR\" and version=\"V01\"' | jq -r '.results | .[] | .max_fcstValidEpoch'"
+  cb_start=$(curl -s -u ${cred} http://${cb_host}:8093/query/service -d 'statement=select max(METAR.fcstValidEpoch) as max_fcstValidEpoch from vxdata --scope-collection-exp _default.METAR  WHERE type="DD" and docType="obs" and subset="METAR" and version="V01"' | jq -r '.results | .[] | .max_fcstValidEpoch')
   echo gsd_start is ${gsd_start} cb_start is ${cb_start}
   if [[ $cb_start == "null" ]]; then
     echo Using minimum time from mysql database

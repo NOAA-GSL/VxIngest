@@ -20,7 +20,7 @@
     "region": "ALL_HRRR",
     "version": "V01",
     "subset": "METAR",
-    "fcstValidBeg": "&handle_iso_time",
+    "fcstValidISO": "&handle_iso_time",
     "fcstValidEpoch": "&handle_time",
     "fcstLen": "&handle_fcst_len",
     "data": "&handle_data"

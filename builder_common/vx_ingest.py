@@ -144,8 +144,8 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
             self.load_spec["cb_credentials"] = self.cb_credentials
             logging.info("%s: Couchbase connection success")
         except Exception as _e:  # pylint:disable=broad-except
-            logging.error("*** %s in connect_cb ***", str(_e))
-            sys.exit("*** Error when connecting to cb database: ")
+            logging.exception("*** builder_common.CommonVxIngest Error in connect_cb ***")
+            sys.exit("*** builder_common.CommonVxIngest Error when connecting to cb database: ")
 
     def get_file_list(self, df_query, directory, file_pattern):
         """This method accepts a file path (directory), a query statement (df_query),

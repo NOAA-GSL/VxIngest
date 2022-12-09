@@ -358,9 +358,9 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                         ):
                             _obs_doc = self.load_spec["collection"].get(obs_id)
                             _obs_data = _obs_doc.content
-                            for entry in _obs_data["data"]:
-                                self.obs_data[entry["name"]] = entry
-                                self.obs_station_names.append(entry["name"])
+                            for key in _obs_data["data"].keys():
+                                self.obs_data[key] = _obs_data["data"][key]
+                                self.obs_station_names.append(key)
                             self.obs_station_names.sort()
                         self.handle_document()
                     except DocumentNotFoundException:
@@ -774,55 +774,57 @@ class CTCModelObsBuilderV01(CTCBuilder):
                 false_alarms = 0
                 correct_negatives = 0
                 none_count = 0
-                for model_station in self.model_data["data"]:
+                for key in self.model_data["data"].keys():
                     try:
+                        model_station_name = key
+                        model_station = self.model_data["data"][key]
                         # only count the ones that are in our region
-                        if model_station["name"] not in self.domain_stations:
+                        if model_station_name not in self.domain_stations:
                             continue
-                        if model_station["name"] not in self.obs_station_names:
+                        if model_station_name not in self.obs_station_names:
                             self.not_found_station_count = (
                                 self.not_found_station_count + 1
                             )
-                            if model_station["name"] not in self.not_found_stations:
+                            if model_station_name not in self.not_found_stations:
                                 logging.debug(
                                     "%s handle_data: model station %s was not found in the available observations.",
                                     self.__class__.__name__,
-                                    model_station["name"],
+                                    model_station_name,
                                 )
-                                self.not_found_stations.add(model_station["name"])
+                                self.not_found_stations.add(model_station_name)
                             continue
                         if (
                             model_station[self.variable.capitalize()] is None
-                            or self.obs_data[model_station["name"]][self.variable.capitalize()] is None
+                            or self.obs_data[model_station_name][self.variable.capitalize()] is None
                         ):
                             none_count = none_count + 1
                             continue
                         if (
                             model_station[self.variable.capitalize()] < threshold
-                            and self.obs_data[model_station["name"]][self.variable.capitalize()]
+                            and self.obs_data[model_station_name][self.variable.capitalize()]
                             < threshold
                         ):
                             hits = hits + 1
                         if (
                             model_station[self.variable.capitalize()] < threshold
-                            and not self.obs_data[model_station["name"]][self.variable.capitalize()]
+                            and not self.obs_data[model_station_name][self.variable.capitalize()]
                             < threshold
                         ):
                             false_alarms = false_alarms + 1
                         if (
                             not model_station[self.variable.capitalize()] < threshold
-                            and self.obs_data[model_station["name"]][self.variable.capitalize()]
+                            and self.obs_data[model_station_name][self.variable.capitalize()]
                             < threshold
                         ):
                             misses = misses + 1
                         if (
                             not model_station[self.variable.capitalize()] < threshold
-                            and not self.obs_data[model_station["name"]][self.variable.capitalize()]
+                            and not self.obs_data[model_station_name][self.variable.capitalize()]
                             < threshold
                         ):
                             correct_negatives = correct_negatives + 1
                     except Exception as _e:  # pylint: disable=broad-except
-                        logging.info("unexpected exception:%s", str(_e))
+                        logging.exception("unexpected exception:%s", str(_e))
                 data_elem[threshold] = (
                     data_elem[threshold] if threshold in data_elem.keys() else {}
                 )

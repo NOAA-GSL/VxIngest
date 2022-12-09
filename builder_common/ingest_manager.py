@@ -58,7 +58,7 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
         self.ingest_type_builder_name = None
         self.queue = element_queue
         self.builder_map = {}
-        self.cb_credentials = {}
+        self.cb_credentials = self.cb_credentials
         self.cluster = None
         self.collection = None
         self.output_dir = output_dir
@@ -117,6 +117,7 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
         """
         # noinspection PyBroadException
         try:
+            self.cb_credentials = self.load_spec['cb_connection']
             logging.getLogger().setLevel(logging.INFO)
             # get a connection
             self.connect_cb()

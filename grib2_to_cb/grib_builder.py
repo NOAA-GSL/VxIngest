@@ -371,8 +371,8 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
             if self.number_stations != sys.maxsize:
                 limit_clause = " limit {l};".format(l=self.number_stations)
             result = self.load_spec["cluster"].query(
-                """SELECT mdata.geo, name
-                    from mdata
+                """SELECT geo, name
+                    from `vxdata`._default.METAR
                     where type='MD'
                     and docType='station'
                     and subset='METAR'

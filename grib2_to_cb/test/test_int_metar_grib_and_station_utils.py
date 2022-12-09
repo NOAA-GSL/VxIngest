@@ -39,9 +39,6 @@ def test_utility_script():  # pylint: disable=too-many-locals
         password = yaml_data["cb_password"]
         options = ClusterOptions(PasswordAuthenticator(user, password))
         cluster = Cluster("couchbase://" + host, options)
-        collection = cluster.bucket(
-            "mdata"
-        ).default_collection()  # pylint: disable=unused-variable
         result = cluster.query("SELECT RAW CLOCK_MILLIS()")
         current_clock = result.rows()[0] / 1000
         current_time = time.time()
@@ -77,7 +74,7 @@ def test_utility_script():  # pylint: disable=too-many-locals
         fcst_valid_epoch = round(grbm.validDate.timestamp())
         domain_stations = []
         result = cluster.query(
-            "SELECT mdata.geo, name from mdata where type='MD' and docType='station' and subset='METAR' and version='V01'"
+            "SELECT geo, name from `vxdata`._default.METAR where type='MD' and docType='station' and subset='METAR' and version='V01'"
         )
         for row in result:
             # choose the geo whose timeframe includes this grib file init time

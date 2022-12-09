@@ -164,7 +164,6 @@ class VXIngest(CommonVxIngest):
             self.path = args['path']
         if "file_pattern" in args.keys():
             self.file_pattern = args["file_pattern"].strip()
-        _args_keys = args.keys()
         try:
             # put the real credentials into the load_spec
             self.cb_credentials = self.get_credentials(self.load_spec)

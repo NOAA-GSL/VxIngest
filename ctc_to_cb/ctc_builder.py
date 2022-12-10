@@ -364,7 +364,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                             self.obs_station_names.sort()
                         self.handle_document()
                     except DocumentNotFoundException:
-                        logging.exception(
+                        logging.info(
                             "%s handle_fcstValidEpochs: document %s was not found! ",
                             self.__class__.__name__,
                             fve["id"],

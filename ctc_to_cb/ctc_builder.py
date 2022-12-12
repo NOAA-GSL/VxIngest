@@ -189,6 +189,8 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
         # noinspection PyBroadException
         try:
             new_document = copy.deepcopy(self.template)
+            if self.domain_stations is None:
+                return
             station_data_size = len(self.domain_stations)
             if station_data_size == 0:
                 return
@@ -336,6 +338,12 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                     try:
                         _model_doc = self.load_spec["collection"].get(fve["id"])
                         self.model_data = _model_doc.content
+                    except DocumentNotFoundException:
+                        logging.info(
+                            "%s handle_fcstValidEpochs: model document %s was not found! ",
+                            self.__class__.__name__,
+                            fve["id"],
+                        )
                     except Exception as _e:  # pylint: disable=broad-except
                         logging.error(
                             "%s Error getting model document: %s",
@@ -365,7 +373,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                         self.handle_document()
                     except DocumentNotFoundException:
                         logging.info(
-                            "%s handle_fcstValidEpochs: document %s was not found! ",
+                            "%s handle_fcstValidEpochs: obs document %s was not found! ",
                             self.__class__.__name__,
                             fve["id"],
                         )

@@ -328,17 +328,21 @@ class NetcdfBuilder(Builder):  # pylint disable=too-many-instance-attributes
         """
         # noinspection PyBroadException
         try:
+            bucket = self.load_spec['cb_connection']['bucket']
+            scope = self.load_spec['cb_connection']['scope']
+            collection = self.load_spec['cb_connection']['collection']
+
             # stash the file_name so that it can be used later
             self.file_name = os.path.basename(queue_element)
             # pylint: disable=no-member
             self.ncdf_data_set = nc.Dataset(queue_element)
             if len(self.stations) == 0:
-                stmnt = """SELECT mdata.*
-                    FROM mdata
+                stmnt = f"""SELECT {self.subset}.*
+                    FROM `{bucket}`.{scope}.{collection}
                     WHERE type = 'MD'
                     AND docType = 'station'
-                    AND subset = '{subset}'
-                    AND version = 'V01';""".format (subset=self.subset)
+                    AND subset = '{self.subset}'
+                    AND version = 'V01';"""
                 result = self.load_spec["cluster"].query(stmnt)
                 self.stations = list(result)
 
@@ -451,24 +455,6 @@ class NetcdfMetarObsBuilderV01(
         try:
             if len(self.same_time_rows) != 0:
                 self.handle_document()
-            # convert data map to a list
-            # document_map might be None
-            if self.document_map and isinstance(self.document_map, dict):
-                for _d in self.document_map.values():
-                    try:
-                        if "data" in _d.keys() and isinstance(_d["data"], dict):
-                            data_map = _d["data"]
-                            data_list = list(data_map.values())
-                            _d["data"] = sorted(
-                                data_list, key=lambda data_elem: data_elem["name"]
-                            )
-                    except Exception as _e1:  # pylint:disable=broad-except
-                        logging.error(
-                            "%s get_document_map list conversion: Exception processing%s:  error: %s",
-                            self.__class__.__name__,
-                            str(_d["data"]),
-                            str(_e1),
-                        )
             return self.document_map
         except Exception as _e:  # pylint:disable=broad-except
             logging.exception(
@@ -480,10 +466,10 @@ class NetcdfMetarObsBuilderV01(
 
     def load_data(self, doc, key, element):
         """
-        This method appends an observation to the data array -
+        This method adds an observation to the data dict -
         in fact we use a dict to hold data elems to ensure
-        the data elements are unique per station name, the map is converted
-        back to a list in get_document_map. Using a map ensures that the last
+        the data elements are unique per station name.
+        Using a map ensures that the last
         entry in the netcdf file is the one that gets captured.
         :param doc: The document being created
         :param key: Not used

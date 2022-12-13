@@ -132,13 +132,13 @@ current_minute=$(date +"%M")   # avoid divide by 0
 current_quarter=$(($current_minute / 15))
 
 read -r -d '' statement <<- %EndOfStatement
-SELECT META().id AS id,
+SELECT meta().id AS id,
        LOWER(META().id) as name,
        run_priority,
        offset_minutes,
        LOWER(subType) as sub_type,
        input_data_path as input_data_path
-FROM mdata
+FROM vxdata._default.METAR
 LET millis = ROUND(CLOCK_MILLIS()),
     sched = SPLIT(schedule,' '),
     minute = CASE WHEN sched[0] = '*' THEN DATE_PART_MILLIS(millis, 'minute', 'UTC') ELSE TO_NUMBER(sched[0]) END,

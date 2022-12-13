@@ -4,24 +4,20 @@
 """
 import copy
 import datetime as DT
+from datetime import timedelta
 import glob
 import json
 import math
 import os
-import time
 from glob import glob
 
 import numpy as np
 import pygrib
-import pymysql
 import pyproj
 import pytest
 import yaml
-import couchbase.exceptions
-from couchbase.cluster import Cluster, ClusterOptions
+from couchbase.cluster import Cluster, ClusterOptions, ClusterTimeoutOptions
 from couchbase_core.cluster import PasswordAuthenticator
-
-from pymysql.constants import CLIENT
 from grib2_to_cb.run_ingest_threads import VXIngest
 from grib2_to_cb import get_grid as gg
 
@@ -64,1077 +60,6 @@ def get_geo_index(fcst_valid_epoch, geo):
     except Exception as _e:  # pylint: disable=broad-except
         assert False, f"GribBuilder.get_geo_index: Exception  error: {_e}"
 
-
-def test_compare_model_to_mysql(allclose):
-    """This test attempts to find recent models that match in both the mysql and the CB
-    databases and compare them. This test isn't likely to succeed unless both the legacy
-    ingest and the VxIngest have recently run.
-    """
-    try:
-        station = "KPDX"
-        credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
-        assert os.path.isfile(credentials_file), "credentials_file Does not exist"
-        _f = open(credentials_file)
-        yaml_data = yaml.load(_f, yaml.SafeLoader)
-        host = yaml_data["cb_host"]
-        user = yaml_data["cb_user"]
-        password = yaml_data["cb_password"]
-        options = ClusterOptions(PasswordAuthenticator(user, password))
-        cluster = Cluster("couchbase://" + host, options)
-
-        result = cluster.query(
-            """SELECT DISTINCT RAW fcstValidEpoch
-            FROM mdata
-            WHERE type='DD'
-            AND docType="model"
-            AND model="HRRR_OPS"
-            AND version='V01'
-            AND subset='METAR'
-            ORDER BY fcstValidEpoch DESC;"""
-        )
-        cb_hrrr_ops_fcst_valid_epochs = list(result)
-
-        result = cluster.query(
-            """SELECT DISTINCT RAW fcstValidEpoch
-            FROM mdata
-            WHERE type='DD'
-            AND docType="obs"
-            AND version='V01'
-            AND subset='METAR'
-            ORDER BY fcstValidEpoch DESC;"""
-        )
-        cb_obs_fcst_valid_epochs = list(result)
-
-        # find the intersection of the cb models and the obs
-        intersect_cb_times = [
-            value
-            for value in cb_hrrr_ops_fcst_valid_epochs
-            if value in cb_obs_fcst_valid_epochs
-        ]
-
-        # find the mysql hrrr_ops and obs
-
-        host = yaml_data["mysql_host"]
-        user = yaml_data["mysql_user"]
-        passwd = yaml_data["mysql_password"]
-        local_infile = True
-        connection = pymysql.connect(
-            host=host,
-            user=user,
-            passwd=passwd,
-            local_infile=local_infile,
-            autocommit=True,
-            charset="utf8mb4",
-            cursorclass=pymysql.cursors.SSDictCursor,
-            client_flag=CLIENT.MULTI_STATEMENTS,
-        )
-        cursor = connection.cursor(pymysql.cursors.SSDictCursor)
-        statement = """SELECT floor((m0.time+1800)/(3600))*3600 AS time
-                        FROM   madis3.HRRR_OPSqp AS m0,
-                        madis3.obs AS o,
-                        madis3.metars AS s
-                        WHERE  s.name = %s
-                        AND m0.time = o.time
-                        AND s.madis_id = m0.sta_id
-                        AND o.sta_id = m0.sta_id
-                        AND m0.fcst_len = 0
-                        AND m0.time <= %s
-                        AND m0.time >= %s;"""
-        cursor.execute(
-            statement, (station, intersect_cb_times[0], intersect_cb_times[-1])
-        )
-        intersect_mysql_times_tmp = cursor.fetchall()
-        intersect_mysql_times = [t["time"] for t in intersect_mysql_times_tmp]
-        valid_times = [
-            value for value in intersect_mysql_times if value in intersect_cb_times
-        ]
-        deadline=DT.datetime.now() + DT.timedelta(seconds=60)
-        while True:
-            try:
-                result = cluster.query(
-                    """SELECT raw mdata.units
-                        FROM mdata
-                        UNNEST mdata.data AS data_item
-                        WHERE mdata.type='DD'
-                            AND mdata.docType="obs"
-                            AND mdata.version='V01'
-                            AND mdata.subset='METAR'
-                            AND data_item.name=$station
-                            AND mdata.fcstValidEpoch=$fve_time""",
-                    fve_time=valid_times[0],
-                    station=station,
-                )
-                break
-            except couchbase.exceptions.TimeoutException:
-                if DT.datetime.now()>=deadline:
-                    raise
-                time.sleep(5) # don't hammer the server too hard
-        units = list(result)[0]
-
-        for v_time in valid_times:
-            # get the common fcst lengths
-            deadline=DT.datetime.now() + DT.timedelta(seconds=60)
-            while True:
-                try:
-                    result = cluster.query(
-                        """SELECT raw mdata.fcstLen
-                            FROM mdata
-                            UNNEST mdata.data AS data_item
-                            WHERE mdata.type='DD'
-                                AND mdata.docType="model"
-                                AND mdata.model="HRRR_OPS"
-                                AND mdata.version='V01'
-                                AND mdata.subset='METAR'
-                                AND data_item.name=$station
-                                AND mdata.fcstValidEpoch=$time
-                                ORDER BY mdata.fcstLen""",
-                        time=v_time,
-                        station=station,
-                    )
-                    break
-                except couchbase.exceptions.TimeoutException:
-                    if DT.datetime.now()>=deadline:
-                        raise
-                    time.sleep(5) # don't hammer the server too hard
-            cb_model_fcst_lens = list(result)
-
-            statement = """SELECT DISTINCT m0.fcst_len
-                    FROM   madis3.metars AS s,
-                        ceiling2.HRRR_OPS AS m0
-                    WHERE  1 = 1
-                        AND s.madis_id = m0.madis_id
-                        AND s.NAME = "kpdx"
-                        AND m0.time >= %s - 1800
-                        AND m0.time < %s + 1800
-                    ORDER  BY m0.fcst_len; """
-            cursor.execute(statement, (v_time, v_time))
-            mysql_model_fcst_lens_dict = cursor.fetchall()
-            mysql_model_fcst_lens = [v["fcst_len"] for v in mysql_model_fcst_lens_dict]
-            intersect_fcst_len = [
-                value for value in mysql_model_fcst_lens if value in cb_model_fcst_lens
-            ]
-            if len(intersect_fcst_len) == 0:
-                # no fcst_len in common
-                continue
-            deadline=DT.datetime.now() + DT.timedelta(seconds=60)
-            while True:
-                try:
-                    result = cluster.query(
-                        """SELECT DISTINCT mdata.fcstValidEpoch,
-                            mdata.fcstLen, data_item
-                            FROM mdata
-                            UNNEST mdata.data AS data_item
-                            WHERE mdata.type='DD'
-                                AND mdata.docType="model"
-                                AND mdata.model="HRRR_OPS"
-                                AND mdata.version='V01'
-                                AND mdata.subset='METAR'
-                                AND data_item.name=$station
-                                AND mdata.fcstValidEpoch=$time
-                                AND mdata.fcstLen IN $fcst_lens
-                                ORDER BY mdata.fcstLen""",
-                        station=station,
-                        time=v_time,
-                        fcst_lens=intersect_fcst_len,
-                    )
-                    break
-                except couchbase.exceptions.TimeoutException:
-                    if DT.datetime.now()>=deadline:
-                        raise
-                    time.sleep(5) # don't hammer the server too hard
-            cb_model_values = list(result)
-
-            format_strings = ",".join(["%s"] * len(intersect_fcst_len))
-            params = [station, v_time, v_time]
-            params.extend(intersect_fcst_len)
-            statement = (
-                """select m0.*
-            from  madis3.metars as s, madis3.HRRR_OPSqp as m0
-            WHERE 1=1
-            AND s.madis_id = m0.sta_id
-            AND s.name = %s
-            AND  m0.time >= %s - 1800 and m0.time < %s + 1800
-            AND m0.fcst_len IN ("""
-                + format_strings
-                + ") ORDER BY m0.fcst_len;"
-            )
-            cursor.execute(statement, tuple(params))
-            mysql_model_values_tmp = cursor.fetchall()
-
-            mysql_model_fcst_len = [v["fcst_len"] for v in mysql_model_values_tmp]
-            mysql_model_press = [v["press"] / 10 for v in mysql_model_values_tmp]
-            mysql_model_temp = [v["temp"] / 10 for v in mysql_model_values_tmp]
-            mysql_model_dp = [v["dp"] / 10 for v in mysql_model_values_tmp]
-            mysql_model_wd = [v["wd"] for v in mysql_model_values_tmp]
-            mysql_model_ws = [v["ws"] for v in mysql_model_values_tmp]
-            mysql_model_rh = [v["rh"] / 10 for v in mysql_model_values_tmp]
-
-            statement = (
-                """select m0.*
-            from  madis3.metars as s, ceiling2.HRRR_OPS as m0
-            WHERE 1=1
-            AND s.madis_id = m0.madis_id
-            AND s.name = %s
-            AND  m0.time >= %s - 1800 and m0.time < %s + 1800
-            AND m0.fcst_len IN ("""
-                + format_strings
-                + ") ORDER BY m0.fcst_len;"
-            )
-            cursor.execute(statement, tuple(params))
-            mysql_model_ceiling_values_tmp = cursor.fetchall()
-            mysql_model_ceiling = (
-                [v["ceil"] * 10 for v in mysql_model_ceiling_values_tmp]
-                if len(mysql_model_ceiling_values_tmp) > 0
-                else None
-            )
-
-            statement = (
-                """select m0.*
-            from  madis3.metars as s, visibility.HRRR_OPS as m0
-            WHERE 1=1
-            AND s.madis_id = m0.madis_id
-            AND s.name = %s
-            AND  m0.time >= %s - 1800 and m0.time < %s + 1800
-            AND m0.fcst_len IN ("""
-                + format_strings
-                + ") ORDER BY m0.fcst_len;"
-            )
-            cursor.execute(statement, tuple(params))
-            mysql_model_visibility_values_tmp = cursor.fetchall()
-            mysql_model_visibility = (
-                [v["vis100"] / 100 for v in mysql_model_visibility_values_tmp]
-                if len(mysql_model_visibility_values_tmp) > 0
-                else None
-            )
-            # now we have values for this time for each fcst_len, iterate the fcst_len and assert each value
-            # recalculate the intersection because there may have been mysql forecast lengths that did not have values
-            # note the mysql_model_fcst_len instead of mysql_model_fcst_lens
-            intersect_fcst_len = [
-                value for value in mysql_model_fcst_len if value in cb_model_fcst_lens
-            ]
-            if len(intersect_fcst_len) == 0:
-                # no fcst_len in common
-                continue
-
-            intersect_data_dict = {}
-            for _i in intersect_fcst_len:
-                intersect_data_dict[_i] = {}
-                mysql_index = mysql_model_fcst_len.index(_i)
-                _cb = next(item for item in cb_model_values if item["fcstLen"] == _i)
-                intersect_data_dict[_i]["cb"] = {}
-                intersect_data_dict[_i]["cb"]["fcstLen"] = _cb["fcstLen"]
-                intersect_data_dict[_i]["cb"].update(_cb["data_item"])
-                intersect_data_dict[_i]["mysql"] = {}
-                intersect_data_dict[_i]["mysql"]["fcst_len"] = mysql_model_fcst_len[
-                    mysql_index
-                ]
-                intersect_data_dict[_i]["mysql"]["press"] = mysql_model_press[
-                    mysql_index
-                ]
-                intersect_data_dict[_i]["mysql"]["temp"] = mysql_model_temp[mysql_index]
-                intersect_data_dict[_i]["mysql"]["dp"] = mysql_model_dp[mysql_index]
-                intersect_data_dict[_i]["mysql"]["rh"] = mysql_model_rh[mysql_index]
-                intersect_data_dict[_i]["mysql"]["ws"] = mysql_model_ws[mysql_index]
-                intersect_data_dict[_i]["mysql"]["wd"] = mysql_model_wd[mysql_index]
-
-                try:
-                    if (
-                        mysql_model_ceiling is None
-                        or mysql_index >= len(mysql_model_ceiling)
-                        or mysql_model_ceiling[mysql_index] is None
-                    ):
-                        intersect_data_dict[_i]["mysql"]["ceiling"] = None
-                    else:
-                        intersect_data_dict[_i]["mysql"][
-                            "ceiling"
-                        ] = mysql_model_ceiling[mysql_index]
-
-                    if (
-                        mysql_model_visibility is None
-                        or mysql_index >= len(mysql_model_visibility)
-                        or mysql_model_visibility[mysql_index] is None
-                    ):
-                        intersect_data_dict[_i]["mysql"]["visibility"] = None
-                    else:
-                        intersect_data_dict[_i]["mysql"][
-                            "visibility"
-                        ] = mysql_model_visibility[mysql_index]
-                except Exception as _e:  # pylint: disable=broad-except
-                    assert (
-                        False
-                    ), f"TestGsdIngestManager Exception failure for ceiling or visibility: {_e}"
-                print(
-                    "time: {0}\t\tfcst_len: {1}\t\tstation:{2}".format(
-                        v_time, _i, station
-                    )
-                )
-                print("field\t\tmysql\t\tcb\t\t\t\tdelta\t\t\tunits")
-
-                if (
-                    intersect_data_dict[_i]["mysql"]["press"] is not None
-                    and intersect_data_dict[_i]["cb"]["Surface Pressure"] is not None
-                ):
-                    delta = (
-                        intersect_data_dict[_i]["mysql"]["press"]
-                        - intersect_data_dict[_i]["cb"]["Surface Pressure"]
-                    )
-                else:
-                    delta = None
-                print(
-                    "'press'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
-                        intersect_data_dict[_i]["mysql"]["press"],
-                        intersect_data_dict[_i]["cb"]["Surface Pressure"],
-                        delta,
-                        units["Surface Pressure"],
-                    )
-                )
-
-                if (
-                    intersect_data_dict[_i]["mysql"]["temp"] is not None
-                    and intersect_data_dict[_i]["cb"]["Temperature"] is not None
-                ):
-                    delta = (
-                        intersect_data_dict[_i]["mysql"]["temp"]
-                        - intersect_data_dict[_i]["cb"]["Temperature"]
-                    )
-                else:
-                    delta = None
-                print(
-                    "'temp'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
-                        intersect_data_dict[_i]["mysql"]["temp"],
-                        intersect_data_dict[_i]["cb"]["Temperature"],
-                        delta,
-                        units["Temperature"],
-                    )
-                )
-
-                if (
-                    intersect_data_dict[_i]["mysql"]["dp"] is not None
-                    and intersect_data_dict[_i]["cb"]["DewPoint"] is not None
-                ):
-                    delta = (
-                        intersect_data_dict[_i]["mysql"]["dp"]
-                        - intersect_data_dict[_i]["cb"]["DewPoint"]
-                    )
-                else:
-                    delta = None
-                print(
-                    "'dp'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
-                        intersect_data_dict[_i]["mysql"]["dp"],
-                        intersect_data_dict[_i]["cb"]["DewPoint"],
-                        delta,
-                        units["DewPoint"],
-                    )
-                )
-
-                if (
-                    intersect_data_dict[_i]["mysql"]["rh"] is not None
-                    and intersect_data_dict[_i]["cb"]["RH"] is not None
-                ):
-                    delta = (
-                        intersect_data_dict[_i]["mysql"]["rh"]
-                        - intersect_data_dict[_i]["cb"]["RH"]
-                    )
-                else:
-                    delta = None
-                print(
-                    "'rh'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
-                        intersect_data_dict[_i]["mysql"]["rh"],
-                        intersect_data_dict[_i]["cb"]["RH"],
-                        delta,
-                        units["RH"],
-                    )
-                )
-
-                if (
-                    intersect_data_dict[_i]["mysql"]["ws"] is not None
-                    and intersect_data_dict[_i]["cb"]["WS"] is not None
-                ):
-                    delta = (
-                        intersect_data_dict[_i]["mysql"]["ws"]
-                        - intersect_data_dict[_i]["cb"]["WS"]
-                    )
-                else:
-                    delta = None
-                print(
-                    "'ws'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
-                        intersect_data_dict[_i]["mysql"]["ws"],
-                        intersect_data_dict[_i]["cb"]["WS"],
-                        delta,
-                        units["WS"],
-                    )
-                )
-
-                if (
-                    intersect_data_dict[_i]["mysql"]["wd"] is not None
-                    and intersect_data_dict[_i]["cb"]["WD"] is not None
-                ):
-                    delta = (
-                        intersect_data_dict[_i]["mysql"]["wd"]
-                        - intersect_data_dict[_i]["cb"]["WD"]
-                    )
-                    if delta > 180:
-                        delta = 360 - delta
-                    if delta < -180:
-                        delta = 360 + delta
-                else:
-                    delta = None
-                print(
-                    "'wd'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
-                        intersect_data_dict[_i]["mysql"]["wd"],
-                        intersect_data_dict[_i]["cb"]["WD"],
-                        delta,
-                        units["WD"],
-                    )
-                )
-
-                if (
-                    intersect_data_dict[_i]["mysql"]["ceiling"] is not None
-                    and intersect_data_dict[_i]["cb"]["Ceiling"] is not None
-                ):
-                    delta = (
-                        intersect_data_dict[_i]["mysql"]["ceiling"]
-                        - intersect_data_dict[_i]["cb"]["Ceiling"]
-                    )
-                else:
-                    delta = None
-                print(
-                    "'ceiling'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
-                        intersect_data_dict[_i]["mysql"]["ceiling"],
-                        intersect_data_dict[_i]["cb"]["Ceiling"],
-                        delta,
-                        units["Ceiling"],
-                    )
-                )
-
-                if (
-                    intersect_data_dict[_i]["mysql"]["visibility"] is not None
-                    and intersect_data_dict[_i]["cb"]["Visibility"] is not None
-                ):
-                    delta = (
-                        intersect_data_dict[_i]["mysql"]["visibility"]
-                        - intersect_data_dict[_i]["cb"]["Visibility"]
-                    )
-                else:
-                    delta = None
-                print(
-                    "'visibility'\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
-                        intersect_data_dict[_i]["mysql"]["visibility"],
-                        intersect_data_dict[_i]["cb"]["Visibility"],
-                        delta,
-                        units["Visibility"],
-                    )
-                )
-                print("--")
-
-            for _i in intersect_fcst_len:
-                assert (
-                    intersect_data_dict[_i]["mysql"]["fcst_len"]
-                    == intersect_data_dict[_i]["cb"]["fcstLen"]
-                ), "MYSQL fcst_len and CB fcstLen are not equal"
-                if (
-                    intersect_data_dict[_i]["mysql"]["press"] is not None
-                    and intersect_data_dict[_i]["cb"]["Surface Pressure"] is not None
-                ):
-                    assert allclose(
-                        intersect_data_dict[_i]["mysql"]["press"],
-                        intersect_data_dict[_i]["cb"]["Surface Pressure"],
-                        atol=1.5,
-                        rtol=0,
-                    ), "MYSQL Pressure and CB Surface Pressure are not approximately equal"
-                if (
-                    intersect_data_dict[_i]["mysql"]["temp"] is not None
-                    and intersect_data_dict[_i]["cb"]["Temperature"] is not None
-                ):
-                    assert allclose(
-                        intersect_data_dict[_i]["mysql"]["temp"],
-                        intersect_data_dict[_i]["cb"]["Temperature"],
-                        atol=3,
-                        rtol=0,
-                    ), "MYSQL temp and CB Temperature are not approximately equal"
-                if (
-                    intersect_data_dict[_i]["mysql"]["dp"] is not None
-                    and intersect_data_dict[_i]["cb"]["DewPoint"] is not None
-                ):
-                    assert allclose(
-                        intersect_data_dict[_i]["mysql"]["dp"],
-                        intersect_data_dict[_i]["cb"]["DewPoint"],
-                        atol=5,
-                        rtol=0,
-                    ), "MYSQL dp and CB Dew Point are not approximately equal"
-                if (
-                    intersect_data_dict[_i]["mysql"]["rh"] is not None
-                    and intersect_data_dict[_i]["cb"]["RH"] is not None
-                ):
-                    assert allclose(
-                        intersect_data_dict[_i]["mysql"]["rh"],
-                        intersect_data_dict[_i]["cb"]["RH"],
-                        atol=20,
-                        rtol=0,
-                    ), "MYSQL rh and CB RH are not approximately equal"
-                if (
-                    intersect_data_dict[_i]["mysql"]["wd"] is not None
-                    and intersect_data_dict[_i]["cb"]["WD"] is not None
-                ):
-                    assert allclose(
-                        intersect_data_dict[_i]["mysql"]["wd"],
-                        intersect_data_dict[_i]["cb"]["WD"],
-                        atol=9999999,
-                        rtol=0,
-                    ), "MYSQL wd and CB WD are not approximately equal"
-                if (
-                    intersect_data_dict[_i]["mysql"]["ws"] is not None
-                    and intersect_data_dict[_i]["cb"]["WS"] is not None
-                ):
-                    assert allclose(
-                        intersect_data_dict[_i]["mysql"]["ws"],
-                        intersect_data_dict[_i]["cb"]["WS"],
-                        atol=3,
-                        rtol=0,
-                    ), "MYSQL ws and CB WS are not approximately equal"
-                if (
-                    intersect_data_dict[_i]["mysql"]["visibility"] is not None
-                    and intersect_data_dict[_i]["cb"]["Visibility"] is not None
-                ):
-                    assert allclose(
-                        intersect_data_dict[_i]["mysql"]["visibility"],
-                        intersect_data_dict[_i]["cb"]["Visibility"],
-                        atol=99999,
-                        rtol=0,
-                    ), "MYSQL Visibility and CB Visibility are not approximately equal"
-                if (
-                    intersect_data_dict[_i]["mysql"]["ceiling"] is not None
-                    and intersect_data_dict[_i]["cb"]["Ceiling"] is not None
-                ):
-                    assert allclose(
-                        intersect_data_dict[_i]["mysql"]["ceiling"],
-                        intersect_data_dict[_i]["cb"]["Ceiling"],
-                        atol=99999,
-                        rtol=0,
-                    ), "MYSQL Ceiling and CB Ceiling are not approximately equal"
-    except Exception as _e:  # pylint: disable=broad-except
-        assert False, f"TestGsdIngestManager Exception failure: {_e}"
-
-
-def test_compare_model_to_mysql_all_stations(allclose):
-    """This test attempts to find recent models that match in both the mysql and the CB
-    databases and compare them for all stations for one fcstValidEpoch.
-    This test isn't likely to succeed unless both the legacy
-    ingest and the VxIngest have recently run.
-    """
-    try:
-        station = "KPDX"
-        credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
-        assert os.path.isfile(credentials_file), "credentials_file Does not exist"
-        _f = open(credentials_file)
-        yaml_data = yaml.load(_f, yaml.SafeLoader)
-        host = yaml_data["cb_host"]
-        user = yaml_data["cb_user"]
-        password = yaml_data["cb_password"]
-        options = ClusterOptions(PasswordAuthenticator(user, password))
-        cluster = Cluster("couchbase://" + host, options)
-
-        result = cluster.query(
-            """SELECT DISTINCT RAW fcstValidEpoch
-            FROM mdata
-            WHERE type='DD'
-            AND docType="model"
-            AND model="HRRR_OPS"
-            AND version='V01'
-            AND subset='METAR'
-            ORDER BY fcstValidEpoch DESC;"""
-        )
-        cb_hrrr_ops_fcst_valid_epochs = list(result)
-
-        result = cluster.query(
-            """SELECT DISTINCT RAW fcstValidEpoch
-            FROM mdata
-            WHERE type='DD'
-            AND docType="obs"
-            AND version='V01'
-            AND subset='METAR'
-            ORDER BY fcstValidEpoch DESC;"""
-        )
-        cb_obs_fcst_valid_epochs = list(result)
-
-        # find the intersection of the cb models and the obs
-        intersect_cb_times = [
-            value
-            for value in cb_hrrr_ops_fcst_valid_epochs
-            if value in cb_obs_fcst_valid_epochs
-        ]
-
-        # find the mysql hrrr_ops and obs
-
-        host = yaml_data["mysql_host"]
-        user = yaml_data["mysql_user"]
-        passwd = yaml_data["mysql_password"]
-        local_infile = True
-        connection = pymysql.connect(
-            host=host,
-            user=user,
-            passwd=passwd,
-            local_infile=local_infile,
-            autocommit=True,
-            charset="utf8mb4",
-            cursorclass=pymysql.cursors.SSDictCursor,
-            client_flag=CLIENT.MULTI_STATEMENTS,
-        )
-        cursor = connection.cursor(pymysql.cursors.SSDictCursor)
-        statement = """SELECT floor((m0.time+1800)/(3600))*3600 AS time
-                        FROM   madis3.HRRR_OPSqp AS m0,
-                        madis3.obs AS o,
-                        madis3.metars AS s
-                        WHERE  s.name = %s
-                        AND m0.time = o.time
-                        AND s.madis_id = m0.sta_id
-                        AND o.sta_id = m0.sta_id
-                        AND m0.fcst_len = 0
-                        AND m0.time <= %s
-                        AND m0.time >= %s;"""
-        cursor.execute(
-            statement, (station, intersect_cb_times[0], intersect_cb_times[-1])
-        )
-        intersect_mysql_times_tmp = cursor.fetchall()
-        intersect_mysql_times = [t["time"] for t in intersect_mysql_times_tmp]
-        valid_times = [
-            value for value in intersect_mysql_times if value in intersect_cb_times
-        ]
-
-        result = cluster.query(
-            """SELECT raw mdata.units
-                FROM mdata
-                UNNEST mdata.data AS data_item
-                WHERE mdata.type='DD'
-                    AND mdata.docType="obs"
-                    AND mdata.version='V01'
-                    AND mdata.subset='METAR'
-                    AND data_item.name=$station
-                    AND mdata.fcstValidEpoch=$time""",
-            time=valid_times[0],
-            station=station,
-        )
-        units = list(result)[0]
-
-        for v_time in valid_times:
-            # get the common fcst lengths
-            result = cluster.query(
-                """SELECT raw mdata.fcstLen
-                    FROM mdata
-                    UNNEST mdata.data AS data_item
-                    WHERE mdata.type='DD'
-                        AND mdata.docType="model"
-                        AND mdata.model="HRRR_OPS"
-                        AND mdata.version='V01'
-                        AND mdata.subset='METAR'
-                        AND data_item.name=$station
-                        AND mdata.fcstValidEpoch=$time
-                        ORDER BY mdata.fcstLen""",
-                time=v_time,
-                station=station,
-            )
-            cb_model_fcst_lens = list(result)
-
-            statement = """SELECT DISTINCT m0.fcst_len
-                    FROM   madis3.metars AS s,
-                        ceiling2.HRRR_OPS AS m0
-                    WHERE  1 = 1
-                        AND s.madis_id = m0.madis_id
-                        AND s.NAME = "%s"
-                        AND m0.time >= %s - 1800
-                        AND m0.time < %s + 1800
-                    ORDER  BY m0.fcst_len; """
-            cursor.execute(statement, (station, v_time, v_time))
-            mysql_model_fcst_lens_dict = cursor.fetchall()
-            mysql_model_fcst_lens = [v["fcst_len"] for v in mysql_model_fcst_lens_dict]
-            intersect_fcst_len = [
-                value for value in mysql_model_fcst_lens if value in cb_model_fcst_lens
-            ]
-            if len(intersect_fcst_len) == 0:
-                # no fcst_len in common
-                continue
-
-            result = cluster.query(
-                """SELECT DISTINCT mdata.fcstValidEpoch,
-                    mdata.fcstLen, data_item
-                    FROM mdata
-                    UNNEST mdata.data AS data_item
-                    WHERE mdata.type='DD'
-                        AND mdata.docType="model"
-                        AND mdata.model="HRRR_OPS"
-                        AND mdata.version='V01'
-                        AND mdata.subset='METAR'
-                        AND data_item.name=$station
-                        AND mdata.fcstValidEpoch=$time
-                        AND mdata.fcstLen IN $fcst_lens
-                        ORDER BY mdata.fcstLen""",
-                station=station,
-                time=v_time,
-                fcst_lens=intersect_fcst_len,
-            )
-            cb_model_values = list(result)
-
-            format_strings = ",".join(["%s"] * len(intersect_fcst_len))
-            params = [station, v_time, v_time]
-            params.extend(intersect_fcst_len)
-            statement = (
-                """select m0.*
-            from  madis3.metars as s, madis3.HRRR_OPSqp as m0
-            WHERE 1=1
-            AND s.madis_id = m0.sta_id
-            AND s.name = %s
-            AND  m0.time >= %s - 1800 and m0.time < %s + 1800
-            AND m0.fcst_len IN ("""
-                + format_strings
-                + ") ORDER BY m0.fcst_len;"
-            )
-            cursor.execute(statement, tuple(params))
-            mysql_model_values_tmp = cursor.fetchall()
-            mysql_model_fcst_len = [v["fcst_len"] for v in mysql_model_values_tmp]
-            mysql_model_press = [v["press"] / 10 for v in mysql_model_values_tmp]
-            mysql_model_temp = [v["temp"] / 10 for v in mysql_model_values_tmp]
-            mysql_model_dp = [v["dp"] / 10 for v in mysql_model_values_tmp]
-            mysql_model_wd = [v["wd"] for v in mysql_model_values_tmp]
-            mysql_model_ws = [v["ws"] for v in mysql_model_values_tmp]
-            mysql_model_rh = [v["rh"] / 10 for v in mysql_model_values_tmp]
-
-            statement = (
-                """select m0.*
-            from  madis3.metars as s, ceiling2.HRRR_OPS as m0
-            WHERE 1=1
-            AND s.madis_id = m0.madis_id
-            AND s.name = %s
-            AND  m0.time >= %s - 1800 and m0.time < %s + 1800
-            AND m0.fcst_len IN ("""
-                + format_strings
-                + ") ORDER BY m0.fcst_len;"
-            )
-            cursor.execute(statement, tuple(params))
-            mysql_model_ceiling_values_tmp = cursor.fetchall()
-            mysql_model_ceiling = (
-                [v["ceil"] * 10 for v in mysql_model_ceiling_values_tmp]
-                if len(mysql_model_ceiling_values_tmp) > 0
-                else None
-            )
-
-            statement = (
-                """select m0.*
-            from  madis3.metars as s, visibility.HRRR_OPS as m0
-            WHERE 1=1
-            AND s.madis_id = m0.madis_id
-            AND s.name = %s
-            AND  m0.time >= %s - 1800 and m0.time < %s + 1800
-            AND m0.fcst_len IN ("""
-                + format_strings
-                + ") ORDER BY m0.fcst_len;"
-            )
-            cursor.execute(statement, tuple(params))
-            mysql_model_visibility_values_tmp = cursor.fetchall()
-            mysql_model_visibility = (
-                [v["vis100"] / 100 for v in mysql_model_visibility_values_tmp]
-                if len(mysql_model_visibility_values_tmp) > 0
-                else None
-            )
-
-            # now we have values for this time for each fcst_len, iterate the fcst_len and assert each value
-            intersect_data_dict = {}
-            for _i in intersect_fcst_len:
-                intersect_data_dict[_i] = {}
-                mysql_index = mysql_model_fcst_len.index(_i)
-                _cb = next(item for item in cb_model_values if item["fcstLen"] == _i)
-                intersect_data_dict[_i]["cb"] = {}
-                intersect_data_dict[_i]["cb"]["fcstLen"] = _cb["fcstLen"]
-                intersect_data_dict[_i]["cb"].update(_cb["data_item"])
-                intersect_data_dict[_i]["mysql"] = {}
-                intersect_data_dict[_i]["mysql"]["fcst_len"] = mysql_model_fcst_len[
-                    mysql_index
-                ]
-                intersect_data_dict[_i]["mysql"]["press"] = mysql_model_press[
-                    mysql_index
-                ]
-                intersect_data_dict[_i]["mysql"]["temp"] = mysql_model_temp[mysql_index]
-                intersect_data_dict[_i]["mysql"]["dp"] = mysql_model_dp[mysql_index]
-                intersect_data_dict[_i]["mysql"]["rh"] = mysql_model_rh[mysql_index]
-                intersect_data_dict[_i]["mysql"]["ws"] = mysql_model_ws[mysql_index]
-                intersect_data_dict[_i]["mysql"]["wd"] = mysql_model_wd[mysql_index]
-
-                try:
-                    if (
-                        mysql_model_ceiling is None
-                        or mysql_index >= len(mysql_model_ceiling)
-                        or mysql_model_ceiling[mysql_index] is None
-                    ):
-                        intersect_data_dict[_i]["mysql"]["ceiling"] = None
-                    else:
-                        intersect_data_dict[_i]["mysql"][
-                            "ceiling"
-                        ] = mysql_model_ceiling[mysql_index]
-
-                    if (
-                        mysql_model_visibility is None
-                        or mysql_index >= len(mysql_model_visibility)
-                        or mysql_model_visibility[mysql_index] is None
-                    ):
-                        intersect_data_dict[_i]["mysql"]["visibility"] = None
-                    else:
-                        intersect_data_dict[_i]["mysql"][
-                            "visibility"
-                        ] = mysql_model_visibility[mysql_index]
-                except Exception as _e:  # pylint: disable=broad-except
-                    assert (
-                        False
-                    ), f"TestGsdIngestManager Exception failure for ceiling or visibility: {_e}"
-                print(
-                    "time: {0}\t\tfcst_len: {1}\t\tstation:{2}".format(
-                        v_time, _i, station
-                    )
-                )
-                print("field\t\tmysql\t\tcb\t\t\t\tdelta\t\t\tunits")
-
-                if (
-                    intersect_data_dict[_i]["mysql"]["press"] is not None
-                    and intersect_data_dict[_i]["cb"]["Surface Pressure"] is not None
-                ):
-                    delta = (
-                        intersect_data_dict[_i]["mysql"]["press"]
-                        - intersect_data_dict[_i]["cb"]["Surface Pressure"]
-                    )
-                else:
-                    delta = None
-                print(
-                    "var - 'press'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
-                        intersect_data_dict[_i]["mysql"]["press"],
-                        intersect_data_dict[_i]["cb"]["Surface Pressure"],
-                        delta,
-                        units["Surface Pressure"],
-                    )
-                )
-
-                if (
-                    intersect_data_dict[_i]["mysql"]["temp"] is not None
-                    and intersect_data_dict[_i]["cb"]["Temperature"] is not None
-                ):
-                    delta = (
-                        intersect_data_dict[_i]["mysql"]["temp"]
-                        - intersect_data_dict[_i]["cb"]["Temperature"]
-                    )
-                else:
-                    delta = None
-                print(
-                    "var - 'temp'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
-                        intersect_data_dict[_i]["mysql"]["temp"],
-                        intersect_data_dict[_i]["cb"]["Temperature"],
-                        delta,
-                        units["Temperature"],
-                    )
-                )
-
-                if (
-                    intersect_data_dict[_i]["mysql"]["dp"] is not None
-                    and intersect_data_dict[_i]["cb"]["DewPoint"] is not None
-                ):
-                    delta = (
-                        intersect_data_dict[_i]["mysql"]["dp"]
-                        - intersect_data_dict[_i]["cb"]["DewPoint"]
-                    )
-                else:
-                    delta = None
-                print(
-                    "var - 'dp'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
-                        intersect_data_dict[_i]["mysql"]["dp"],
-                        intersect_data_dict[_i]["cb"]["DewPoint"],
-                        delta,
-                        units["DewPoint"],
-                    )
-                )
-
-                if (
-                    intersect_data_dict[_i]["mysql"]["rh"] is not None
-                    and intersect_data_dict[_i]["cb"]["RH"] is not None
-                ):
-                    delta = (
-                        intersect_data_dict[_i]["mysql"]["rh"]
-                        - intersect_data_dict[_i]["cb"]["RH"]
-                    )
-                else:
-                    delta = None
-                print(
-                    "var - 'rh'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
-                        intersect_data_dict[_i]["mysql"]["rh"],
-                        intersect_data_dict[_i]["cb"]["RH"],
-                        delta,
-                        units["RH"],
-                    )
-                )
-
-                if (
-                    intersect_data_dict[_i]["mysql"]["ws"] is not None
-                    and intersect_data_dict[_i]["cb"]["WS"] is not None
-                ):
-                    delta = (
-                        intersect_data_dict[_i]["mysql"]["ws"]
-                        - intersect_data_dict[_i]["cb"]["WS"]
-                    )
-                else:
-                    delta = None
-                print(
-                    "var - 'ws'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
-                        intersect_data_dict[_i]["mysql"]["ws"],
-                        intersect_data_dict[_i]["cb"]["WS"],
-                        delta,
-                        units["WS"],
-                    )
-                )
-
-                if (
-                    intersect_data_dict[_i]["mysql"]["wd"] is not None
-                    and intersect_data_dict[_i]["cb"]["WD"] is not None
-                ):
-                    delta = (
-                        intersect_data_dict[_i]["mysql"]["wd"]
-                        - intersect_data_dict[_i]["cb"]["WD"]
-                    )
-                    if delta > 180:
-                        delta = 360 - delta
-                    if delta < -180:
-                        delta = 360 + delta
-                else:
-                    delta = None
-                print(
-                    "var - 'wd'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
-                        intersect_data_dict[_i]["mysql"]["wd"],
-                        intersect_data_dict[_i]["cb"]["WD"],
-                        delta,
-                        units["WD"],
-                    )
-                )
-
-                if (
-                    intersect_data_dict[_i]["mysql"]["ceiling"] is not None
-                    and intersect_data_dict[_i]["cb"]["Ceiling"] is not None
-                ):
-                    delta = (
-                        intersect_data_dict[_i]["mysql"]["ceiling"]
-                        - intersect_data_dict[_i]["cb"]["Ceiling"]
-                    )
-                else:
-                    delta = None
-                print(
-                    "var - 'ceiling'\t\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
-                        intersect_data_dict[_i]["mysql"]["ceiling"],
-                        intersect_data_dict[_i]["cb"]["Ceiling"],
-                        delta,
-                        units["Ceiling"],
-                    )
-                )
-
-                if (
-                    intersect_data_dict[_i]["mysql"]["visibility"] is not None
-                    and intersect_data_dict[_i]["cb"]["Visibility"] is not None
-                ):
-                    delta = (
-                        intersect_data_dict[_i]["mysql"]["visibility"]
-                        - intersect_data_dict[_i]["cb"]["Visibility"]
-                    )
-                else:
-                    delta = None
-                print(
-                    "'visibility'\t{0}\t\t{1}\t\t\t{2}\t\t\t{3}".format(
-                        intersect_data_dict[_i]["mysql"]["visibility"],
-                        intersect_data_dict[_i]["cb"]["Visibility"],
-                        delta,
-                        units["Visibility"],
-                    )
-                )
-                print("--")
-
-            for _i in intersect_fcst_len:
-                assert (
-                    intersect_data_dict[_i]["mysql"]["fcst_len"]
-                    == intersect_data_dict[_i]["cb"]["fcstLen"]
-                ), "MYSQL fcst_len and CB fcstLen are not equal"
-                if (
-                    intersect_data_dict[_i]["mysql"]["press"] is not None
-                    and intersect_data_dict[_i]["cb"]["Surface Pressure"] is not None
-                ):
-                    assert allclose(
-                        intersect_data_dict[_i]["mysql"]["press"],
-                        intersect_data_dict[_i]["cb"]["Surface Pressure"],
-                        atol=1.5,
-                        rtol=0,
-                    ), "MYSQL Pressure and CB Surface Pressure are not approximately equal"
-                if (
-                    intersect_data_dict[_i]["mysql"]["temp"] is not None
-                    and intersect_data_dict[_i]["cb"]["Temperature"] is not None
-                ):
-                    assert allclose(
-                        intersect_data_dict[_i]["mysql"]["temp"],
-                        intersect_data_dict[_i]["cb"]["Temperature"],
-                        atol=3,
-                        rtol=0,
-                    ), "MYSQL temp and CB Temperature are not approximately equal"
-                if (
-                    intersect_data_dict[_i]["mysql"]["dp"] is not None
-                    and intersect_data_dict[_i]["cb"]["DewPoint"] is not None
-                ):
-                    assert allclose(
-                        intersect_data_dict[_i]["mysql"]["dp"],
-                        intersect_data_dict[_i]["cb"]["DewPoint"],
-                        atol=5,
-                        rtol=0,
-                    ), "MYSQL dp and CB Dew Point are not approximately equal"
-                if (
-                    intersect_data_dict[_i]["mysql"]["rh"] is not None
-                    and intersect_data_dict[_i]["cb"]["RH"] is not None
-                ):
-                    assert allclose(
-                        intersect_data_dict[_i]["mysql"]["rh"],
-                        intersect_data_dict[_i]["cb"]["RH"],
-                        atol=20,
-                        rtol=0,
-                    ), "MYSQL rh and CB RH are not approximately equal"
-                if (
-                    intersect_data_dict[_i]["mysql"]["wd"] is not None
-                    and intersect_data_dict[_i]["cb"]["WD"] is not None
-                ):
-                    assert allclose(
-                        intersect_data_dict[_i]["mysql"]["wd"],
-                        intersect_data_dict[_i]["cb"]["WD"],
-                        atol=9999999,
-                        rtol=0,
-                    ), "MYSQL wd and CB WD are not approximately equal"
-                if (
-                    intersect_data_dict[_i]["mysql"]["ws"] is not None
-                    and intersect_data_dict[_i]["cb"]["WS"] is not None
-                ):
-                    assert allclose(
-                        intersect_data_dict[_i]["mysql"]["ws"],
-                        intersect_data_dict[_i]["cb"]["WS"],
-                        atol=3,
-                        rtol=0,
-                    ), "MYSQL ws and CB WS are not approximately equal"
-                if (
-                    intersect_data_dict[_i]["mysql"]["visibility"] is not None
-                    and intersect_data_dict[_i]["cb"]["Visibility"] is not None
-                ):
-                    assert allclose(
-                        intersect_data_dict[_i]["mysql"]["visibility"],
-                        intersect_data_dict[_i]["cb"]["Visibility"],
-                        atol=99999,
-                        rtol=0,
-                    ), "MYSQL Visibility and CB Visibility are not approximately equal"
-                if (
-                    intersect_data_dict[_i]["mysql"]["ceiling"] is not None
-                    and intersect_data_dict[_i]["cb"]["Ceiling"] is not None
-                ):
-                    assert allclose(
-                        intersect_data_dict[_i]["mysql"]["ceiling"],
-                        intersect_data_dict[_i]["cb"]["Ceiling"],
-                        atol=99999,
-                        rtol=0,
-                    ), "MYSQL Ceiling and CB Ceiling are not approximately equal"
-    except Exception as _e:  # pylint: disable=broad-except
-        assert False, f"TestGsdIngestManager Exception failure: {_e}"
 
 
 def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus():
@@ -1225,9 +150,10 @@ def test_grib_builder_verses_script():  # pylint: disable=too-many-locals, too-m
         # file_utc_time = datetime.datetime.strptime(os.path.basename(latest_input_file), '%y%j%H%f')
         credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
         vx_ingest = VXIngest()
+        # using a test JOB SPEC because the input path is local
         vx_ingest.runit(
             {
-                "job_id": "JOB:V01:METAR:GRIB2:MODEL:HRRR",
+                "job_id": "JOB-TEST:V01:METAR:GRIB2:MODEL:HRRR",
                 "credentials_file": credentials_file,
                 "path": "/opt/public/data/grids/hrrr/conus/wrfprs/grib2",
                 "file_name_mask": "%y%j%H%f",
@@ -1250,14 +176,19 @@ def test_grib_builder_verses_script():  # pylint: disable=too-many-locals, too-m
         # Closing file
         _f.close()
         expected_station_data = {}
+        _f = open (credentials_file)
+        _yaml_data = yaml.load(_f, yaml.SafeLoader)
+        _host = _yaml_data["cb_host"]
+        _user = _yaml_data["cb_user"]
+        _password = _yaml_data["cb_password"]
+        _bucket = _yaml_data["cb_bucket"]
+        _collection = _yaml_data["cb_collection"]
+        _scope = _yaml_data["cb_scope"]
+        _f.close()
 
-        _f = open(credentials_file)
-        yaml_data = yaml.load(_f, yaml.SafeLoader)
-        host = yaml_data["cb_host"]
-        user = yaml_data["cb_user"]
-        password = yaml_data["cb_password"]
-        options = ClusterOptions(PasswordAuthenticator(user, password))
-        cluster = Cluster("couchbase://" + host, options)
+        timeout_options=ClusterTimeoutOptions(kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120))
+        options=ClusterOptions(PasswordAuthenticator(_user, _password), timeout_options=timeout_options)
+        cluster = Cluster("couchbase://" + _host, options)
 
         # Grab the projection information from the test file
         latest_input_file = (
@@ -1283,16 +214,17 @@ def test_grib_builder_verses_script():  # pylint: disable=too-many-locals, too-m
             pyproj.Transformer.from_proj(proj_from=out_proj, proj_to=in_proj)
         )
         domain_stations = []
-        for i in vx_ingest_output_data[0]["data"]:
-            station_name = i["name"]
+        for i in vx_ingest_output_data[0]["data"].keys():
+            station_name = i
             result = cluster.query(
-                "SELECT mdata.geo from mdata where type='MD' and docType='station' and subset='METAR' and version='V01' and mdata.name = $name",
-                name=station_name,
+                f"SELECT {_collection}.geo from `{_bucket}`.{_scope}.{_collection} where type='MD' and docType='station' and subset='{_collection}' and version='V01' and {_collection}.name = '{station_name}'"
             )
+            if not list(result):
+                continue
             row = result.get_single_result()
             geo_index = get_geo_index(fcst_valid_epoch, row["geo"])
-            i["lat"] = row["geo"][geo_index]["lat"]
-            i["lon"] = row["geo"][geo_index]["lon"]
+            #i["lat"] = row["geo"][geo_index]["lat"]
+            #i["lon"] = row["geo"][geo_index]["lon"]
             _x, _y = transformer.transform(
                 row["geo"][geo_index]["lon"],
                 row["geo"][geo_index]["lat"],
@@ -1344,9 +276,7 @@ def test_grib_builder_verses_script():  # pylint: disable=too-many-locals, too-m
         )[0]
         ceil_values = message["values"]
 
-        for i in range(
-            len(domain_stations)
-        ):  # pylint: disable=consider-using-enumerate
+        for i in range(len(domain_stations)):  # pylint: disable=consider-using-enumerate
             station = domain_stations[i]
             geo_index = get_geo_index(fcst_valid_epoch, station["geo"])
             surface = surface_hgt_values[
@@ -1515,39 +445,40 @@ def test_grib_builder_verses_script():  # pylint: disable=too-many-locals, too-m
         for i in range(
             len(domain_stations)
         ):  # pylint: disable=consider-using-enumerate
+            station_name = domain_stations[i]['name']
             if expected_station_data["data"][i]["Ceiling"] is not None:
                 assert expected_station_data["data"][i]["Ceiling"] == pytest.approx(
-                    vx_ingest_output_data[0]["data"][i]["Ceiling"]
+                    vx_ingest_output_data[0]["data"][station_name]["Ceiling"]
                 ), "Expected Ceiling and derived Ceiling are not equal"
             if expected_station_data["data"][i]["Surface Pressure"] is not None:
                 assert expected_station_data["data"][i][
                     "Surface Pressure"
                 ] == pytest.approx(
-                    vx_ingest_output_data[0]["data"][i]["Surface Pressure"]
+                    vx_ingest_output_data[0]["data"][station_name]["Surface Pressure"]
                 ), "Expected Surface Pressure and derived Surface Pressure are not equal"
             if expected_station_data["data"][i]["Temperature"] is not None:
                 assert expected_station_data["data"][i]["Temperature"] == pytest.approx(
-                    vx_ingest_output_data[0]["data"][i]["Temperature"]
+                    vx_ingest_output_data[0]["data"][station_name]["Temperature"]
                 ), "Expected Temperature and derived Temperature are not equal"
             if expected_station_data["data"][i]["DewPoint"] is not None:
                 assert expected_station_data["data"][i]["DewPoint"] == pytest.approx(
-                    vx_ingest_output_data[0]["data"][i]["DewPoint"]
+                    vx_ingest_output_data[0]["data"][station_name]["DewPoint"]
                 ), "Expected DewPoint and derived DewPoint are not equal"
             if expected_station_data["data"][i]["RH"] is not None:
                 assert expected_station_data["data"][i]["RH"] == pytest.approx(
-                    vx_ingest_output_data[0]["data"][i]["RH"]
+                    vx_ingest_output_data[0]["data"][station_name]["RH"]
                 ), "Expected RH and derived RH are not equal"
             if expected_station_data["data"][i]["WS"] is not None:
                 assert expected_station_data["data"][i]["WS"] == pytest.approx(
-                    vx_ingest_output_data[0]["data"][i]["WS"]
+                    vx_ingest_output_data[0]["data"][station_name]["WS"]
                 ), "Expected WS and derived WS are not equal"
             if expected_station_data["data"][i]["WD"] is not None:
                 assert expected_station_data["data"][i]["WD"] == pytest.approx(
-                    vx_ingest_output_data[0]["data"][i]["WD"]
+                    vx_ingest_output_data[0]["data"][station_name]["WD"]
                 ), "Expected WD and derived WD are not equal"
             if expected_station_data["data"][i]["Visibility"] is not None:
                 assert expected_station_data["data"][i]["Visibility"] == pytest.approx(
-                    vx_ingest_output_data[0]["data"][i]["Visibility"]
+                    vx_ingest_output_data[0]["data"][station_name]["Visibility"]
                 ), "Expected Visibility and derived Visibility are not equal"
     except Exception as _e:  # pylint: disable=broad-except
         assert False, f"TestGribBuilderV01 Exception failure: {_e}"

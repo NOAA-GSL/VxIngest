@@ -1,0 +1,3 @@
+SELECT COUNT(*)
+FROM `vxdata`._default.METAR
+WHERE type = 'dd'

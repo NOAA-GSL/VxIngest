@@ -117,8 +117,8 @@ def test_vxingest_get_file_list():
         Path("/tmp/test/f_1_fred_01").touch()
         Path("/tmp/test/f_2_fred_01").touch()
         Path("/tmp/test/f_3_fred_01").touch()
-        query = """ SELECT url, mtime
-            FROM mdata
+        query = f""" SELECT url, mtime
+            From `{vx_ingest.cb_credentials['bucket']}`.{vx_ingest.cb_credentials['scope']}.{vx_ingest.cb_credentials['collection']}
             WHERE
             subset='metar'
             AND type='DF'

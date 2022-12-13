@@ -141,7 +141,7 @@ if [[ -z $start_import_epoch ]] || [[ -z $finish_import_epoch ]]; then
 	# there wasn't any start or finish time in the import - no records to import
 	recorded_record_count=0
 else
-	recorded_record_count=$(curl -s http://adb-cb1.gsd.esrl.noaa.gov:8093/query/service -u"${cred}" -d "statement=select raw count(meta().id) from mdata where CEIL(meta().cas / 1000000000) BETWEEN ${start_import_epoch} AND ${finish_import_epoch} AND meta().id like \"${document_id_pattern}\"" | jq -r '.results | .[]')
+	recorded_record_count=$(curl -s http://adb-cb1.gsd.esrl.noaa.gov:8093/query/service -u"${cred}" -d "statement=select raw count(meta().id) from vxdata._default.METAR  where CEIL(meta().cas / 1000000000) BETWEEN ${start_import_epoch} AND ${finish_import_epoch} AND meta().id like \"${document_id_pattern}\"" | jq -r '.results | .[]')
 fi
 tmp_metric_file=/tmp/${metric_name}_$$
 record_count_difference=$((recorded_record_count - intended_record_count))
@@ -151,11 +151,24 @@ metric_name=$(echo "${metric_name}" | tr '[:upper:]' '[:lower:]')
 # example metric name 'job_v01_metar_grib2_model_hrrr_adb_cb1'
 
 # for getting historical data from promql...
+# we have to default these to 0 if they do not exist in the promql database - otherwise the scrape will fail next time
 min_recorded_record_count_average=$(/home/amb-verif/vx-prometheus/promql --no-headers --host "http://adb-cb1.gsd.esrl.noaa.gov:9090"  "floor(min(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_recorded_record_count'}[6h:1h])))" | awk '{print $1}')
+if [[ "x" == "x${min_recorded_record_count_average}" ]] ; then
+      min_recorded_record_count_average=0
+fi
 max_recorded_record_count_average=$(/home/amb-verif/vx-prometheus/promql --no-headers --host "http://adb-cb1.gsd.esrl.noaa.gov:9090"  "ceil(max(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_recorded_record_count'}[6h:1h])))" | awk '{print $1}')
+if [[ "x" == "x${max_recorded_record_count_average}" ]] ; then
+      max_recorded_record_count_average=0
+fi
 
 min_actual_duration_seconds_average=$(/home/amb-verif/vx-prometheus/promql --no-headers --host "http://adb-cb1.gsd.esrl.noaa.gov:9090"  "floor(min(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_actual_duration_seconds'}[6h:1h])))" | awk '{print $1}')
+if [[ "x" == "x${min_actual_duration_seconds_average}" ]] ; then
+      min_actual_duration_seconds_average=0
+fi
 max_actual_duration_seconds_average=$(/home/amb-verif/vx-prometheus/promql --no-headers --host "http://adb-cb1.gsd.esrl.noaa.gov:9090"  "ceil(max(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_actual_duration_seconds'}[6h:1h])))" | awk '{print $1}')
+if [[ "x" == "x${max_actual_duration_seconds_average}" ]] ; then
+      max_actual_duration_seconds_average=0
+fi
 
 echo "${metric_name}{ingest_id=\"ingest_run_time\",log_file=\"${log_file}\",start_epoch=\"${start_epoch}\",stop_epoch=\"${finish_epoch}\"} 1" >> ${tmp_metric_file}
 

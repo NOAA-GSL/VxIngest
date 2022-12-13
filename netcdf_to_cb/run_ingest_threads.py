@@ -158,16 +158,23 @@ class VXIngest(CommonVxIngest):
         self.thread_count = args["threads"]
         self.output_dir = args["output_dir"].strip()
         self.job_document_id = args["job_id"].strip()
+        # this assignment is only for integration tests to be able to override the input path
+        # normally path will never be passed in as an arg
+        if "path" in args.keys():
+            self.path = args['path']
         if "file_pattern" in args.keys():
             self.file_pattern = args["file_pattern"].strip()
-        _args_keys = args.keys()
         try:
             # put the real credentials into the load_spec
             self.cb_credentials = self.get_credentials(self.load_spec)
             # establish connections to cb, collection
             self.connect_cb()
+            bucket = self.load_spec['cb_connection']['bucket']
+            scope = self.load_spec['cb_connection']['scope']
+            collection = self.load_spec['cb_connection']['collection']
             # load the ingest document ids into the load_spec (this might be redundant)
-            stmnt="Select ingest_document_ids from mdata where meta().id = \"{id}\"".format(id=self.job_document_id)
+            stmnt="Select ingest_document_ids from `{bucket}`.{scope}.{collection} where meta().id = \"{id}\"".format(
+                    id=self.job_document_id, bucket=bucket, scope=scope, collection=collection)
             result = self.cluster.query(stmnt)
             self.load_spec['ingest_document_ids'] = list(result)[0]["ingest_document_ids"]
             # put all the ingest documents into the load_spec too
@@ -175,11 +182,12 @@ class VXIngest(CommonVxIngest):
             for _id in self.load_spec["ingest_document_ids"]:
                 self.load_spec["ingest_documents"][_id]= self.collection.get(_id).content
             # load the fmask and input_data_path into the load_spec
-            stmnt="Select file_mask, input_data_path from mdata where meta().id = \"{id}\"".format(id=self.job_document_id)
+            stmnt="Select file_mask, input_data_path from `{bucket}`.{scope}.{collection} where meta().id = \"{id}\"".format(
+                    id=self.job_document_id, bucket=bucket, scope=scope, collection=collection)
             result = self.cluster.query(stmnt)
             result_list = list(result)
             self.fmask = result_list[0]["file_mask"]
-            self.path = result_list[0]["input_data_path"]
+            self.path = args['path'] if 'path' in args.keys() else result_list[0]["input_data_path"]
             self.load_spec["fmask"] = self.fmask
             self.load_spec["input_data_path"] = self.path
             #stash the load_job in the load_spec
@@ -202,15 +210,13 @@ class VXIngest(CommonVxIngest):
         subset = self.load_spec["ingest_documents"][self.load_spec["ingest_document_ids"][0]]["subset"]
         file_query = """
             SELECT url, mtime
-            FROM mdata
+            FROM `{bucket}`.{scope}.{collection}
             WHERE
             subset='{subset}'
             AND type='DF'
             AND fileType='netcdf'
             AND originType='madis' order by url;
-            """.format(
-            subset=subset
-        )
+            """.format(subset=subset, bucket=bucket, scope=scope, collection=collection)
         file_names = self.get_file_list(file_query, self.path, self.file_pattern)
         for _f in file_names:
             _q.put(_f)

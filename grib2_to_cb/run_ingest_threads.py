@@ -180,7 +180,7 @@ class VXIngest(CommonVxIngest):
             # establish connections to cb, collection
             self.connect_cb()
             # load the ingest document ids into the load_spec (this might be redundant)
-            stmnt="Select ingest_document_ids from mdata where meta().id = \"{id}\"".format(id=self.job_document_id)
+            stmnt=f"Select ingest_document_ids from `{self.cb_credentials['bucket']}`.{self.cb_credentials['scope']}.{self.cb_credentials['collection']} where meta().id = \"{self.job_document_id}\""
             result = self.cluster.query(stmnt)
             self.load_spec['ingest_document_ids'] = list(result)[0]["ingest_document_ids"]
             # put all the ingest documents into the load_spec too
@@ -188,7 +188,7 @@ class VXIngest(CommonVxIngest):
             for _id in self.load_spec["ingest_document_ids"]:
                 self.load_spec["ingest_documents"][_id]= self.collection.get(_id).content
             # load the fmask and input_data_path into the load_spec
-            stmnt="Select file_mask, input_data_path from mdata where meta().id = \"{id}\"".format(id=self.job_document_id)
+            stmnt=f"Select file_mask, input_data_path from `{self.cb_credentials['bucket']}`.{self.cb_credentials['scope']}.{self.cb_credentials['collection']} where meta().id = \"{self.job_document_id}\""
             result = self.cluster.query(stmnt)
             result_list = list(result)
             self.fmask = result_list[0]["file_mask"]
@@ -214,18 +214,16 @@ class VXIngest(CommonVxIngest):
         # subset
         model = self.load_spec["ingest_documents"][self.load_spec["ingest_document_ids"][0]]["model"]
         subset = self.load_spec["ingest_documents"][self.load_spec["ingest_document_ids"][0]]["subset"]
-        file_query = """
+        file_query = f"""
             SELECT url, mtime
-            FROM mdata
+            FROM `{self.cb_credentials['bucket']}`.{self.cb_credentials['scope']}.{self.cb_credentials['collection']}
             WHERE
             subset='{subset}'
             AND type='DF'
             AND fileType='grib2'
             AND originType='{model}'
             order by url;
-            """.format(
-            subset=subset, model=model
-        )
+            """
         file_names = self.get_file_list(file_query, self.path, self.file_pattern)
         for _f in file_names:
             _q.put(_f)

@@ -345,6 +345,11 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
         6) build a datafile document to record that this file has been processed
         """
         try:
+            # get the bucket, scope, and collection from the load_spec
+            bucket = self.load_spec['cb_connection']['bucket']
+            scope = self.load_spec['cb_connection']['scope']
+            collection = self.load_spec['cb_connection']['collection']
+
             # translate the projection from the grib file
             logging.getLogger().setLevel(logging.INFO)
             self.projection = gg.getGrid(queue_element)
@@ -369,18 +374,15 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
             self.domain_stations = []
             limit_clause = ";"
             if self.number_stations != sys.maxsize:
-                limit_clause = " limit {l};".format(l=self.number_stations)
+                limit_clause = f" limit {self.number_stations};"
             result = self.load_spec["cluster"].query(
-                """SELECT geo, name
-                    from `vxdata`._default.METAR
+                f"""SELECT geo, name
+                    from `{bucket}`.{scope}.{collection}
                     where type='MD'
                     and docType='station'
-                    and subset='METAR'
+                    and subset='{self.subset}'
                     and version='V01'
-                    {limit_clause}
-                    """.format(
-                    limit_clause=limit_clause
-                )
+                    {limit_clause}"""
             )
             for row in result:
                 for geo_index in range(len(row["geo"])):

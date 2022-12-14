@@ -1,0 +1,6 @@
+SELECT geo, name
+from `vxdata`._default.METAR
+where type = 'MD'
+    and docType = 'station'
+    and subset = 'METAR'
+    and version = 'V01';

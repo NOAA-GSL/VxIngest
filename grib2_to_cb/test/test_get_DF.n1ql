@@ -1,0 +1,7 @@
+SELECT url, mtime
+FROM `vxdata`._default.METAR
+WHERE
+    type = 'DF'
+    AND fileType = 'grib2'
+    AND originType = 'HRRR_OPS'
+order by url;

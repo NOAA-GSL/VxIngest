@@ -12,7 +12,7 @@ import numpy as np
 import pymysql
 import pytest
 import yaml
-from couchbase.cluster import MutationState, QueryOptions, QueryScanConsistency
+from couchbase.cluster import QueryOptions, QueryScanConsistency, MutationState
 from netcdf_to_cb.netcdf_builder import NetcdfMetarObsBuilderV01
 from netcdf_to_cb.run_ingest_threads import VXIngest
 from pymysql.constants import CLIENT
@@ -25,7 +25,6 @@ from pymysql.constants import CLIENT
 
 def setup_mysql_connection():
     """setup the mysql connection
-
     Returns:
         cursor: a mysql cursor
     """
@@ -85,92 +84,6 @@ def test_cb_connect_disconnect():
         vx_ingest.close_cb()
     except Exception as _e:  # pylint:disable=broad-except
         assert False, f"test_cb_connect_disconnect Exception failure: {_e}"
-    finally:
-        vx_ingest.close_cb()
-
-
-def test_compare_stations_to_mysql():  # pylint: disable=too-many-locals
-    """test are couchbase stations the same as mysql.
-    useful .... awk 'NF > 20 {print $(NF-5), $(NF-1), $(NF)}' ~/stations_comare.txt | sort | uniq
-    """
-    try:
-        vx_ingest = setup_connection()
-        cluster = vx_ingest.cluster
-        result = cluster.query(
-            """SELECT name, geo
-            FROM mdata
-            WHERE
-                docType='station'
-                AND type='MD'
-                AND version='V01'
-                AND subset='METAR'"""
-        )
-        cb_station_list = list(result)
-        cb_stations = {}
-        for _s in cb_station_list:
-            cb_stations[_s["name"]] = {
-                "name": _s["name"],
-                "lat": _s["geo"][0]["lat"],
-                "lon": _s["geo"][0]["lon"],
-            }
-
-        cursor = setup_mysql_connection()
-        cursor.execute(
-            """select s.name, l.lat / 182 as lat, l.lon / 182 as lon
-            from
-            madis3.stations as s,
-            madis3.locations as l,
-            madis3.obs as o
-            where
-            1 = 1
-            and o.time >= 1641168000 - 1800
-            and o.time < 1641168000 + 1800
-            and s.id = o.sta_id
-            and o.loc_id = l.id
-            and s.net = 'METAR'
-            ORDER BY s.name;"""
-        )
-        mysql_station_list = cursor.fetchall()
-        mysql_stations = {x["name"]: x for x in mysql_station_list}
-        cb_station_names = cb_stations.keys()
-        mysql_station_names = mysql_stations.keys()
-        common_station_names = [
-            value for value in cb_station_names if value in mysql_station_names
-        ]
-        for station_name in common_station_names:
-            coords_1 = (
-                cb_stations[station_name]["lat"],
-                cb_stations[station_name]["lon"],
-            )
-            coords_2 = (
-                mysql_stations[station_name]["lat"],
-                mysql_stations[station_name]["lon"],
-            )
-            distance = geopyd.distance(coords_1, coords_2).km
-            try:
-                assert cb_stations[station_name]["lat"] == pytest.approx(
-                    float(mysql_stations[station_name]["lat"]), 2
-                ), "cb lat {c} does not equal mysql lat {m} for station {s} distance offset is {d} km".format(
-                    c=str(cb_stations[station_name]["lat"]),
-                    m=str(mysql_stations[station_name]["lat"]),
-                    s=station_name,
-                    d=distance,
-                )
-            except Exception as _e1:  # pylint:disable=broad-except
-                print("test_compare_stations_to_mysql lat failure: " + str(_e1))
-            try:
-                assert cb_stations[station_name]["lon"] == pytest.approx(
-                    float(mysql_stations[station_name]["lon"]), 2
-                ), "cb lon {c} does not equal mysql lon {m} for station {s} distance offset is {d} km".format(
-                    c=str(cb_stations[station_name]["lon"]),
-                    m=str(mysql_stations[station_name]["lon"]),
-                    s=station_name,
-                    d=distance,
-                )
-            except Exception as _e1:  # pylint:disable=broad-except
-                print("test_compare_stations_to_mysql lon failure: " + str(_e1))
-    except Exception as _e:  # pylint:disable=broad-except
-        assert False, f"test_compare_stations_to_mysql Exception failure: {_e}"
     finally:
         vx_ingest.close_cb()
 
@@ -280,8 +193,8 @@ def test_vxingest_get_file_list():
         Path("/tmp/test/f_1_fred_01").touch()
         Path("/tmp/test/f_2_fred_01").touch()
         Path("/tmp/test/f_3_fred_01").touch()
-        query = """ SELECT url, mtime
-            FROM mdata
+        query = f""" SELECT url, mtime
+            From `{vx_ingest.cb_credentials['bucket']}`.{vx_ingest.cb_credentials['scope']}.{vx_ingest.cb_credentials['collection']}
             WHERE
             subset='metar'
             AND type='DF'
@@ -502,12 +415,12 @@ def test_handle_station():
         result = _cluster.query(
             " ".join(
                 (
-                    """
-            SELECT mdata.*
-            FROM mdata
-            WHERE mdata.type = 'MD'
-            AND mdata.docType = 'station'
-            AND mdata.version = 'V01'
+                   f"""
+            SELECT METAR.*
+            From `{vx_ingest.cb_credentials['bucket']}`.{vx_ingest.cb_credentials['scope']}.{vx_ingest.cb_credentials['collection']}
+            WHERE type = 'MD'
+            AND docType = 'station'
+            AND version = 'V01'
             AND name = '"""
                     + _station_name
                     + "'"
@@ -527,14 +440,14 @@ def test_handle_station():
         # ****************
         # 1) new station test
         # remove station station_zbaa from the database
-        _ms = remove_station(_cluster, _collection, station_zbaa)
+        _ms = remove_station(_cluster, _collection, station_zbaa, _builder)
         result = _cluster.query(
-            """
-            SELECT mdata.*
-            FROM mdata
-            WHERE mdata.type = 'MD'
-            AND mdata.docType = 'station'
-            AND mdata.version = 'V01'
+            f"""
+            SELECT METAR.*
+            From `{vx_ingest.cb_credentials['bucket']}`.{vx_ingest.cb_credentials['scope']}.{vx_ingest.cb_credentials['collection']}
+            WHERE type = 'MD'
+            AND docType = 'station'
+            AND version = 'V01'
             AND name = 'ZBAA'""",
             QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS),
         )
@@ -546,17 +459,17 @@ def test_handle_station():
         _id = next(iter(doc_map))
         result = _collection.upsert(_id, doc_map[_id])
         result = _cluster.query(
-            """
-            SELECT mdata.*
-            FROM mdata
-            WHERE mdata.type = 'MD'
-            AND mdata.docType = 'station'
-            AND mdata.version = 'V01'
+            f"""
+            SELECT METAR.*
+            From `{vx_ingest.cb_credentials['bucket']}`.{vx_ingest.cb_credentials['scope']}.{vx_ingest.cb_credentials['collection']}
+            WHERE type = 'MD'
+            AND docType = 'station'
+            AND version = 'V01'
             AND name = 'ZBAA'""",
             QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS),
         )
         # assert for new station_zbaa
-        assert_station(_cluster, station_zbaa_copy)
+        assert_station(_cluster, station_zbaa_copy, _builder)
         cleanup_builder_doc(_cluster, _collection, _builder, station_zbaa_copy)
 
         # ****************
@@ -572,11 +485,11 @@ def test_handle_station():
         _builder.handle_station({"recNum": _rec_num, "stationName": _station_name})
         result = _cluster.query(
             """
-            SELECT mdata.*
-            FROM mdata
-            WHERE mdata.type = 'MD'
-            AND mdata.docType = 'station'
-            AND mdata.version = 'V01'
+            SELECT METAR.*
+            From `{vx_ingest.cb_credentials['bucket']}`.{vx_ingest.cb_credentials['scope']}.{vx_ingest.cb_credentials['collection']}
+            WHERE type = 'MD'
+            AND docType = 'station'
+            AND version = 'V01'
             AND name = 'ZBAA'""",
             QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS),
         )
@@ -584,12 +497,12 @@ def test_handle_station():
         _id = next(iter(doc_map))
         result = _collection.upsert(_id, doc_map[_id])
         result = _cluster.query(
-            """
-            SELECT mdata.*
-            FROM mdata
-            WHERE mdata.type = 'MD'
-            AND mdata.docType = 'station'
-            AND mdata.version = 'V01'
+            f"""
+            SELECT METAR.*
+            From `{vx_ingest.cb_credentials['bucket']}`.{vx_ingest.cb_credentials['scope']}.{vx_ingest.cb_credentials['collection']}
+            WHERE type = 'MD'
+            AND docType = 'station'
+            AND version = 'V01'
             AND name = 'ZBAA'""",
             QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS),
         )
@@ -610,7 +523,7 @@ def test_handle_station():
                 "lon": 116.58,
             }
         )
-        assert_station(_cluster, station_zbaa)
+        assert_station(_cluster, station_zbaa, _builder)
         cleanup_builder_doc(_cluster, _collection, _builder, station_zbaa_copy)
 
         # ****************
@@ -633,12 +546,12 @@ def test_handle_station():
         # original firstTime (matches the fcstValidEpoch of the file)
         _builder.handle_station({"recNum": _rec_num, "stationName": _station_name})
         result = _cluster.query(
-            """
-            SELECT mdata.*
-            FROM mdata
-            WHERE mdata.type = 'MD'
-            AND mdata.docType = 'station'
-            AND mdata.version = 'V01'
+            f"""
+            SELECT METAR.*
+            From `{vx_ingest.cb_credentials['bucket']}`.{vx_ingest.cb_credentials['scope']}.{vx_ingest.cb_credentials['collection']}
+            WHERE type = 'MD'
+            AND docType = 'station'
+            AND version = 'V01'
             AND name = 'ZBAA'""",
             QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS),
         )
@@ -647,7 +560,7 @@ def test_handle_station():
         result = _collection.upsert(_id, doc_map[_id])
         # modify the new_station_zbaa['geo'] to reflect what handle_station should have done
         new_station_zbaa["geo"][0]["firstTime"] = orig_first_time
-        assert_station(_cluster, new_station_zbaa)
+        assert_station(_cluster, new_station_zbaa, _builder)
         cleanup_builder_doc(_cluster, _collection, _builder, station_zbaa_copy)
     except Exception as _e:  # pylint:disable=broad-except
         assert False, f"test_handle_station Exception failure: {_e}"
@@ -657,7 +570,7 @@ def test_handle_station():
         _collection.upsert(station_zbaa_copy["id"], station_zbaa_copy)
 
 
-def remove_station(cluster, collection, station):
+def remove_station(cluster, collection, station, builder):
     """
     Removes the station from the collection
     Args:
@@ -675,12 +588,12 @@ def remove_station(cluster, collection, station):
     result = cluster.query(
         " ".join(
             (
-                """
-                SELECT mdata.*
-                FROM mdata
-                WHERE mdata.type = 'MD'
-                AND mdata.docType = 'station'
-                AND mdata.version = 'V01'
+                f"""
+                SELECT METAR.*
+                FROM `{builder.load_spec['cb_connection']['bucket']}`.{builder.load_spec['cb_connection']['scope']}.{builder.load_spec['cb_connection']['collection']}
+                WHERE type = 'MD'
+                AND docType = 'station'
+                AND version = 'V01'
                 AND name = '"""
                 + station["name"]
                 + "'"
@@ -699,8 +612,8 @@ def setup_builder_doc(cluster, builder):
     """
     result = cluster.query(
         " ".join(
-            """SELECT mdata.*
-            FROM mdata
+            f"""SELECT METAR.*
+            FROM `{builder.load_spec['cb_connection']['bucket']}`.{builder.load_spec['cb_connection']['scope']}.{builder.load_spec['cb_connection']['collection']}
             WHERE type = 'MD'
             AND docType = 'station'
             AND subset = 'METAR'
@@ -719,8 +632,8 @@ def cleanup_builder_doc(cluster, collection, builder, station_zbaa_copy):
     collection.upsert(station_zbaa_copy["id"], station_zbaa_copy)
     result = cluster.query(
         " ".join(
-            """SELECT mdata.*
-            FROM mdata
+            f"""SELECT METAR.*
+            From `{builder.load_spec['cb_connection']['bucket']}`.{builder.load_spec['cb_connection']['scope']}.{builder.load_spec['cb_connection']['collection']}
             WHERE type = 'MD'
             AND docType = 'station'
             AND subset = 'METAR'
@@ -732,16 +645,16 @@ def cleanup_builder_doc(cluster, collection, builder, station_zbaa_copy):
     builder.initialize_document_map()
 
 
-def assert_station(cluster, station_zbaa):
+def assert_station(cluster, station_zbaa, builder):
     """Asserts that a given station object matches the one that is in the database,"""
     new_result = cluster.query(
         " ".join(
-            """
-            SELECT mdata.*
-            FROM mdata
-            WHERE mdata.type = 'MD'
-            AND mdata.docType = 'station'
-            AND mdata.version = 'V01'
+            f"""
+            SELECT METAR.*
+            From `{builder.load_spec['cb_connection']['bucket']}`.{builder.load_spec['cb_connection']['scope']}.{builder.load_spec['cb_connection']['collection']}
+            WHERE type = 'MD'
+            AND docType = 'station'
+            AND version = 'V01'
             AND name = 'ZBAA'
             """.split()
         ),

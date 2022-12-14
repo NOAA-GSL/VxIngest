@@ -26,7 +26,7 @@
     },
     "dataSourceId": "MADIS",
     "docType": "obs",
-    "fcstValidBeg": "*{ISO}time",
+    "fcstValidISO": "*{ISO}time",
     "fcstValidEpoch": "&interpolate_time:*timeObs",
     "id": "DD-TEST:V01:METAR:obs:&interpolate_time:*timeObs",
     "subset": "METAR",

@@ -20,10 +20,10 @@ import time
 import json
 from glob import glob
 from pathlib import Path
+from datetime import timedelta
 import yaml
-from couchbase.cluster import Cluster, ClusterOptions
+from couchbase.cluster import Cluster, ClusterOptions, ClusterTimeoutOptions
 from couchbase_core.cluster import PasswordAuthenticator
-
 
 class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-instance-attributes
     """
@@ -129,21 +129,23 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
         # get a reference to our cluster
         # noinspection PyBroadException
         try:
-            options = ClusterOptions(
-                PasswordAuthenticator(
-                    self.cb_credentials["user"], self.cb_credentials["password"]
-                )
-            )
+
+            timeout_options=ClusterTimeoutOptions(kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120))
+            options=ClusterOptions(PasswordAuthenticator(self.cb_credentials["user"], self.cb_credentials["password"]), timeout_options=timeout_options)
             self.cluster = Cluster(
                 "couchbase://" + self.cb_credentials["host"], options
             )
-            self.collection = self.cluster.bucket("mdata").default_collection()
+            self.collection = (
+                self.cluster
+                .bucket(self.cb_credentials["bucket"])
+                .collection(self.cb_credentials["collection"])
+            )
             # stash the credentials for the VxIngestManager - see NOTE at the top of this file.
             self.load_spec["cb_credentials"] = self.cb_credentials
             logging.info("%s: Couchbase connection success")
         except Exception as _e:  # pylint:disable=broad-except
-            logging.error("*** %s in connect_cb ***", str(_e))
-            sys.exit("*** Error when connecting to cb database: ")
+            logging.exception("*** builder_common.CommonVxIngest Error in connect_cb ***")
+            sys.exit("*** builder_common.CommonVxIngest Error when connecting to cb database: ")
 
     def get_file_list(self, df_query, directory, file_pattern):
         """This method accepts a file path (directory), a query statement (df_query),
@@ -245,6 +247,9 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
             load_spec["cb_connection"]["host"] = _yaml_data["cb_host"]
             load_spec["cb_connection"]["user"] = _yaml_data["cb_user"]
             load_spec["cb_connection"]["password"] = _yaml_data["cb_password"]
+            load_spec["cb_connection"]["bucket"] = _yaml_data["cb_bucket"]
+            load_spec["cb_connection"]["collection"] = _yaml_data["cb_collection"]
+            load_spec["cb_connection"]["scope"] = _yaml_data["cb_scope"]
             _f.close()
             return load_spec["cb_connection"]
         except (RuntimeError, TypeError, NameError, KeyError):

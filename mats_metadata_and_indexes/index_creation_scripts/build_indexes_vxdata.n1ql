@@ -1,0 +1,1 @@
+BUILD INDEX ON mdata ((SELECT RAW name FROM system:indexes WHERE state = 'deferred' AND bucket_id="vxdata" AND scope_id="_default" AND keyspace_id="METAR"));

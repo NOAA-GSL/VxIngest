@@ -1,0 +1,7 @@
+SELECT *
+FROM `vxdata`._default.METAR
+WHERE type = "DD"
+    AND docType = "model"
+    AND model="HRRR_OPS"
+    AND version = "V01"
+    AND fcstValidEpoch = 1625097600

@@ -8,10 +8,11 @@ import os
 import queue
 from multiprocessing import Process
 import time
+from datetime import timedelta
 import json
 from pathlib import Path
 from couchbase.exceptions import TimeoutException
-from couchbase.cluster import Cluster, ClusterOptions
+from couchbase.cluster import Cluster, ClusterOptions, ClusterTimeoutOptions
 from couchbase_core.cluster import PasswordAuthenticator
 
 
@@ -57,6 +58,7 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
         self.ingest_type_builder_name = None
         self.queue = element_queue
         self.builder_map = {}
+        self.cb_credentials = self.cb_credentials
         self.cluster = None
         self.collection = None
         self.output_dir = output_dir
@@ -84,23 +86,23 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
         # get a reference to our cluster
         # noinspection PyBroadException
         try:
-            options = ClusterOptions(
-                PasswordAuthenticator(
-                    self.load_spec["cb_credentials"]["user"],
-                    self.load_spec["cb_credentials"]["password"],
-                )
-            )
+            timeout_options=ClusterTimeoutOptions(kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120))
+            options=ClusterOptions(PasswordAuthenticator(self.cb_credentials["user"], self.cb_credentials["password"]), timeout_options=timeout_options)
             self.cluster = Cluster(
-                "couchbase://" + self.load_spec["cb_credentials"]["host"], options
+                "couchbase://" + self.cb_credentials["host"], options
             )
-            self.collection = self.cluster.bucket("mdata").default_collection()
+            self.collection = (
+                self.cluster
+                .bucket(self.cb_credentials["bucket"])
+                .collection(self.cb_credentials["collection"])
+            )
             # stash the database connection for the builders to reuse
             self.load_spec["cluster"] = self.cluster
             self.load_spec["collection"] = self.collection
             logging.info("Couchbase connection success")
         except Exception as _e:  # pylint:disable=broad-except
-            logging.error("*** %s in connect_cb ***", str(_e))
-            sys.exit("*** Error when connecting to cb database: ")
+            logging.exception("*** builder_common.CommonVxIngestManager in connect_cb ***")
+            sys.exit("*** builder_common.CommonVxIngestManager Error when connecting to cb database")
 
     # entry point of the thread. Is invoked automatically when the thread is
     # started.
@@ -115,6 +117,7 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
         """
         # noinspection PyBroadException
         try:
+            self.cb_credentials = self.load_spec['cb_connection']
             logging.getLogger().setLevel(logging.INFO)
             # get a connection
             self.connect_cb()

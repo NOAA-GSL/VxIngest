@@ -1,0 +1,9 @@
+SELECT *
+FROM mdata
+WHERE type='DD'
+    AND docType='model'
+    AND model='HRRR_OPS'
+    AND version='V01'
+    AND subset='METAR'
+    AND fcstValidEpoch = 1656637200
+    AND fcstLen = 10

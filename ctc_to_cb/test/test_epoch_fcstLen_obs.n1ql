@@ -1,0 +1,10 @@
+-- should execute less than 10 miliseconds
+SELECT raw obs.fcstValidEpoch
+FROM `vxdata`._default.METAR obs
+WHERE obs.type='DD'
+AND obs.docType='obs'
+AND obs.version='V01'
+AND obs.subset='METAR'
+AND obs.fcstValidEpoch >= 1656637200
+AND obs.fcstValidEpoch <= 1656637200 + 3600 * 24 * 14
+ORDER BY obs.fcstValidEpoch

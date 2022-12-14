@@ -26,14 +26,14 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
     """
     Parent class for CTC builders
     1) find all the stations for the region for this ingest (model and region)
-    select raw geo from mdata where type="MD" and docType="station" and subset='METAR' and version='V01'
+    select raw geo from `{self.bucket}`.{self.scope}.{self.collection} where type="MD" and docType="station" and subset='METAR' and version='V01'
     Use the region metadata document....
     SELECT
         geo.bottom_right.lat as br_lat,
         geo.bottom_right.lon as br_lon,
         geo.top_left.lat as tl_lat,
         geo.top_left.lon as tl_lon
-    FROM mdata
+    FROM `{self.bucket}`.{self.scope}.{self.collection}
     WHERE type="MD" and docType="region" and subset='COMMON' and version='V01' and name="ALL_HRRR"
     use the boubnding box to select stations for the region
     [
@@ -51,7 +51,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
     SELECT name,
        geo.lat,
        geo.lon
-    FROM mdata
+    FROM `{self.bucket}`.{self.scope}.{self.collection}
     WHERE type="MD"
     AND docType="station"
     AND subset='METAR'
@@ -62,8 +62,8 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
     This can be done with a join but it it is probably better to do it with two queries and code.
     This is the join.
     SELECT RAW s.name
-    FROM mdata s
-        JOIN mdata bb ON s.geo.lat BETWEEN bb.geo.bottom_right.lat AND bb.geo.top_left.lat
+    FROM `{self.bucket}`.{self.scope}.{self.collection} s
+        JOIN `{self.bucket}`.{self.scope}.{self.collection} bb ON s.geo.lat BETWEEN bb.geo.bottom_right.lat AND bb.geo.top_left.lat
         AND s.geo.lon BETWEEN bb.geo.top_left.lon AND bb.geo.bottom_right.lon
     WHERE bb.type="MD"
         AND bb.docType="region"
@@ -75,12 +75,12 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
         AND s.subset='METAR'
         AND s.version='V01'
     2) find the minimum of the maximum valid times of corresponding CTC documents currently in the database.
-    select raw min (mdata.fcstValidEpoch) from mdata where type="DD" and docType="obs" and subset='METAR' and version='V01'  limit 10
+    select raw min (METAR.fcstValidEpoch) from `{self.bucket}`.{self.scope}.{self.collection} where type="DD" and docType="obs" and subset='METAR' and version='V01'  limit 10
     3) find the maximum of the minimum valid times of the obs and corresponding models that are currently in the database. This is
     the data for ALL the stations. What delineates a region is the subset of station names that are in a region. This corresponds to a
     subset of the data portion of each model.
-    select raw min (mdata.fcstValidEpoch) from mdata where type="DD" and docType="model" and subset='METAR' and version='V01' and model="HRRR_OPS"
-    select raw min (mdata.fcstValidEpoch) from mdata where type="DD" and docType="obs" and subset='METAR' and version='V01'  limit 10
+    select raw min (METAR.fcstValidEpoch) from `{self.bucket}`.{self.scope}.{self.collection} where type="DD" and docType="model" and subset='METAR' and version='V01' and model="HRRR_OPS"
+    select raw min (METAR.fcstValidEpoch) from `{self.bucket}`.{self.scope}.{self.collection} where type="DD" and docType="obs" and subset='METAR' and version='V01'  limit 10
     4) using the minimum valid time and the domain station list query for model and obs pairs within the station list.
 
     5) iterate that batch of data by valid time and fcstLen creating corresponding CTC documents.
@@ -113,6 +113,9 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
         self.thresholds = None
         self.not_found_stations = set()
         self.not_found_station_count = 0
+        self.bucket = None
+        self.scope = None
+        self.collection = None
 
     def derive_id(self, **kwargs):
         """
@@ -186,6 +189,8 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
         # noinspection PyBroadException
         try:
             new_document = copy.deepcopy(self.template)
+            if self.domain_stations is None:
+                return
             station_data_size = len(self.domain_stations)
             if station_data_size == 0:
                 return
@@ -333,6 +338,12 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                     try:
                         _model_doc = self.load_spec["collection"].get(fve["id"])
                         self.model_data = _model_doc.content
+                    except DocumentNotFoundException:
+                        logging.info(
+                            "%s handle_fcstValidEpochs: model document %s was not found! ",
+                            self.__class__.__name__,
+                            fve["id"],
+                        )
                     except Exception as _e:  # pylint: disable=broad-except
                         logging.error(
                             "%s Error getting model document: %s",
@@ -355,19 +366,19 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                         ):
                             _obs_doc = self.load_spec["collection"].get(obs_id)
                             _obs_data = _obs_doc.content
-                            for entry in _obs_data["data"]:
-                                self.obs_data[entry["name"]] = entry
-                                self.obs_station_names.append(entry["name"])
+                            for key in _obs_data["data"].keys():
+                                self.obs_data[key] = _obs_data["data"][key]
+                                self.obs_station_names.append(key)
                             self.obs_station_names.sort()
                         self.handle_document()
                     except DocumentNotFoundException:
                         logging.info(
-                            "%s handle_fcstValidEpochs: document %s was not found! ",
+                            "%s handle_fcstValidEpochs: obs document %s was not found! ",
                             self.__class__.__name__,
                             fve["id"],
                         )
                 except Exception as _e:  # pylint: disable=broad-except
-                    logging.info(
+                    logging.exception(
                         "%s problem getting obs document: %s",
                         self.__class__.__name__,
                         str(_e),
@@ -418,6 +429,9 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
             self.variable = self.ingest_document['subDocType'].lower()
             self.subset = self.ingest_document['subset']
             self.template = self.ingest_document['template']
+            self.bucket = self.load_spec['cb_connection']['bucket']
+            self.scope = self.load_spec['cb_connection']['scope']
+            self.collection = self.load_spec['cb_connection']['collection']
             logging.info("%s.build_document queue_element:%s model:%s region:%s variable:%s subset:%s",
                 self.__class__.__name__,
                 queue_element,
@@ -426,25 +440,22 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                 self.variable,
                 self.subset
                 )
+
             # First get the latest fcstValidEpoch for the ctc's for this model and region.
             stmnt=""
             error_count = 0
             success = False
             while error_count < 3 and success is False:
                 try:
-                    stmnt="""SELECT RAW MAX(mdata.fcstValidEpoch)
-                            FROM mdata
+                    stmnt=f"""SELECT RAW MAX(METAR.fcstValidEpoch)
+                            FROM `{self.bucket}`.{self.scope}.{self.collection}
                             WHERE type='DD'
                             AND docType='CTC'
-                            AND subDocType='{subDocType}'
-                            AND model='{model}'
-                            AND region='{region}'
+                            AND subDocType='{self.sub_doc_type}'
+                            AND model='{self.model}'
+                            AND region='{self.region}'
                             AND version='V01'
-                            AND subset='{subset}'""".format(
-                        model=self.model,
-                        region=self.region,
-                        subDocType=self.sub_doc_type,
-                        subset=self.subset)
+                            AND subset='{self.subset}'"""
                     #logging.info("build_document start query %s", stmnt)
                     result = self.load_spec["cluster"].query(stmnt,read_only=True)
                     success = True
@@ -455,9 +466,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                         raise
                     time.sleep(2) # don't hammer the server too hard
                     error_count = error_count + 1
-            max_ctc_fcst_valid_epochs = self.load_spec["first_last_params"][
-                "first_epoch"
-            ]
+            max_ctc_fcst_valid_epochs = self.load_spec["first_last_params"]["first_epoch"]
             if list(result)[0] is not None:
                 max_ctc_fcst_valid_epochs = list(result)[0]
 
@@ -470,21 +479,16 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
             success = False
             while error_count < 3 and success is False:
                 try:
-                    stmnt="""SELECT fve.fcstValidEpoch, fve.fcstLen, meta().id
-                            FROM mdata fve
+                    stmnt=f"""SELECT fve.fcstValidEpoch, fve.fcstLen, meta().id
+                            FROM `{self.bucket}`.{self.scope}.{self.collection} fve
                             WHERE fve.type='DD'
                                 AND fve.docType='model'
-                                AND fve.model='{model}'
+                                AND fve.model='{self.model}'
                                 AND fve.version='V01'
-                                AND fve.subset='{subset}'
-                                AND fve.fcstValidEpoch >= {first_epoch}
-                                AND fve.fcstValidEpoch <= {last_epoch}
-                            ORDER BY fve.fcstValidEpoch, fve.fcstLen""".format(
-                            model=self.model,
-                            subset=self.subset,
-                            first_epoch=self.load_spec["first_last_params"]["first_epoch"],
-                            last_epoch=self.load_spec["first_last_params"]["last_epoch"]
-                        )
+                                AND fve.subset='{self.subset}'
+                                AND fve.fcstValidEpoch >= {self.load_spec["first_last_params"]["first_epoch"]}
+                                AND fve.fcstValidEpoch <= {self.load_spec["first_last_params"]["last_epoch"]}
+                            ORDER BY fve.fcstValidEpoch, fve.fcstLen"""
                     #logging.info("build_document start query %s", stmnt)
                     result = self.load_spec["cluster"].query(stmnt,read_only=True)
                     success = True
@@ -501,19 +505,15 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
             success = False
             while error_count < 3 and success is False:
                 try:
-                    stmnt="""SELECT raw obs.fcstValidEpoch
-                                FROM mdata obs
+                    stmnt=f"""SELECT raw obs.fcstValidEpoch
+                                FROM `{self.bucket}`.{self.scope}.{self.collection} obs
                                 WHERE obs.type='DD'
                                     AND obs.docType='obs'
                                     AND obs.version='V01'
-                                    AND obs.subset='{subset}'
-                                    AND obs.fcstValidEpoch >= {max_fcst_epoch}
-                                    AND obs.fcstValidEpoch <= {last_epoch}
-                            ORDER BY obs.fcstValidEpoch""".format(
-                            max_fcst_epoch=max_ctc_fcst_valid_epochs,
-                            last_epoch=self.load_spec["first_last_params"]["last_epoch"],
-                            subset=self.subset
-                        )
+                                    AND obs.subset='{self.subset}'
+                                    AND obs.fcstValidEpoch >= {max_ctc_fcst_valid_epochs}
+                                    AND obs.fcstValidEpoch <= {self.load_spec["first_last_params"]["last_epoch"]}
+                            ORDER BY obs.fcstValidEpoch"""
                     #logging.info("build_document start query %s", stmnt)
                     result1 = self.load_spec["cluster"].query(stmnt,read_only=True)
                     success = True
@@ -563,8 +563,8 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
     def get_stations_for_region_by_geosearch(
         self, region_name, valid_epoch
     ):  # pylint: disable=unused-argument
-        # NOTE: this is currently broken because geosearch currently does not know how to
-        # search through a collection of points
+        # NOTE: this is currently broken because we have to modify this query to
+        # work woth the data model that has data elements as a MAP indexed by station name
         """Using a geosearh return all the stations within the defined region
         Args:
             region_name (string): the name of the region.
@@ -572,17 +572,17 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
             list: the list of stations within this region
         """
         try:
-            stmnt = """SELECT
+            stmnt = f"""SELECT
                     geo.bottom_right.lat as br_lat,
                     geo.bottom_right.lon as br_lon,
                     geo.top_left.lat as tl_lat,
                     geo.top_left.lon as tl_lon
-                    FROM mdata
+                    FROM `{self.bucket}`.{self.scope}.{self.collection}
                     WHERE type='MD'
                     and docType='region'
                     and subset='COMMON'
                     and version='V01'
-                    and name='{region}'""".format(region=region_name)
+                    and name='{region_name}'"""
             result = self.load_spec["cluster"].query(stmnt,read_only=True)
             _boundingbox = list(result)[0]
             _domain_stations = []
@@ -638,28 +638,27 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
         """
         # get the bounding box for this region
         try:
-            stmnt = """SELECT  geo.bottom_right.lat as br_lat,
+            stmnt = f"""SELECT  geo.bottom_right.lat as br_lat,
                     geo.bottom_right.lon as br_lon,
                     geo.top_left.lat as tl_lat,
                     geo.top_left.lon as tl_lon
-                    FROM mdata
+                    FROM `{self.bucket}`.{self.scope}.{self.collection}
                     WHERE type='MD'
                     and docType='region'
                     and subset='COMMON'
                     and version='V01'
-                    and name='{region}'""".format(region=region_name)
+                    and name='{region_name}'"""
             result = self.load_spec["cluster"].query(stmnt,read_only=True)
             _boundingbox = list(result)[0]
             _domain_stations = []
-            # get the stations that are within this boundingbox - this metadata is always subset METAR
-            stmnt="""SELECT
-                    mdata.geo,
-                    name
-                    from mdata
+            # get the stations that are within this boundingbox
+            stmnt=f"""SELECT
+                    geo, name
+                    from `{self.bucket}`.{self.scope}.{self.collection}
                     where type='MD'
                     and docType='station'
-                    and subset='{subset}'
-                    and version='V01'""".format(subset=self.subset)
+                    and subset='{self.subset}'
+                    and version='V01'"""
             result = self.load_spec["cluster"].query(stmnt,read_only=True)
             for row in result:
                 geo_index = get_geo_index(valid_epoch, row["geo"])
@@ -770,9 +769,9 @@ class CTCModelObsBuilderV01(CTCBuilder):
             # get the thresholds
             if self.thresholds is None:
                 result = self.load_spec["cluster"].query(
-                    """
-                    SELECT RAW mdata.thresholdDescriptions
-                    FROM mdata
+                    f"""
+                    SELECT RAW METAR.thresholdDescriptions
+                    FROM `{self.bucket}`.{self.scope}.{self.collection}
                     WHERE type="MD"
                         AND docType="matsAux"
                 """,read_only=True)
@@ -783,55 +782,57 @@ class CTCModelObsBuilderV01(CTCBuilder):
                 false_alarms = 0
                 correct_negatives = 0
                 none_count = 0
-                for model_station in self.model_data["data"]:
+                for key in self.model_data["data"].keys():
                     try:
+                        model_station_name = key
+                        model_station = self.model_data["data"][key]
                         # only count the ones that are in our region
-                        if model_station["name"] not in self.domain_stations:
+                        if model_station_name not in self.domain_stations:
                             continue
-                        if model_station["name"] not in self.obs_station_names:
+                        if model_station_name not in self.obs_station_names:
                             self.not_found_station_count = (
                                 self.not_found_station_count + 1
                             )
-                            if model_station["name"] not in self.not_found_stations:
+                            if model_station_name not in self.not_found_stations:
                                 logging.debug(
                                     "%s handle_data: model station %s was not found in the available observations.",
                                     self.__class__.__name__,
-                                    model_station["name"],
+                                    model_station_name,
                                 )
-                                self.not_found_stations.add(model_station["name"])
+                                self.not_found_stations.add(model_station_name)
                             continue
                         if (
                             model_station[self.variable.capitalize()] is None
-                            or self.obs_data[model_station["name"]][self.variable.capitalize()] is None
+                            or self.obs_data[model_station_name][self.variable.capitalize()] is None
                         ):
                             none_count = none_count + 1
                             continue
                         if (
                             model_station[self.variable.capitalize()] < threshold
-                            and self.obs_data[model_station["name"]][self.variable.capitalize()]
+                            and self.obs_data[model_station_name][self.variable.capitalize()]
                             < threshold
                         ):
                             hits = hits + 1
                         if (
                             model_station[self.variable.capitalize()] < threshold
-                            and not self.obs_data[model_station["name"]][self.variable.capitalize()]
+                            and not self.obs_data[model_station_name][self.variable.capitalize()]
                             < threshold
                         ):
                             false_alarms = false_alarms + 1
                         if (
                             not model_station[self.variable.capitalize()] < threshold
-                            and self.obs_data[model_station["name"]][self.variable.capitalize()]
+                            and self.obs_data[model_station_name][self.variable.capitalize()]
                             < threshold
                         ):
                             misses = misses + 1
                         if (
                             not model_station[self.variable.capitalize()] < threshold
-                            and not self.obs_data[model_station["name"]][self.variable.capitalize()]
+                            and not self.obs_data[model_station_name][self.variable.capitalize()]
                             < threshold
                         ):
                             correct_negatives = correct_negatives + 1
                     except Exception as _e:  # pylint: disable=broad-except
-                        logging.info("unexpected exception:%s", str(_e))
+                        logging.exception("unexpected exception:%s", str(_e))
                 data_elem[threshold] = (
                     data_elem[threshold] if threshold in data_elem.keys() else {}
                 )

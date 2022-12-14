@@ -1,0 +1,11 @@
+-- should execute less than 1 second
+SELECT fve.fcstValidEpoch, fve.fcstLen, meta().id
+FROM `vxdata`._default.METAR fve
+WHERE fve.type='DD'
+    AND fve.docType='model'
+    AND fve.model='HRRR_OPS'
+    AND fve.version='V01'
+    AND fve.subset='METAR'
+    AND fve.fcstValidEpoch >= 1656637200
+    AND fve.fcstValidEpoch <= 1656637200 + 3600 * 24 * 14
+ORDER BY fve.fcstValidEpoch, fve.fcstLen

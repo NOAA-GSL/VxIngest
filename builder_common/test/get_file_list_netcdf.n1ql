@@ -1,0 +1,7 @@
+SELECT url, mtime
+FROM `vxdata`._default.METAR
+WHERE
+subset='METAR'
+AND type='DF'
+AND fileType='netcdf'
+AND originType='madis' order by url;

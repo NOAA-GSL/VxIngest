@@ -72,10 +72,18 @@ fi
 host=$(grep cb_host ${credentials_file} | awk '{print $2}')
 user=$(grep cb_user ${credentials_file} | awk '{print $2}')
 pwd=$(grep cb_password ${credentials_file} | awk '{print $2}')
+bucket=$(grep cb_bucket ${credentials_file} | awk '{print $2}')
+collection=$(grep cb_collection ${credentials_file} | awk '{print $2}')
+scope=$(grep cb_scope ${credentials_file} | awk '{print $2}')
 if [ -z "${host}" ]; then
   echo "credentials do not specify cb_host"
   usage
 fi
+# if it is a multinode host split on ',' and take the first one
+IFS=','
+read -ra hostarr <<< "$host"
+host=${hostarr[0]}
+
 if [ -z "${user}" ]; then
   echo "credentials do not specify cb_user"
   usage
@@ -89,8 +97,8 @@ do_import() {
   file_list=$1
   sleep 10
   cat ${file_list} | while read f; do
-    echo 'cbimport json --cluster couchbase://${host} --bucket vxdata._default.METAR  --username ${user} --password ${pwd} --format list --generate-key %id% --dataset file:///${f}'
-    /opt/couchbase/bin/cbimport json --cluster couchbase://${host} --bucket vxdata  --scope-collection-exp _default.METAR --username ${user} --password ${pwd} --format list --generate-key %id% --dataset file:///${f}
+    echo "cbimport json --cluster couchbase://${host} --bucket ${bucket}  --scope-collection-exp ${scope}.${collection} --username ${user} --password ${pwd} --format list --generate-key %id% --dataset file:///${f}"
+    /opt/couchbase/bin/cbimport json --cluster couchbase://${host} --bucket ${bucket}  --scope-collection-exp ${scope}.${collection} --username ${user} --password ${pwd} --format list --generate-key %id% --dataset file:///${f}
   done
 }
 

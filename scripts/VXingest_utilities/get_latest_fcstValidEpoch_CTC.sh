@@ -37,10 +37,18 @@ fi
 host=$(grep cb_host ${credentials_file} | awk '{print $2}')
 user=$(grep cb_user ${credentials_file} | awk '{print $2}')
 pwd=$(grep cb_password ${credentials_file} | awk '{print $2}')
+bucket=$(grep cb_bucket ${credentials_file} | awk '{print $2}')
+collection=$(grep cb_collection ${credentials_file} | awk '{print $2}')
+scope=$(grep cb_scope ${credentials_file} | awk '{print $2}')
 if [ -z "${host}" ]; then
   echo "credentials do not specify cb_host"
   usage
 fi
+# if it is a multinode host split on ',' and take the first one
+IFS=','
+read -ra hostarr <<< "$host"
+host=${hostarr[0]}
+
 if [ -z "${user}" ]; then
   echo "credentials do not specify cb_user"
   usage
@@ -50,5 +58,5 @@ if [ -z "${pwd}" ]; then
   usage
 fi
 
-curl -s -u "${user}:${pwd}" http://${host}:8093/query/service  -d "statement=SELECT fcstValidISO, fcstValidEpoch, model FROM vxdata._default.METAR  WHERE type='DD' AND version='V01' AND subset='${subset}' AND model='${model}' AND docType='CTC' AND subDocType='CEILING' order by id desc Limit 1;" | jq -r '.results | .[] | .fcstValidEpoch'
+curl -s -u "${user}:${pwd}" http://${host}:8093/query/service  -d "statement=SELECT fcstValidISO, fcstValidEpoch, model FROM ${bucket}.${scope}.${collection}  WHERE type='DD' AND version='V01' AND subset='${subset}' AND model='${model}' AND docType='CTC' AND subDocType='CEILING' order by id desc Limit 1" | jq -r '.results | .[] | .fcstValidEpoch'
 

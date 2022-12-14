@@ -40,10 +40,17 @@ fi
 host=$(grep cb_host ${credentials_file} | awk '{print $2}')
 user=$(grep cb_user ${credentials_file} | awk '{print $2}')
 pwd=$(grep cb_password ${credentials_file} | awk '{print $2}')
+bucket=$(grep cb_bucket ${credentials_file} | awk '{print $2}')
+collection=$(grep cb_collection ${credentials_file} | awk '{print $2}')
+scope=$(grep cb_scope ${credentials_file} | awk '{print $2}')
 if [ -z "${host}" ]; then
   echo "credentials do not specify cb_host"
   usage
 fi
+# if it is a multinode host split on ',' and take the first one
+IFS=','
+read -ra hostarr <<< "$host"
+host=${hostarr[0]}
 if [ -z "${user}" ]; then
   echo "credentials do not specify cb_user"
   usage
@@ -52,8 +59,20 @@ if [ -z "${pwd}" ]; then
   echo "credentials do not specify cb_password"
   usage
 fi
+if [ -z "${bucket}" ]; then
+  echo "credentials do not specify cb_bucket"
+  usage
+fi
+if [ -z "${scope}" ]; then
+  echo "credentials do not specify cb_scope"
+  usage
+fi
+if [ -z "${collection}" ]; then
+  echo "credentials do not specify cb_collection"
+  usage
+fi
 
-recently_added=$(curl -s -u "${user}:${pwd}" http://${host}:8093/query/service  -d "statement=SELECT COUNT(fcstValidEpoch) as recently_added FROM vxdata._default.METAR WHERE type='DD' AND version='V01' AND subset='${subset}' AND model='${model}' AND docType='CTC' AND subDocType='CEILING' AND fcstValidEpoch > (CLOCK_MILLIS() / 1000) - 3600 * ${hours};" | jq -r '.results | .[] | .recently_added')
+recently_added=$(curl -s -u "${user}:${pwd}" http://${host}:8093/query/service  -d "statement=SELECT COUNT(fcstValidEpoch) as recently_added FROM ${bucket}.${scope}.${collection} WHERE type='DD' AND version='V01' AND subset='${subset}' AND model='${model}' AND docType='CTC' AND subDocType='CEILING' AND fcstValidEpoch > (CLOCK_MILLIS() / 1000) - 3600 * ${hours}" | jq -r '.results | .[] | .recently_added')
 if [[ -z $recently_added ]]; then
   echo "No recent CEILING CTC documents found for subset ${subset} and model ${model} within the last ${hours} hours."
   exit 1

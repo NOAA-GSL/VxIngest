@@ -72,8 +72,15 @@ while getopts 'c:l:d:' param; do
       usage
     fi
     cb_host=$(grep cb_host ${credentials_file} | awk '{print $2}')
+    # if it is a multinode host split on ',' and take the first one
+    IFS=','
+    read -ra hostarr <<< "$cb_host"
+    cb_host=${hostarr[0]}
     cb_user=$(grep cb_user ${credentials_file} | awk '{print $2}')
     cb_pwd=$(grep cb_password ${credentials_file} | awk '{print $2}')
+    bucket=$(grep cb_bucket ${credentials_file} | awk '{print $2}')
+    collection=$(grep cb_collection ${credentials_file} | awk '{print $2}')
+    scope=$(grep cb_scope ${credentials_file} | awk '{print $2}')
     cred="${cb_user}:${cb_pwd}"
     ;;
   l)
@@ -141,7 +148,7 @@ if [[ -z $start_import_epoch ]] || [[ -z $finish_import_epoch ]]; then
 	# there wasn't any start or finish time in the import - no records to import
 	recorded_record_count=0
 else
-	recorded_record_count=$(curl -s http://adb-cb1.gsd.esrl.noaa.gov:8093/query/service -u"${cred}" -d "statement=select raw count(meta().id) from vxdata._default.METAR  where CEIL(meta().cas / 1000000000) BETWEEN ${start_import_epoch} AND ${finish_import_epoch} AND meta().id like \"${document_id_pattern}\"" | jq -r '.results | .[]')
+	recorded_record_count=$(curl -s http://${cb_host}:8093/query/service -u"${cred}" -d "statement=select raw count(meta().id) from ${bucket}.${scope}.${collection}  where CEIL(meta().cas / 1000000000) BETWEEN ${start_import_epoch} AND ${finish_import_epoch} AND meta().id like \"${document_id_pattern}\"" | jq -r '.results | .[]')
 fi
 tmp_metric_file=/tmp/${metric_name}_$$
 record_count_difference=$((recorded_record_count - intended_record_count))
@@ -152,20 +159,20 @@ metric_name=$(echo "${metric_name}" | tr '[:upper:]' '[:lower:]')
 
 # for getting historical data from promql...
 # we have to default these to 0 if they do not exist in the promql database - otherwise the scrape will fail next time
-min_recorded_record_count_average=$(/home/amb-verif/vx-prometheus/promql --no-headers --host "http://adb-cb1.gsd.esrl.noaa.gov:9090"  "floor(min(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_recorded_record_count'}[6h:1h])))" | awk '{print $1}')
+min_recorded_record_count_average=$(/home/amb-verif/vx-prometheus/promql --no-headers --host "http://${cb_host}:9090"  "floor(min(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_recorded_record_count'}[6h:1h])))" | awk '{print $1}')
 if [[ "x" == "x${min_recorded_record_count_average}" ]] ; then
       min_recorded_record_count_average=0
 fi
-max_recorded_record_count_average=$(/home/amb-verif/vx-prometheus/promql --no-headers --host "http://adb-cb1.gsd.esrl.noaa.gov:9090"  "ceil(max(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_recorded_record_count'}[6h:1h])))" | awk '{print $1}')
+max_recorded_record_count_average=$(/home/amb-verif/vx-prometheus/promql --no-headers --host "http://${cb_host}:9090"  "ceil(max(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_recorded_record_count'}[6h:1h])))" | awk '{print $1}')
 if [[ "x" == "x${max_recorded_record_count_average}" ]] ; then
       max_recorded_record_count_average=0
 fi
 
-min_actual_duration_seconds_average=$(/home/amb-verif/vx-prometheus/promql --no-headers --host "http://adb-cb1.gsd.esrl.noaa.gov:9090"  "floor(min(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_actual_duration_seconds'}[6h:1h])))" | awk '{print $1}')
+min_actual_duration_seconds_average=$(/home/amb-verif/vx-prometheus/promql --no-headers --host "http://${cb_host}:9090"  "floor(min(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_actual_duration_seconds'}[6h:1h])))" | awk '{print $1}')
 if [[ "x" == "x${min_actual_duration_seconds_average}" ]] ; then
       min_actual_duration_seconds_average=0
 fi
-max_actual_duration_seconds_average=$(/home/amb-verif/vx-prometheus/promql --no-headers --host "http://adb-cb1.gsd.esrl.noaa.gov:9090"  "ceil(max(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_actual_duration_seconds'}[6h:1h])))" | awk '{print $1}')
+max_actual_duration_seconds_average=$(/home/amb-verif/vx-prometheus/promql --no-headers --host "http://${cb_host}:9090"  "ceil(max(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_actual_duration_seconds'}[6h:1h])))" | awk '{print $1}')
 if [[ "x" == "x${max_actual_duration_seconds_average}" ]] ; then
       max_actual_duration_seconds_average=0
 fi

@@ -145,7 +145,7 @@ SELECT meta().id AS id,
        offset_minutes,
        LOWER(subType) as sub_type,
        input_data_path as input_data_path
-FROM ${bucket}.${scope}.${collection}
+FROM vxdata._default.METAR
 LET millis = ROUND(CLOCK_MILLIS()),
     sched = SPLIT(schedule,' '),
     minute = CASE WHEN sched[0] = '*' THEN DATE_PART_MILLIS(millis, 'minute', 'UTC') ELSE TO_NUMBER(sched[0]) END,

@@ -42,15 +42,8 @@ while getopts 'c:d:l:m:o:x:' param; do
       usage
     fi
     cb_host=$(grep cb_host ${credentials_file} | awk '{print $2}')
-    # if it is a multinode host split on ',' and take the first one
-    IFS=','
-    read -ra hostarr <<< "$cb_host"
-    cb_host=${hostarr[0]}
     cb_user=$(grep cb_user ${credentials_file} | awk '{print $2}')
     cb_pwd=$(grep cb_password ${credentials_file} | awk '{print $2}')
-    bucket=$(grep cb_bucket ${credentials_file} | awk '{print $2}')
-    collection=$(grep cb_collection ${credentials_file} | awk '{print $2}')
-    scope=$(grep cb_scope ${credentials_file} | awk '{print $2}')
     cred="${cb_user}:${cb_pwd}"
     ;;
   d)

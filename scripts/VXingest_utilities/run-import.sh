@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 # Check the import directory to see if any new tarballs are there.
 # If there are any, one by one untar them into their own temp directory
 # and import the data documents, there should be data files and one log file in each,
@@ -53,7 +53,7 @@ while getopts 'c:d:l:t:m:' param; do
     ;;
   d)
     # remove the last '/' if it is there
-    clonedir=$(echo "${OPTARG}" | sed 's|/$||')
+    export clonedir=$(echo "${OPTARG}" | sed 's|/$||')
     if [[ ! -d "${clonedir}" ]]; then
       echo "ERROR: VxIngest clone directory ${clonedir} does not exist"
       usage
@@ -61,7 +61,7 @@ while getopts 'c:d:l:t:m:' param; do
     ;;
   l)
     # remove the last '/' if it is there
-    load_dir=$(echo "${OPTARG}" | sed 's|/$||')
+    export load_dir=$(echo "${OPTARG}" | sed 's|/$||')
     if [[ ! -d "${load_dir}" ]]; then
       echo "ERROR: Work load directory ${load_dir} does not exist"
       usage
@@ -69,7 +69,7 @@ while getopts 'c:d:l:t:m:' param; do
     ;;
   t)
     # remove the last '/' if it is there
-    tar_dir=$(echo "${OPTARG}" | sed 's|/$||')
+    export tar_dir=$(echo "${OPTARG}" | sed 's|/$||')
     if [[ ! -d "${tar_dir}" ]]; then
       echo "ERROR: tar file directory ${tar_dir} does not exist"
       usage
@@ -77,7 +77,7 @@ while getopts 'c:d:l:t:m:' param; do
     ;;
   m)
     # remove the last '/' if it is there
-    metrics_dir=$(echo "${OPTARG}" | sed 's|/$||')
+    export metrics_dir=$(echo "${OPTARG}" | sed 's|/$||')
     if [[ ! -d "${metrics_dir}" ]]; then
       echo "ERROR: VxIngest metrics directory ${metrics_dir} does not exist"
       usage
@@ -123,33 +123,36 @@ fi
 archive_dir="${tar_dir}/archive"
 mkdir -p "${archive_dir}"
 runtime=`date +\%Y-\%m-\%d:\%H:\%M:\%S`
-shopt -s nullglob  # make sure an empty directory gives an empty array
-tarfile_names=$(find /data/temp -type f -name "*.gz")
-for f in ${tarfile_names}; do
-  # process the file
+ls -1 ${load_dir} | while read f; do
+  echo "processing the tar file ${f}"
   t_dir=$(mktemp -d -p ${tar_dir})
-  tar -xzf $f -C ${t_dir}
-  cdir=$(pwd)
-  cd ${t_dir}
-  log_files=(*.log)
-  cd ${cdir}
-  if [[ ${#log_files[@]} -ne 1 ]]; then
-    echo "There is not just one log_file in this tarbal"
-    echo "moved tar file ${f} to ${archive_dir}"
+  echo "extracting tarball ${f} to temp_dir ${t_dir}"
+  echo "tar -xzf ${f} -C ${t_dir}"
+  tar -xzf "${load_dir}/${f}" -C ${t_dir}
+  echo "finished extracting tarball ${f}"
+  log_file_count=`ls -1 ${t_dir}/*.log | wc -l`
+  if [[ ${log_file_count} -ne 1 ]]; then
+    echo "There is not just one log_file in ${t_dir} - extracted from ${f} - there are ${log_file_count}"
+    echo "moving tar file ${f} to ${archive_dir}"
     echo " - exiting"
     failed_import_count=$((failed_import_count+1))
     mv $f $archive_dir
+    echo "removing temp_dir ${t_dir}"
     rm -rf ${t_dir}
     usage
   fi
   # ok - have one log file
-  log_file=${t_dir}/${log_files[0]}
+  log_file=`ls -1 ${t_dir}/*.log`
+  echo "processing log_file ${log_file}"
   log_dir=$(dirname ${log_file})
   log_file_name=$(basename $log_file)
   import_log_file="${log_dir}/import-${log_file_name}"
+  echo "import log file will be: ${import_log_file}"
   # run the import job
-  metric_name="$(grep metric_name ${log_file})"
+  metric_name=$(grep metric_name ${log_file} | awk '{print $2}')
+  echo "metric name will be ${metric_name}"
   import_metric_name="import_${metric_name}"
+  echo "import metric name will be ${import_metric_name}"
   echo "metric_name ${import_metric_name}" > ${import_log_file}
   echo "RUNNING - ${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ${credentials_file} -p ${t_dir} -n 8 -l ${clonedir}/logs >> ${import_log_file}"
   ${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ${credentials_file} -p ${t_dir} -n 8 -l ${clonedir}/logs >> ${import_log_file} 2>&1
@@ -182,7 +185,7 @@ for f in ${tarfile_names}; do
   # now clean up the files
   # remove the tar file (if it failed it should have been archived)
   echo "removing tar file - $f"
-  rm $f
+  rm ${load_dir}/${f}
   # remove the data files ($t_dir)
   echo "removing data directory - ${t_dir}"
   rm -rf ${t_dir}
@@ -199,7 +202,7 @@ if [[ "${success_import_count}" -ne "0" ]]; then
             if [[ "${ret}" -ne "0" ]]; then
                echo "ceiling metadata update failed with exit code ${ret}"
             fi
-      echo "update visibility metadata"
+            echo "update visibility metadata"
 	    ${clonedir}/mats_metadata_and_indexes/metadata_files/update_visibility_mats_metadata.sh ${credentials_file}
             ret=$?
             if [[ "${ret}" -ne "0" ]]; then

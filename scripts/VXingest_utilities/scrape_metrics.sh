@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+
 function is_epoch_rational {
     if [ -z "$1" ]; then
         echo "is_epoch_rational: ERROR: no epoch specified"

@@ -1,0 +1,53 @@
+@startuml CTCModelObsBuilderV01
+title CTCModelObsBuilderV01
+hide footbox
+actor       cron       as cron
+participant VXIngest as runner
+
+
+cron->runner++#lightblue: Start processing
+note right of cron: passes command line params
+runner->runner: VXIngest.parse() parse arguments
+runner->runner++#gold: VXIngest.runit()
+runner->runner: VXIngest.connect_cb()
+runner->runner: load the ingest document ids
+create queue Queue
+runner->Queue: loads queue
+loop #lightcyan threadcount times
+    create participant VxIngestManager as manager
+    runner->manager:VxIngestManager.start() start up manager threads and wait for completion
+    manager->manager++#cyan: run()
+    manager->manager:connect_cb()
+    loop #seashell until queue is empty
+       manager<-Queue:queue_element=get_nowait()
+       manager->manager++:process_queue_element(queue_element) queue_element is an ingest id
+         manager->manager:initialize document map
+         manager->manager:set_builder_name(queue_element)
+         create participant CTCModelObsBuilderV01 as builder
+         manager->builder++:build_document(queue_element)
+           builder->builder:initialize_document_map()
+           builder->builder:determine fcst_valid_epochs to process
+           builder->builder++:handle_fcstValidEpochs()
+             builder->builder:get_stations_for_region
+             builder->builder++: handle_document()
+               loop #lightyellow key through template keys
+                  alt #PaleTurquoise is data
+                     builder->builder:new_document = handle_data (process template data with handler methods)
+                  else
+                    builder->builder:new_document = handle_key (process template key with handler methods)
+               end
+               builder->builder:document_map[new_document["id"]] = new_document
+             return
+           return
+         return document
+         manager->manager:write_document_to_files(queue_element, document_map)
+         manager->builder!!
+       return
+    end
+    manager->manager!!
+    return
+end
+runner->runner:write_load_job_to_files()
+
+return
+return@enduml

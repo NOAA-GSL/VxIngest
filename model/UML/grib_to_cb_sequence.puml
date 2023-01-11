@@ -1,0 +1,59 @@
+@startuml GribModelBuilderV01
+title GribModelBuilderV01
+hide footboxactor       cron       as cron
+participant VXIngest as runner
+
+
+cron->runner++#lightblue: Start processing
+note right of cron: passes command line params
+runner->runner: VXIngest.parse() parse arguments
+runner->runner++#gold: VXIngest.runit()
+runner->runner: VXIngest.connect_cb()
+runner->runner: load the ingest document ids
+runner->runner: build_load_job_doc('madis')
+runner->runner: get_file_list()
+create queue Queue
+runner->Queue: loads queue
+loop #lightcyan threadcount times
+    create participant VxIngestManager as manager
+    runner->manager:VxIngestManager.start() start up manager threads and wait for completion
+    manager->manager++#cyan: run()
+    manager->manager:connect_cb()
+    loop #seashell until queue is empty
+       manager<-Queue:queue_element=get_nowait()
+       manager->manager++:process_queue_element(queue_element)
+         manager->manager:initialize document map
+         manager->manager:set_builder_name(queue_element)
+         create participant GribModelBuilderV01 as builder
+
+         manager->builder++:build_document(queue_element) queue_element is a grib file
+           builder->builder: getGrid(element) get the projection
+           builder->builder:pygrib.open(queue_element) get projection and transform
+           builder->builder:get message
+           builder->builder:get stations for this domain
+           builder->builder: transform lat lon for each station
+           builder->builder:initialize_document_map()
+           builder->builder: get all the appropriate stations for the domain and transform grid points
+           builder->builder++: handle_document()
+             loop #lightyellow key through template keys
+                alt #PaleTurquoise is data
+                   builder->builder:new_document = handle_data (process template data with handler methods for each station)
+                else
+                  builder->builder:new_document = handle_key (process template key with handler methods)
+             end
+             builder->builder:document_map[new_document["id"]] = new_document
+           return
+         return document
+         builder->builder:create_data_file_id()
+         manager->manager:write_document_to_files(queue_element, document_map)
+         manager->builder!!
+
+       return
+    end
+    manager->manager!!
+    return
+end
+runner->runner:write_load_job_to_files()
+
+return
+return@enduml

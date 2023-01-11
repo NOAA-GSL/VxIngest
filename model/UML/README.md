@@ -1,12 +1,14 @@
 # UML class diagrams of VXIngest, VxIngestManager, and builder classes
 
-## This folder contains pdf drawings of the primary classes involved in the VXingest processing
+## This folder contains pdf drawings (UML class diagrams)of the primary classes involved in the VXingest processing, and sequence diagrams of the primary calling sequence from the command line invocation through to the writing of documents.
 
-These were generated from the code using pyreverse and graphviz (dot). Code changes so
+## Class Diagrams
+
+These class diagrams were generated from the code using pyreverse and graphviz (dot). Code changes so
 it may become necessary to recreate these class diagrams in the future. The instructions
 below list the necessary steps to install the required components and to recreate the drawings.
 
-## Install necessary components
+### Install necessary components
 
 ### PIP
 
@@ -88,3 +90,17 @@ These are the commands that were used to create the drawings in this dirwectory.
 > pyreverse -ASmy -c GribModelBuilderV01 grib2_to_cb/grib_builder
 > dot -Tpdf GribModelBuilderV01.dot -o model/UML/grib_to_cb.GribModelBuilderV01.pdf
 ```
+
+## Sequence Diagrams
+
+### Plantuml EXTENSION
+
+These sequence diagrams were created with plantuml, To work on sequence diagrams or view the png files install the plantuml extension
+https://marketplace.visualstudio.com/items?itemName=jebbs.plantuml. It pretty much works out of the box.
+
+The syntax for creating plantuml sequence diagrams is here https://plantuml.com/sequence-diagram . It is really straightforward and quite a useful tool.
+The best way to use it is to place your diagram text (.puml file) in the onine editor
+https://www.plantuml.com/plantuml/uml/SyfFKj2rKt3CoKnELR1Io4ZDoSa70000 and work interactively until you have it the way you want it.
+
+You can then export the png from the right button context in the puml fille. View the report to find out where the png file is and copy it to the desired place.
+

@@ -1,5 +1,5 @@
 """
-Program Name: Class ctc_builder.py
+Program Name: ctc_builder.py
 Contact(s): Randy Pierce
 History Log:  Initial version
 Copyright 2019 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of

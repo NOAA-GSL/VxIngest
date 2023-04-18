@@ -11,24 +11,19 @@ describe("MATS Queries - query performance for the new Data Model (a.k.a late 20
     let host = null;
     let bucketName = null;
 
-    let config = null;
-    let settings = null;
+    let config = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
+    // settings = JSON.parse(fs.readFileSync(settingsFile, 'utf-8'));
+    // TODO - until we figure out settings file location
+    let settings = config;
+    let query_path = config.queries.MATS_queries.new_data_model_late_2022;
+
     let cluster = null;
     let bucket = null;
     let collection_METAR = null;
-    let query_path = null;
 
     beforeAll(async () =>
-    { 
-        config = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
-        console.log(config.queries.length + " queries loaded from config.");
-        // settings = JSON.parse(fs.readFileSync(settingsFile, 'utf-8'));
-        // TODO - until we figure out settings file location
-        settings = config;
-
-        query_path = config.queries.MATS_queries.new_data_model_late_2022;
-
-        if(config.host)
+    {
+        if (config.host)
         {
             host = config.host;
         }
@@ -36,7 +31,7 @@ describe("MATS Queries - query performance for the new Data Model (a.k.a late 20
         {
             host = settings.private.databases[0].host;
         }
-        if(config.bucket)
+        if (config.bucket)
         {
             bucketName = config.bucket;
         }
@@ -65,33 +60,29 @@ describe("MATS Queries - query performance for the new Data Model (a.k.a late 20
     });
 
 
-    test("Get METAR count", async () =>
+    query_path.queries.forEach((el, i) =>
     {
-        let res = await run_METAR_count(bucket);
-        expect(res != undefined);
-    });
+        let name = el.name;
+        let queryFile = el.queryFile;
+        let maxExecutionTime_ms = el.maxExecutionTime_ms;
 
-
-    test("Run all queries", async () =>
-    {
-        if (!cluster)
+        test(`Test: ${name}`, async () =>
         {
-            cluster = await init();
-            expect(cluster != undefined);
+            if (!cluster)
+            {
+                cluster = await init();
+                expect(cluster != undefined);
 
-            bucket = cluster.bucket(bucketName);
-            expect(bucket != undefined);
+                bucket = cluster.bucket(bucketName);
+                expect(bucket != undefined);
 
-            collection_METAR = bucket.scope('_default').collection('METAR');
-            expect(collection_METAR != undefined);
-        }
+                collection_METAR = bucket.scope('_default').collection('METAR');
+                expect(collection_METAR != undefined);
+            }
 
-        for (let i = 0; i < query_path.queries.length; i++)
-        {
-            let elapsed = await run_query_file(bucket, query_path.queryFilesFolder + query_path.queries[i].queryFile, query_path.queries[i].maxExecutionTime_ms);
-            // console.log("elapsed:" + elapsed + ",maxExecutionTime_ms:" + query_path.queries[i].maxExecutionTime_ms);
-            expect(elapsed).toBeLessThan(query_path.queries[i].maxExecutionTime_ms);
-        }
+            let elapsed = await run_query_file(bucket, query_path.queryFilesFolder + queryFile, maxExecutionTime_ms);
+            expect(elapsed).toBeLessThan(maxExecutionTime_ms);
+        })
     });
 });
 

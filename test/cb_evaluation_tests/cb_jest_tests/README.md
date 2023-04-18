@@ -1,7 +1,9 @@
 Configuration is loaded from ./config/config.json
 see config.json on how to override the setings.json bucket setting
 
-Male sure there is a linked settings file: <app>/settings/settings.json
+TODO : need to figure out a private settings file location ...
+Make sure there is a linked settings file: ./settings/settings.json
+
 To run all tests, do (at cb_jest_tests folder):
     npm install
     npm test

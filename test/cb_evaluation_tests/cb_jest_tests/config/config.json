@@ -21,6 +21,26 @@
         ]
     },
     "queries": {
+        "experimental": {
+            "queryFilesFolder": "./SQLs/experimental/",
+            "queries": [
+                {
+                    "name": "Get data for 3 named stations",
+                    "queryFile": "get_3_stations_obs.sql",
+                    "maxExecutionTime_ms": 14000
+                },
+                {
+                    "name": "Get data for N named stations",
+                    "queryFile": "get_N_stations_obs.sql",
+                    "maxExecutionTime_ms": 14000
+                },
+                {
+                    "name": "Get data for all named stations",
+                    "queryFile": "get_all_stations_obs.sql",
+                    "maxExecutionTime_ms": 180000
+                }
+            ]
+        },
         "basic": {
             "queryFilesFolder": "./SQLs/basic/",
             "queries": [

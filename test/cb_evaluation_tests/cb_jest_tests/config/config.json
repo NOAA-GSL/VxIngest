@@ -1,0 +1,67 @@
+{
+    "notes": "attributes starting with doc_[attribute] are documentation for that particulat atribute",
+    "doc_bucket": "rename bucket attribute to bucket0 to pick bucket from settings.json",
+    "bucket": "vxdata",
+    "doc_host": "rename host attribute to host0 to pick host from settings.json",
+    "host": "adb-cb1.gsd.esrl.noaa.gov",
+    "private": {
+        "databases": [
+            {
+                "role": "couchbase",
+                "status": "active",
+                "host": "adb-cb1.gsd.esrl.noaa.gov",
+                "host0": "adb-cb2.gsd.esrl.noaa.gov,adb-cb3.gsd.esrl.noaa.gov,adb-cb4.gsd.esrl.noaa.gov",
+                "bucket": "vxdata",
+                "scope": "_default",
+                "collection": "METAR",
+                "port": "8091",
+                "user": "avid",
+                "password": "pwd_av!d"
+            }
+        ]
+    },
+    "queries": {
+        "basic": {
+            "queryFilesFolder": "./SQLs/basic/",
+            "queries": [
+                {
+                    "name": "METAR count",
+                    "queryFile": "METAR_count.sql",
+                    "maxExecutionTime_ms": 14000
+                }
+            ]
+        },
+        "MATS_queries": {
+            "new_data_model_late_2022": {
+                "queryFilesFolder": "./SQLs/MATS_queries/new_data_model_late_2022/",
+                "queries": [
+                    {
+                        "name": "TimeSeries query",
+                        "queryFile": "final_TimeSeries.sql",
+                        "maxExecutionTime_ms": 14000
+                    },
+                    {
+                        "name": "Map query",
+                        "queryFile": "final_Map.sql",
+                        "maxExecutionTime_ms": 11000
+                    },
+                    {
+                        "name": "DieOff query",
+                        "queryFile": "final_DieOff.sql",
+                        "maxExecutionTime_ms": 190000
+                    },
+                    {
+                        "name": "ValidTime query",
+                        "queryFile": "final_ValidTime.sql",
+                        "maxExecutionTime_ms": 11000
+                    },
+                    {
+                        "name": "DailyModelCycle query",
+                        "queryFile": "final_DailyModelCycle.sql",
+                        "maxExecutionTime_ms": 11000
+                    }
+                ]
+            }
+        }
+    }
+}

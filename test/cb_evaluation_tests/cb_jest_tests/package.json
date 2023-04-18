@@ -1,0 +1,21 @@
+{
+  "name": "cb_jest_tests",
+  "version": "1.0.0",
+  "description": "Couchbase evaluation jest tests",
+  "main": "index.js",
+  "directories": {
+    "doc": "doc"
+  },
+  "scripts": {
+    "test0": "test",
+    "test": "./node_modules/jest/bin/jest.js"
+  },
+  "author": "Gopakumar Padmanabhan (Gopa)",
+  "license": "ISC",
+  "dependencies": {
+    "couchbase": "^4.1.3"
+  },
+  "devDependencies": {
+    "jest": "^29.5.0"
+  }
+}

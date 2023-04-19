@@ -1,0 +1,4 @@
+npm install
+npm run upload
+
+delete line SHIFT+Win+k

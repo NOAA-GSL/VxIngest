@@ -1,0 +1,17 @@
+{
+    "id": "JOB:V01:METAR:NETCDF:OBS",
+    "status": "active",
+    "type": "JOB",
+    "version": "V01",
+    "subset": "METAR",
+    "subType": "NETCDF",
+    "subDoc": "OBS",
+    "run_priority": 1,
+    "input_data_path": "~/public/data/madis/point/metar/netcdf",
+    "file_mask": "%Y%m%d_%H%M",
+    "schedule": "0 * * * *",
+    "offset_minutes": 0,
+    "ingest_document_ids": [
+        "MD:V01:METAR:obs:ingest:netcdf"
+    ]
+}

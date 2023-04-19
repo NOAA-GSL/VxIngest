@@ -1,14 +1,10 @@
 {
-  "name": "cb_jest_tests",
+  "name": "matsmiddle",
   "version": "1.0.0",
-  "description": "Couchbase evaluation jest tests",
+  "description": "MATS Couchbase Interface Middleware",
   "main": "index.js",
-  "directories": {
-    "doc": "doc"
-  },
   "scripts": {
-    "test0": "test",
-    "test": "./node_modules/jest/bin/jest.js"
+    "test": "test"
   },
   "license": "ISC",
   "dependencies": {

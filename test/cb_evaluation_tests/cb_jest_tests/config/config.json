@@ -37,7 +37,7 @@
                 {
                     "name": "Get data for all named stations",
                     "queryFile": "get_all_stations_obs.sql",
-                    "maxExecutionTime_ms": 180000
+                    "maxExecutionTime_ms": 600000
                 }
             ]
         },

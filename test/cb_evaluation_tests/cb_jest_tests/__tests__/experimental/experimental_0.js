@@ -97,7 +97,7 @@ async function init(config, settings)
         password: settings.private.databases[0].password,
         timeouts: {
             kvTimeout: 10000,
-            queryTimeout: 300000
+            queryTimeout: 600000
         },
     });
 

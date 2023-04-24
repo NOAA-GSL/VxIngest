@@ -9,13 +9,25 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+const CbRunQueries_1 = require("./CbRunQueries");
 const CbQueriesTimeSeriesStations_1 = require("./CbQueriesTimeSeriesStations");
 function main() {
     return __awaiter(this, void 0, void 0, function* () {
-        let cbq = new CbQueriesTimeSeriesStations_1.CbQueriesTimeSeriesStations();
+        let cbq = new CbRunQueries_1.CbRunQueries();
+        let cbqTimeSeries = new CbQueriesTimeSeriesStations_1.CbQueriesTimeSeriesStations();
         yield cbq.init();
+        yield cbqTimeSeries.init();
+        yield cbqTimeSeries.processStationQuery();
+        //await cbq.runQueryFile("get_N_stations_mfve_obs.sql", true);
         // await cbq.runOrgStationQueryFinalSaveToFile();
-        yield cbq.processStationQuery();
+        // await cbq.runObsModelQueries("get_distinct_fcstValidEpoch_obs.sql", "get_distinct_fcstValidEpoch_model.sql", true);
+        // await cbq.runObsModelQueries("get_N_stations_obs.sql", "get_N_stations_model.sql", true);
+        // await cbq.runObsModelQueries("get_N_stations_obs_group_order.sql", "get_N_stations_model.sql", true);
+        // await cbq.runObsModelQueries("get_all_stations_obs.sql", "get_all_stations_model.sql", true);
+        // await cbq.runQueryFile("get_stations_obs_0.sql", true);
+        // await cbq.runQueryFile("get_all_stations_obs.sql", true);
+        // await cbq.runQueryFile("get_N_stations_obs.sql", true);
+        // await cbq.runQueryFile("get_N_stations_obs_Ceiling.sql", true);
     });
 }
 main()

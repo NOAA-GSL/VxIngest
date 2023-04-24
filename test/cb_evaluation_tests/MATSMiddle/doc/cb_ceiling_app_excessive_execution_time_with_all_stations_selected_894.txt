@@ -1,0 +1,13 @@
+April 19, 2023
+
+    cd git/ascend/VxIngest/test/cb_evaluation_tests/cb_jest_tests
+    npm run MATS_queries
+    output:
+        PASS tests/experimental/experimental_0.js (314.423 s)
+        Experimental Couchbase tests
+        ✓ Establish CouchBase connection (1 ms)
+        ✓ Test: Get data for 3 named stations (5090 ms)
+        ✓ Test: Get data for N named stations (7220 ms)
+        ✓ Test: Get data for all named stations (301375 ms)
+        Non-linear, since N above is about 60, so we go from: 1500 ms for 3 => 120 ms (for 60) => 50 ms (for 6000)
+

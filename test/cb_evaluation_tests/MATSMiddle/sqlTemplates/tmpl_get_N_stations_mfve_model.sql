@@ -1,11 +1,11 @@
 SELECT
-    { { stationNamesList } }
+    {{stationNamesList}}
 FROM
     `vxdata`._default.METAR AS models
 WHERE
     type = "DD"
     AND docType = "model"
     AND model = {{model}}
-    AND fcstLen = 6
+    AND fcstLen = {{fcstLen}}
     AND version = "V01"
-    AND fcstValidEpoch = { { fcstValidEpoch } }
+    AND fcstValidEpoch = {{fcstValidEpoch}}

@@ -17,7 +17,9 @@ function main() {
         let cbqTimeSeries = new CbQueriesTimeSeriesStations_1.CbQueriesTimeSeriesStations();
         yield cbq.init();
         yield cbqTimeSeries.init();
-        yield cbqTimeSeries.processStationQuery();
+        // await cbqTimeSeries.processStationQuery("./dataFiles/station_names_3.json", "HRRR_OPS", 6, 3000);
+        // await cbqTimeSeries.processStationQuery("./dataFiles/station_names_N.json", "HRRR_OPS", 6, 3000);
+        yield cbqTimeSeries.processStationQuery("./dataFiles/station_names_all.json", "HRRR_OPS", 6, 3000);
         //await cbq.runQueryFile("get_N_stations_mfve_obs.sql", true);
         // await cbq.runOrgStationQueryFinalSaveToFile();
         // await cbq.runObsModelQueries("get_distinct_fcstValidEpoch_obs.sql", "get_distinct_fcstValidEpoch_model.sql", true);

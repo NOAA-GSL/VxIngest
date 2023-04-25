@@ -10,7 +10,9 @@ async function main()
     await cbq.init();
     await cbqTimeSeries.init();
     
-    await cbqTimeSeries.processStationQuery();
+    // await cbqTimeSeries.processStationQuery("./dataFiles/station_names_3.json", "HRRR_OPS", 6, 3000);
+    // await cbqTimeSeries.processStationQuery("./dataFiles/station_names_N.json", "HRRR_OPS", 6, 3000);
+    await cbqTimeSeries.processStationQuery("./dataFiles/station_names_all.json", "HRRR_OPS", 6, 3000);
     
     
     //await cbq.runQueryFile("get_N_stations_mfve_obs.sql", true);

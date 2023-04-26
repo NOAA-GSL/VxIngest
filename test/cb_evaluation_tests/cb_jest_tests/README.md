@@ -9,8 +9,9 @@ To run all tests, do (at cb_jest_tests folder):
     npm test
 OR
 To run specific test suites:
-    npm run basic
-    npm run MATS_queries
+    npm test basic
+    npm test MATS_queries
+    npm test experimental
 
 To run a particulat test, do:
     npm test -- -t="Establish CouchBase connection"

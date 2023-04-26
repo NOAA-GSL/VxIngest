@@ -4,6 +4,7 @@
     "bucket": "vxdata",
     "doc_host": "rename host attribute to host0 to pick host from settings.json",
     "host": "adb-cb1.gsd.esrl.noaa.gov",
+    "settingsFile": "/home/gopa/mats-settings/configurations/my_user_config/settings/cb-ceiling/settings.json",
     "private": {
         "databases": [
             {

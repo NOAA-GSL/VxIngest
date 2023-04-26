@@ -2,7 +2,6 @@ const fs = require('fs');
 var couchbase = require('couchbase');
 
 const configFile = "./config/config.json";
-const settingsFile = '../../settings/settings.json';
 
 // jest.setTimeout(20000);
 
@@ -11,10 +10,9 @@ describe("Basic Couchbase tests", () =>
     let host = null;
     let bucketName = null;
 
+    
     let config = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
-    // settings = JSON.parse(fs.readFileSync(settingsFile, 'utf-8'));
-    // TODO - until we figure out settings file location
-    let settings = config;
+    let settings = JSON.parse(fs.readFileSync(config.settingsFile, 'utf-8'));
     let query_path = config.queries.basic;
 
     let cluster = null;

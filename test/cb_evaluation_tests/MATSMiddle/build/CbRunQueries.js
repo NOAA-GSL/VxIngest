@@ -18,7 +18,9 @@ const App_1 = require("./App");
 const couchbase_1 = require("couchbase");
 class CbRunQueries {
     constructor() {
-        this.settingsFile = '/Users/gopa.padmanabhan/mats-settings/configurations/dev/settings/cb-ceiling/settings.json';
+        this.configFile = "./config/config.json";
+        this.config = JSON.parse(fs_1.default.readFileSync(this.configFile, 'utf-8'));
+        this.settings = JSON.parse(fs_1.default.readFileSync(this.config.settingsFile, 'utf-8'));
         // public clusterConnStr: string = 'couchbase://localhost'
         this.clusterConnStr = 'adb-cb1.gsd.esrl.noaa.gov';
         this.bucketName = 'vxdata';
@@ -28,12 +30,11 @@ class CbRunQueries {
     }
     init() {
         return __awaiter(this, void 0, void 0, function* () {
-            var settings = JSON.parse(fs_1.default.readFileSync(this.settingsFile, 'utf-8'));
             // App.log(LogLevel.INFO, "settings:" + JSON.stringify(settings, undefined, 2));
-            App_1.App.log(App_1.LogLevel.INFO, "user:" + settings.private.databases[0].user);
+            App_1.App.log(App_1.LogLevel.INFO, "user:" + this.settings.private.databases[0].user);
             this.cluster = yield (0, couchbase_1.connect)(this.clusterConnStr, {
-                username: settings.private.databases[0].user,
-                password: settings.private.databases[0].password,
+                username: this.settings.private.databases[0].user,
+                password: this.settings.private.databases[0].password,
                 timeouts: {
                     kvTimeout: 3600000,
                     queryTimeout: 3600000

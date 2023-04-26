@@ -20,7 +20,9 @@ import { getEventListeners } from 'stream';
 
 class CbQueriesTimeSeriesStations
 {
-    public settingsFile = '/Users/gopa.padmanabhan/mats-settings/configurations/dev/settings/cb-ceiling/settings.json';
+    public configFile = "./config/config.json";
+    public config = JSON.parse(fs.readFileSync(this.configFile, 'utf-8'));
+    public settings = JSON.parse(fs.readFileSync(this.config.settingsFile, 'utf-8'));
 
     // public clusterConnStr: string = 'couchbase://localhost'
     public clusterConnStr: string = 'adb-cb1.gsd.esrl.noaa.gov';
@@ -29,16 +31,16 @@ class CbQueriesTimeSeriesStations
     public bucket: any = null;
 
     public collection: any = null;
+    
 
     public async init()
     {
-        var settings = JSON.parse(fs.readFileSync(this.settingsFile, 'utf-8'));
         // App.log(LogLevel.INFO, "settings:" + JSON.stringify(settings, undefined, 2));
-        App.log(LogLevel.INFO, "user:" + settings.private.databases[0].user);
+        App.log(LogLevel.INFO, "user:" + this.settings.private.databases[0].user);
 
         this.cluster = await connect(this.clusterConnStr, {
-            username: settings.private.databases[0].user,
-            password: settings.private.databases[0].password,
+            username: this.settings.private.databases[0].user,
+            password: this.settings.private.databases[0].password,
             timeouts: {
                 kvTimeout: 3600000, // this will kill queries after an hour
                 queryTimeout: 3600000

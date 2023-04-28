@@ -1,3 +1,8 @@
+April 27th, 2023
+JSON produced by middle-tier has differences on fa for epoch: 1662508800
+
+
+
 April 19, 2023
 
     cd git/ascend/VxIngest/test/cb_evaluation_tests/cb_jest_tests

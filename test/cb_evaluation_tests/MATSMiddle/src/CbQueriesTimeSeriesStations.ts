@@ -66,7 +66,7 @@ class CbQueriesTimeSeriesStations
 
     public async processStationQuery(stationsFile: string, model: string, fcstLen: any, threshold: number, writeOutput: boolean)
     {
-        App.log(LogLevel.INFO, "processStationQuery1()");
+        App.log(LogLevel.INFO, "processStationQuery()");
 
         let startTime: number = (new Date()).valueOf();
 
@@ -80,14 +80,16 @@ class CbQueriesTimeSeriesStations
             this.fcstValidEpoch_Array.push(qr_fcstValidEpoch.rows[imfve].fcstValidEpoch);
         }
         let endTime = (new Date()).valueOf();
-        App.log(LogLevel.DEBUG, "\tfcstValidEpoch_Array:" + JSON.stringify(this.fcstValidEpoch_Array, null, 2) + " in " + (endTime - startTime) + " ms.");
+        App.log(LogLevel.DEBUG, "\tfcstValidEpoch_Array:" + this.fcstValidEpoch_Array.length + " in " + (endTime - startTime) + " ms.");
+        // App.log(LogLevel.DEBUG, "\tfcstValidEpoch_Array:" + JSON.stringify(this.fcstValidEpoch_Array, null, 2) + " in " + (endTime - startTime) + " ms.");
 
         this.stationNames = JSON.parse(fs.readFileSync(stationsFile, 'utf-8'));
         // App.log(LogLevel.DEBUG, "station_names:\n" + JSON.stringify(this.stationNames, null, 2));
 
-        await this.createObsData();
-        await this.createModelData(model, fcstLen, threshold);
-        await this.generateStats(threshold);
+        let prObs = this.createObsData();
+        let prModel = this.createModelData(model, fcstLen, threshold);
+        await Promise.all([prObs, prModel]);
+        this.generateStats(threshold);
 
         if (true === writeOutput)
         {
@@ -103,6 +105,8 @@ class CbQueriesTimeSeriesStations
 
     public async createObsData()
     {
+        App.log(LogLevel.INFO, "createObsData()");
+
         let startTime: number = (new Date()).valueOf();
 
         // ==============================  OBS =====================================================
@@ -125,54 +129,61 @@ class CbQueriesTimeSeriesStations
 
         let tmplWithStationNames_obs = tmpl_get_N_stations_mfve_obs.replace(/{{stationNamesList}}/g, stationNames_obs);
 
-        for (let imfve = 0; imfve < this.fcstValidEpoch_Array.length; imfve = imfve + 100)
+        const promises = [];
+        for (let iofve = 0; iofve < this.fcstValidEpoch_Array.length; iofve = iofve + 100)
         {
-            let fveArraySlice = this.fcstValidEpoch_Array.slice(imfve, imfve + 100);
+            let fveArraySlice = this.fcstValidEpoch_Array.slice(iofve, iofve + 100);
             let sql = tmplWithStationNames_obs.replace(/{{fcstValidEpoch}}/g, JSON.stringify(fveArraySlice));
-            if (imfve === 0)
+            if (iofve === 0)
             {
-                App.log(LogLevel.INFO, "sql:\n" + sql);
+                // App.log(LogLevel.INFO, "sql:\n" + sql);
             }
-            const qr: QueryResult = await this.bucket.scope('_default').query(sql, {
-                parameters: [],
+            let prSlice = this.bucket.scope('_default').query(sql, {
+                parameters: []
             });
-            App.log(LogLevel.DEBUG, "qr:\n" + qr.rows.length);
-
-            for (let jmfve = 0; jmfve < qr.rows.length; jmfve++)
+            promises.push(prSlice);
+            prSlice.then((qr: QueryResult) =>
             {
-                let fveDataSingleEpoch = qr.rows[jmfve];
-                // App.log(LogLevel.DEBUG, "mfveData:\n" + JSON.stringify(mfveData, null, 2));
-                let stationsSingleEpoch: any = {};
-                for (let i = 0; i < this.stationNames.length; i++)
+                App.log(LogLevel.DEBUG, "qr:\n" + qr.rows.length);
+                for (let jmfve = 0; jmfve < qr.rows.length; jmfve++)
                 {
-                    let varValStation = fveDataSingleEpoch[this.stationNames[i]];
-                    if (i === 0)
+                    let fveDataSingleEpoch = qr.rows[jmfve];
+                    // App.log(LogLevel.DEBUG, "mfveData:\n" + JSON.stringify(mfveData, null, 2));
+                    let stationsSingleEpoch: any = {};
+                    for (let i = 0; i < this.stationNames.length; i++)
                     {
-                        // App.log(LogLevel.DEBUG, "station:\n" + JSON.stringify(station, null, 2));
+                        let varValStation = fveDataSingleEpoch[this.stationNames[i]];
+                        if (i === 0)
+                        {
+                            // App.log(LogLevel.DEBUG, "station:\n" + JSON.stringify(station, null, 2));
+                        }
+                        stationsSingleEpoch[this.stationNames[i]] = varValStation;
                     }
-                    stationsSingleEpoch[this.stationNames[i]] = varValStation;
+                    this.fveObs[fveDataSingleEpoch.fcstValidEpoch] = stationsSingleEpoch;
+                    if (fveDataSingleEpoch.fcstValidEpoch === 1662508800)
+                    {
+                        // App.log(LogLevel.DEBUG, "fveDataSingleEpoch:\n" + JSON.stringify(fveDataSingleEpoch, null, 2) + "\n" +
+                        //    JSON.stringify(this.fveObs[fveDataSingleEpoch.fcstValidEpoch]));
+                        // App.log(LogLevel.DEBUG, "fveObs:\n" + JSON.stringify(this.fveObs, null, 2) );
+                    }
                 }
-                this.fveObs[fveDataSingleEpoch.fcstValidEpoch] = stationsSingleEpoch;
-                if (fveDataSingleEpoch.fcstValidEpoch === 1662508800)
+                if ((iofve % 100) == 0)
                 {
-                    // App.log(LogLevel.DEBUG, "fveDataSingleEpoch:\n" + JSON.stringify(fveDataSingleEpoch, null, 2) + "\n" +
-                    //    JSON.stringify(this.fveObs[fveDataSingleEpoch.fcstValidEpoch]));
-                    // App.log(LogLevel.DEBUG, "fveObs:\n" + JSON.stringify(this.fveObs, null, 2) );
+                    endTime = (new Date()).valueOf();
+                    App.log(LogLevel.DEBUG, "iofve:" + iofve + "/" + this.fcstValidEpoch_Array.length + " in " + (endTime - startTime) + " ms.");
                 }
-            }
-            if ((imfve % 100) == 0)
-            {
-                endTime = (new Date()).valueOf();
-                App.log(LogLevel.DEBUG, "imfve:" + imfve + "/" + this.fcstValidEpoch_Array.length + " in " + (endTime - startTime) + " ms.");
-            }
+            });
         }
 
+        await Promise.all(promises);
         endTime = (new Date()).valueOf();
-        // App.log(LogLevel.DEBUG, "obs_mfve:\n" + JSON.stringify(obs_mfve, null, 2) + " in " + (endTime - startTime) + " ms.");
+        App.log(LogLevel.DEBUG, "fveObs:" + " in " + (endTime - startTime) + " ms.");
     }
 
     public async createModelData(model: string, fcstLen: any, threshold: number)
     {
+        App.log(LogLevel.INFO, "createModelData()");
+
         let startTime: number = (new Date()).valueOf();
 
         let tmpl_get_N_stations_mfve_model = fs.readFileSync("./sqlTemplates/tmpl_get_N_stations_mfve_IN_model.sql", 'utf-8');
@@ -197,6 +208,7 @@ class CbQueriesTimeSeriesStations
 
         let tmplWithStationNames_models = tmpl_get_N_stations_mfve_model.replace(/{{stationNamesList}}/g, stationNames_models);
 
+        const promises = [];
         for (let imfve = 0; imfve < this.fcstValidEpoch_Array.length; imfve = imfve + 100)
         {
             let fveArraySlice = this.fcstValidEpoch_Array.slice(imfve, imfve + 100);
@@ -205,51 +217,62 @@ class CbQueriesTimeSeriesStations
             {
                 //App.log(LogLevel.INFO, "sql:\n" + sql);
             }
-            const qr: QueryResult = await this.bucket.scope('_default').query(sql, {
+            let prSlice = this.bucket.scope('_default').query(sql, {
                 parameters: [],
             });
 
-            for (let jmfve = 0; jmfve < qr.rows.length; jmfve++)
+            promises.push(prSlice);
+            prSlice.then((qr: QueryResult) =>
             {
-                let fveDataSingleEpoch = qr.rows[jmfve];
-                // App.log(LogLevel.DEBUG, "mfveData:\n" + JSON.stringify(mfveData, null, 2));
-                let stationsSingleEpoch: any = {};
-                for (let i = 0; i < this.stationNames.length; i++)
+                for (let jmfve = 0; jmfve < qr.rows.length; jmfve++)
                 {
-                    let varValStation = fveDataSingleEpoch[this.stationNames[i]];
-                    if (i === 0)
+                    let fveDataSingleEpoch = qr.rows[jmfve];
+                    // App.log(LogLevel.DEBUG, "mfveData:\n" + JSON.stringify(mfveData, null, 2));
+                    let stationsSingleEpoch: any = {};
+                    for (let i = 0; i < this.stationNames.length; i++)
                     {
-                        // App.log(LogLevel.DEBUG, "station:\n" + JSON.stringify(station, null, 2));
+                        let varValStation = fveDataSingleEpoch[this.stationNames[i]];
+                        if (i === 0)
+                        {
+                            // App.log(LogLevel.DEBUG, "station:\n" + JSON.stringify(station, null, 2));
+                        }
+                        stationsSingleEpoch[this.stationNames[i]] = varValStation;
                     }
-                    stationsSingleEpoch[this.stationNames[i]] = varValStation;
+                    this.fveModels[fveDataSingleEpoch.fcstValidEpoch] = stationsSingleEpoch;
+                    if (fveDataSingleEpoch.fcstValidEpoch === 1662508800)
+                    {
+                        // App.log(LogLevel.DEBUG, "fveDataSingleEpoch:\n" + JSON.stringify(fveDataSingleEpoch, null, 2) + "\n" +
+                        //    JSON.stringify(this.fveModels[fveDataSingleEpoch.fcstValidEpoch]));
+                        // App.log(LogLevel.DEBUG, "fveObs:\n" + JSON.stringify(this.fveObs, null, 2) );
+                    }
                 }
-                this.fveModels[fveDataSingleEpoch.fcstValidEpoch] = stationsSingleEpoch;
-                if (fveDataSingleEpoch.fcstValidEpoch === 1662508800)
+                if ((imfve % 100) == 0)
                 {
-                    // App.log(LogLevel.DEBUG, "fveDataSingleEpoch:\n" + JSON.stringify(fveDataSingleEpoch, null, 2) + "\n" +
-                    //    JSON.stringify(this.fveModels[fveDataSingleEpoch.fcstValidEpoch]));
-                    // App.log(LogLevel.DEBUG, "fveObs:\n" + JSON.stringify(this.fveObs, null, 2) );
+                    endTime = (new Date()).valueOf();
+                    App.log(LogLevel.DEBUG, "imfve:" + imfve + "/" + this.fcstValidEpoch_Array.length + " in " + (endTime - startTime) + " ms.");
                 }
-            }
-            if ((imfve % 100) == 0)
-            {
-                endTime = (new Date()).valueOf();
-                App.log(LogLevel.DEBUG, "imfve:" + imfve + "/" + this.fcstValidEpoch_Array.length + " in " + (endTime - startTime) + " ms.");
-            }
+            });
         }
+        await Promise.all(promises);
+        endTime = (new Date()).valueOf();
+        App.log(LogLevel.DEBUG, "fveModel:" + " in " + (endTime - startTime) + " ms.");
     }
 
     public generateStats(threshold: number)
     {
+        App.log(LogLevel.INFO, "generateStats(" + threshold + ")");
+
+        let startTime: number = (new Date()).valueOf();
+
         for (let imfve = 0; imfve < this.fcstValidEpoch_Array.length; imfve++)
         {
             let fve = this.fcstValidEpoch_Array[imfve];
             let obsSingleFve = this.fveObs[fve];
             let modelSingleFve = this.fveModels[fve];
 
-            if(!obsSingleFve || !modelSingleFve)
+            if (!obsSingleFve || !modelSingleFve)
             {
-                console.log("no data for fve:" + fve + ",obsSingleFve:"+ obsSingleFve + ",modelSingleFve:" + modelSingleFve);
+                // console.log("no data for fve:" + fve + ",obsSingleFve:"+ obsSingleFve + ",modelSingleFve:" + modelSingleFve);
                 continue;
             }
 
@@ -295,7 +318,7 @@ class CbQueriesTimeSeriesStations
 
                     if (fve === 1662508800)
                     {
-                        console.log("station:" + station + ",varVal_o:" + varVal_o + ",varVal_m:" + varVal_m);
+                        // console.log("station:" + station + ",varVal_o:" + varVal_o + ",varVal_m:" + varVal_m);
                     }
                     if (varVal_o >= threshold && varVal_m < threshold)
                     {
@@ -331,6 +354,9 @@ class CbQueriesTimeSeriesStations
             }
             this.stats.push(stats_fve);
         }
+
+        let endTime = (new Date()).valueOf();
+        App.log(LogLevel.DEBUG, "generateStats:" + " in " + (endTime - startTime) + " ms.");
     }
 }
 

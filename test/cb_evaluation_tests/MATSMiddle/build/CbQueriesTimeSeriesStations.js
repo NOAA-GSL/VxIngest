@@ -57,7 +57,7 @@ class CbQueriesTimeSeriesStations {
     }
     processStationQuery(stationsFile, model, fcstLen, threshold, writeOutput) {
         return __awaiter(this, void 0, void 0, function* () {
-            App_1.App.log(App_1.LogLevel.INFO, "processStationQuery1()");
+            App_1.App.log(App_1.LogLevel.INFO, "processStationQuery()");
             let startTime = (new Date()).valueOf();
             let sqlstrObs = fs_1.default.readFileSync("./SQLs/get_distinct_fcstValidEpoch_obs.sql", 'utf-8');
             const qr_fcstValidEpoch = yield this.bucket.scope('_default').query(sqlstrObs, {
@@ -67,12 +67,14 @@ class CbQueriesTimeSeriesStations {
                 this.fcstValidEpoch_Array.push(qr_fcstValidEpoch.rows[imfve].fcstValidEpoch);
             }
             let endTime = (new Date()).valueOf();
-            App_1.App.log(App_1.LogLevel.DEBUG, "\tfcstValidEpoch_Array:" + JSON.stringify(this.fcstValidEpoch_Array, null, 2) + " in " + (endTime - startTime) + " ms.");
+            App_1.App.log(App_1.LogLevel.DEBUG, "\tfcstValidEpoch_Array:" + this.fcstValidEpoch_Array.length + " in " + (endTime - startTime) + " ms.");
+            // App.log(LogLevel.DEBUG, "\tfcstValidEpoch_Array:" + JSON.stringify(this.fcstValidEpoch_Array, null, 2) + " in " + (endTime - startTime) + " ms.");
             this.stationNames = JSON.parse(fs_1.default.readFileSync(stationsFile, 'utf-8'));
             // App.log(LogLevel.DEBUG, "station_names:\n" + JSON.stringify(this.stationNames, null, 2));
-            yield this.createObsData();
-            yield this.createModelData(model, fcstLen, threshold);
-            yield this.generateStats(threshold);
+            let prObs = this.createObsData();
+            let prModel = this.createModelData(model, fcstLen, threshold);
+            yield Promise.all([prObs, prModel]);
+            this.generateStats(threshold);
             if (true === writeOutput) {
                 fs_1.default.writeFileSync('./output/stats.json', JSON.stringify(this.stats, null, 2));
                 fs_1.default.writeFileSync('./output/fveObs.json', JSON.stringify(this.fveObs, null, 2));
@@ -85,6 +87,7 @@ class CbQueriesTimeSeriesStations {
     }
     createObsData() {
         return __awaiter(this, void 0, void 0, function* () {
+            App_1.App.log(App_1.LogLevel.INFO, "createObsData()");
             let startTime = (new Date()).valueOf();
             // ==============================  OBS =====================================================
             let tmpl_get_N_stations_mfve_obs = fs_1.default.readFileSync("./sqlTemplates/tmpl_get_N_stations_mfve_IN_obs.sql", 'utf-8');
@@ -101,45 +104,51 @@ class CbQueriesTimeSeriesStations {
             App_1.App.log(App_1.LogLevel.INFO, "\tstationNames_obs:" + stationNames_obs.length + " in " + (endTime - startTime) + " ms.");
             // App.log(LogLevel.DEBUG, "\tstationNames_obs:\n" + stationNames_obs);
             let tmplWithStationNames_obs = tmpl_get_N_stations_mfve_obs.replace(/{{stationNamesList}}/g, stationNames_obs);
-            for (let imfve = 0; imfve < this.fcstValidEpoch_Array.length; imfve = imfve + 100) {
-                let fveArraySlice = this.fcstValidEpoch_Array.slice(imfve, imfve + 100);
+            const promises = [];
+            for (let iofve = 0; iofve < this.fcstValidEpoch_Array.length; iofve = iofve + 100) {
+                let fveArraySlice = this.fcstValidEpoch_Array.slice(iofve, iofve + 100);
                 let sql = tmplWithStationNames_obs.replace(/{{fcstValidEpoch}}/g, JSON.stringify(fveArraySlice));
-                if (imfve === 0) {
-                    App_1.App.log(App_1.LogLevel.INFO, "sql:\n" + sql);
+                if (iofve === 0) {
+                    // App.log(LogLevel.INFO, "sql:\n" + sql);
                 }
-                const qr = yield this.bucket.scope('_default').query(sql, {
-                    parameters: [],
+                let prSlice = this.bucket.scope('_default').query(sql, {
+                    parameters: []
                 });
-                App_1.App.log(App_1.LogLevel.DEBUG, "qr:\n" + qr.rows.length);
-                for (let jmfve = 0; jmfve < qr.rows.length; jmfve++) {
-                    let fveDataSingleEpoch = qr.rows[jmfve];
-                    // App.log(LogLevel.DEBUG, "mfveData:\n" + JSON.stringify(mfveData, null, 2));
-                    let stationsSingleEpoch = {};
-                    for (let i = 0; i < this.stationNames.length; i++) {
-                        let varValStation = fveDataSingleEpoch[this.stationNames[i]];
-                        if (i === 0) {
-                            // App.log(LogLevel.DEBUG, "station:\n" + JSON.stringify(station, null, 2));
+                promises.push(prSlice);
+                prSlice.then((qr) => {
+                    App_1.App.log(App_1.LogLevel.DEBUG, "qr:\n" + qr.rows.length);
+                    for (let jmfve = 0; jmfve < qr.rows.length; jmfve++) {
+                        let fveDataSingleEpoch = qr.rows[jmfve];
+                        // App.log(LogLevel.DEBUG, "mfveData:\n" + JSON.stringify(mfveData, null, 2));
+                        let stationsSingleEpoch = {};
+                        for (let i = 0; i < this.stationNames.length; i++) {
+                            let varValStation = fveDataSingleEpoch[this.stationNames[i]];
+                            if (i === 0) {
+                                // App.log(LogLevel.DEBUG, "station:\n" + JSON.stringify(station, null, 2));
+                            }
+                            stationsSingleEpoch[this.stationNames[i]] = varValStation;
                         }
-                        stationsSingleEpoch[this.stationNames[i]] = varValStation;
+                        this.fveObs[fveDataSingleEpoch.fcstValidEpoch] = stationsSingleEpoch;
+                        if (fveDataSingleEpoch.fcstValidEpoch === 1662508800) {
+                            // App.log(LogLevel.DEBUG, "fveDataSingleEpoch:\n" + JSON.stringify(fveDataSingleEpoch, null, 2) + "\n" +
+                            //    JSON.stringify(this.fveObs[fveDataSingleEpoch.fcstValidEpoch]));
+                            // App.log(LogLevel.DEBUG, "fveObs:\n" + JSON.stringify(this.fveObs, null, 2) );
+                        }
                     }
-                    this.fveObs[fveDataSingleEpoch.fcstValidEpoch] = stationsSingleEpoch;
-                    if (fveDataSingleEpoch.fcstValidEpoch === 1662508800) {
-                        App_1.App.log(App_1.LogLevel.DEBUG, "fveDataSingleEpoch:\n" + JSON.stringify(fveDataSingleEpoch, null, 2) + "\n" +
-                            JSON.stringify(this.fveObs[fveDataSingleEpoch.fcstValidEpoch]));
-                        // App.log(LogLevel.DEBUG, "fveObs:\n" + JSON.stringify(this.fveObs, null, 2) );
+                    if ((iofve % 100) == 0) {
+                        endTime = (new Date()).valueOf();
+                        App_1.App.log(App_1.LogLevel.DEBUG, "iofve:" + iofve + "/" + this.fcstValidEpoch_Array.length + " in " + (endTime - startTime) + " ms.");
                     }
-                }
-                if ((imfve % 100) == 0) {
-                    endTime = (new Date()).valueOf();
-                    App_1.App.log(App_1.LogLevel.DEBUG, "imfve:" + imfve + "/" + this.fcstValidEpoch_Array.length + " in " + (endTime - startTime) + " ms.");
-                }
+                });
             }
+            yield Promise.all(promises);
             endTime = (new Date()).valueOf();
-            // App.log(LogLevel.DEBUG, "obs_mfve:\n" + JSON.stringify(obs_mfve, null, 2) + " in " + (endTime - startTime) + " ms.");
+            App_1.App.log(App_1.LogLevel.DEBUG, "fveObs:" + " in " + (endTime - startTime) + " ms.");
         });
     }
     createModelData(model, fcstLen, threshold) {
         return __awaiter(this, void 0, void 0, function* () {
+            App_1.App.log(App_1.LogLevel.INFO, "createModelData()");
             let startTime = (new Date()).valueOf();
             let tmpl_get_N_stations_mfve_model = fs_1.default.readFileSync("./sqlTemplates/tmpl_get_N_stations_mfve_IN_model.sql", 'utf-8');
             tmpl_get_N_stations_mfve_model = tmpl_get_N_stations_mfve_model.replace(/{{model}}/g, "\"" + model + "\"");
@@ -157,47 +166,56 @@ class CbQueriesTimeSeriesStations {
             App_1.App.log(App_1.LogLevel.INFO, "\tstationNames_models:" + stationNames_models.length + " in " + (endTime - startTime) + " ms.");
             // App.log(LogLevel.DEBUG, "\tstationNames_models:\n" + stationNames_models);
             let tmplWithStationNames_models = tmpl_get_N_stations_mfve_model.replace(/{{stationNamesList}}/g, stationNames_models);
+            const promises = [];
             for (let imfve = 0; imfve < this.fcstValidEpoch_Array.length; imfve = imfve + 100) {
                 let fveArraySlice = this.fcstValidEpoch_Array.slice(imfve, imfve + 100);
                 let sql = tmplWithStationNames_models.replace(/{{fcstValidEpoch}}/g, JSON.stringify(fveArraySlice));
                 if (imfve === 0) {
                     //App.log(LogLevel.INFO, "sql:\n" + sql);
                 }
-                const qr = yield this.bucket.scope('_default').query(sql, {
+                let prSlice = this.bucket.scope('_default').query(sql, {
                     parameters: [],
                 });
-                for (let jmfve = 0; jmfve < qr.rows.length; jmfve++) {
-                    let fveDataSingleEpoch = qr.rows[jmfve];
-                    // App.log(LogLevel.DEBUG, "mfveData:\n" + JSON.stringify(mfveData, null, 2));
-                    let stationsSingleEpoch = {};
-                    for (let i = 0; i < this.stationNames.length; i++) {
-                        let varValStation = fveDataSingleEpoch[this.stationNames[i]];
-                        if (i === 0) {
-                            // App.log(LogLevel.DEBUG, "station:\n" + JSON.stringify(station, null, 2));
+                promises.push(prSlice);
+                prSlice.then((qr) => {
+                    for (let jmfve = 0; jmfve < qr.rows.length; jmfve++) {
+                        let fveDataSingleEpoch = qr.rows[jmfve];
+                        // App.log(LogLevel.DEBUG, "mfveData:\n" + JSON.stringify(mfveData, null, 2));
+                        let stationsSingleEpoch = {};
+                        for (let i = 0; i < this.stationNames.length; i++) {
+                            let varValStation = fveDataSingleEpoch[this.stationNames[i]];
+                            if (i === 0) {
+                                // App.log(LogLevel.DEBUG, "station:\n" + JSON.stringify(station, null, 2));
+                            }
+                            stationsSingleEpoch[this.stationNames[i]] = varValStation;
                         }
-                        stationsSingleEpoch[this.stationNames[i]] = varValStation;
+                        this.fveModels[fveDataSingleEpoch.fcstValidEpoch] = stationsSingleEpoch;
+                        if (fveDataSingleEpoch.fcstValidEpoch === 1662508800) {
+                            // App.log(LogLevel.DEBUG, "fveDataSingleEpoch:\n" + JSON.stringify(fveDataSingleEpoch, null, 2) + "\n" +
+                            //    JSON.stringify(this.fveModels[fveDataSingleEpoch.fcstValidEpoch]));
+                            // App.log(LogLevel.DEBUG, "fveObs:\n" + JSON.stringify(this.fveObs, null, 2) );
+                        }
                     }
-                    this.fveModels[fveDataSingleEpoch.fcstValidEpoch] = stationsSingleEpoch;
-                    if (fveDataSingleEpoch.fcstValidEpoch === 1662508800) {
-                        // App.log(LogLevel.DEBUG, "fveDataSingleEpoch:\n" + JSON.stringify(fveDataSingleEpoch, null, 2) + "\n" +
-                        //    JSON.stringify(this.fveModels[fveDataSingleEpoch.fcstValidEpoch]));
-                        // App.log(LogLevel.DEBUG, "fveObs:\n" + JSON.stringify(this.fveObs, null, 2) );
+                    if ((imfve % 100) == 0) {
+                        endTime = (new Date()).valueOf();
+                        App_1.App.log(App_1.LogLevel.DEBUG, "imfve:" + imfve + "/" + this.fcstValidEpoch_Array.length + " in " + (endTime - startTime) + " ms.");
                     }
-                }
-                if ((imfve % 100) == 0) {
-                    endTime = (new Date()).valueOf();
-                    App_1.App.log(App_1.LogLevel.DEBUG, "imfve:" + imfve + "/" + this.fcstValidEpoch_Array.length + " in " + (endTime - startTime) + " ms.");
-                }
+                });
             }
+            yield Promise.all(promises);
+            endTime = (new Date()).valueOf();
+            App_1.App.log(App_1.LogLevel.DEBUG, "fveModel:" + " in " + (endTime - startTime) + " ms.");
         });
     }
     generateStats(threshold) {
+        App_1.App.log(App_1.LogLevel.INFO, "generateStats(" + threshold + ")");
+        let startTime = (new Date()).valueOf();
         for (let imfve = 0; imfve < this.fcstValidEpoch_Array.length; imfve++) {
             let fve = this.fcstValidEpoch_Array[imfve];
             let obsSingleFve = this.fveObs[fve];
             let modelSingleFve = this.fveModels[fve];
             if (!obsSingleFve || !modelSingleFve) {
-                console.log("no data for fve:" + fve + ",obsSingleFve:" + obsSingleFve + ",modelSingleFve:" + modelSingleFve);
+                // console.log("no data for fve:" + fve + ",obsSingleFve:"+ obsSingleFve + ",modelSingleFve:" + modelSingleFve);
                 continue;
             }
             let stats_fve = {};
@@ -231,7 +249,7 @@ class CbQueriesTimeSeriesStations {
                         sub += "0;";
                     }
                     if (fve === 1662508800) {
-                        console.log("station:" + station + ",varVal_o:" + varVal_o + ",varVal_m:" + varVal_m);
+                        // console.log("station:" + station + ",varVal_o:" + varVal_o + ",varVal_m:" + varVal_m);
                     }
                     if (varVal_o >= threshold && varVal_m < threshold) {
                         stats_fve["fa"] = stats_fve["fa"] + 1;
@@ -259,6 +277,8 @@ class CbQueriesTimeSeriesStations {
             }
             this.stats.push(stats_fve);
         }
+        let endTime = (new Date()).valueOf();
+        App_1.App.log(App_1.LogLevel.DEBUG, "generateStats:" + " in " + (endTime - startTime) + " ms.");
     }
 }
 exports.CbQueriesTimeSeriesStations = CbQueriesTimeSeriesStations;

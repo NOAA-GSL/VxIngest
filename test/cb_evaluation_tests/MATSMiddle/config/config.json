@@ -1,9 +1,0 @@
-{
-    "notes": "attributes starting with doc_[attribute] are documentation for that particulat atribute",
-    "doc_bucket": "rename bucket attribute to bucket0 to pick bucket from settings.json",
-    "bucket": "vxdata",
-    "doc_host": "rename host attribute to host0 to pick host from settings.json",
-    "host": "adb-cb1.gsd.esrl.noaa.gov",
-    "settingsFile": "/Users/gopa.padmanabhan/mats-settings/configurations/my_user_config/settings/cb-ceiling/settings.json",
-    "settingsFile0": "/home/gopa/mats-settings/configurations/my_user_config/settings/cb-ceiling/settings.json"
-}

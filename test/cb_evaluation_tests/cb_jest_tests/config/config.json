@@ -1,0 +1,99 @@
+{
+    "notes": "attributes starting with doc_[attribute] are documentation for that particulat atribute",
+    "doc_bucket": "rename bucket attribute to bucket0 to pick bucket from settings.json",
+    "bucket": "vxdata",
+    "doc_host": "rename host attribute to host0 to pick host from settings.json",
+    "host": "adb-cb1.gsd.esrl.noaa.gov",
+    "settingsFile": "/home/gopa/mats-settings/configurations/my_user_config/settings/cb-ceiling/settings.json",
+    "queries": {
+        "experimental": {
+            "queryFilesFolder": "./SQLs/experimental/",
+            "queries": [
+                {
+                    "name": "Time Series all stations for a month",
+                    "queryFile": "final_TimeSeries_all_stations.sql",
+                    "maxExecutionTime_ms": 600000
+                }
+            ],
+            "queries0": [
+                {
+                    "name": "Get data for 3 named stations",
+                    "queryFile": "get_3_stations_obs.sql",
+                    "maxExecutionTime_ms": 14000
+                },
+                {
+                    "name": "Get data for N named stations",
+                    "queryFile": "get_N_stations_obs.sql",
+                    "maxExecutionTime_ms": 14000
+                },
+                {
+                    "name": "Get data for all named stations",
+                    "queryFile": "get_all_stations_obs.sql",
+                    "maxExecutionTime_ms": 600000
+                },
+                {
+                    "name": "Time Series all stations for a month",
+                    "queryFile": "final_TimeSeries_all_stations.sql",
+                    "maxExecutionTime_ms": 600000
+                }
+            ]
+        },
+        "basic": {
+            "queryFilesFolder": "./SQLs/basic/",
+            "queries": [
+                {
+                    "name": "METAR count",
+                    "queryFile": "METAR_count.sql",
+                    "maxExecutionTime_ms": 14000
+                },
+                {
+                    "name": "Count number of stations where docType = model",
+                    "queryFile": "count_stations_model.sql",
+                    "maxExecutionTime_ms": 14000
+                },
+                {
+                    "name": "Count number of stations where docType = obs",
+                    "queryFile": "count_stations_obs.sql",
+                    "maxExecutionTime_ms": 14000
+                },
+                {
+                    "name": "Get data for 3 named stations",
+                    "queryFile": "get_3_stations_obs.sql",
+                    "maxExecutionTime_ms": 14000
+                }
+            ]
+        },
+        "MATS_queries": {
+            "new_data_model_late_2022": {
+                "queryFilesFolder": "./SQLs/MATS_queries/new_data_model_late_2022/",
+                "queries": [
+                    {
+                        "name": "TimeSeries query",
+                        "queryFile": "final_TimeSeries.sql",
+                        "maxExecutionTime_ms": 14000
+                    },
+                    {
+                        "name": "Map query",
+                        "queryFile": "final_Map.sql",
+                        "maxExecutionTime_ms": 11000
+                    },
+                    {
+                        "name": "DieOff query",
+                        "queryFile": "final_DieOff.sql",
+                        "maxExecutionTime_ms": 190000
+                    },
+                    {
+                        "name": "ValidTime query",
+                        "queryFile": "final_ValidTime.sql",
+                        "maxExecutionTime_ms": 11000
+                    },
+                    {
+                        "name": "DailyModelCycle query",
+                        "queryFile": "final_DailyModelCycle.sql",
+                        "maxExecutionTime_ms": 11000
+                    }
+                ]
+            }
+        }
+    }
+}

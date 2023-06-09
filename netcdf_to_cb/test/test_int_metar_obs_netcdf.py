@@ -3,18 +3,11 @@
 """
 import os
 from glob import glob
-from pathlib import Path
 
-import pymysql
-import yaml
-from couchbase.cluster import Cluster, ClusterOptions
-from couchbase_core.cluster import PasswordAuthenticator
-from pymysql.constants import CLIENT
 from netcdf_to_cb.run_ingest_threads import VXIngest
 
-"""
-integration tests for netcdf
-"""
+# integration tests for netcdf
+
 
 def setup_connection():
     """test setup"""

@@ -22,6 +22,7 @@ from builder_common.builder_utilities import get_geo_index
 from builder_common.builder_utilities import initialize_data_array
 from builder_common.builder import Builder
 
+# may use https://unidata.github.io/MetPy
 
 class GribBuilder(Builder):  # pylint: disable=too-many-arguments
     """parent class for grib builders"""
@@ -819,6 +820,80 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
                 wd_value = wd_value - 360
             _wd.append(wd_value)
         return _wd
+
+    def handleWindDirU(self, params_dict):  # pylint: disable=unused-argument
+        """returns the wind direction U component for this document
+        Args:
+            params_dict (dict): contains named_function parameters
+        Returns:
+            float: wind direction U component
+        """
+        uwind_message = self.grbs.select(name="10 metre U wind component")[0]
+        u_values = uwind_message["values"]
+        fcst_valid_epoch = round(uwind_message.validDate.timestamp())
+        uwind_ms = []
+        for station in self.domain_stations:
+            geo_index = get_geo_index(fcst_valid_epoch, station["geo"])
+            x_gridpoint = station["geo"][geo_index]["x_gridpoint"]
+            y_gridpoint = station["geo"][geo_index]["y_gridpoint"]
+            # interpolated value cannot use rounded gridpoints
+            uwind_ms.append(gg.interpGridBox(u_values, y_gridpoint, x_gridpoint))
+        return uwind_ms
+
+    def handleWindDirV(self, params_dict):  # pylint: disable=unused-argument
+        """returns the wind direction V component for this document
+        Args:
+            params_dict (dict): contains named_function parameters
+        Returns:
+            float: wind direction V component
+        """
+        vwind_message = self.grbs.select(name="10 metre V wind component")[0]
+        v_values = vwind_message["values"]
+        fcst_valid_epoch = round(vwind_message.validDate.timestamp())
+        vwind_ms = []
+        for station in self.domain_stations:
+            geo_index = get_geo_index(fcst_valid_epoch, station["geo"])
+            x_gridpoint = station["geo"][geo_index]["x_gridpoint"]
+            y_gridpoint = station["geo"][geo_index]["y_gridpoint"]
+            vwind_ms.append(gg.interpGridBox(v_values, y_gridpoint, x_gridpoint))
+        return vwind_ms
+
+    def handle_specific_humidity(self, params_dict):  # pylint: disable=unused-argument
+        """returns the specific humidity for this document
+        Specific humidity:kg kg**-1 (instant):lambert:heightAboveGround:level 2 m
+        Args:
+            params_dict (dict): contains named_function parameters
+        Returns:
+            float: specific humidity
+        """
+        specific_humidity_message = self.grbs.select(name="Specific humidity")[0]
+        spfh_values = specific_humidity_message["values"]
+        fcst_valid_epoch = round(specific_humidity_message.validDate.timestamp())
+        spfh = []
+        for station in self.domain_stations:
+            geo_index = get_geo_index(fcst_valid_epoch, station["geo"])
+            x_gridpoint = station["geo"][geo_index]["x_gridpoint"]
+            y_gridpoint = station["geo"][geo_index]["y_gridpoint"]
+            spfh.append(gg.interpGridBox(spfh_values, y_gridpoint, x_gridpoint))
+        return spfh
+
+    def handle_vegetation_type(self, params_dict):
+        """returns the vegetation type for this document
+        Args:
+            params_dict (dict): contains named_function parameters
+        Returns:
+            string: vegetation_type
+        """
+        vgtype_message = self.grbs.select(name="Specific humidity")[0]
+        vgtype_values = vgtype_message["values"]
+        fcst_valid_epoch = round(vgtype_message.validDate.timestamp())
+        vegetationType = []
+        for station in self.domain_stations:
+            geo_index = get_geo_index(fcst_valid_epoch, station["geo"])
+            x_gridpoint = station["geo"][geo_index]["x_gridpoint"]
+            y_gridpoint = station["geo"][geo_index]["y_gridpoint"]
+            vegetationType.append(gg.interpGridBox(vgtype_values, y_gridpoint, x_gridpoint))
+        return vegetationType
 
     def getName(
         self, params_dict

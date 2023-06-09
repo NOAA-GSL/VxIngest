@@ -1,0 +1,18 @@
+load_spec:
+  email: "randy.pierce@noaa.gov"
+  ingest_document_ids: ["MD:V01:METAR:HRRR_OPS:E_US:SUMS:SURFACE:ingest",
+                        "MD:V01:METAR:HRRR_OPS:ALL_HRRR:SUMS:SURFACE:ingest",
+                        "MD:V01:METAR:HRRR_OPS:E_HRRR:SUMS:SURFACE:ingest",
+                        "MD:V01:METAR:HRRR_OPS:W_HRRR:SUMS:SURFACE:ingest",
+                        "MD:V01:METAR:HRRR_OPS:GtLk:SUMS:SURFACE:ingest",
+                        "MD:V01:METAR:RAP_OPS_130:E_US:SUMS:SURFACE:ingest",
+                        "MD:V01:METAR:RAP_OPS_130:ALL_HRRR:SUMS:SURFACE:ingest",
+                        "MD:V01:METAR:RAP_OPS_130:E_HRRR:SUMS:SURFACE:ingest",
+                        "MD:V01:METAR:RAP_OPS_130:W_HRRR:SUMS:SURFACE:ingest",
+                        "MD:V01:METAR:RAP_OPS_130:GtLk:SUMS:SURFACE:ingest"]
+
+  cb_connection:
+    management_system: "cb"
+    host: "cb_host"
+    user: "cb_user"
+    password: "cb_pwd"

@@ -6,21 +6,21 @@ from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
 
-import geopy.distance as geopyd
 import netCDF4 as nc
 import numpy as np
 import pymysql
-import pytest
 import yaml
-from couchbase.cluster import QueryOptions, QueryScanConsistency, MutationState
-from netcdf_to_cb.netcdf_builder import NetcdfMetarObsBuilderV01
-from netcdf_to_cb.run_ingest_threads import VXIngest
 from pymysql.constants import CLIENT
+from couchbase.cluster import QueryOptions, QueryScanConsistency, MutationState
+from netcdf_to_cb.run_ingest_threads import VXIngest
+from netcdf_to_cb.netcdf_builder import NetcdfMetarObsBuilderV01
 
-"""various unit tests for the obs builder.
-    to run one of these from the command line....
-    python3 -m pytest -s -v  netcdf_to_cb/test/test_unit_metar_obs_netcdf.py::TestNetcdfObsBuilderV01Unit::test....
-"""
+
+
+# various unit tests for the obs builder.
+# to run one of these from the command line....
+# python3 -m pytest -s -v  netcdf_to_cb/test/test_unit_metar_obs_netcdf.py::TestNetcdfObsBuilderV01Unit::test....
+
 
 
 def setup_mysql_connection():
@@ -29,7 +29,7 @@ def setup_mysql_connection():
         cursor: a mysql cursor
     """
     _credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
-    _f = open(_credentials_file)
+    _f = open(_credentials_file, encoding="utf_8")
     _yaml_data = yaml.load(_f, yaml.SafeLoader)
     _f.close()
     host = _yaml_data["mysql_host"]
@@ -277,9 +277,7 @@ def test_interpolate_time():
             if delta >= -1800 and delta <= 1799:
                 assert (
                     1636390800 == t_interpolated
-                ), "{t} interpolated to {it} is not equal".format(
-                    t=1636390800 - delta, it=t_interpolated
-                )
+                ), f"1636390800 interpolated to {t_interpolated} is not equal"
             if delta <= -1801:
                 assert (
                     1636390800 - 3600 == t_interpolated

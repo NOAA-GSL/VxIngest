@@ -1,0 +1,28 @@
+{
+  "id": "MD:V01:METAR:HRRR_OPS:ALL_HRRR:SUMS:SURFACE:ingest",
+  "builder_type": "PartialSumsSurfaceModelObsBuilderV01",
+  "docType": "ingest",
+  "type": "MD",
+  "version": "V01",
+  "subset": "METAR",
+  "subType": "SUMS",
+  "subDocType": "SURFACE",
+  "model": "HRRR_OPS",
+  "region": "ALL_HRRR",
+  "template": {
+    "dataFileId": "DF_id",
+    "dataSourceId": "DS_id",
+    "id": "DD:V01:METAR:HRRR_OPS:ALL_HRRR:SUMS:SURFACE:&handle_time:&handle_fcst_len",
+    "type": "DD",
+    "docType": "SUMS",
+    "subDocType": "SURFACE",
+    "model": "HRRR_OPS",
+    "region": "ALL_HRRR",
+    "version": "V01",
+    "subset": "METAR",
+    "fcstValidISO": "&handle_iso_time",
+    "fcstValidEpoch": "&handle_time",
+    "fcstLen": "&handle_fcst_len",
+    "data": "&handle_data"
+  }
+}

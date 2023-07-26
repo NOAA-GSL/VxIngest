@@ -12,3 +12,4 @@ CREATE INDEX `adv_subDocType_fcstValidEpoch_region_model_fcstLen_type_docType_ve
 CREATE INDEX `adv_type_subset_docType_version` ON `vxdata`.`_default`.`METAR`(`type`,`subset`,`docType`,`version`) WITH { "defer_build":true};
 CREATE INDEX `adv_version_docType_subset_type_geo_name` ON `vxdata`.`_default`.`METAR`(`version`,`docType`,`subset`,`type`,`geo`,`name`) WITH { "defer_build":true};
 CREATE INDEX `adv_version_fcstValidEpoch_type_docType_subset` ON `default`:`vxdata`.`_default`.`METAR`(`version`,`fcstValidEpoch`) WHERE `subset` = 'METAR' AND `type` = 'DD' AND `docType` = 'obs' WITH { "defer_build":true};
+CREATE INDEX `adv_subDocType_type_docType_version` ON `vxdata`.`_default`.`METAR`(`subDocType`) WHERE (((`docType` = "CTC") and (`version` = "V01")) and (`type` = "DD")) WITH { "defer_build":true};

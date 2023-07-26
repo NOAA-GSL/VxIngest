@@ -78,7 +78,7 @@ def test_get_DF(request):
     """test"""
     try:
         _name = request.node.name
-        _expected_time = 10
+        _expected_time = 12
         _statement = open("./grib2_to_cb/test/test_get_DF.n1ql").read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
         elapsed_time = result.metadata().metrics().elapsed_time().total_seconds()

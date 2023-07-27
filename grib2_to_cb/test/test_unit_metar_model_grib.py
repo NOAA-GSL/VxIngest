@@ -11,7 +11,7 @@ def setup_connection_multiple_ingest_ids():
         _vx_ingest.credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
         _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
         _vx_ingest.connect_cb()
-        _vx_ingest.load_spec['ingest_document_ids'] = _vx_ingest.collection.get("JOB:V01:METAR:GRIB2:MODEL:HRRR").content["ingest_document_ids"]
+        _vx_ingest.load_spec['ingest_document_ids'] = _vx_ingest.collection.get("JOB:V01:METAR:GRIB2:MODEL:HRRR").content_as[dict]["ingest_document_ids"]
         return _vx_ingest
     except Exception as _e:  # pylint:disable=broad-except
         assert False, f"test_credentials_and_load_spec Exception failure: {_e}"
@@ -26,7 +26,7 @@ def setup_connection():
         _vx_ingest.credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
         _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
         _vx_ingest.connect_cb()
-        _vx_ingest.load_spec['ingest_document_ids'] = _vx_ingest.collection.get("JOB:V01:METAR:GRIB2:MODEL:HRRR").content["ingest_document_ids"]
+        _vx_ingest.load_spec['ingest_document_ids'] = _vx_ingest.collection.get("JOB:V01:METAR:GRIB2:MODEL:HRRR").content_as[dict]["ingest_document_ids"]
         return _vx_ingest
     except Exception as _e:  # pylint:disable=broad-except
         assert False, f"test_credentials_and_load_spec Exception failure: {_e}"

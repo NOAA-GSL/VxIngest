@@ -1,6 +1,10 @@
 # pylint: disable=too-many-lines
 """
     integration tests for grib builder
+    This test expects to find a valid grib file in the local directory /opt/public/data/grids/hrrr/conus/wrfprs/grib2.
+This test expects to write to the local output directory /opt/data/grib_to_cb/output so that directory should exist.
+21 196 14 000018 %y %j %H %f  treating the last 6 decimals as microseconds even though they are not.
+these files are two digit year, day of year, hour, and forecast lead time (6 digit ??)
 """
 import copy
 import datetime as DT
@@ -17,21 +21,16 @@ import pyproj
 import pytest
 import yaml
 from couchbase.cluster import Cluster, ClusterOptions, ClusterTimeoutOptions
-from couchbase_core.cluster import PasswordAuthenticator
+from couchbase.auth import PasswordAuthenticator
 from grib2_to_cb.run_ingest_threads import VXIngest
 from grib2_to_cb import get_grid as gg
-
-"""
-This test expects to find a valid grib file in the local directory /opt/public/data/grids/hrrr/conus/wrfprs/grib2.
-This test expects to write to the local output directory /opt/data/grib_to_cb/output so that directory should exist.
-21 196 14 000018 %y %j %H %f  treating the last 6 decimals as microseconds even though they are not.
-these files are two digit year, day of year, hour, and forecast lead time (6 digit ??)
-"""
 
 
 def get_geo_index(fcst_valid_epoch, geo):
     """return the index of the geo list that corresponds to the given fcst_valid_epoch
-
+    - the location of a station might change over time and this list contains the
+    lat/lon of the station at different times.  The fcst_valid_epoch is used to
+    determine which lat/lon to use.
     Args:
         fcst_valid_epoch (int): an epoch
         geo (list): a list of geo objects
@@ -145,9 +144,13 @@ def test_grib_builder_verses_script():  # pylint: disable=too-many-locals, too-m
         # remove output files
         for _f in glob("/opt/data/grib2_to_cb/output/test3/*.json"):
             os.remove(_f)
-        # list_of_input_files = glob('/opt/public/data/grids/hrrr/conus/wrfprs/grib2/*')
-        # latest_input_file = max(list_of_input_files, key=os.path.getctime)
-        # file_utc_time = datetime.datetime.strptime(os.path.basename(latest_input_file), '%y%j%H%f')
+        # the input_data_path is specified in the job spec
+        # for this test it should be
+        # /opt/data/grib2_to_cb/input_files
+        # we need to touch these file to ensure that the mtime is more recent than the
+        # last time the test was run (because the test script will only process files
+        # that are newer than the last time it was last run)
+
         credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
         vx_ingest = VXIngest()
         # using a test JOB SPEC because the input path is local
@@ -155,7 +158,6 @@ def test_grib_builder_verses_script():  # pylint: disable=too-many-locals, too-m
             {
                 "job_id": "JOB-TEST:V01:METAR:GRIB2:MODEL:HRRR",
                 "credentials_file": credentials_file,
-                "path": "/opt/public/data/grids/hrrr/conus/wrfprs/grib2",
                 "file_name_mask": "%y%j%H%f",
                 "output_dir": "/opt/data/grib2_to_cb/output/test3",
                 "threads": 1,
@@ -169,14 +171,14 @@ def test_grib_builder_verses_script():  # pylint: disable=too-many-locals, too-m
         )
         latest_output_file = max(list_of_output_files, key=os.path.getctime)
         # Opening JSON file
-        _f = open(latest_output_file)
+        _f = open(latest_output_file, encoding='utf-8')
         # returns JSON object as
         # a dictionary
         vx_ingest_output_data = json.load(_f)
         # Closing file
         _f.close()
         expected_station_data = {}
-        _f = open (credentials_file)
+        _f = open (credentials_file, encoding='utf-8')
         _yaml_data = yaml.load(_f, yaml.SafeLoader)
         _host = _yaml_data["cb_host"]
         _user = _yaml_data["cb_user"]
@@ -221,11 +223,13 @@ def test_grib_builder_verses_script():  # pylint: disable=too-many-locals, too-m
             )
             if not list(result):
                 continue
-            row = result.get_single_result()
+            rows = list(result.rows())
+            row = rows[0]
             geo_index = get_geo_index(fcst_valid_epoch, row["geo"])
             #i["lat"] = row["geo"][geo_index]["lat"]
             #i["lon"] = row["geo"][geo_index]["lon"]
-            _x, _y = transformer.transform(
+            # pyproj.transformer.transform returns a tuple - function signatures are overloaded with @overload
+            _x, _y = transformer.transform(   # pylint: disable=unpacking-non-sequence
                 row["geo"][geo_index]["lon"],
                 row["geo"][geo_index]["lat"],
                 radians=False,
@@ -276,8 +280,16 @@ def test_grib_builder_verses_script():  # pylint: disable=too-many-locals, too-m
         )[0]
         ceil_values = message["values"]
 
+        # iterate the stations and get the values from the grib file
+        # Each station has a geo list that contains the lat/lon of the station
+        # and the lat/lon of the gridpoint that is closest to the station
+        # The gridpoint lat/lon is used to get the values from the grib file
+        # for ceil_msl and surface level which are used to get the ceiling AGL
+        # for each station ceil_agl = (ceil_msl - surface) * 3.281 (convert to feet)
+
         for i in range(len(domain_stations)):  # pylint: disable=consider-using-enumerate
             station = domain_stations[i]
+            # get the correct lat / lon for this station and fcst_valid_epoch (the station lat/lon might change over time)
             geo_index = get_geo_index(fcst_valid_epoch, station["geo"])
             surface = surface_hgt_values[
                 round(station["geo"][geo_index]["y_gridpoint"]),
@@ -303,10 +315,7 @@ def test_grib_builder_verses_script():  # pylint: disable=too-many-locals, too-m
         # Surface Pressure
         message = grbs.select(name="Surface pressure")[0]
         values = message["values"]
-        for i in range(
-            len(domain_stations)
-        ):  # pylint: disable=consider-using-enumerate
-            station = domain_stations[i]
+        for i, station in enumerate(domain_stations):
             geo_index = get_geo_index(fcst_valid_epoch, station["geo"])
             value = values[
                 round(station["geo"][geo_index]["y_gridpoint"]),
@@ -326,10 +335,7 @@ def test_grib_builder_verses_script():  # pylint: disable=too-many-locals, too-m
         # Temperature
         message = grbs.select(name="2 metre temperature")[0]
         values = message["values"]
-        for i in range(
-            len(domain_stations)
-        ):  # pylint: disable=consider-using-enumerate
-            station = domain_stations[i]
+        for i, station in enumerate(domain_stations):
             geo_index = get_geo_index(fcst_valid_epoch, station["geo"])
             tempk = gg.interpGridBox(
                 values,
@@ -344,10 +350,7 @@ def test_grib_builder_verses_script():  # pylint: disable=too-many-locals, too-m
         # Dewpoint
         message = grbs.select(name="2 metre dewpoint temperature")[0]
         values = message["values"]
-        for i in range(
-            len(domain_stations)
-        ):  # pylint: disable=consider-using-enumerate
-            station = domain_stations[i]
+        for i, station in enumerate(domain_stations):
             geo_index = get_geo_index(fcst_valid_epoch, station["geo"])
             dpk = gg.interpGridBox(
                 values,
@@ -362,10 +365,7 @@ def test_grib_builder_verses_script():  # pylint: disable=too-many-locals, too-m
         # Relative Humidity
         message = grbs.select(name="2 metre relative humidity")[0]
         values = message["values"]
-        for i in range(
-            len(domain_stations)
-        ):  # pylint: disable=consider-using-enumerate
-            station = domain_stations[i]
+        for i, station in enumerate(domain_stations):
             geo_index = get_geo_index(fcst_valid_epoch, station["geo"])
             _rh = gg.interpGridBox(
                 values,
@@ -383,10 +383,7 @@ def test_grib_builder_verses_script():  # pylint: disable=too-many-locals, too-m
         vwind_message = grbs.select(name="10 metre V wind component")[0]
         vwind_values = vwind_message["values"]
 
-        for i in range(
-            len(domain_stations)
-        ):  # pylint: disable=consider-using-enumerate
-            station = domain_stations[i]
+        for i, station in enumerate(domain_stations):
             geo_index = get_geo_index(fcst_valid_epoch, station["geo"])
             uwind_ms = gg.interpGridBox(
                 uwind_values,
@@ -428,10 +425,7 @@ def test_grib_builder_verses_script():  # pylint: disable=too-many-locals, too-m
         # Visibility
         message = grbs.select(name="Visibility")[0]
         values = message["values"]
-        for i in range(
-            len(domain_stations)
-        ):  # pylint: disable=consider-using-enumerate
-            station = domain_stations[i]
+        for i, station in enumerate(domain_stations):
             geo_index = get_geo_index(fcst_valid_epoch, station["geo"])
             value = values[
                 round(station["geo"][geo_index]["y_gridpoint"]),
@@ -442,10 +436,8 @@ def test_grib_builder_verses_script():  # pylint: disable=too-many-locals, too-m
             )
         grbs.close()
 
-        for i in range(
-            len(domain_stations)
-        ):  # pylint: disable=consider-using-enumerate
-            station_name = domain_stations[i]['name']
+        for i, station in enumerate(domain_stations):
+            station_name = station['name']
             if expected_station_data["data"][i]["Ceiling"] is not None:
                 assert expected_station_data["data"][i]["Ceiling"] == pytest.approx(
                     vx_ingest_output_data[0]["data"][station_name]["Ceiling"]

@@ -198,7 +198,7 @@ class VXIngest(CommonVxIngest):
             # put all the ingest documents into the load_spec too
             self.load_spec["ingest_documents"] = {}
             for _id in self.load_spec["ingest_document_ids"]:
-                self.load_spec["ingest_documents"][_id]= self.collection.get(_id).content
+                self.load_spec["ingest_documents"][_id]= self.collection.get(_id).content_as[dict]
             #stash the load_job in the load_spec
             self.load_spec["load_job_doc"] = self.build_load_job_doc("madis")
         except (RuntimeError, TypeError, NameError, KeyError):

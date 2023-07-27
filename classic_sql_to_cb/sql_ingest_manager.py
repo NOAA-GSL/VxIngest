@@ -61,8 +61,9 @@ import time
 from multiprocessing import Process
 from couchbase.cluster import Cluster, ClusterOptions
 from couchbase.exceptions import DocumentNotFoundException, TimeoutException
-from couchbase_core.cluster import PasswordAuthenticator
-from classic_sql_to_cb import sql_builder as sql_builder
+from couchbase.cluster import Cluster
+from couchbase.options import  ClusterOptions, ClusterTimeoutOptions
+from couchbase.auth import PasswordAuthenticator
 from itertools import islice
 
 

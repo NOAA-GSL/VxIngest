@@ -3,8 +3,9 @@ import os
 from pathlib import Path
 from datetime import timedelta
 import yaml
-from couchbase.cluster import Cluster, ClusterOptions, ClusterTimeoutOptions, QueryOptions
+from couchbase.cluster import Cluster
 from couchbase.auth import PasswordAuthenticator
+from couchbase.options import ClusterOptions, ClusterTimeoutOptions, QueryOptions
 
 def connect_cb():
     """

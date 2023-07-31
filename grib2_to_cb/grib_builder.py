@@ -391,7 +391,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                     lon = row["geo"][geo_index]["lon"]
                     if lat == -90 and lon == 180:
                         continue  # don't know how to transform that station
-                    _x, _y = self.transformer.transform(lon, lat, radians=False)
+                    _x, _y = self.transformer.transform(lon, lat, radians=False)# pylint: disable=unpacking-non-sequence
                     x_gridpoint, y_gridpoint = _x / self.spacing, _y / self.spacing
                     try:
                         # pylint: disable=c-extension-no-member
@@ -418,7 +418,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
             if self.do_profiling:
                 with cProfile.Profile() as _pr:
                     self.handle_document()
-                    with open("profiling_stats.txt", "w") as stream:
+                    with open("profiling_stats.txt", "w", encoding='utf-8') as stream:
                         stats = Stats(_pr, stream=stream)
                         stats.strip_dirs()
                         stats.sort_stats("time")
@@ -550,7 +550,10 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
             for i in range(len(self.domain_stations)):
                 elem = {}
                 for key in keys:
-                    elem[key] = element[key][i]
+                    if element[key] is not None:
+                        elem[key] = element[key][i]
+                    else:
+                        elem[key] = None
                 doc["data"][elem["name"]]=elem
         return doc
 
@@ -821,7 +824,7 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
             _wd.append(wd_value)
         return _wd
 
-    def handleWindDirU(self, params_dict):  # pylint: disable=unused-argument
+    def handle_wind_dir_u(self, params_dict):  # pylint: disable=unused-argument
         """returns the wind direction U component for this document
         Args:
             params_dict (dict): contains named_function parameters
@@ -840,7 +843,7 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
             uwind_ms.append(gg.interpGridBox(u_values, y_gridpoint, x_gridpoint))
         return uwind_ms
 
-    def handleWindDirV(self, params_dict):  # pylint: disable=unused-argument
+    def handle_wind_dir_v(self, params_dict):  # pylint: disable=unused-argument
         """returns the wind direction V component for this document
         Args:
             params_dict (dict): contains named_function parameters
@@ -877,7 +880,7 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
             spfh.append(gg.interpGridBox(spfh_values, y_gridpoint, x_gridpoint))
         return spfh
 
-    def handle_vegetation_type(self, params_dict):
+    def handle_vegetation_type(self, params_dict): #pylint:disable=unused-argument
         """returns the vegetation type for this document
         Args:
             params_dict (dict): contains named_function parameters
@@ -887,13 +890,13 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
         vgtype_message = self.grbs.select(name="Specific humidity")[0]
         vgtype_values = vgtype_message["values"]
         fcst_valid_epoch = round(vgtype_message.validDate.timestamp())
-        vegetationType = []
+        vegetation_type = []
         for station in self.domain_stations:
             geo_index = get_geo_index(fcst_valid_epoch, station["geo"])
             x_gridpoint = station["geo"][geo_index]["x_gridpoint"]
             y_gridpoint = station["geo"][geo_index]["y_gridpoint"]
-            vegetationType.append(gg.interpGridBox(vgtype_values, y_gridpoint, x_gridpoint))
-        return vegetationType
+            vegetation_type.append(gg.interpGridBox(vgtype_values, y_gridpoint, x_gridpoint))
+        return vegetation_type
 
     def getName(
         self, params_dict

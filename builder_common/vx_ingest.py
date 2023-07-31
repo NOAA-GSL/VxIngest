@@ -22,8 +22,9 @@ from glob import glob
 from pathlib import Path
 from datetime import timedelta
 import yaml
-from couchbase.cluster import Cluster, ClusterOptions, ClusterTimeoutOptions
+from couchbase.cluster import Cluster, ClusterTimeoutOptions
 from couchbase.auth import PasswordAuthenticator
+from couchbase.options import ClusterOptions
 
 class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-instance-attributes
     """

@@ -58,14 +58,12 @@ import logging
 import queue
 import sys
 import time
+from itertools import islice
 from multiprocessing import Process
-from couchbase.cluster import Cluster, ClusterOptions
 from couchbase.exceptions import DocumentNotFoundException, TimeoutException
 from couchbase.cluster import Cluster
-from couchbase.options import  ClusterOptions, ClusterTimeoutOptions
+from couchbase.options import ClusterOptions
 from couchbase.auth import PasswordAuthenticator
-from itertools import islice
-
 
 def document_map_chunks(data, chunk_size=1000):
     """

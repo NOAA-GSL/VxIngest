@@ -11,9 +11,9 @@ from datetime import timedelta
 from pathlib import Path
 
 import yaml
-from couchbase.cluster import Cluster, ClusterOptions, ClusterTimeoutOptions
+from couchbase.cluster import Cluster
 from couchbase.auth import PasswordAuthenticator
-
+from couchbase.options import ClusterOptions, ClusterTimeoutOptions
 from ctc_to_cb import ctc_builder
 from ctc_to_cb.run_ingest_threads import VXIngest
 

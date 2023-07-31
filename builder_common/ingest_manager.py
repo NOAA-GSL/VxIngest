@@ -12,9 +12,9 @@ from datetime import timedelta
 import json
 from pathlib import Path
 from couchbase.exceptions import TimeoutException
-from couchbase.cluster import Cluster, ClusterOptions, ClusterTimeoutOptions
+from couchbase.cluster import Cluster
 from couchbase.auth import PasswordAuthenticator
-
+from couchbase.options import ClusterOptions, ClusterTimeoutOptions
 class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attributes
     """
     IngestManager is a Process Thread that manages an object pool of

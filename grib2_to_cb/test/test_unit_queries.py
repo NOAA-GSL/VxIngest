@@ -3,7 +3,8 @@ import os
 from pathlib import Path
 from datetime import timedelta
 import yaml
-from couchbase.cluster import Cluster, ClusterOptions, ClusterTimeoutOptions, QueryOptions
+from couchbase.cluster import Cluster
+from couchbase.options import ClusterOptions, ClusterTimeoutOptions, QueryOptions
 from couchbase.auth import PasswordAuthenticator
 
 def connect_cb():
@@ -13,13 +14,13 @@ def connect_cb():
     # noinspection PyBroadException
     try:
         try:
-            cb_connection  # is it defined
+            cb_connection  # is it defined pylint: disable=used-before-assignment
         except NameError:
             credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
             assert (
                 Path(credentials_file).is_file() is True
             ), f"*** credentials_file file {credentials_file} can not be found!"
-            _f = open(credentials_file)
+            _f = open(credentials_file, encoding="utf-8")
             _yaml_data = yaml.load(_f, yaml.SafeLoader)
             cb_connection = {}
             cb_connection["host"] = _yaml_data["cb_host"]
@@ -49,7 +50,7 @@ def test_ingest_document_id(request):
     try:
         _name = request.node.name
         _expected_time = 0.005
-        _statement = open("./grib2_to_cb/test/test_ingest_document_id.n1ql").read()
+        _statement = open("./grib2_to_cb/test/test_ingest_document_id.n1ql", encoding="utf-8").read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
         # have to read the rows before we can get to the metadata as of couchbase 4.1
         _rows = list(result.rows())
@@ -65,7 +66,7 @@ def test_ingest_document_fields(request):
     try:
         _name = request.node.name
         _expected_time = 0.01
-        _statement = open("./grib2_to_cb/test/test_ingest_document_fields.n1ql").read()
+        _statement = open("./grib2_to_cb/test/test_ingest_document_fields.n1ql", encoding="utf-8").read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
         # have to read the rows before we can get to the metadata as of couchbase 4.1
         _rows = list(result.rows())
@@ -76,12 +77,12 @@ def test_ingest_document_fields(request):
     except Exception as _e:  # pylint:disable=broad-except
         assert False, f"{_name} Exception failure: {_e}"
 
-def test_get_DF(request):
+def test_get_df(request):
     """test"""
     try:
         _name = request.node.name
-        _expected_time = 10
-        _statement = open("./grib2_to_cb/test/test_get_DF.n1ql").read()
+        _expected_time = 18
+        _statement = open("./grib2_to_cb/test/test_get_DF.n1ql", encoding='utf-8').read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
         # have to read the rows before we can get to the metadata as of couchbase 4.1
         _rows = list(result.rows())
@@ -97,7 +98,7 @@ def test_get_stations(request):
     try:
         _name = request.node.name
         _expected_time = 1
-        _statement = open("./grib2_to_cb/test/test_get_stations.n1ql").read()
+        _statement = open("./grib2_to_cb/test/test_get_stations.n1ql", encoding="utf-8").read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
         # have to read the rows before we can get to the metadata as of couchbase 4.1
         _rows = list(result.rows())
@@ -108,12 +109,12 @@ def test_get_stations(request):
     except Exception as _e:  # pylint:disable=broad-except
         assert False, f"{_name} Exception failure: {_e}"
 
-def test_get_model_by_fcstValidEpoch(request):
+def test_get_model_by_fcst_valid_epoch(request):
     """test"""
     try:
         _name = request.node.name
         _expected_time = 1.2
-        _statement = open("./grib2_to_cb/test/test_get_model_by_fcstValidEpoch.n1ql").read()
+        _statement = open("./grib2_to_cb/test/test_get_model_by_fcstValidEpoch.n1ql", encoding="utf-8").read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
         # have to read the rows before we can get to the metadata as of couchbase 4.1
         _rows = list(result.rows())

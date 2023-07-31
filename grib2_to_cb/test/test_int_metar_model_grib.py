@@ -20,7 +20,8 @@ import pygrib
 import pyproj
 import pytest
 import yaml
-from couchbase.cluster import Cluster, ClusterOptions, ClusterTimeoutOptions
+from couchbase.cluster import Cluster
+from couchbase.options import ClusterOptions, ClusterTimeoutOptions
 from couchbase.auth import PasswordAuthenticator
 from grib2_to_cb.run_ingest_threads import VXIngest
 from grib2_to_cb import get_grid as gg
@@ -303,7 +304,7 @@ def test_grib_builder_verses_script():  # pylint: disable=too-many-locals, too-m
             ceil_agl = (ceil_msl - surface) * 3.281
 
             # lazy initialization of _expected_station_data
-            if "data" not in expected_station_data.keys():
+            if "data" not in expected_station_data.keys(): # pylint: disable=consider-iterating-dictionary
                 expected_station_data["data"] = []
             if len(expected_station_data["data"]) <= i:
                 expected_station_data["data"].append({})

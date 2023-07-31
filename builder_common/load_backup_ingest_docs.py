@@ -15,8 +15,9 @@ import sys
 from pathlib import Path
 
 import yaml
-from couchbase.cluster import Cluster, ClusterOptions
+from couchbase.cluster import Cluster
 from couchbase.auth import PasswordAuthenticator
+from couchbase.options import ClusterOptions
 
 def parse_args(args):
     """parse command line arguments"""

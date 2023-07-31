@@ -8,7 +8,6 @@ from pathlib import Path
 
 import netCDF4 as nc
 import numpy as np
-import yaml
 from couchbase.cluster import QueryOptions, QueryScanConsistency
 from couchbase.mutation_state import MutationState
 from netcdf_to_cb.netcdf_builder import NetcdfMetarObsBuilderV01
@@ -134,8 +133,7 @@ def test_umask_value_transform():
         vx_ingest.close_cb()
         _nc.close()  # close returns memoryview
 
-
- def test_vxingest_get_file_list():
+def test_vxingest_get_file_list():
     """test the vxingest get_file_list"""
     try:
         vx_ingest = setup_connection()

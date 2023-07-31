@@ -10,7 +10,8 @@ import pygrib
 import pyproj
 import pytest
 import yaml
-from couchbase.cluster import Cluster, ClusterOptions
+from couchbase.cluster import Cluster
+from couchbase.options import ClusterOptions
 
 # from couchbase.search import GeoBoundingBoxQuery
 from couchbase.auth import PasswordAuthenticator

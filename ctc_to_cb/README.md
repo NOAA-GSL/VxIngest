@@ -387,7 +387,7 @@ and this document will contain all of the surface, ceiling, and visibility data 
 There are unit tests in the test directory. To run the unit tests
 switch to the VXingest directory and use this invocation.
 This assumes that you have cloned this repo into your home directory,
-and that you have installed any necessary python packages like pygrib and numpy.
+and that you have installed any necessary python packages like numpy.
 
 ```bash
 cd ~/VXingest

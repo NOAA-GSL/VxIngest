@@ -22,9 +22,9 @@ from glob import glob
 from pathlib import Path
 from datetime import timedelta
 import yaml
-from couchbase.cluster import Cluster, ClusterTimeoutOptions
+from couchbase.cluster import Cluster
 from couchbase.auth import PasswordAuthenticator
-from couchbase.options import ClusterOptions
+from couchbase.options import ClusterOptions, ClusterTimeoutOptions
 
 class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-instance-attributes
     """
@@ -140,7 +140,7 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
             self.load_spec["cb_credentials"] = self.cb_credentials
             logging.info("%s: Couchbase connection success")
         except Exception as _e:  # pylint:disable=broad-except
-            logging.exception("*** builder_common.CommonVxIngest Error in connect_cb ***")
+            logging.exception("*** builder_common.CommonVxIngest Error in connect_cb *** %s", str(_e))
             sys.exit("*** builder_common.CommonVxIngest Error when connecting to cb database: ")
 
     def get_file_list(self, df_query, directory, file_pattern):

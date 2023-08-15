@@ -271,6 +271,5 @@ class VXIngest(CommonVxIngest):
         logging.info("*** FINISHED ***")
         sys.exit(0)
 
-
 if __name__ == "__main__":
     VXIngest().main()

@@ -39,7 +39,7 @@ def test_check_fcst_valid_epoch_fcst_valid_iso():
     try:
         credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
         assert Path(credentials_file).is_file(), "credentials_file Does not exist"
-        _f = open(credentials_file)
+        _f = open(credentials_file, encoding="utf-8")
         yaml_data = yaml.load(_f, yaml.SafeLoader)
         _host = yaml_data["cb_host"]
         _user = yaml_data["cb_user"]
@@ -89,7 +89,7 @@ def test_get_stations_geo_search():
     try:
         credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
         assert Path(credentials_file).is_file(), "credentials_file Does not exist"
-        _f = open(credentials_file)
+        _f = open(credentials_file, encoding="utf-8")
         yaml_data = yaml.load(_f, yaml.SafeLoader)
         _host = yaml_data["cb_host"]
         _user = yaml_data["cb_user"]
@@ -179,7 +179,7 @@ def calculate_cb_ctc(  # pylint: disable=dangerous-default-value,missing-functio
 
     credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
     assert Path(credentials_file).is_file(), "credentials_file Does not exist"
-    _f = open(credentials_file)
+    _f = open(credentials_file, encoding="utf-8")
     yaml_data = yaml.load(_f, yaml.SafeLoader)
     _host = yaml_data["cb_host"]
     _user = yaml_data["cb_user"]
@@ -328,7 +328,7 @@ def test_ctc_builder_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
         latest_output_file = min(list_of_output_files, key=os.path.getctime)
         try:
             # Opening JSON file
-            output_file = open(latest_output_file)
+            output_file = open(latest_output_file, encoding="utf8")
             # returns JSON object as a dictionary
             vx_ingest_output_data = json.load(output_file)
             # get the last fcstValidEpochs
@@ -392,7 +392,7 @@ def test_ctc_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
 
     credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
     assert Path(credentials_file).is_file(), "credentials_file Does not exist"
-    _f = open(credentials_file)
+    _f = open(credentials_file, encoding="utf8")
     yaml_data = yaml.load(_f, yaml.SafeLoader)
     _host = yaml_data["cb_host"]
     _user = yaml_data["cb_user"]

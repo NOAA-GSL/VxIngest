@@ -100,7 +100,9 @@ def get_geo_index(fcst_valid_epoch, geo):
 
 
 def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus():
-    """test gribBuilder with one thread"""
+    """test gribBuilder with one thread.
+        This test verifies the resulting data file against the one that is in couchbase already
+        in order to make sure the calculations are proper."""
     try:
         # 1632412800 fcst_len 1 -> 1632412800 - 1 * 3600 -> 1632409200 September 23, 2021 15:00:00 -> 2126615000001
         # 1632412800 fcst_len 3 -> 1632412800 - 3 * 3600 -> 1632402000 September 23, 2021 13:00:00 -> 2126613000003
@@ -194,7 +196,9 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus():
 
 
 def test_grib_builder_two_threads_file_pattern_hrrr_ops_conus():
-    """test gribBuilder multi-threaded"""
+    """test gribBuilder multi-threaded
+        Not going to qulify the data on this one, just make sure it runs two threads properly
+    """
     try:
         # 1632412800 fcst_len 1 -> 1632412800 - 1 * 3600 -> 1632409200 September 23, 2021 15:00:00 -> 2126615000001
         # 1632412800 fcst_len 3 -> 1632412800 - 3 * 3600 -> 1632402000 September 23, 2021 13:00:00 -> 2126613000003

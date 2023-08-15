@@ -17,10 +17,12 @@ import numpy as np
 from grib2_to_cb.grib_builder_parent import GribBuilder
 from builder_common.builder_utilities import get_geo_index
 
+
 # Concrete builders
 class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attributes
     """
-    This is the builder for model data that is ingested from grib2 files.
+    This is the builder for model data that is ingested from grib2 files. It is a concrete builder specifically
+    for the model data.
     """
 
     def __init__(
@@ -61,11 +63,11 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
 
     def build_datafile_doc(self, file_name, data_file_id, origin_type):
         """
-        This method will build a dataFile document for GribBuilder. The dataFile
-        document will represent the file that is ingested by the GribBuilder. The document
-        is intended to be added to the output folder and imported with the other documents.
-        The VxIngest will examine the existing dataFile documents to determine if a psecific file
-        has already been ingested.
+        This method will build a 'dataFile document' for GribBuilder. The dataFile
+        document will represent the file that is ingested by the GribBuilder for audit purposes.
+        This is not a Data Document. The document is intended to be added to the output folder
+        and imported with the other data documents. The VxIngest will query the existing
+        dataFile documents to determine if a specific file has already been ingested.
         """
         mtime = os.path.getmtime(file_name)
         df_doc = {
@@ -91,17 +93,18 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
 
     def get_document_map(self):
         """
-        In case there are leftovers we have to process them first.
-        :return: the document_map
+        Retrive the in-memory document map.
+        In case there are leftovers we have to process them first using handle_document.
+        Returns:
+            map(dict): the document_map
         """
         if len(self.same_time_rows) != 0:
             self.handle_document()
         return self.document_map
 
     def load_data(self, doc, key, element):
-        """This method builds the data array. It gets the data key ('data') and the data element
-        which in this case is a set of arrays. This routine has to create the data array from these
-        arrays which are lists of values ordered by domain_station.
+        """This method builds the data dictionary. It gets the data key ('data') and the data element
+        which in this case is a map indexed by station name.
         Args:
             doc (Object): The document being created
             key (string): Not used

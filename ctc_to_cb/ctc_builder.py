@@ -422,32 +422,33 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
             # queue_element is an ingest document id
             # get the ingest document
 
-            self.ingest_document = self.load_spec['ingest_documents'][queue_element]
-            self.model = self.ingest_document['model']
-            self.region = self.ingest_document['region']
-            self.sub_doc_type = self.ingest_document['subDocType']
-            self.variable = self.ingest_document['subDocType'].lower()
-            self.subset = self.ingest_document['subset']
-            self.template = self.ingest_document['template']
-            self.bucket = self.load_spec['cb_connection']['bucket']
-            self.scope = self.load_spec['cb_connection']['scope']
-            self.collection = self.load_spec['cb_connection']['collection']
-            logging.info("%s.build_document queue_element:%s model:%s region:%s variable:%s subset:%s",
+            self.ingest_document = self.load_spec["ingest_documents"][queue_element]
+            self.model = self.ingest_document["model"]
+            self.region = self.ingest_document["region"]
+            self.sub_doc_type = self.ingest_document["subDocType"]
+            self.variable = self.ingest_document["subDocType"].lower()
+            self.subset = self.ingest_document["subset"]
+            self.template = self.ingest_document["template"]
+            self.bucket = self.load_spec["cb_connection"]["bucket"]
+            self.scope = self.load_spec["cb_connection"]["scope"]
+            self.collection = self.load_spec["cb_connection"]["collection"]
+            logging.info(
+                "%s.build_document queue_element:%s model:%s region:%s variable:%s subset:%s",
                 self.__class__.__name__,
                 queue_element,
                 self.model,
                 self.region,
                 self.variable,
-                self.subset
-                )
+                self.subset,
+            )
 
             # First get the latest fcstValidEpoch for the ctc's for this model and region.
-            stmnt=""
+            stmnt = ""
             error_count = 0
             success = False
             while error_count < 3 and success is False:
                 try:
-                    stmnt=f"""SELECT RAW MAX(METAR.fcstValidEpoch)
+                    stmnt = f"""SELECT RAW MAX(METAR.fcstValidEpoch)
                             FROM `{self.bucket}`.{self.scope}.{self.collection}
                             WHERE type='DD'
                             AND docType='CTC'
@@ -456,20 +457,26 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                             AND region='{self.region}'
                             AND version='V01'
                             AND subset='{self.subset}'"""
-                    #logging.info("build_document start query %s", stmnt)
-                    result = self.load_spec["cluster"].query(stmnt,read_only=True)
+                    # logging.info("build_document start query %s", stmnt)
+                    result = self.load_spec["cluster"].query(stmnt, read_only=True)
                     success = True
-                    #logging.info("build_document finished query %s", stmnt)
+                    # logging.info("build_document finished query %s", stmnt)
                 except TimeoutException:
-                    logging.info("%s.build_document TimeoutException retrying %s: %s", self.__class__.__name__, error_count, stmnt)
+                    logging.info(
+                        "%s.build_document TimeoutException retrying %s: %s",
+                        self.__class__.__name__,
+                        error_count,
+                        stmnt,
+                    )
                     if error_count > 2:
                         raise
-                    time.sleep(2) # don't hammer the server too hard
+                    time.sleep(2)  # don't hammer the server too hard
                     error_count = error_count + 1
-            max_ctc_fcst_valid_epochs = self.load_spec["first_last_params"]["first_epoch"]
+            max_ctc_fcst_valid_epochs = self.load_spec["first_last_params"][
+                "first_epoch"
+            ]
             if list(result)[0] is not None:
                 max_ctc_fcst_valid_epochs = list(result)[0]
-
 
             # Second get the intersection of the fcstValidEpochs that correspond for this
             # model and the obs for all fcstValidEpochs greater than the first_epoch ctc
@@ -479,7 +486,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
             success = False
             while error_count < 3 and success is False:
                 try:
-                    stmnt=f"""SELECT fve.fcstValidEpoch, fve.fcstLen, meta().id
+                    stmnt = f"""SELECT fve.fcstValidEpoch, fve.fcstLen, meta().id
                             FROM `{self.bucket}`.{self.scope}.{self.collection} fve
                             WHERE fve.type='DD'
                                 AND fve.docType='model'
@@ -489,15 +496,20 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                                 AND fve.fcstValidEpoch >= {self.load_spec["first_last_params"]["first_epoch"]}
                                 AND fve.fcstValidEpoch <= {self.load_spec["first_last_params"]["last_epoch"]}
                             ORDER BY fve.fcstValidEpoch, fve.fcstLen"""
-                    #logging.info("build_document start query %s", stmnt)
-                    result = self.load_spec["cluster"].query(stmnt,read_only=True)
+                    # logging.info("build_document start query %s", stmnt)
+                    result = self.load_spec["cluster"].query(stmnt, read_only=True)
                     success = True
-                    #logging.info("build_document finished query %s", stmnt)
+                    # logging.info("build_document finished query %s", stmnt)
                 except TimeoutException:
-                    logging.info("%s.build_document TimeoutException retrying %s: %s", self.__class__.__name__, error_count, stmnt)
+                    logging.info(
+                        "%s.build_document TimeoutException retrying %s: %s",
+                        self.__class__.__name__,
+                        error_count,
+                        stmnt,
+                    )
                     if error_count > 2:
                         raise
-                    time.sleep(2) # don't hammer the server too hard
+                    time.sleep(2)  # don't hammer the server too hard
                     error_count = error_count + 1
             _tmp_model_fve = list(result)
 
@@ -505,7 +517,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
             success = False
             while error_count < 3 and success is False:
                 try:
-                    stmnt=f"""SELECT raw obs.fcstValidEpoch
+                    stmnt = f"""SELECT raw obs.fcstValidEpoch
                                 FROM `{self.bucket}`.{self.scope}.{self.collection} obs
                                 WHERE obs.type='DD'
                                     AND obs.docType='obs'
@@ -514,15 +526,20 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                                     AND obs.fcstValidEpoch >= {max_ctc_fcst_valid_epochs}
                                     AND obs.fcstValidEpoch <= {self.load_spec["first_last_params"]["last_epoch"]}
                             ORDER BY obs.fcstValidEpoch"""
-                    #logging.info("build_document start query %s", stmnt)
-                    result1 = self.load_spec["cluster"].query(stmnt,read_only=True)
+                    # logging.info("build_document start query %s", stmnt)
+                    result1 = self.load_spec["cluster"].query(stmnt, read_only=True)
                     success = True
-                    #logging.info("build_document finished query %s", stmnt)
+                    # logging.info("build_document finished query %s", stmnt)
                 except TimeoutException:
-                    logging.info("%s.build_document TimeoutException retrying %s: %s", self.__class__.__name__, error_count, stmnt)
+                    logging.info(
+                        "%s.build_document TimeoutException retrying %s: %s",
+                        self.__class__.__name__,
+                        error_count,
+                        stmnt,
+                    )
                     if error_count > 2:
                         raise
-                    time.sleep(2) # don't hammer the server too hard
+                    time.sleep(2)  # don't hammer the server too hard
                     error_count = error_count + 1
             _tmp_obs_fve = list(result1)
 
@@ -583,7 +600,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                     and subset='COMMON'
                     and version='V01'
                     and name='{region_name}'"""
-            result = self.load_spec["cluster"].query(stmnt,read_only=True)
+            result = self.load_spec["cluster"].query(stmnt, read_only=True)
             _boundingbox = list(result)[0]
             _domain_stations = []
             _result1 = self.load_spec["cluster"].search_query(
@@ -648,18 +665,18 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                     and subset='COMMON'
                     and version='V01'
                     and name='{region_name}'"""
-            result = self.load_spec["cluster"].query(stmnt,read_only=True)
+            result = self.load_spec["cluster"].query(stmnt, read_only=True)
             _boundingbox = list(result)[0]
             _domain_stations = []
             # get the stations that are within this boundingbox
-            stmnt=f"""SELECT
+            stmnt = f"""SELECT
                     geo, name
                     from `{self.bucket}`.{self.scope}.{self.collection}
                     where type='MD'
                     and docType='station'
                     and subset='{self.subset}'
                     and version='V01'"""
-            result = self.load_spec["cluster"].query(stmnt,read_only=True)
+            result = self.load_spec["cluster"].query(stmnt, read_only=True)
             for row in result:
                 geo_index = get_geo_index(valid_epoch, row["geo"])
                 rlat = row["geo"][geo_index]["lat"]
@@ -774,8 +791,12 @@ class CTCModelObsBuilderV01(CTCBuilder):
                     FROM `{self.bucket}`.{self.scope}.{self.collection}
                     WHERE type="MD"
                         AND docType="matsAux"
-                """,read_only=True)
-                self.thresholds = list(map(float, list((list(result)[0])[self.variable].keys())))
+                """,
+                    read_only=True,
+                )
+                self.thresholds = list(
+                    map(float, list((list(result)[0])[self.variable].keys()))
+                )
             for threshold in self.thresholds:
                 hits = 0
                 misses = 0
@@ -803,31 +824,42 @@ class CTCModelObsBuilderV01(CTCBuilder):
                             continue
                         if (
                             model_station[self.variable.capitalize()] is None
-                            or self.obs_data[model_station_name][self.variable.capitalize()] is None
+                            or self.obs_data[model_station_name][
+                                self.variable.capitalize()
+                            ]
+                            is None
                         ):
                             none_count = none_count + 1
                             continue
                         if (
                             model_station[self.variable.capitalize()] < threshold
-                            and self.obs_data[model_station_name][self.variable.capitalize()]
+                            and self.obs_data[model_station_name][
+                                self.variable.capitalize()
+                            ]
                             < threshold
                         ):
                             hits = hits + 1
                         if (
                             model_station[self.variable.capitalize()] < threshold
-                            and not self.obs_data[model_station_name][self.variable.capitalize()]
+                            and not self.obs_data[model_station_name][
+                                self.variable.capitalize()
+                            ]
                             < threshold
                         ):
                             false_alarms = false_alarms + 1
                         if (
                             not model_station[self.variable.capitalize()] < threshold
-                            and self.obs_data[model_station_name][self.variable.capitalize()]
+                            and self.obs_data[model_station_name][
+                                self.variable.capitalize()
+                            ]
                             < threshold
                         ):
                             misses = misses + 1
                         if (
                             not model_station[self.variable.capitalize()] < threshold
-                            and not self.obs_data[model_station_name][self.variable.capitalize()]
+                            and not self.obs_data[model_station_name][
+                                self.variable.capitalize()
+                            ]
                             < threshold
                         ):
                             correct_negatives = correct_negatives + 1

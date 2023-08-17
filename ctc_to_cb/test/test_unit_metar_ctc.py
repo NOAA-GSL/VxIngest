@@ -13,10 +13,14 @@ def setup_ingest():
         _vx_ingest.load_spec = {}
         _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
         _vx_ingest.connect_cb()
-        _vx_ingest.load_spec["ingest_document_ids"] = _vx_ingest.collection.get("JOB:V01:METAR:CTC:SUM:MODEL:HRRR_RAP_130").content_as[dict]["ingest_document_ids"]
+        _vx_ingest.load_spec["ingest_document_ids"] = _vx_ingest.collection.get(
+            "JOB:V01:METAR:CTC:SUM:MODEL:HRRR_RAP_130"
+        ).content_as[dict]["ingest_document_ids"]
         _vx_ingest.load_spec["ingest_documents"] = {}
         for _id in _vx_ingest.load_spec["ingest_document_ids"]:
-            _vx_ingest.load_spec["ingest_documents"][_id]= _vx_ingest.collection.get(_id).content_as[dict]
+            _vx_ingest.load_spec["ingest_documents"][_id] = _vx_ingest.collection.get(
+                _id
+            ).content_as[dict]
 
         vx_ingest_manager = VxIngestManager(
             "test", _vx_ingest.load_spec, JoinableQueue(), "/tmp"

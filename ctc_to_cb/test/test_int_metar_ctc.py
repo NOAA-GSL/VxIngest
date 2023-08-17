@@ -49,11 +49,13 @@ def test_check_fcst_valid_epoch_fcst_valid_iso():
         _scope = yaml_data["cb_scope"]
         _f.close()
 
-        timeout_options=ClusterTimeoutOptions(kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120))
-        options=ClusterOptions(PasswordAuthenticator(_user, _password), timeout_options=timeout_options)
-        cluster = Cluster(
-            "couchbase://" + _host, options
+        timeout_options = ClusterTimeoutOptions(
+            kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
         )
+        options = ClusterOptions(
+            PasswordAuthenticator(_user, _password), timeout_options=timeout_options
+        )
+        cluster = Cluster("couchbase://" + _host, options)
         options = ClusterOptions(PasswordAuthenticator(_user, _password))
         cluster = Cluster("couchbase://" + _host, options)
         stmnt = f"""SELECT m0.fcstValidEpoch fve, fcstValidISO fvi
@@ -99,23 +101,29 @@ def test_get_stations_geo_search():
         _scope = yaml_data["cb_scope"]
         _f.close()
 
-        timeout_options=ClusterTimeoutOptions(kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120))
-        options=ClusterOptions(PasswordAuthenticator(_user, _password), timeout_options=timeout_options)
-        cluster = Cluster(
-            "couchbase://" + _host, options
+        timeout_options = ClusterTimeoutOptions(
+            kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
         )
-        collection=cluster.bucket(_bucket).scope(_scope).collection(_collection)
+        options = ClusterOptions(
+            PasswordAuthenticator(_user, _password), timeout_options=timeout_options
+        )
+        cluster = Cluster("couchbase://" + _host, options)
+        collection = cluster.bucket(_bucket).scope(_scope).collection(_collection)
         load_spec = {}
         load_spec["cluster"] = cluster
         load_spec["collection"] = collection
-        load_spec['ingest_document_ids'] = [f"MD:V01:{_collection}:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest"]
+        load_spec["ingest_document_ids"] = [
+            f"MD:V01:{_collection}:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest"
+        ]
         # get the ingest document id.
-        ingest_document_result = collection.get(f"MD-TEST:V01:{_collection}:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest")
+        ingest_document_result = collection.get(
+            f"MD-TEST:V01:{_collection}:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest"
+        )
         ingest_document = ingest_document_result.content_as[dict]
         # instantiate a ctcBuilder so we can use its get_station methods
         builder_class = getattr(ctc_builder, "CTCModelObsBuilderV01")
         builder = builder_class(load_spec, ingest_document)
-            # usually these would get assigned in build_document
+        # usually these would get assigned in build_document
         builder.bucket = _bucket
         builder.scope = _scope
         builder.collection = _collection
@@ -165,6 +173,7 @@ def test_get_stations_geo_search():
     except Exception as _e:  # pylint: disable=broad-except
         assert False, f"TestGsdIngestManager Exception failure:  {_e}"
 
+
 def calculate_cb_ctc(  # pylint: disable=dangerous-default-value,missing-function-docstring
     epoch,
     fcst_len,
@@ -189,12 +198,14 @@ def calculate_cb_ctc(  # pylint: disable=dangerous-default-value,missing-functio
     _scope = yaml_data["cb_scope"]
     _f.close()
 
-    timeout_options=ClusterTimeoutOptions(kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120))
-    options=ClusterOptions(PasswordAuthenticator(_user, _password), timeout_options=timeout_options)
-    cluster = Cluster(
-        "couchbase://" + _host, options
+    timeout_options = ClusterTimeoutOptions(
+        kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
     )
-    collection=cluster.bucket(_bucket).scope(_scope).collection(_collection)
+    options = ClusterOptions(
+        PasswordAuthenticator(_user, _password), timeout_options=timeout_options
+    )
+    cluster = Cluster("couchbase://" + _host, options)
+    collection = cluster.bucket(_bucket).scope(_scope).collection(_collection)
     load_spec = {}
     load_spec["cluster"] = cluster
     load_spec["collection"] = collection
@@ -302,7 +313,7 @@ def test_ctc_builder_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
 
     try:
         credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
-        job_id="JOB:V01:METAR:CTC:SUM:MODEL:HRRR_RAP_130"
+        job_id = "JOB:V01:METAR:CTC:SUM:MODEL:HRRR_RAP_130"
         outdir = "/opt/data/ctc_to_cb/hrrr_ops/output"
         filepaths = outdir + "/*.json"
         files = glob.glob(filepaths)
@@ -319,7 +330,7 @@ def test_ctc_builder_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
                 "output_dir": outdir,
                 "threads": 1,
                 "first_epoch": 1638489600,
-                "last_epoch": 1638496800
+                "last_epoch": 1638496800,
             }
         )
 
@@ -380,6 +391,7 @@ def test_ctc_builder_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
     except Exception as _e:  # pylint: disable=broad-except
         assert False, f"TestCTCBuilderV01 Exception failure: {_e}"
 
+
 def test_ctc_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
     # noinspection PyBroadException
     """
@@ -402,13 +414,15 @@ def test_ctc_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
     _scope = yaml_data["cb_scope"]
     _f.close()
 
-    timeout_options=ClusterTimeoutOptions(kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120))
-    options=ClusterOptions(PasswordAuthenticator(_user, _password), timeout_options=timeout_options)
-    cluster = Cluster(
-        "couchbase://" + _host, options
+    timeout_options = ClusterTimeoutOptions(
+        kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
     )
-    collection=cluster.bucket(_bucket).scope(_scope).collection(_collection)
-        # get available fcstValidEpochs for couchbase
+    options = ClusterOptions(
+        PasswordAuthenticator(_user, _password), timeout_options=timeout_options
+    )
+    cluster = Cluster("couchbase://" + _host, options)
+    collection = cluster.bucket(_bucket).scope(_scope).collection(_collection)
+    # get available fcstValidEpochs for couchbase
     try:
         result = cluster.query(
             f"""SELECT RAW fcstValidEpoch
@@ -490,22 +504,24 @@ def test_ctc_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
                 order by fcstLen;"""
         )
         for _cb_ctc in cb_results:
-            fcstln = _cb_ctc['METAR']['fcstLen']
-            for _threshold in _cb_ctc['METAR']['data'].keys():
-                _ctc=calculate_cb_ctc(
+            fcstln = _cb_ctc["METAR"]["fcstLen"]
+            for _threshold in _cb_ctc["METAR"]["data"].keys():
+                _ctc = calculate_cb_ctc(
                     fcst_valid_epoch,
                     fcstln,
                     int(float(_threshold)),
-                    'HRRR_OPS',
+                    "HRRR_OPS",
                     _collection,
-                    'ALL_HRRR'
+                    "ALL_HRRR",
                 )
                 # assert ctc values
-                fields= ['hits', 'misses', 'false_alarms', 'correct_negatives']
+                fields = ["hits", "misses", "false_alarms", "correct_negatives"]
                 for field in fields:
                     _ctc_value = _ctc[field]
-                    _cb_ctc_value = _cb_ctc[_collection]['data'][_threshold][field]
-                    assert _ctc_value == _cb_ctc_value, f"""
+                    _cb_ctc_value = _cb_ctc[_collection]["data"][_threshold][field]
+                    assert (
+                        _ctc_value == _cb_ctc_value
+                    ), f"""
                     For epoch : {_ctc['fcst_valid_epoch']}
                     and fstLen: {_ctc['fcst_len']}
                     and threshold: {_threshold}

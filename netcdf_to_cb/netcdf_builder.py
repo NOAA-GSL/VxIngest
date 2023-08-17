@@ -330,9 +330,9 @@ class NetcdfBuilder(Builder):  # pylint disable=too-many-instance-attributes
         """
         # noinspection PyBroadException
         try:
-            bucket = self.load_spec['cb_connection']['bucket']
-            scope = self.load_spec['cb_connection']['scope']
-            collection = self.load_spec['cb_connection']['collection']
+            bucket = self.load_spec["cb_connection"]["bucket"]
+            scope = self.load_spec["cb_connection"]["scope"]
+            collection = self.load_spec["cb_connection"]["collection"]
 
             # stash the file_name so that it can be used later
             self.file_name = os.path.basename(queue_element)
@@ -656,7 +656,7 @@ class NetcdfMetarObsBuilderV01(
             # there must not have been one
             windDir = self.umask_value_transform({})
             windSpeed = self.umask_value_transform({})
-            u, _v = wind_components(windSpeed * units('m/s'), windDir * units.deg)
+            u, _v = wind_components(windSpeed * units("m/s"), windDir * units.deg)
             return u
 
     def handle_wind_dir_V(self, params_dict):
@@ -676,7 +676,7 @@ class NetcdfMetarObsBuilderV01(
             # there must not have been one
             windDir = self.umask_value_transform({})
             windSpeed = self.umask_value_transform({})
-            _u, v = wind_components(windSpeed * units('m/s'), windDir * units.deg)
+            _u, v = wind_components(windSpeed * units("m/s"), windDir * units.deg)
             return v
 
     def handle_pressure(self, params_dict):

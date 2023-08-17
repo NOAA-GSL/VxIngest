@@ -1,4 +1,3 @@
-# pylint: disable=too-many-lines
 """
     integration tests for grib builder
     This test expects to find a valid grib file in the local directory /opt/public/data/grids/hrrr/conus/wrfprs/grib2.
@@ -8,6 +7,7 @@ these files are two digit year, day of year, hour, and forecast lead time (6 dig
 """
 import glob
 import os
+import math
 import json
 from glob import glob
 from pathlib import Path
@@ -26,7 +26,6 @@ def connect_cb():
     """
     create a couchbase connection and maintain the collection and cluster objects.
     """
-    # noinspection PyBroadException
     try:
         if cb_connection:  # pylint: disable=used-before-assignment
             return cb_connection
@@ -65,44 +64,10 @@ def connect_cb():
         assert False, f"test_unit_queries Exception failure connecting: {_e}"
 
 
-def get_geo_index(fcst_valid_epoch, geo):
-    """return the index of the geo list that corresponds to the given fcst_valid_epoch
-    - the location of a station might change over time and this list contains the
-    lat/lon of the station at different times.  The fcst_valid_epoch is used to
-    determine which lat/lon to use.
-    Args:
-        fcst_valid_epoch (int): an epoch
-        geo (list): a list of geo objects
-
-    Returns:
-        int : the index
-    """
-    latest_time = 0
-    latest_index = 0
-    try:
-        for geo_index in range(len(geo)):  # pylint: disable=consider-using-enumerate
-            if geo[geo_index]["lastTime"] > latest_time:
-                latest_time = geo[geo_index]["lastTime"]
-                latest_index = geo_index
-            found = False
-            if (
-                geo[geo_index]["firstTime"] >= fcst_valid_epoch
-                and fcst_valid_epoch <= geo[geo_index]["lastTime"]
-            ):
-                found = True
-                break
-        if found:
-            return geo_index
-        else:
-            return latest_index
-    except Exception as _e:  # pylint: disable=broad-except
-        assert False, f"GribBuilder.get_geo_index: Exception  error: {_e}"
-
-
 def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus():
     """test gribBuilder with one thread.
-        This test verifies the resulting data file against the one that is in couchbase already
-        in order to make sure the calculations are proper."""
+    This test verifies the resulting data file against the one that is in couchbase already
+    in order to make sure the calculations are proper."""
     try:
         # 1632412800 fcst_len 1 -> 1632412800 - 1 * 3600 -> 1632409200 September 23, 2021 15:00:00 -> 2126615000001
         # 1632412800 fcst_len 3 -> 1632412800 - 3 * 3600 -> 1632402000 September 23, 2021 13:00:00 -> 2126613000003
@@ -173,18 +138,31 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus():
                     ), f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure data key {_k}.{_dk} not in {_json['data'][_k].keys()}"
                     # assert data field matches to 2 decimal places
                     if _dk == "name":
+                        # string compare
                         assert (
                             result["data"][_k][_dk] == _json["data"][_k][_dk]
                         ), f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure name {result['data'][_k][_dk]} != {_json['data'][_k][_dk]}"
                     else:
-                        decimals = 6
-                        if _dk in ["Ceiling", "DewPoint"]:
-                            decimals = 0
-                        elif _dk == "RH":
-                            decimals = 1
-                        assert round(result["data"][_k][_dk], decimals) == round(
-                            _json["data"][_k][_dk], decimals
-                        ), f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure data equality {_k}.{_dk} {result['data'][_k][_dk]} != {_json['data'][_k][_dk]} within {decimals} decimal places"
+                        # math compare
+                        abs_tol = 0.0
+                        if _dk == "Ceiling":
+                            abs_tol = 0.002  # ceiling values don't always have four decimals of resolution
+                        elif _dk == "DewPoint":
+                            abs_tol = 0.0001  # DewPoint only has 3 decimals of precision from pygrib whereas cfgrib is having 4 (or at least the old ingest only had four)
+                        elif (
+                            _dk == "RH"
+                        ):  # RH only has one decimal of resolution from the grib file
+                            abs_tol = 0.00001  # not really dure why math.isclose compares out to 5 places but not 6
+                            # There are no unusual math transformations in the RH handler.
+                        else:
+                            abs_tol = 0.0000000000001  # most fields validate between pygrib and cfgrib precisely
+                        assert math.isclose(
+                            result["data"][_k][_dk],
+                            _json["data"][_k][_dk],
+                            abs_tol=abs_tol,
+                        ), f"""TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure data not close within {abs_tol}
+                        {_k}.{_dk} {result['data'][_k][_dk]} != {_json['data'][_k][_dk]} within {abs_tol} decimal places."""
+
     except Exception as _e:  # pylint: disable=broad-except
         assert (
             False
@@ -197,7 +175,7 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus():
 
 def test_grib_builder_two_threads_file_pattern_hrrr_ops_conus():
     """test gribBuilder multi-threaded
-        Not going to qulify the data on this one, just make sure it runs two threads properly
+    Not going to qulify the data on this one, just make sure it runs two threads properly
     """
     try:
         # 1632412800 fcst_len 1 -> 1632412800 - 1 * 3600 -> 1632409200 September 23, 2021 15:00:00 -> 2126615000001

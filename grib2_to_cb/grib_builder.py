@@ -135,7 +135,7 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
         returns the ceiling values for all the stations in a list
         the dict_params aren't used here since the calculations are all done here
         """
-        # This is the original 'C' algorithm for calculatin ceiling from grib (trying to remain faithful to the original algorithm)
+        # This is the original 'C' algorithm for calculating ceiling from grib (trying to remain faithful to the original algorithm)
         # Notice that the result values are divided from meters by tens of meters i.e. 60000 is 6000 feet
         # in the original algorythm but the code here does no such thing.
         # if(ceil_msl < -1000 ||

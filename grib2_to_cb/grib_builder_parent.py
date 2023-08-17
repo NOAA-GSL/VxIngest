@@ -1,4 +1,3 @@
-# pylint: disable="too-many-lines"
 """
 Program Name: Class grib_builder.py
 Contact(s): Randy Pierce
@@ -16,7 +15,6 @@ from pstats import Stats
 import xarray as xr
 import pyproj
 
-# import grib2_to_cb.get_grid as gg
 from builder_common.builder_utilities import convert_to_iso
 from builder_common.builder_utilities import get_geo_index
 from builder_common.builder_utilities import initialize_data_array
@@ -25,7 +23,8 @@ from builder_common.builder import Builder
 
 class GribBuilder(Builder):  # pylint: disable=too-many-arguments
     """parent class for grib builders. This class contains methods that are
-    common to all the grib builders."""
+    common to all the grib builders. The entry point for every builder is the build_document(self, queue_element)
+    which is common to all grib2 builders and is in this class."""
 
     def __init__(
         self,
@@ -189,19 +188,24 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
     def translate_template_item(self, variable, single_return=False):
         """This method translates template replacements (*item or *item1*item2).
         It can translate keys or values.
+        If the variable is a variable to be translated (not a constant)
+        it should literally be the long name attribute of the variable from the
+        proper cfgrib dataset. For example "2 metre temperature" or "2 metre dewpoint temperature"
+        from the
+            ds_height_above_ground_2m dataset.
+                ds_height_above_ground_2m.filter_by_attrs(long_name="2 metre temperature")
         Args:
-            variable (string): a value from the template - should be a grib2 variable or a constant
+            variable (string): a value from the template - should be a grib2 variable or a constant.
             single_return (boolean): if this is True only one value is returned, otherwise an array.
         Returns:
-            [list]: It returns an array of values, ordered by domain_stations, or a single value
-            the array will have values and interpreted values. The values are the actual values
+            [list]: It returns an array of values, ordered by domain_stations, or a single value.
+            The array will have values and interpreted values. The values are the actual values
             from the grib2 file. The interpreted values are the values interpolated to the
             station location. The array will have one or two values. Each handler decides whether to use the
             values or the interpreted values or none at all (directly access the grib2 file variables)
-        depending on the single_return parameter.
+            depending on the single_return parameter.
         """
         replacements = []
-        # noinspection PyBroadException
         try:
             if single_return:
                 return (variable, variable)
@@ -271,7 +275,6 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
         each station will get values from the dataset.
         :return: The modified document_map
         """
-        # noinspection PyBroadException
         try:
             new_document = copy.deepcopy(self.template)
             station_data_size = len(self.domain_stations)
@@ -359,6 +362,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
         will be substituted into the document.
         :station the station being processed.
         """
+
         func = None
         replace_with = None
         try:
@@ -449,10 +453,16 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
         5) handle_document - iterate the template and process all the keys and values
         6) build a datafile document to record that this file has been processed
 
-        NOTE: some variables are continuous, like temperature, and some are non-continuous, like ceiling
-        and visibility.
+        NOTE: For cfgrib variables are contained in datasets. Some variables are continuous,
+        like temperature, and some are non-continuous, like ceiling and visibility.
         The continuous variables must have their coordinates interpolated, but not the non-continuous
         variables.
+        For cfgrib the variables defined in the templates are to be defined by their long_name attribute.
+        for example there is a ds_height_above_ground_2m dataset and also a ds_height_above_ground_10m dataset.
+        Each of those datasets can have multiple variables, but only one variable with a given long_name.
+
+        A given dataset may have multiple variables with different long_names. For example "2 metre temperature"
+        and "2 metre dewpoint temperature" are both in the ds_height_above_ground_2m dataset.
         """
         try:
             # get the bucket, scope, and collection from the load_spec
@@ -465,6 +475,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
             # The projection is the same for all the variables in the grib file,
             # so we only need to get it once and from one variable - we'll use heightAboveGround
             # for 2 meters.
+
             # heightAboveGround variables
             ds_height_above_ground_2m = xr.open_dataset(
                 queue_element,
@@ -607,6 +618,8 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
             # to get the values you can use the following...
             # ds_surface_vegetation_type.variables[list(ds_surface_vegetation_type.data_vars.keys())[0]].values
 
+            # set up the variables map for the translate_template_item method. this way only the
+            # translation map needs to be a class variable. Better data hiding.
             self.ds_translate_item_variables_map = {
                 "2 metre temperature": ds_hgt_2_metre_temperature.variables[
                     list(ds_hgt_2_metre_temperature.data_vars.keys())[0]
@@ -669,7 +682,12 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                     lon = row["geo"][geo_index]["lon"]
                     if lat == -90 and lon == 180:
                         continue  # don't know how to transform that station
-                    (_x,_y,) = transformer.transform(lon, lat, radians=False) # pylint: disable=unpacking-non-sequence
+                    (
+                        _x,
+                        _y,
+                    ) = transformer.transform(
+                        lon, lat, radians=False
+                    )  # pylint: disable=unpacking-non-sequence
                     x_gridpoint = _x / spacing
                     y_gridpoint = _y / spacing
                     # use for debugging if you must

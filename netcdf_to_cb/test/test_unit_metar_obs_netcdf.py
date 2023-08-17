@@ -19,9 +19,6 @@ from netcdf_to_cb.run_ingest_threads import VXIngest
 # python3 -m pytest -s -v  netcdf_to_cb/test/test_unit_metar_obs_netcdf.py::TestNetcdfObsBuilderV01Unit::test....
 
 
-
-
-
 def setup_connection():
     """test setup"""
     try:
@@ -29,7 +26,9 @@ def setup_connection():
         _vx_ingest.credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
         _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
         _vx_ingest.connect_cb()
-        _vx_ingest.load_spec['ingest_document_ids'] = _vx_ingest.collection.get("JOB:V01:METAR:NETCDF:OBS").content_as[dict]["ingest_document_ids"]
+        _vx_ingest.load_spec["ingest_document_ids"] = _vx_ingest.collection.get(
+            "JOB:V01:METAR:NETCDF:OBS"
+        ).content_as[dict]["ingest_document_ids"]
         return _vx_ingest
     except Exception as _e:  # pylint:disable=broad-except
         assert False, f"test_credentials_and_load_spec Exception failure: {_e}"
@@ -59,6 +58,7 @@ def test_cb_connect_disconnect():
         assert False, f"test_cb_connect_disconnect Exception failure: {_e}"
     finally:
         vx_ingest.close_cb()
+
 
 def test_write_load_job_to_files():
     """test write the load job"""
@@ -133,6 +133,7 @@ def test_umask_value_transform():
         vx_ingest.close_cb()
         _nc.close()  # close returns memoryview
 
+
 def test_vxingest_get_file_list():
     """test the vxingest get_file_list"""
     try:
@@ -187,6 +188,7 @@ def test_vxingest_get_file_list():
         # update the mtime in the df record so that the file will not be included
         df_record["mtime"] = round(time.time())
         vx_ingest.collection.upsert("DF:metar:grib2:HRRR_OPS:f_fred_01", df_record)
+        time.sleep(1)
         # do a query with scan consistency set so that we know the record got persisted
         vx_ingest.cluster.query(
             query, QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS)
@@ -341,7 +343,9 @@ def test_handle_station():
         for i in range(rec_num_length):
             if (
                 str(
-                    nc.chartostring(_builder.ncdf_data_set["stationName"][i]) # pylint: disable=no-member
+                    nc.chartostring(
+                        _builder.ncdf_data_set["stationName"][i]
+                    )  # pylint: disable=no-member
                 )  # pylint: disable=no-member
                 == "ZBAA"
             ):  # pylint:disable=no-member
@@ -375,7 +379,7 @@ def test_handle_station():
         result = _cluster.query(
             " ".join(
                 (
-                   f"""
+                    f"""
             SELECT METAR.*
             From `{vx_ingest.cb_credentials['bucket']}`.{vx_ingest.cb_credentials['scope']}.{vx_ingest.cb_credentials['collection']}
             WHERE type = 'MD'

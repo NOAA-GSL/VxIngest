@@ -682,12 +682,13 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                     lon = row["geo"][geo_index]["lon"]
                     if lat == -90 and lon == 180:
                         continue  # don't know how to transform that station
+                    # pylint: disable=unpacking-non-sequence
                     (
                         _x,
                         _y,
                     ) = transformer.transform(
                         lon, lat, radians=False
-                    )  # pylint: disable=unpacking-non-sequence
+                    )
                     x_gridpoint = _x / spacing
                     y_gridpoint = _y / spacing
                     # use for debugging if you must

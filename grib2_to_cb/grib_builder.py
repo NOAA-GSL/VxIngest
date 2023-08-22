@@ -249,6 +249,7 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
             params_dict.values()
         )[  # pylint: disable=unused-variable
             0
+            # convert to miles (float)
         ]:  # pylint:disable=unused-variable
             vis_values.append(float(_v) / 1609.344 if _v is not None else None)
         return vis_values

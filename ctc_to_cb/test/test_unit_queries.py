@@ -102,6 +102,7 @@ def test_forecast_valid_epoch(request):
         _statement = open(
             "./ctc_to_cb/test/test_forecast_valid_epoch.n1ql", encoding="utf-8"
         ).read()
+
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
         # have to read the rows before we can get to the metadata as of couchbase 4.1
         _rows = list(result.rows())

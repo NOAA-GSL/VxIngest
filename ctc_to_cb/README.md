@@ -22,7 +22,6 @@ These programs require python3, and couchbase sdk 3.0 minimum (see [couchbase sd
 
 In the test directory [README](test/README.md) you will find instructions for setting up the environment and for running the tests.
 
-
 ## Approach
 
 These programs use a load_spec YAML file to define which ingest templates are to be used, a credentials file to provide database authentication, command line parameters for run time options, and the associated ingest template documents from the database that are specified in the load_spec.yaml.
@@ -113,19 +112,6 @@ Each ingest process writes files to an output directory and then the generated d
 -p the document directory (where the ingest process put its output fioes)
 -n number of import processes to use
 -l the log directory (each import process will create a temporary directory and then copy its logs to the log dir when it is finished importing)
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 ### metadata Example
 

@@ -1,19 +1,27 @@
 #!/usr/bin/env bash
 
+# this script will scan the provided ingest log file to determine if the ingest process had recorded any errors,
+# then it will derive from the ingest log how many records were intended to be imported to the database,
+# then it will query the database to determine how many records were actually added within the time frame
+# of the associated ingest and the recent import processes, and then it determines if the intended
+# number of records to be imported matches what was actually imported. The results are written
+# to a metrics file in the specified textfile directory.
+# This file is expected to be called directly after an import process, preferrably in a wrapper
+# program that calls both the import and this.
 
 function is_epoch_rational {
     if [ -z "$1" ]; then
-        echo "is_epoch_rational: ERROR: no epoch specified"
+        echo "$0 is_epoch_rational: ERROR: no epoch specified"
         usage
     fi
 
     if [ $1 -lt $(($(date +%s)-3600*24)) ]; then
-        echo "is_epoch_rational: ERROR: irrational epoch - prior to yesterday at this time"
+        echo "$0 is_epoch_rational: ERROR: irrational epoch - prior to yesterday at this time"
         usage
     fi
 
     if [ $1 -gt $(date +%s) ]; then
-        echo "is_epoch_rational: ERROR: irrational epoch - beyond current time"
+        echo "$0 is_epoch_rational: ERROR: irrational epoch - beyond current time"
         usage
     fi
 return 0
@@ -44,32 +52,30 @@ function derive_pattern_from_ids {
     do
         pattern=$(echo $pattern | awk -F ":" -vfield=$i 'BEGIN { OFS=":" }{$field="%25"; print}')
     done
-    echo ${pattern}
+    echo "${pattern}"
 }
 
 function get_record_count_from_log(){
     log_file=$1
     num_docs=0
     num_docs=$(grep "adding document DD" $log_file | sort | uniq | wc -l)
-    echo $num_docs
+    echo "$num_docs"
 }
 
 function usage {
   echo "Usage $0 -c credentials-file -l log_file -d textfile directory"
   echo "The credentials-file specifies cb_host, cb_user, and cb_password."
   echo "Metrics will be written into the textfile directory (-t)"
-  echo "The load spec should be the load_spec file with its full path that was used for the ingest process"
-  echo "The scrape_metrics.sh script scans the log for the intended_record_count, and any errors,"
+  echo "The scrape_metrics.sh script scans the ingest log for the intended_record_count, and any errors,"
   echo "and queries the database to determine how many records were just added."
   exit 1
 }
-
 while getopts 'c:l:d:' param; do
   case "${param}" in
   c)
     credentials_file=${OPTARG}
     if [[ ! -f "${credentials_file}" ]]; then
-      echo "${credentials_file} does not exist"
+      echo "$0 ${credentials_file} does not exist"
       usage
     fi
     cb_host=$(grep cb_host ${credentials_file} | awk '{print $2}')
@@ -87,28 +93,31 @@ while getopts 'c:l:d:' param; do
   l)
     log_file=${OPTARG}
     if [[ ! -f "${log_file}" ]]; then
-      echo "ERROR: log file ${log_file} does not exist"
+      echo "$0 ERROR: log file ${log_file} does not exist"
       usage
     fi
     ;;
   d)
     textfile_dir=${OPTARG}
     if [[ ! -d "${textfile_dir}" ]]; then
-      echo "ERROR: text file directory ${textfile_dir} does not exist"
+      echo "$0 ERROR: text file directory ${textfile_dir} does not exist"
       usage
     fi
     ;;
   *)
-    echo "ERROR: wrong parameter, I don't do ${param}"
+    echo "$0 ERROR: wrong parameter, I don't do ${param}"
     usage
     ;;
   esac
 done
 
 if [ -z "${textfile_dir}" ]; then
-    echo "ERROR: no textfile_dir specified"
+    echo "$0 ERROR: no textfile_dir specified"
     usage
 fi
+
+
+echo "$0 scraping log file $log_file"
 
 metric_name=$(grep 'metric_name' ${log_file} | awk '{print $2}')
 start_epoch=$(date -d "$(grep  'Begin a_time:' ${log_file} | awk '{print $3" "$4}')" +"%s")
@@ -195,10 +204,4 @@ echo "${metric_name}{ingest_id=\"ingest_record_count_difference\",log_file=\"${l
 echo "${metric_name}{ingest_id=\"ingest_exit_code\",log_file=\"${log_file}\"} ${exit_code}" >> ${tmp_metric_file}
 
 mv ${tmp_metric_file} ${metric_file}
-# archive the log_file
-dirname_log_file=$(dirname ${log_file})
-basename_log_file=$(basename ${log_file})
-import_log_file="${dirname_log_file}/import-${basename_log_file}"
-mv ${log_file} ${dirname_log_file}/archive
-# archive the import log_file
-mv ${import_log_file} ${dirname_log_file}/archive
+echo "$0 finished scraping log file $log_file"

@@ -20,52 +20,52 @@ while getopts 'c:p:n:l:' param; do
   c)
     credentials_file=${OPTARG}
     if [ ! -f "${credentials_file}" ]; then
-      echo "${credentials_file} does not exist"
+      echo "$0 ${credentials_file} does not exist"
       usage
     fi
     ;;
   p)
     input_file_path=${OPTARG}
     if [ ! -d "${input_file_path}" ]; then
-      echo "${input_file_path} does not exist"
+      echo "$0 ${input_file_path} does not exist"
       usage
     fi
     ;;
   n)
     number_of_processes=${OPTARG}
     if [ ! "${number_of_processes}" -le "${number_of_cpus}" ]; then
-      echo "${number_of_processes} exceeds ${number_of_cpus}"
+      echo "$0 ${number_of_processes} exceeds ${number_of_cpus}"
       usage
     fi
     ;;
   l)
     log_dir=${OPTARG}
     if [ ! -d "${log_dir}" ]; then
-      echo "${log_dir} does not exist"
+      echo "$0 ${log_dir} does not exist"
       usage
     fi
     ;;
   *)
-    echo "wrong parameter, I don't do ${param}"
+    echo "$0 wrong parameter, I don't do ${param}"
     usage
     ;;
   esac
 done
 
 if [ ! -f "${credentials_file}" ]; then
-  echo "no credentials_file specified"
+  echo "$0 no credentials_file specified"
   usage
 fi
 if [ ! -d "${input_file_path}" ]; then
-  echo "no input_file_path specified"
+  echo "$0 no input_file_path specified"
   usage
 fi
 if [ ! -d "${log_dir}" ]; then
-  echo "no log_dir specified - using stdout"
+  echo "$0 no log_dir specified - using stdout"
 fi
 
 if [ "${number_of_processes}" -gt "$number_of_cpus" ]; then
-  echo "${number_of_processes} exceeds ${number_of_cpus}"
+  echo "$0 ${number_of_processes} exceeds ${number_of_cpus}"
   usage
 fi
 
@@ -76,7 +76,7 @@ bucket=$(grep cb_bucket ${credentials_file} | awk '{print $2}')
 collection=$(grep cb_collection ${credentials_file} | awk '{print $2}')
 scope=$(grep cb_scope ${credentials_file} | awk '{print $2}')
 if [ -z "${host}" ]; then
-  echo "credentials do not specify cb_host"
+  echo "$0 credentials do not specify cb_host"
   usage
 fi
 # if it is a multinode host split on ',' and take the first one
@@ -85,11 +85,11 @@ read -ra hostarr <<< "$host"
 host=${hostarr[0]}
 
 if [ -z "${user}" ]; then
-  echo "credentials do not specify cb_user"
+  echo "$0 credentials do not specify cb_user"
   usage
 fi
 if [ -z "${pwd}" ]; then
-  echo "credentials do not specify cb_password"
+  echo "$0 credentials do not specify cb_password"
   usage
 fi
 
@@ -97,7 +97,7 @@ do_import() {
   file_list=$1
   sleep 10
   cat ${file_list} | while read f; do
-    echo "cbimport json --cluster couchbase://${host} --bucket ${bucket}  --scope-collection-exp ${scope}.${collection} --username ${user} --password ${pwd} --format list --generate-key %id% --dataset file:///${f}"
+    echo "$0 cbimport json --cluster couchbase://${host} --bucket ${bucket}  --scope-collection-exp ${scope}.${collection} --username ${user} --password ${pwd} --format list --generate-key %id% --dataset file:///${f}"
     /opt/couchbase/bin/cbimport json --cluster couchbase://${host} --bucket ${bucket}  --scope-collection-exp ${scope}.${collection} --username ${user} --password ${pwd} --format list --generate-key %id% --dataset file:///${f}
   done
 }
@@ -109,15 +109,15 @@ cd ${tmp_dir}
 tmp_log_dir="${tmp_dir}/logs"
 mkdir ${tmp_log_dir}
 find ${input_file_path} -name "*.json" | split -d -l $(($(find ${input_file_path} -name "*.json" | wc -l) / ${number_of_processes} + 1))
-# each file is a list of files
+# each file is a list of files - don't prefix Start and Stop with $0, they are parsed by the scraper
 echo "Start $(date +%s)"
 for f in ${tmp_dir}/*; do
     fname=$(basename ${f})
     do_import ${f} > ${tmp_log_dir}/${fname} 2>&1 &
 done
-echo "cbimport commands submitted, now waiting"
+echo "$0 cbimport commands submitted, now waiting"
 wait
-echo "cbimport commands submitted, done waiting"
+echo "$0 cbimport commands submitted, done waiting"
 echo "Stop $(date +%s)"
 cd ${curdir}
 grep -i successfully ${tmp_log_dir}/x* | awk '{print $2}' | awk 'BEGIN { FS="file:///" }; {print $2}' | tr -d "\`" | while read f_input; do
@@ -125,6 +125,6 @@ grep -i successfully ${tmp_log_dir}/x* | awk '{print $2}' | awk 'BEGIN { FS="fil
 done
 #remove empty input file_paths
 find ${input_file_path} -maxdepth 0 -empty -exec rm -rf ${input_file_path} \;
-# copy logs and remove tmp_dir just to be sure
+echo "copy logs and remove tmp_dir just to be sure"
 cp -a ${tmp_log_dir} ${log_dir}
 rm -rf ${tmp_dir}

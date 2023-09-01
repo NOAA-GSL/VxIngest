@@ -1,1 +1,18 @@
-0 */2 * * * /home/amb-verif/VxIngest/scripts/VXingest_utilities/run-cron.sh /home/amb-verif/VxIngest > /home/amb-verif/VxIngest/logs/cron-`date +\%Y-\%m-\%d:\%H:\%M:\%S` 2>&1
+# run the ingest on 15 minute interval
+*/15 * * * * /home/amb-verif/VxIngest/scripts/VXingest_utilities/run-ingest.sh -c /home/amb-verif/adb-cb1-credentials -d /home/amb-verif/VxIngest -l /home/amb-verif/VxIngest/logs -o /data -m /data/common/job_metrics -x /data/temp > /home/amb-verif/logs/cron-ingest-`date +\%s`.out 2>&1
+
+# run the import on two minute interval
+*/2 * * * * /home/amb-verif/VxIngest/scripts/VXingest_utilities/run-import.sh -c /home/amb-verif/adb-cb1-credentials -d /home/amb-verif/VxIngest -l /data/temp -m /data/common/job_metrics -t /data/temp_tar > /home/amb-verif/logs/cron-import-`date +\%s`.out 2>&1
+
+#tar the amb-verif log files on daily interval
+10 22 * * * tar czf "/home/amb-verif/logs/archive/cron-`date +\%s`.tar.gz" $(find /home/amb-verif/logs -type f -name "cron*.out" -cmin +1440) -C /home/amb-verif/logs --remove-files > /dev/null 2>&1
+
+#tar the amb-verif/VXingest log files on daily interval
+10 22 * * * tar czf "/home/amb-verif/VXingest/logs/archive/logs-`date +\%s`.tar.gz" $(find /home/amb-verif/VXingest/logs -type f  -cmin +1440 -maxdepth 1) -C /home/amb-verif/VXingest/logs --remove-files > /dev/null 2>&1
+
+# backup the cluster daily at midnight
+0 0 * * *  /couchbase/backup/cluster/nightlybackup.sh > /dev/null 2>&1
+
+# backup the standalone daily at 1:00 AM
+0 1 * * *  /couchbase/backup/standalone/nightlybackup.sh > /dev/null 2>&1
+

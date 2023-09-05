@@ -22,7 +22,7 @@ def setup_connection():
         return None
 
 
-def test_one_thread_spedicfy_file_pattern():  # pylint:disable=missing-function-docstring
+def test_one_thread_specify_file_pattern():  # pylint:disable=missing-function-docstring
     try:
         # setup - remove output files
         for _f in glob("/opt/data/netcdf_to_cb/output/test1/*.json"):

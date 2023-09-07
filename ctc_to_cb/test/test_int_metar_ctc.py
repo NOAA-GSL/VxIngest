@@ -11,9 +11,7 @@ from datetime import timedelta
 from pathlib import Path
 import pytest
 
-import pymysql
 import yaml
-from pymysql.constants import CLIENT
 from couchbase.cluster import Cluster, ClusterOptions, ClusterTimeoutOptions
 from couchbase_core.cluster import PasswordAuthenticator
 

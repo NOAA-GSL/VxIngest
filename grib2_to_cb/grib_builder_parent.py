@@ -713,7 +713,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                     # set the gridpoint for the station
                     station["geo"][geo_index]["x_gridpoint"] = x_gridpoint
                     station["geo"][geo_index]["y_gridpoint"] = y_gridpoint
-                    self.domain_stations.append(station)
+                self.domain_stations.append(station)
             # if we have asked for profiling go ahead and do it
             if self.do_profiling:
                 with cProfile.Profile() as _pr:

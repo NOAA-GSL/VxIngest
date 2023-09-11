@@ -9,7 +9,6 @@ import time
 from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
-import pytest
 
 import yaml
 from couchbase.cluster import Cluster, ClusterOptions, ClusterTimeoutOptions
@@ -303,7 +302,7 @@ def test_ctc_builder_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
 
     try:
         credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
-        job_id="JOB:V01:METAR:CTC:SUM:MODEL:HRRR_RAP_130"
+        job_id="JOB-TEST:V01:METAR:CTC:SUM:MODEL:HRRR_RAP_130"
         outdir = "/opt/data/ctc_to_cb/hrrr_ops/output"
         filepaths = outdir + "/*.json"
         files = glob.glob(filepaths)
@@ -411,25 +410,23 @@ def test_ctc_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
     collection=cluster.bucket(_bucket).scope(_scope).collection(_collection)
         # get available fcstValidEpochs for couchbase
     try:
-        result = cluster.query(
-            f"""SELECT RAW fcstValidEpoch
-            FROM `{_bucket}`.{_scope}.{_collection}
-            WHERE type="DD"
-                AND docType="CTC"
-                AND subDocType = "CEILING"
-                AND model='HRRR_OPS'
-                AND region='ALL_HRRR'
-                AND version='V01'
-                AND subset='{_collection}'"""
-        )
+        stmnt = f"""SELECT RAW to_string(fcstValidEpoch)
+        FROM `{_bucket}`.{_scope}.{_collection}
+        WHERE type="DD"
+            AND docType="CTC"
+            AND subDocType = "CEILING"
+            AND model='HRRR_OPS'
+            AND region='ALL_HRRR'
+            AND version='V01'
+            AND subset='{_collection}'"""
+        result = cluster.query(stmnt)
         cb_fcst_valid_epochs = list(result)
         if len(cb_fcst_valid_epochs) == 0:
             assert False, "There is no data"
         # choose the last one
         fcst_valid_epoch = cb_fcst_valid_epochs[-1]
         # get all the cb fcstLen values
-        result = cluster.query(
-            f"""SELECT raw fcstLen
+        stmnt = f"""SELECT raw fcstLen
             FROM `{_bucket}`.{_scope}.{_collection}
             WHERE type='DD'
                 AND docType = "CTC"
@@ -440,24 +437,22 @@ def test_ctc_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
                 AND subset='{_collection}'
                 AND fcstValidEpoch = {fcst_valid_epoch}
                 order by fcstLen
-            """
-        )
+             """
+
+        result = cluster.query(stmnt)
         cb_fcst_valid_lens = list(result)
         # get the thesholdDescriptions from the couchbase metadata
-        result = cluster.query(
-            f"""
+        stmnt = f"""
             SELECT RAW thresholdDescriptions
             FROM `{_bucket}`.{_scope}.{_collection}
             WHERE type="MD"
                 AND docType="matsAux"
-            """,
-            read_only=True,
-        )
+            """
+        result = cluster.query(stmnt,read_only=True,)
         # get the associated couchbase ceiling model data
         # get the associated couchbase obs
         # get the ctc couchbase data
-        result = cluster.query(
-            f"""
+        stmnt = f"""
             SELECT *
             FROM `{_bucket}`.{_scope}.{_collection}
             WHERE type='DD'
@@ -471,7 +466,7 @@ def test_ctc_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
                 AND fcstLen IN {cb_fcst_valid_lens}
                 order by fcstLen;
             """
-        )
+        result = cluster.query(stmnt)
         cb_results = list(result)
         # print the couchbase statement
         print(

@@ -426,7 +426,7 @@ def test_ctc_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
         # choose the last one
         fcst_valid_epoch = cb_fcst_valid_epochs[-1]
         # get all the cb fcstLen values
-        stmnt = f"""SELECT raw fcstLen
+        stmnt = f"""SELECT raw to_string(fcstLen)
             FROM `{_bucket}`.{_scope}.{_collection}
             WHERE type='DD'
                 AND docType = "CTC"
@@ -440,15 +440,7 @@ def test_ctc_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
              """
 
         result = cluster.query(stmnt)
-        cb_fcst_valid_lens = list(result)
-        # get the thesholdDescriptions from the couchbase metadata
-        stmnt = f"""
-            SELECT RAW thresholdDescriptions
-            FROM `{_bucket}`.{_scope}.{_collection}
-            WHERE type="MD"
-                AND docType="matsAux"
-            """
-        result = cluster.query(stmnt,read_only=True,)
+        cb_fcst_valid_lens = list(map(int,list(result)))
         # get the associated couchbase ceiling model data
         # get the associated couchbase obs
         # get the ctc couchbase data

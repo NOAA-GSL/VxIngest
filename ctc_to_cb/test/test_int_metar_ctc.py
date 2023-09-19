@@ -9,14 +9,11 @@ import time
 from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
-import pytest
 
-import pymysql
 import yaml
-from pymysql.constants import CLIENT
-from couchbase.cluster import Cluster, ClusterOptions, ClusterTimeoutOptions
-from couchbase_core.cluster import PasswordAuthenticator
-
+from couchbase.cluster import Cluster
+from couchbase.auth import PasswordAuthenticator
+from couchbase.options import ClusterOptions, ClusterTimeoutOptions
 from ctc_to_cb import ctc_builder
 from ctc_to_cb.run_ingest_threads import VXIngest
 
@@ -42,7 +39,7 @@ def test_check_fcst_valid_epoch_fcst_valid_iso():
     try:
         credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
         assert Path(credentials_file).is_file(), "credentials_file Does not exist"
-        _f = open(credentials_file)
+        _f = open(credentials_file, encoding="utf-8")
         yaml_data = yaml.load(_f, yaml.SafeLoader)
         _host = yaml_data["cb_host"]
         _user = yaml_data["cb_user"]
@@ -52,11 +49,13 @@ def test_check_fcst_valid_epoch_fcst_valid_iso():
         _scope = yaml_data["cb_scope"]
         _f.close()
 
-        timeout_options=ClusterTimeoutOptions(kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120))
-        options=ClusterOptions(PasswordAuthenticator(_user, _password), timeout_options=timeout_options)
-        cluster = Cluster(
-            "couchbase://" + _host, options
+        timeout_options = ClusterTimeoutOptions(
+            kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
         )
+        options = ClusterOptions(
+            PasswordAuthenticator(_user, _password), timeout_options=timeout_options
+        )
+        cluster = Cluster("couchbase://" + _host, options)
         options = ClusterOptions(PasswordAuthenticator(_user, _password))
         cluster = Cluster("couchbase://" + _host, options)
         stmnt = f"""SELECT m0.fcstValidEpoch fve, fcstValidISO fvi
@@ -92,7 +91,7 @@ def test_get_stations_geo_search():
     try:
         credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
         assert Path(credentials_file).is_file(), "credentials_file Does not exist"
-        _f = open(credentials_file)
+        _f = open(credentials_file, encoding="utf-8")
         yaml_data = yaml.load(_f, yaml.SafeLoader)
         _host = yaml_data["cb_host"]
         _user = yaml_data["cb_user"]
@@ -102,23 +101,29 @@ def test_get_stations_geo_search():
         _scope = yaml_data["cb_scope"]
         _f.close()
 
-        timeout_options=ClusterTimeoutOptions(kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120))
-        options=ClusterOptions(PasswordAuthenticator(_user, _password), timeout_options=timeout_options)
-        cluster = Cluster(
-            "couchbase://" + _host, options
+        timeout_options = ClusterTimeoutOptions(
+            kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
         )
-        collection=cluster.bucket(_bucket).scope(_scope).collection(_collection)
+        options = ClusterOptions(
+            PasswordAuthenticator(_user, _password), timeout_options=timeout_options
+        )
+        cluster = Cluster("couchbase://" + _host, options)
+        collection = cluster.bucket(_bucket).scope(_scope).collection(_collection)
         load_spec = {}
         load_spec["cluster"] = cluster
         load_spec["collection"] = collection
-        load_spec['ingest_document_ids'] = [f"MD:V01:{_collection}:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest"]
+        load_spec["ingest_document_ids"] = [
+            f"MD:V01:{_collection}:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest"
+        ]
         # get the ingest document id.
-        ingest_document_result = collection.get(f"MD-TEST:V01:{_collection}:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest")
-        ingest_document = ingest_document_result.content
+        ingest_document_result = collection.get(
+            f"MD-TEST:V01:{_collection}:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest"
+        )
+        ingest_document = ingest_document_result.content_as[dict]
         # instantiate a ctcBuilder so we can use its get_station methods
         builder_class = getattr(ctc_builder, "CTCModelObsBuilderV01")
         builder = builder_class(load_spec, ingest_document)
-            # usually these would get assigned in build_document
+        # usually these would get assigned in build_document
         builder.bucket = _bucket
         builder.scope = _scope
         builder.collection = _collection
@@ -147,7 +152,7 @@ def test_get_stations_geo_search():
             # get the legacy station list from the test document (this came from mysql)
             # classic_station_id = "MD-TEST:V01:CLASSIC_STATIONS:" + row["name"]
             # doc = collection.get(classic_station_id.strip())
-            # classic_stations = sorted(doc.content["stations"])
+            # classic_stations = sorted(doc.content_as[dict]["stations"])
             classic_stations = builder.get_legacy_stations_for_region(row["name"])
             stations_difference = [
                 i
@@ -168,6 +173,7 @@ def test_get_stations_geo_search():
     except Exception as _e:  # pylint: disable=broad-except
         assert False, f"TestGsdIngestManager Exception failure:  {_e}"
 
+
 def calculate_cb_ctc(  # pylint: disable=dangerous-default-value,missing-function-docstring
     epoch,
     fcst_len,
@@ -182,7 +188,7 @@ def calculate_cb_ctc(  # pylint: disable=dangerous-default-value,missing-functio
 
     credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
     assert Path(credentials_file).is_file(), "credentials_file Does not exist"
-    _f = open(credentials_file)
+    _f = open(credentials_file, encoding="utf-8")
     yaml_data = yaml.load(_f, yaml.SafeLoader)
     _host = yaml_data["cb_host"]
     _user = yaml_data["cb_user"]
@@ -192,19 +198,21 @@ def calculate_cb_ctc(  # pylint: disable=dangerous-default-value,missing-functio
     _scope = yaml_data["cb_scope"]
     _f.close()
 
-    timeout_options=ClusterTimeoutOptions(kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120))
-    options=ClusterOptions(PasswordAuthenticator(_user, _password), timeout_options=timeout_options)
-    cluster = Cluster(
-        "couchbase://" + _host, options
+    timeout_options = ClusterTimeoutOptions(
+        kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
     )
-    collection=cluster.bucket(_bucket).scope(_scope).collection(_collection)
+    options = ClusterOptions(
+        PasswordAuthenticator(_user, _password), timeout_options=timeout_options
+    )
+    cluster = Cluster("couchbase://" + _host, options)
+    collection = cluster.bucket(_bucket).scope(_scope).collection(_collection)
     load_spec = {}
     load_spec["cluster"] = cluster
     load_spec["collection"] = collection
     ingest_document_result = load_spec["collection"].get(
         f"MD:V01:{subset}:{model}:ALL_HRRR:CTC:CEILING:ingest"
     )
-    ingest_document = ingest_document_result.content
+    ingest_document = ingest_document_result.content_as[dict]
     # instantiate a ctcBuilder so we can use its get_station methods
     builder_class = getattr(ctc_builder, "CTCModelObsBuilderV01")
     builder = builder_class(load_spec, ingest_document)
@@ -231,16 +239,16 @@ def calculate_cb_ctc(  # pylint: disable=dangerous-default-value,missing-functio
     )
     print("cb_ctc model_id:", model_id, " obs_id:", obs_id)
     try:
-        full_model_data = load_spec["collection"].get(model_id).content
+        full_model_data = load_spec["collection"].get(model_id).content_as[dict]
     except:  # pylint: disable=bare-except
         time.sleep(0.25)
-        full_model_data = load_spec["collection"].get(model_id).content
+        full_model_data = load_spec["collection"].get(model_id).content_as[dict]
     cb_model_obs_data = []  # pylint: disable=redefined-outer-name
     try:
-        full_obs_data = load_spec["collection"].get(obs_id).content
+        full_obs_data = load_spec["collection"].get(obs_id).content_as[dict]
     except:  # pylint: disable=bare-except
         time.sleep(0.25)
-        full_obs_data = load_spec["collection"].get(obs_id).content
+        full_obs_data = load_spec["collection"].get(obs_id).content_as[dict]
     for station in stations:
         # find observation data for this station
         if not station in full_obs_data["data"].keys():
@@ -305,7 +313,7 @@ def test_ctc_builder_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
 
     try:
         credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
-        job_id="JOB:V01:METAR:CTC:SUM:MODEL:HRRR_RAP_130"
+        job_id = "JOB:V01:METAR:CTC:SUM:MODEL:HRRR_RAP_130"
         outdir = "/opt/data/ctc_to_cb/hrrr_ops/output"
         filepaths = outdir + "/*.json"
         files = glob.glob(filepaths)
@@ -322,7 +330,7 @@ def test_ctc_builder_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
                 "output_dir": outdir,
                 "threads": 1,
                 "first_epoch": 1638489600,
-                "last_epoch": 1638496800
+                "last_epoch": 1638496800,
             }
         )
 
@@ -331,7 +339,7 @@ def test_ctc_builder_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
         latest_output_file = min(list_of_output_files, key=os.path.getctime)
         try:
             # Opening JSON file
-            output_file = open(latest_output_file)
+            output_file = open(latest_output_file, encoding="utf8")
             # returns JSON object as a dictionary
             vx_ingest_output_data = json.load(output_file)
             # get the last fcstValidEpochs
@@ -383,6 +391,7 @@ def test_ctc_builder_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
     except Exception as _e:  # pylint: disable=broad-except
         assert False, f"TestCTCBuilderV01 Exception failure: {_e}"
 
+
 def test_ctc_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
     # noinspection PyBroadException
     """
@@ -395,7 +404,7 @@ def test_ctc_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
 
     credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
     assert Path(credentials_file).is_file(), "credentials_file Does not exist"
-    _f = open(credentials_file)
+    _f = open(credentials_file, encoding="utf8")
     yaml_data = yaml.load(_f, yaml.SafeLoader)
     _host = yaml_data["cb_host"]
     _user = yaml_data["cb_user"]
@@ -405,13 +414,15 @@ def test_ctc_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
     _scope = yaml_data["cb_scope"]
     _f.close()
 
-    timeout_options=ClusterTimeoutOptions(kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120))
-    options=ClusterOptions(PasswordAuthenticator(_user, _password), timeout_options=timeout_options)
-    cluster = Cluster(
-        "couchbase://" + _host, options
+    timeout_options = ClusterTimeoutOptions(
+        kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
     )
-    collection=cluster.bucket(_bucket).scope(_scope).collection(_collection)
-        # get available fcstValidEpochs for couchbase
+    options = ClusterOptions(
+        PasswordAuthenticator(_user, _password), timeout_options=timeout_options
+    )
+    cluster = Cluster("couchbase://" + _host, options)
+    collection = cluster.bucket(_bucket).scope(_scope).collection(_collection)
+    # get available fcstValidEpochs for couchbase
     try:
         result = cluster.query(
             f"""SELECT RAW fcstValidEpoch
@@ -493,22 +504,24 @@ def test_ctc_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
                 order by fcstLen;"""
         )
         for _cb_ctc in cb_results:
-            fcstln = _cb_ctc['METAR']['fcstLen']
-            for _threshold in _cb_ctc['METAR']['data'].keys():
-                _ctc=calculate_cb_ctc(
+            fcstln = _cb_ctc["METAR"]["fcstLen"]
+            for _threshold in _cb_ctc["METAR"]["data"].keys():
+                _ctc = calculate_cb_ctc(
                     fcst_valid_epoch,
                     fcstln,
                     int(float(_threshold)),
-                    'HRRR_OPS',
+                    "HRRR_OPS",
                     _collection,
-                    'ALL_HRRR'
+                    "ALL_HRRR",
                 )
                 # assert ctc values
-                fields= ['hits', 'misses', 'false_alarms', 'correct_negatives']
+                fields = ["hits", "misses", "false_alarms", "correct_negatives"]
                 for field in fields:
                     _ctc_value = _ctc[field]
-                    _cb_ctc_value = _cb_ctc[_collection]['data'][_threshold][field]
-                    assert _ctc_value == _cb_ctc_value, f"""
+                    _cb_ctc_value = _cb_ctc[_collection]["data"][_threshold][field]
+                    assert (
+                        _ctc_value == _cb_ctc_value
+                    ), f"""
                     For epoch : {_ctc['fcst_valid_epoch']}
                     and fstLen: {_ctc['fcst_len']}
                     and threshold: {_threshold}

@@ -19,6 +19,8 @@ import traceback
 from pstats import Stats
 import netCDF4 as nc
 import numpy.ma as ma
+from metpy.calc import wind_components
+from metpy.units import units
 from builder_common.builder_utilities import convert_to_iso
 from builder_common.builder_utilities import truncate_round
 from builder_common.builder_utilities import initialize_data_array
@@ -148,10 +150,10 @@ class NetcdfBuilder(Builder):  # pylint disable=too-many-instance-attributes
 
     def handle_document(self):
         """
-        This routine processes the complete document (essentially a complete grib file)
+        This routine processes the complete document (essentially a complete netcdf file)
         Each template key or value that corresponds to a variable will be selected from
-        the grib file into a pygrib message and then
-        each station will get values from the grib message.
+        the netcdf file into a netcdf data set and then
+        each station will get values from the record.
         :return: The modified document_map
         """
         # noinspection PyBroadException
@@ -328,9 +330,9 @@ class NetcdfBuilder(Builder):  # pylint disable=too-many-instance-attributes
         """
         # noinspection PyBroadException
         try:
-            bucket = self.load_spec['cb_connection']['bucket']
-            scope = self.load_spec['cb_connection']['scope']
-            collection = self.load_spec['cb_connection']['collection']
+            bucket = self.load_spec["cb_connection"]["bucket"]
+            scope = self.load_spec["cb_connection"]["scope"]
+            collection = self.load_spec["cb_connection"]["collection"]
 
             # stash the file_name so that it can be used later
             self.file_name = os.path.basename(queue_element)
@@ -634,6 +636,48 @@ class NetcdfMetarObsBuilderV01(
                 str(_e),
             )
             return None
+
+    def handle_wind_dir_U(self, params_dict):
+        """Retrieves a wind direction U value, if there is one,
+           and if not derives the U component from the wind direction and speed.
+           expects wind speed and wind direction to be in the params_dict.
+        Args:
+            params_dict (dict): named function parameters
+        Returns:
+            float: the wind direction
+        """
+        try:
+            value = self.umask_value_transform(params_dict)
+            # value = self.meterspersecond_to_milesperhour({"recNum": rec_num, "windSpeed": ""})
+            if value is not None:
+                value = 360 - value
+            return value
+        except Exception as _e:
+            # there must not have been one
+            windDir = self.umask_value_transform({})
+            windSpeed = self.umask_value_transform({})
+            u, _v = wind_components(windSpeed * units("m/s"), windDir * units.deg)
+            return u
+
+    def handle_wind_dir_V(self, params_dict):
+        """Retrieves a wind direction V value, if there is one,
+           and if not derives the V component from the wind direction and speed.
+        Args:
+            params_dict (dict): named function parameters
+        Returns:
+            float: the wind direction
+        """
+        try:
+            value = self.umask_value_transform({})
+            if value is not None:
+                value = 360 - value
+            return value
+        except Exception as _e:
+            # there must not have been one
+            windDir = self.umask_value_transform({})
+            windSpeed = self.umask_value_transform({})
+            _u, v = wind_components(windSpeed * units("m/s"), windDir * units.deg)
+            return v
 
     def handle_pressure(self, params_dict):
         """Retrieves a pressure value and converts it to millibars from pascals

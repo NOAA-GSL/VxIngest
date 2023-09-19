@@ -32,7 +32,7 @@ This is a sample cron entry for the import process.
 */2 * * * * /home/amb-verif/VxIngest/scripts/VXingest_utilities/run-import.sh -c /home/amb-verif/adb-cb1-credentials -d /home/amb-verif/VxIngest -l /data/temp -m /data/common/job_metrics -t /data/temp_tar > /home/amb-verif/logs/cron-import-`date +\%s`.out 2>&1
 ```
 
-At some point in time (currently in a cron job) the transfer tar files will be moved to the actual import load directory on the import server. The load directory is specified on the import job with the "-l load dir" parameter. It should be noted that the ingest transfer directory and the import load directory may very well be on different servers. 
+At some point in time (currently in a cron job) the transfer tar files will be moved to the actual import load directory on the import server. The load directory is specified on the import job with the "-l load dir" parameter. It should be noted that the ingest transfer directory and the import load directory may very well be on different servers.
 
 The import routine will unbundle any tar files found in the import load directory, one file at a time, and place the contents (the output files and the ingest log file) into a temporary directory tree the root of which is specified in the -t "temp_dir" parameter. The temporary directory is named after the PID of the import process.
 

@@ -167,7 +167,7 @@ class VXIngestGSL(object):
             # check for existence of file
             if not Path(self.credentials_file).is_file():
                 sys.exit("*** credentials_file file " + self.credentials_file + " can not be found!")
-            _f = open(self.credentials_file)
+            _f = open(self.credentials_file, encoding='utf-8')
             _yaml_data = yaml.load(_f, yaml.SafeLoader)
             load_spec['cb_connection']['host'] = _yaml_data['cb_host']
             load_spec['cb_connection']['user'] = _yaml_data['cb_user']

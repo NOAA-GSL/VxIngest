@@ -22,8 +22,9 @@ from glob import glob
 from pathlib import Path
 from datetime import timedelta
 import yaml
-from couchbase.cluster import Cluster, ClusterOptions, ClusterTimeoutOptions
-from couchbase_core.cluster import PasswordAuthenticator
+from couchbase.cluster import Cluster
+from couchbase.auth import PasswordAuthenticator
+from couchbase.options import ClusterOptions, ClusterTimeoutOptions
 
 class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-instance-attributes
     """
@@ -73,7 +74,7 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
             try:
                 file_name = self.load_job_id + ".json"
                 complete_file_name = os.path.join(self.output_dir, file_name)
-                _f = open(complete_file_name, "w")
+                _f = open(complete_file_name, "w", encoding="utf-8")
                 _f.write(json.dumps([self.load_spec["load_job_doc"]]))
                 _f.close()
             except Exception as _e:  # pylint: disable=broad-except
@@ -92,16 +93,11 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
         git_hash = stream.read().strip()
         _document_id = (
             self.load_spec["ingest_document_ids"][0]
-            if "ingest_document_ids" in self.load_spec.keys()
+            if "ingest_document_ids" in self.load_spec
             else None
         )
         subset = _document_id.split(":")[2]
-        self.load_job_id = "LJ:{s}:{m}:{c}:{t}".format(
-            s=subset,
-            m=self.__module__,
-            c=self.__class__.__name__,
-            t=str(int(time.time())),
-        )
+        self.load_job_id = f"LJ:{subset}:{self.__module__}:{self.__class__.__name__}:{str(int(time.time()))}"
         lj_doc = {
             "id": self.load_job_id,
             "subset": subset,
@@ -119,7 +115,7 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
         close couchbase connection
         """
         if self.cluster:
-            self.cluster.disconnect()
+            self.cluster.close()
 
     def connect_cb(self):
         """
@@ -144,7 +140,7 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
             self.load_spec["cb_credentials"] = self.cb_credentials
             logging.info("%s: Couchbase connection success")
         except Exception as _e:  # pylint:disable=broad-except
-            logging.exception("*** builder_common.CommonVxIngest Error in connect_cb ***")
+            logging.exception("*** builder_common.CommonVxIngest Error in connect_cb *** %s", str(_e))
             sys.exit("*** builder_common.CommonVxIngest Error when connecting to cb database: ")
 
     def get_file_list(self, df_query, directory, file_pattern):
@@ -241,7 +237,7 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
                     + self.credentials_file
                     + " can not be found!"
                 )
-            _f = open(self.credentials_file)
+            _f = open(self.credentials_file, encoding="utf-8")
             _yaml_data = yaml.load(_f, yaml.SafeLoader)
             load_spec["cb_connection"] = {}
             load_spec["cb_connection"]["host"] = _yaml_data["cb_host"]

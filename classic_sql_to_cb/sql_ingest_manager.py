@@ -58,13 +58,12 @@ import logging
 import queue
 import sys
 import time
-from multiprocessing import Process
-from couchbase.cluster import Cluster, ClusterOptions
-from couchbase.exceptions import DocumentNotFoundException, TimeoutException
-from couchbase_core.cluster import PasswordAuthenticator
-from classic_sql_to_cb import sql_builder as sql_builder
 from itertools import islice
-
+from multiprocessing import Process
+from couchbase.exceptions import DocumentNotFoundException, TimeoutException
+from couchbase.cluster import Cluster
+from couchbase.options import ClusterOptions
+from couchbase.auth import PasswordAuthenticator
 
 def document_map_chunks(data, chunk_size=1000):
     """

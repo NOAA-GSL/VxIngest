@@ -68,8 +68,9 @@ import time
 from multiprocessing import Process
 import queue
 
-from couchbase.cluster import Cluster, ClusterOptions
-from couchbase_core.cluster import PasswordAuthenticator
+from couchbase.cluster import Cluster
+from couchbase.options import  ClusterOptions
+from couchbase.auth import PasswordAuthenticator
 from vsdb_files_to_cb import data_type_builder as DTB
 
 

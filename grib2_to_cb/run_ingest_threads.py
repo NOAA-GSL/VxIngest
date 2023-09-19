@@ -162,6 +162,9 @@ class VXIngest(CommonVxIngest):
     def runit(self, args):  # pylint:disable=too-many-locals
         """
         This is the entry point for run_ingest_threads.py
+        There is a file_pattern and a file_mask. The file_mask is a python time.strftime format e.g. '%y%j%H%f'.
+        The file_pattern is a glob pattern that is used to match filenames that are derived from the path and file_mask.
+        The file_mask is specified in the load_spec. The file_pattern is specified on the command line.
         """
         self.credentials_file = args["credentials_file"].strip()
         self.thread_count = args["threads"]
@@ -180,22 +183,26 @@ class VXIngest(CommonVxIngest):
             # establish connections to cb, collection
             self.connect_cb()
             # load the ingest document ids into the load_spec (this might be redundant)
-            stmnt=f"Select ingest_document_ids from `{self.cb_credentials['bucket']}`.{self.cb_credentials['scope']}.{self.cb_credentials['collection']} where meta().id = \"{self.job_document_id}\""
+            stmnt = f"Select ingest_document_ids from `{self.cb_credentials['bucket']}`.{self.cb_credentials['scope']}.{self.cb_credentials['collection']} where meta().id = \"{self.job_document_id}\""
             result = self.cluster.query(stmnt)
-            self.load_spec['ingest_document_ids'] = list(result)[0]["ingest_document_ids"]
+            self.load_spec["ingest_document_ids"] = list(result)[0][
+                "ingest_document_ids"
+            ]
             # put all the ingest documents into the load_spec too
             self.load_spec["ingest_documents"] = {}
             for _id in self.load_spec["ingest_document_ids"]:
-                self.load_spec["ingest_documents"][_id]= self.collection.get(_id).content
+                self.load_spec["ingest_documents"][_id] = self.collection.get(
+                    _id
+                ).content_as[dict]
             # load the fmask and input_data_path into the load_spec
-            stmnt=f"Select file_mask, input_data_path from `{self.cb_credentials['bucket']}`.{self.cb_credentials['scope']}.{self.cb_credentials['collection']} where meta().id = \"{self.job_document_id}\""
+            stmnt = f"Select file_mask, input_data_path from `{self.cb_credentials['bucket']}`.{self.cb_credentials['scope']}.{self.cb_credentials['collection']} where meta().id = \"{self.job_document_id}\""
             result = self.cluster.query(stmnt)
             result_list = list(result)
             self.fmask = result_list[0]["file_mask"]
             self.path = result_list[0]["input_data_path"]
             self.load_spec["fmask"] = self.fmask
             self.load_spec["input_data_path"] = self.path
-            #stash the load_job in the load_spec
+            # stash the load_job in the load_spec
             self.load_spec["load_job_doc"] = self.build_load_job_doc("madis")
         except (RuntimeError, TypeError, NameError, KeyError):
             logging.error(
@@ -212,8 +219,12 @@ class VXIngest(CommonVxIngest):
         # get the urls (full_file_names) from all the datafiles for this type of ingest
         # for grib type ingests there is only one ingest document so we can just use the first
         # subset
-        model = self.load_spec["ingest_documents"][self.load_spec["ingest_document_ids"][0]]["model"]
-        subset = self.load_spec["ingest_documents"][self.load_spec["ingest_document_ids"][0]]["subset"]
+        model = self.load_spec["ingest_documents"][
+            self.load_spec["ingest_document_ids"][0]
+        ]["model"]
+        subset = self.load_spec["ingest_documents"][
+            self.load_spec["ingest_document_ids"][0]
+        ]["subset"]
         file_query = f"""
             SELECT url, mtime
             FROM `{self.cb_credentials['bucket']}`.{self.cb_credentials['scope']}.{self.cb_credentials['collection']}

@@ -6,8 +6,9 @@ import os
 from pathlib import Path
 from unittest import TestCase
 import yaml
-from couchbase.cluster import Cluster, ClusterOptions
-from couchbase_core.cluster import PasswordAuthenticator
+from couchbase.cluster import Cluster
+from couchbase.options import  ClusterOptions
+from couchbase.auth import PasswordAuthenticator
 
 
 class TestConnection(TestCase):

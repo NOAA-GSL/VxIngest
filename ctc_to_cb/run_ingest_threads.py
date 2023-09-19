@@ -179,27 +179,31 @@ class VXIngest(CommonVxIngest):
         # stash the first_last_params into the load spec
         self.load_spec["first_last_params"] = self.first_last_params
         logging.info(
-                "*** Using first_last_params: %s ***",
-                str(self.load_spec["first_last_params"])
-            )
+            "*** Using first_last_params: %s ***",
+            str(self.load_spec["first_last_params"]),
+        )
         try:
             # put the real credentials into the load_spec
             self.cb_credentials = self.get_credentials(self.load_spec)
-            #establish connections to cb, collection
+            # establish connections to cb, collection
             self.connect_cb()
-            bucket = self.load_spec['cb_connection']['bucket']
-            scope = self.load_spec['cb_connection']['scope']
-            collection = self.load_spec['cb_connection']['collection']
+            bucket = self.load_spec["cb_connection"]["bucket"]
+            scope = self.load_spec["cb_connection"]["scope"]
+            collection = self.load_spec["cb_connection"]["collection"]
 
             # load the ingest document ids into the load_spec (this might be redundant)
-            stmnt=f"Select ingest_document_ids from `{bucket}`.{scope}.{collection} where meta().id = \"{self.job_document_id}\""
+            stmnt = f'Select ingest_document_ids from `{bucket}`.{scope}.{collection} where meta().id = "{self.job_document_id}"'
             result = self.cluster.query(stmnt)
-            self.load_spec['ingest_document_ids'] = list(result)[0]["ingest_document_ids"]
+            self.load_spec["ingest_document_ids"] = list(result)[0][
+                "ingest_document_ids"
+            ]
             # put all the ingest documents into the load_spec too
             self.load_spec["ingest_documents"] = {}
             for _id in self.load_spec["ingest_document_ids"]:
-                self.load_spec["ingest_documents"][_id]= self.collection.get(_id).content
-            #stash the load_job in the load_spec
+                self.load_spec["ingest_documents"][_id] = self.collection.get(
+                    _id
+                ).content_as[dict]
+            # stash the load_job in the load_spec
             self.load_spec["load_job_doc"] = self.build_load_job_doc("madis")
         except (RuntimeError, TypeError, NameError, KeyError):
             logging.error(
@@ -252,7 +256,7 @@ class VXIngest(CommonVxIngest):
             self.runit(vars(args))
             logging.info("*** FINISHED ***")
             sys.exit(0)
-        except Exception as _e: # pylint:disable=broad-except
+        except Exception as _e:  # pylint:disable=broad-except
             logging.info("*** FINISHED with exception %s***", str(_e))
 
 

@@ -1,20 +1,10 @@
-"""
+""""
     integration tests for netcdf
 """
 import os
 from glob import glob
-from pathlib import Path
-
-import pymysql
-import yaml
-from couchbase.cluster import Cluster, ClusterOptions
-from couchbase_core.cluster import PasswordAuthenticator
-from pymysql.constants import CLIENT
 from netcdf_to_cb.run_ingest_threads import VXIngest
 
-"""
-integration tests for netcdf
-"""
 
 def setup_connection():
     """test setup"""
@@ -23,14 +13,16 @@ def setup_connection():
         _vx_ingest.credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
         _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
         _vx_ingest.connect_cb()
-        _vx_ingest.load_spec['ingest_document_ids'] = _vx_ingest.collection.get("JOB:V01:METAR:NETCDF:OBS").content["ingest_document_ids"]
+        _vx_ingest.load_spec["ingest_document_ids"] = _vx_ingest.collection.get(
+            "JOB:V01:METAR:NETCDF:OBS"
+        ).content_as[dict]["ingest_document_ids"]
         return _vx_ingest
     except Exception as _e:  # pylint:disable=broad-except
         assert False, f"test_credentials_and_load_spec Exception failure: {_e}"
         return None
 
 
-def test_one_thread_spedicfy_file_pattern():  # pylint:disable=missing-function-docstring
+def test_one_thread_specify_file_pattern():  # pylint:disable=missing-function-docstring
     try:
         # setup - remove output files
         for _f in glob("/opt/data/netcdf_to_cb/output/test1/*.json"):
@@ -260,8 +252,8 @@ def check_mismatched_fcst_valid_epoch_to_id():
                 AND NOT CONTAINS(id,to_string(fcstValidEpoch)) """
         )
         for row in result:
-            assert False, "These do not have the same fcstValidEpoch: {0}".format(
-                str(row["fcstValidEpoch"]) + row["id"]
-            )
+            assert (
+                False
+            ), f"These do not have the same fcstValidEpoch: {str(row['fcstValidEpoch']) + row['id']}"
     except Exception as _e:  # pylint: disable=broad-except
         assert False, f"TestGsdIngestManager Exception failure: {_e}"

@@ -12,10 +12,9 @@ from datetime import timedelta
 import json
 from pathlib import Path
 from couchbase.exceptions import TimeoutException
-from couchbase.cluster import Cluster, ClusterOptions, ClusterTimeoutOptions
-from couchbase_core.cluster import PasswordAuthenticator
-
-
+from couchbase.cluster import Cluster
+from couchbase.auth import PasswordAuthenticator
+from couchbase.options import ClusterOptions, ClusterTimeoutOptions
 class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attributes
     """
     IngestManager is a Process Thread that manages an object pool of
@@ -73,7 +72,7 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
         close couchbase connection
         """
         if self.cluster:
-            self.cluster.disconnect()
+            self.cluster.close()
         self.cluster = None
         self.collection = None
 
@@ -246,15 +245,13 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
                         num_documents,
                         complete_file_name,
                     )
-                    _f = open(complete_file_name, "w")
+                    _f = open(complete_file_name, "w", encoding="utf-8")
                     # we need to write out a list of the values of the _document_map for cbimport
-                    _f.write(json.dumps(list(document_map.values())))
+                    json_data = json.dumps(list(document_map.values()))
+                    _f.write(json_data)
                     _f.close()
                 except Exception as _e1:  # pylint:disable=broad-except
-                    logging.exception("write_document_to_files - trying write: Got Exception")
+                    logging.exception("write_document_to_files - trying write: Got Exception %s", str(_e1))
         except Exception as _e:  # pylint:disable=broad-except
-            logging.exception(
-                ": *** %s Error writing to files: in process_element writing document***",
-                self.thread_name,
-            )
+            logging.exception(": *** {self.thread_name} Error writing to files: in process_element writing document*** %s", str(_e))
             raise _e

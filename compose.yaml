@@ -1,0 +1,52 @@
+version: "3.2"
+secrets:
+  CREDENTIALS_FILE:
+    file: ${HOME}/credentials
+
+services:
+  shell:
+    image : docker.io/vxingest/development:dev
+    volumes:
+      - ${data}:${data}
+    secrets:
+      - CREDENTIALS_FILE
+    environment:
+    - CREDENTIALS=/run/secrets/CREDENTIALS_FILE
+    command: /bin/bash
+    user: amb-verif
+  unit_test:
+    image : docker.io/vxingest/development:dev
+    volumes:
+      -  ${data}:${data}
+    secrets:
+      - CREDENTIALS_FILE
+    environment:
+    - CREDENTIALS=/run/secrets/CREDENTIALS_FILE
+    command: ./scripts/VXingest_utilities/run_unit_tests.sh
+    user: amb-verif
+  int_test:
+    image : docker.io/vxingest/development:dev
+    volumes:
+      -  ${data}:${data}
+    secrets:
+      - CREDENTIALS_FILE
+    environment:
+    - CREDENTIALS=/run/secrets/CREDENTIALS_FILE
+    command: ./scripts/VXingest_utilities/run_int_tests.sh
+    user: amb-verif
+  ingest:
+    image : docker.io/vxingest/development:dev
+    volumes:
+      - ${data}:${data}
+    secrets:
+      - CREDENTIALS_FILE
+    command: ./scripts/VXingest_utilities/run-ingest.sh -c /run/secrets/CREDENTIALS_FILE -l ${LOGDIR} -o ${OUTDIR} -m ${METRICSDIR} -x ${TRANSFERDIR}
+    user: amb-verif
+  job:
+    image : docker.io/vxingest/development:dev
+    volumes:
+      - ${data}:${data}
+    secrets:
+      - CREDENTIALS_FILE
+    command: ./scripts/VXingest_utilities/run-ingest.sh -c /run/secrets/CREDENTIALS_FILE -l ${LOGDIR} -o ${OUTDIR} -m ${METRICSDIR} -x ${TRANSFERDIR} -j ${JOBID}
+    user: amb-verif

@@ -8,6 +8,103 @@ This repository is a scientific product and is not official communication of the
 
 The VXIngest project contains code for the purpose of ingesting meteorological data from various different sources into a document database. The data gnerated is in the form of JSON documents. These documents conform to the data model that is described in the model subdirectory.
 
+## Build
+
+NOTE: You can use ```docker system prune -af``` to clean up stopped, old or unused images from your machine. It recovers a lot of space.
+
+To build a docker image cd to the directory where VXingest was cloned
+and check out the branch that you want to build, then to create an image ...
+
+```@bash
+$ docker build \
+    --build-arg BUILDVER=dev \
+    --build-arg COMMITBRANCH=$(git branch --show-current) \
+    --build-arg COMMITSHA=$(git rev-parse HEAD) \
+    -t vxingest/development/:dev \
+    .
+```
+
+or without the broken lines...
+
+``` @bash
+docker build --build-arg BUILDVER=dev --build-arg COMMITBRANCH=$(git branch --show-current) --build-arg COMMITSHA=$(git rev-parse HEAD) -t vxingest/development:dev .
+```
+
+## Run
+
+### Run the image in docker with a bash terminal
+
+``` @bash
+docker run -it -v docker.io/vxingest/development:dev /bin/bash
+```
+
+Running like this allows you to exaamine the container.
+You can run unit or int tests and debug problems with pdb if you create a credentials file and set the CREDENTIALS environment variable to point to that file.
+
+### Run the image in docker with dockercompose
+
+Docker compose takes care of most of the details of running unit or integration tests, the actual ingest process, the import process, or just a shell for debugging and examining the container.
+You may have to init a swarm if you haven't already done that.
+
+``` @bash
+docker swarm init
+```
+
+Credentials are passed in as a secret. To establish a CREDENTIALS secret you MUST have a credentials file in your home directory. A credentials file "${HOME}/credentials" looks like this except with valid credentials...
+
+```@text
+cb_host: ahost
+cb_user: auser
+cb_password: apwd
+cb_bucket: vxdata
+cb_scope: _default
+cb_collection: METAR
+
+```
+
+The docker compose file expects a few directories to be available on the docker host (possibly your development platform)
+depending on the service.
+/opt/data has test data
+/data is a shared data that is used by ingest to store output documents and by import to read the output documents.
+/public is the DSG /public that has all of GSL data in it. This is where the ingest processes find grib and netcdf files.
+
+#### services
+
+  shell: expects no directories for mounting
+  unit_test: expects /opt/data
+  int_test: expects /opt/data
+  ingest: expects /data and /public
+
+#### invocations
+
+These are single run services. To run a compose service do
+"docker compose run service-name" like
+
+```@bash
+docker compose run unit_test
+
+```
+
+### Running the ingest service
+
+To run an ingest there are a few extra parameters in addition to the /data directory. This is the typical invocation.
+
+```@bash
+docker compose run ingest -e LOGDIR="log directory" OUTDIR="/data" METRICSDIR="/data/common/job_metrics" TRANSFERDIR="/data/temp"
+```
+
+Where LOGDIR is where you want to store and archive log files, /data is the directory for temporarily storing output documents, METRICS is the directory where job metrics are stored to be collected, and TRANSFERDIR is the directory where archived job results (documents and associated log files) are stored in expectation of being imported and scraped by an import process. Scraping is the process of gathering metrics from the log files. The arguments will be passed to the service through the environment. The ingest service will run all of the jobs that are currently scheduled (in the job documents) to run in the current fifteen minute interval i.e. quarter hour.
+
+### Running an ingest job service
+
+To run a single ingest job there are a few extra parameters in addition to the /data directory. This is the typical invocation.
+
+```@bash
+docker compose run job -e LOGDIR="log directory" OUTDIR="/data" METRICSDIR="/data/common/job_metrics" TRANSFERDIR="/data/temp" JOBID=""
+```
+
+Where LOGDIR is where you want to store and archive log files, /data is the directory for temporarily storing output documents, METRICS is the directory where job metrics are stored to be collected, and TRANSFERDIR is the directory where archived job results (documents and associated log files) are stored in expectation of being imported and scraped by an import process. Scraping is the process of gathering metrics from the log files. The arguments will be passed to the service through the environment. The ingest service will run all of the jobs that are currently scheduled (in the job documents) to run in the current fifteen minute interval i.e. quarter hour.
+
 ## data model
 
 The data model is best viewed with Hackolade. Refer to [model](model/docs/README.md) for instructions on how to access the model.

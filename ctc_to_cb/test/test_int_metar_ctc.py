@@ -37,7 +37,7 @@ def test_check_fcst_valid_epoch_fcst_valid_iso():
     integration test to check fcst_valid_epoch is derived correctly
     """
     try:
-        credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
+        credentials_file = os.environ["CREDENTIALS"]
         assert Path(credentials_file).is_file(), "credentials_file Does not exist"
         _f = open(credentials_file, encoding="utf-8")
         yaml_data = yaml.load(_f, yaml.SafeLoader)
@@ -89,7 +89,7 @@ def test_get_stations_geo_search():
     stations list. This test does show those differences. The assertion is commented out.
     """
     try:
-        credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
+        credentials_file = os.environ["CREDENTIALS"]
         assert Path(credentials_file).is_file(), "credentials_file Does not exist"
         _f = open(credentials_file, encoding="utf-8")
         yaml_data = yaml.load(_f, yaml.SafeLoader)
@@ -186,7 +186,7 @@ def calculate_cb_ctc(  # pylint: disable=dangerous-default-value,missing-functio
     global cb_model_obs_data
     global stations
 
-    credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
+    credentials_file = os.environ["CREDENTIALS"]
     assert Path(credentials_file).is_file(), "credentials_file Does not exist"
     _f = open(credentials_file, encoding="utf-8")
     yaml_data = yaml.load(_f, yaml.SafeLoader)
@@ -312,8 +312,8 @@ def test_ctc_builder_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
     global stations
 
     try:
-        credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
-        job_id = "JOB:V01:METAR:CTC:SUM:MODEL:HRRR_RAP_130"
+        credentials_file = os.environ["CREDENTIALS"]
+        job_id = "JOB-TEST:V01:METAR:CTC:SUM:MODEL:HRRR_RAP_130"
         outdir = "/opt/data/ctc_to_cb/hrrr_ops/output"
         filepaths = outdir + "/*.json"
         files = glob.glob(filepaths)
@@ -402,7 +402,7 @@ def test_ctc_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
     corrctly.
     """
 
-    credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
+    credentials_file = os.environ["CREDENTIALS"]
     assert Path(credentials_file).is_file(), "credentials_file Does not exist"
     _f = open(credentials_file, encoding="utf8")
     yaml_data = yaml.load(_f, yaml.SafeLoader)

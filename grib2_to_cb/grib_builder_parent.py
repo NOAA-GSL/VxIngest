@@ -677,6 +677,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                     {limit_clause}"""
             )
             for row in result:
+                station = None
                 for geo_index in range(len(row["geo"])):
                     lat = row["geo"][geo_index]["lat"]
                     lon = row["geo"][geo_index]["lon"]
@@ -713,7 +714,8 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                     # set the gridpoint for the station
                     station["geo"][geo_index]["x_gridpoint"] = x_gridpoint
                     station["geo"][geo_index]["y_gridpoint"] = y_gridpoint
-                self.domain_stations.append(station)
+                if station is not None:
+                    self.domain_stations.append(station)
             # if we have asked for profiling go ahead and do it
             if self.do_profiling:
                 with cProfile.Profile() as _pr:
@@ -744,8 +746,9 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
             return document_map
         except Exception as _e:  # pylint:disable=broad-except
             logging.exception(
-                "%s: Exception with builder build_document: file_name: %s",
+                "%s: Exception with builder build_document: file_name: %s, exception %s",
                 self.__class__.__name__,
                 queue_element,
+                _e,
             )
             return {}

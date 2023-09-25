@@ -10,7 +10,7 @@ function usage() {
   echo "The jason files in 'full_path_to_json_files_directory' will be seperated into (number_of_files / num_processes)"
   echo "groups and imported simultaneously. Output is written to 'logdir/cbimport_n.log' where n is the instance number."
   echo "sample invocation...."
-  echo "${HOME}VXingest/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p /data/grib2_to_cb/output -n 8 -l ${HOME}/VXingest/logs"
+  echo "${HOME}VXingest/scripts/VXingest_utilities/import_docs.sh -c credentials_file -p /data/grib2_to_cb/output -n 8 -l ${HOME}/VXingest/logs"
   exit 1
 }
 number_of_processes=1

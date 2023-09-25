@@ -89,8 +89,9 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
         """
         This method will build a load_job document
         """
-        stream = os.popen("git rev-parse HEAD")
-        git_hash = stream.read().strip()
+        # stream = os.popen("git rev-parse HEAD")
+        # git_hash = stream.read().strip()
+        git_hash = os.environ.get("COMMIT", "unknown")
         _document_id = (
             self.load_spec["ingest_document_ids"][0]
             if "ingest_document_ids" in self.load_spec

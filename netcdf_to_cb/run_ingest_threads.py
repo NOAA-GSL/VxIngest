@@ -166,9 +166,12 @@ class VXIngest(CommonVxIngest):
             self.file_pattern = args["file_pattern"].strip()
         try:
             # put the real credentials into the load_spec
+            logging.info("getting cb_credentials")
             self.cb_credentials = self.get_credentials(self.load_spec)
             # establish connections to cb, collection
+            logging.info("cb_credentials are: ${self.cb_credentials}")
             self.connect_cb()
+            logging.info("connected to cb")
             bucket = self.load_spec["cb_connection"]["bucket"]
             scope = self.load_spec["cb_connection"]["scope"]
             collection = self.load_spec["cb_connection"]["collection"]

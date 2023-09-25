@@ -10,11 +10,11 @@ def setup_connection():
     """test setup"""
     try:
         _vx_ingest = VXIngest()
-        _vx_ingest.credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
+        _vx_ingest.credentials_file = os.environ["CREDENTIALS"],
         _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
         _vx_ingest.connect_cb()
         _vx_ingest.load_spec["ingest_document_ids"] = _vx_ingest.collection.get(
-            "JOB:V01:METAR:NETCDF:OBS"
+            "JOB-TEST:V01:METAR:NETCDF:OBS"
         ).content_as[dict]["ingest_document_ids"]
         return _vx_ingest
     except Exception as _e:  # pylint:disable=broad-except
@@ -25,13 +25,15 @@ def setup_connection():
 def test_one_thread_specify_file_pattern():  # pylint:disable=missing-function-docstring
     try:
         # setup - remove output files
+        if not os.path.exists('/opt/data/netcdf_to_cb/output/test1'):
+            os.makedirs('/opt/data/netcdf_to_cb/output/test1')
         for _f in glob("/opt/data/netcdf_to_cb/output/test1/*.json"):
             os.remove(_f)
         vx_ingest = VXIngest()
         vx_ingest.runit(
             {
-                "job_id": "JOB:V01:METAR:NETCDF:OBS",
-                "credentials_file": os.environ["HOME"] + "/adb-cb1-credentials",
+                "job_id": "JOB-TEST:V01:METAR:NETCDF:OBS",
+                "credentials_file": os.environ["CREDENTIALS"],
                 "path": "/opt/data/netcdf_to_cb/input_files",
                 "file_name_mask": "%Y%m%d_%H%M",
                 "output_dir": "/opt/data/netcdf_to_cb/output/test1",
@@ -74,18 +76,20 @@ def test_two_threads_spedicfy_file_pattern():
     """
     try:
         # setup - remove output files
+        if not os.path.exists('/opt/data/netcdf_to_cb/output/test2'):
+            os.makedirs('/opt/data/netcdf_to_cb/output/test2')
         for _f in glob("/opt/data/netcdf_to_cb/output/test2/*.json"):
             os.remove(_f)
         vx_ingest = VXIngest()
         vx_ingest.runit(
             {
-                "job_id": "JOB:V01:METAR:NETCDF:OBS",
-                "credentials_file": os.environ["HOME"] + "/adb-cb1-credentials",
+                "job_id": "JOB-TEST:V01:METAR:NETCDF:OBS",
+                "credentials_file": os.environ["CREDENTIALS"],
                 "path": "/opt/data/netcdf_to_cb/input_files",
                 "file_name_mask": "%Y%m%d_%H%M",
                 "output_dir": "/opt/data/netcdf_to_cb/output/test2",
                 "threads": 2,
-                "file_pattern": "20210919*",
+                "file_pattern": "20211105*",
             }
         )
         assert (
@@ -107,8 +111,8 @@ def test_two_threads_spedicfy_file_pattern():
         ), "there is no load job output file"
 
         # use file globbing to see if we got one output file for each input file plus one load job file
-        assert len(glob("/opt/data/netcdf_to_cb/output/test2/20210919*.json")) == len(
-            glob("/opt/data/netcdf_to_cb/input_files/20210919*")
+        assert len(glob("/opt/data/netcdf_to_cb/output/test2/20211105*.json")) == len(
+            glob("/opt/data/netcdf_to_cb/input_files/20211105*")
         ), "number of output files is incorrect"
 
         # teardown remove output files
@@ -126,13 +130,16 @@ def test_one_thread_default():
     Remove any documents type DD prior to using this test."""
     try:
         # setup - remove output files
+        if not os.path.exists('/opt/data/netcdf_to_cb/output/test3'):
+            os.makedirs('/opt/data/netcdf_to_cb/output/test3')
+
         for _f in glob("/opt/data/netcdf_to_cb/output/test3/*.json"):
             os.remove(_f)
         vx_ingest = VXIngest()
         vx_ingest.runit(
             {
-                "job_id": "JOB:V01:METAR:NETCDF:OBS",
-                "credentials_file": os.environ["HOME"] + "/adb-cb1-credentials",
+                "job_id": "JOB-TEST:V01:METAR:NETCDF:OBS",
+                "credentials_file": os.environ["CREDENTIALS"],
                 "path": "/opt/data/netcdf_to_cb/input_files",
                 "file_name_mask": "%Y%m%d_%H%M",
                 "output_dir": "/opt/data/netcdf_to_cb/output/test3",
@@ -184,13 +191,16 @@ def test_two_threads_default():
     Remove any documents type DD prior to using this test."""
     try:
         # setup - remove output files
+        if not os.path.exists('/opt/data/netcdf_to_cb/output/test4'):
+            os.makedirs('/opt/data/netcdf_to_cb/output/test4')
+
         for _f in glob("/opt/data/netcdf_to_cb/output/test4/*.json"):
             os.remove(_f)
         vx_ingest = VXIngest()
         vx_ingest.runit(
             {
-                "job_id": "JOB:V01:METAR:NETCDF:OBS",
-                "credentials_file": os.environ["HOME"] + "/adb-cb1-credentials",
+                "job_id": "JOB-TEST:V01:METAR:NETCDF:OBS",
+                "credentials_file": os.environ["CREDENTIALS"],
                 "path": "/opt/data/netcdf_to_cb/input_files",
                 "file_name_mask": "%Y%m%d_%H%M",
                 "output_dir": "/opt/data/netcdf_to_cb/output/test4",

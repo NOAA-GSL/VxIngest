@@ -30,7 +30,7 @@ def connect_cb():
         if cb_connection:  # pylint: disable=used-before-assignment
             return cb_connection
         else:
-            credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
+            credentials_file = os.environ["CREDENTIALS"]
             assert (
                 Path(credentials_file).is_file() is True
             ), f"*** credentials_file file {credentials_file} can not be found!"
@@ -77,9 +77,12 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus():
         # 1632423600  September 23, 2021 19:00:00 2126617000001
         # first_epoch = 1634252400 - 10
         # last_epoch = 1634252400 + 10
-        credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
+        credentials_file = os.environ["CREDENTIALS"]
         # remove output files
-        for _f in glob("/opt/data/grib2_to_cb/output/test1/*.json"):
+        if not os.path.exists('/opt/data/grib2_to_cb/hrrr_ops/output/test1'):
+            os.makedirs('/opt/data/grib2_to_cb/hrrr_ops/output/test1')
+
+        for _f in glob("/opt/data/grib2_to_cb/hrrr_ops/output/test1/*.json"):
             os.remove(_f)
         vx_ingest = VXIngest()
         # NOTE: the path is defined by the job document
@@ -88,14 +91,14 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus():
                 "job_id": "JOB-TEST:V01:METAR:GRIB2:MODEL:HRRR",
                 "credentials_file": credentials_file,
                 "file_name_mask": "%y%j%H%f",
-                "output_dir": "/opt/data/grib2_to_cb/output/test1",
+                "output_dir": "/opt/data/grib2_to_cb/hrrr_ops/output/test1",
                 "threads": 1,
                 "file_pattern": "21287230000[0123456789]?",
             }
         )
         # check the output files to see if they match the documents that were
         # preveously created by the real ingest process
-        for _f in glob("/opt/data/grib2_to_cb/output/test1/*.json"):
+        for _f in glob("/opt/data/grib2_to_cb/hrrr_ops/output/test1/*.json"):
             # read in the output file
             _json = None
             with open(_f, "r", encoding="utf-8") as _f:
@@ -169,7 +172,7 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus():
         ), f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus Exception failure: {_e}"
     finally:
         # remove the output files
-        for _f in glob("/opt/data/grib2_to_cb/output/test1/*.json"):
+        for _f in glob("/opt/data/grib2_to_cb/hrrr_ops/output/test1/*.json"):
             os.remove(_f)
 
 
@@ -186,18 +189,21 @@ def test_grib_builder_two_threads_file_pattern_hrrr_ops_conus():
         # 1632423600  September 23, 2021 19:00:00 2126617000001
         # first_epoch = 1634252400 - 10
         # last_epoch = 1634252400 + 10
-        credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
+        credentials_file = os.environ["CREDENTIALS"]
         # remove output files
-        for _f in glob("/opt/data/grib2_to_cb/output/test2/*.json"):
+        if not os.path.exists('/opt/data/grib2_to_cb/hrrr_ops/output/test2'):
+            os.makedirs('/opt/data/grib2_to_cb/hrrr_ops/output/test2')
+
+        for _f in glob("/opt/data/grib2_to_cb/hrrr_ops/output/test2/*.json"):
             os.remove(_f)
         vx_ingest = VXIngest()
-        # NOTE: the path is defined by the job document
+        # NOTE: the input file path is defined by the job document
         vx_ingest.runit(
             {
-                "job_id": "JOB:V01:METAR:GRIB2:MODEL:HRRR",
+                "job_id": "JOB-TEST:V01:METAR:GRIB2:MODEL:HRRR",
                 "credentials_file": credentials_file,
                 "file_name_mask": "%y%j%H%f",
-                "output_dir": "/opt/data/grib2_to_cb/output/test2",
+                "output_dir": "/opt/data/grib2_to_cb/hrrr_ops/output/test2",
                 "threads": 2,
                 "file_pattern": "21287230000[0123456789]?",
             }
@@ -208,5 +214,5 @@ def test_grib_builder_two_threads_file_pattern_hrrr_ops_conus():
         ), f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus Exception failure: {_e} "
     finally:
         # remove output files
-        for _f in glob("/opt/data/grib2_to_cb/output/test2/*.json"):
+        for _f in glob("/opt/data/grib2_to_cb/hrrr_ops/output/test2/*.json"):
             os.remove(_f)

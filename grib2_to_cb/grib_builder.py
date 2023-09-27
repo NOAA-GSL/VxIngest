@@ -173,7 +173,7 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
             ].values
             ceil_msl_values = []
             # print('fcst_valid_epoch',self.ds_translate_item_variables_map["fcst_valid_epoch"])
-            for station in self.domain_stations:
+            for station in self.domain_stations:   # get the initial surface values and ceil_msl values for each station
                 geo_index = get_geo_index(
                     self.ds_translate_item_variables_map["fcst_valid_epoch"],
                     station["geo"],
@@ -190,7 +190,7 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
                     ceil_msl_values.append(ceil_var_values[y_gridpoint, x_gridpoint])
             ceil_agl = []
             i = 0
-            for station in self.domain_stations:
+            for station in self.domain_stations:  # determine the ceil_agl values for each station
                 if ceil_msl_values[i] == 60000:
                     ceil_agl.append(60000)
                 else:

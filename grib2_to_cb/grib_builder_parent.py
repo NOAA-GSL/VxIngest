@@ -662,6 +662,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
             self.initialize_document_map()
             # get stations from couchbase and filter them so
             # that we retain only the ones for this models domain which is derived from the projection
+            # also fill in the gridpoints for each station and for each geo within each station
             # NOTE: this is not about regions, this is about models
             self.domain_stations = []
             limit_clause = ";"
@@ -677,7 +678,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                     {limit_clause}"""
             )
             for row in result:
-                station = None
+                station = copy.deepcopy(row)
                 for geo_index in range(len(row["geo"])):
                     lat = row["geo"][geo_index]["lat"]
                     lon = row["geo"][geo_index]["lon"]
@@ -710,11 +711,9 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                             str(_e),
                         )
                         continue
-                    station = copy.deepcopy(row)
                     # set the gridpoint for the station
                     station["geo"][geo_index]["x_gridpoint"] = x_gridpoint
                     station["geo"][geo_index]["y_gridpoint"] = y_gridpoint
-                if station is not None:
                     self.domain_stations.append(station)
             # if we have asked for profiling go ahead and do it
             if self.do_profiling:

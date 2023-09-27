@@ -225,18 +225,11 @@ def calculate_cb_ctc(  # pylint: disable=dangerous-default-value,missing-functio
         #                builder.get_stations_for_region_by_geosearch(region, epoch)
         builder.get_stations_for_region_by_sort(region, epoch)
     )
-    obs_id = "DD:V01:{subset}:obs:{fcst_valid_epoch}".format(
-        subset=subset, fcst_valid_epoch=epoch
-    )
+    obs_id = f"DD:V01:{subset}:obs:{epoch}"
     stations = sorted(  # pylint: disable=redefined-outer-name
         [station for station in legacy_stations if station not in reject_stations]
     )
-    model_id = "DD:V01:{subset}:{model}:{fcst_valid_epoch}:{fcst_len}".format(
-        subset=subset,
-        model=model,
-        fcst_valid_epoch=epoch,
-        fcst_len=fcst_len,
-    )
+    model_id = f"DD:V01:{subset}:{model}:{epoch}:{fcst_len}"
     print("cb_ctc model_id:", model_id, " obs_id:", obs_id)
     try:
         full_model_data = load_spec["collection"].get(model_id).content_as[dict]
@@ -323,6 +316,7 @@ def test_ctc_builder_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
             except OSError as _e:
                 assert False, f"Error:  {_e}"
         vx_ingest = VXIngest()
+        # These CTC's might already have been ingested in which case this won't do anything.
         vx_ingest.runit(
             {
                 "job_id": job_id,
@@ -334,7 +328,7 @@ def test_ctc_builder_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
             }
         )
 
-        list_of_output_files = glob.glob("/opt/data/ctc_to_cb/output/*")
+        list_of_output_files = glob.glob(outdir + "/*")
         # latest_output_file = max(list_of_output_files, key=os.path.getctime)
         latest_output_file = min(list_of_output_files, key=os.path.getctime)
         try:
@@ -342,6 +336,10 @@ def test_ctc_builder_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
             output_file = open(latest_output_file, encoding="utf8")
             # returns JSON object as a dictionary
             vx_ingest_output_data = json.load(output_file)
+            # if this is an LJ document then the CTC's were already ingested
+            # and the test should stop here
+            if vx_ingest_output_data[0]['type'] == "LJ":
+                return
             # get the last fcstValidEpochs
             fcst_valid_epochs = {doc["fcstValidEpoch"] for doc in vx_ingest_output_data}
             # take a fcstValidEpoch in the middle of the list
@@ -369,9 +367,7 @@ def test_ctc_builder_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
             # process all the thresholds
             for _t in _thresholds:
                 print(
-                    "Asserting derived CTC for fcstValidEpoch: {epoch} model: HRRR_OPS region: ALL_HRRR fcst_len: {fcst_len} threshold: {thrsh}".format(
-                        epoch=_elem["fcstValidEpoch"], thrsh=_t, fcst_len=_i
-                    )
+                    f"Asserting derived CTC for fcstValidEpoch: {_elem['fcstValidEpoch']} model: HRRR_OPS region: ALL_HRRR fcst_len: {_i} threshold: {_t}"
                 )
                 cb_ctc = calculate_cb_ctc(
                     epoch=_elem["fcstValidEpoch"],
@@ -383,9 +379,7 @@ def test_ctc_builder_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
                 )
                 if cb_ctc is None:
                     print(
-                        "cb_ctc is None for threshold {thrsh}- contunuing".format(
-                            thrsh=str(_t)
-                        )
+                        f"cb_ctc is None for threshold {str(_t)}- contunuing"
                     )
                     continue
     except Exception as _e:  # pylint: disable=broad-except
@@ -421,7 +415,6 @@ def test_ctc_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
         PasswordAuthenticator(_user, _password), timeout_options=timeout_options
     )
     cluster = Cluster("couchbase://" + _host, options)
-    collection = cluster.bucket(_bucket).scope(_scope).collection(_collection)
     # get available fcstValidEpochs for couchbase
     try:
         result = cluster.query(

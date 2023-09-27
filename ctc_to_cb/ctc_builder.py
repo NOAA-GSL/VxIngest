@@ -401,7 +401,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
         To process this file we need to itterate the list of valid fcstValidEpochs
         and process the region station list for each fcstValidEpoch and fcstLen.
 
-        1) get stations from couchbase and filter them so that we retain only the ones for this models region
+        1) get stations from couchbase and filter them so that we retain only the ones for this model and region
         2) get the latest fcstValidEpoch for the ctc's for this model and region.
         3) get the intersection of the fcstValidEpochs that correspond for this model and the obs
         for all fcstValidEpochs greater than the first ctc.
@@ -472,16 +472,17 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                         raise
                     time.sleep(2)  # don't hammer the server too hard
                     error_count = error_count + 1
-            max_ctc_fcst_valid_epochs = self.load_spec["first_last_params"][
-                "first_epoch"
-            ]
-            if list(result)[0] is not None:
-                max_ctc_fcst_valid_epochs = list(result)[0]
+            # initial value for the max epoch
+            max_ctc_fcst_valid_epochs = self.load_spec["first_last_params"]["first_epoch"]
+            max_ctc_fcst_valid_epochs_result = list(result)
+            # if there are ctc's for this model and region then get the max epoch from the query
+            max_ctc_fcst_valid_epochs = max_ctc_fcst_valid_epochs_result[0]
 
             # Second get the intersection of the fcstValidEpochs that correspond for this
             # model and the obs for all fcstValidEpochs greater than the first_epoch ctc
             # and less than the last_epoch.
             # this could be done with implicit join but this seems to be faster when the results are large.
+            # get the model fcstValidEpochs (models don't have regions) that are > the last ctc epoch
             error_count = 0
             success = False
             while error_count < 3 and success is False:
@@ -513,6 +514,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                     error_count = error_count + 1
             _tmp_model_fve = list(result)
 
+            # get the obs fcstValidEpochs (obs don't have regions) that are > the last ctc epoch
             error_count = 0
             success = False
             while error_count < 3 and success is False:
@@ -553,6 +555,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
             # pylint: disable=no-member
             if self.do_profiling:
                 with cProfile.Profile() as _pr:
+                    # process the fcstValidEpochs with profiling
                     self.handle_fcstValidEpochs()
                     with open("profiling_stats.txt", "w", encoding="utf-8") as stream:
                         stats = Stats(_pr, stream=stream)
@@ -561,6 +564,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                         stats.dump_stats("profiling_stats.prof")
                         stats.print_stats()
             else:
+                # process the fcstValidEpochs without profiling
                 self.handle_fcstValidEpochs()
             # pylint: disable=assignment-from-no-return
             logging.info(

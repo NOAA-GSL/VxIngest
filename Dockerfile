@@ -47,6 +47,10 @@ RUN apt-get update && \
         apt-get install -y procps && \
         apt-get install -y vim
 
+USER amb-verif
+
+#Set the working directory to be used when the docker gets run
+WORKDIR /home/amb-verif/VxIngest
+
 # make the default the prod target
 FROM prod
-RUN cd /home/amb-verif/VxIngest

@@ -22,21 +22,15 @@ def setup_connection():
         return None
 
 
-def test_one_thread_specify_file_pattern():  # pylint:disable=missing-function-docstring
+def test_one_thread_specify_file_pattern(tmp_path):  # pylint:disable=missing-function-docstring
     try:
-        # setup - remove output files
-        if not os.path.exists('/opt/data/netcdf_to_cb/output/test1'):
-            os.makedirs('/opt/data/netcdf_to_cb/output/test1')
-        for _f in glob("/opt/data/netcdf_to_cb/output/test1/*.json"):
-            os.remove(_f)
         vx_ingest = VXIngest()
         vx_ingest.runit(
             {
                 "job_id": "JOB-TEST:V01:METAR:NETCDF:OBS",
                 "credentials_file": os.environ["CREDENTIALS"],
-                "path": "/opt/data/netcdf_to_cb/input_files",
                 "file_name_mask": "%Y%m%d_%H%M",
-                "output_dir": "/opt/data/netcdf_to_cb/output/test1",
+                "output_dir": f"{tmp_path}",
                 "threads": 1,
                 "file_pattern": "20211108_0000",
             }
@@ -44,7 +38,7 @@ def test_one_thread_specify_file_pattern():  # pylint:disable=missing-function-d
         assert (
             len(
                 glob(
-                    "/opt/data/netcdf_to_cb/output/test1/[0123456789]???????_[0123456789]???.json"
+                    f"{tmp_path}/[0123456789]???????_[0123456789]???.json"
                 )
             )
             > 0
@@ -53,41 +47,32 @@ def test_one_thread_specify_file_pattern():  # pylint:disable=missing-function-d
         assert (
             len(
                 glob(
-                    "/opt/data/netcdf_to_cb/output/test1/LJ:METAR:netcdf_to_cb.run_ingest_threads:VXIngest:*.json"
+                    f"{tmp_path}/LJ:METAR:netcdf_to_cb.run_ingest_threads:VXIngest:*.json"
                 )
             )
             == 1
         ), "there is no load job output file"
 
         # use file globbing to see if we got one output file for each input file plus one load job file
-        assert len(glob("/opt/data/netcdf_to_cb/output/test1/20211108*.json")) == len(
+        assert len(glob(f"{tmp_path}/20211108*.json")) == len(
             glob("/opt/data/netcdf_to_cb/input_files/20211108_0000")
         ), "number of output files is incorrect"
-        # teardown remove output files
-        for _f in glob("/opt/data/netcdf_to_cb/output/test1/*.json"):
-            os.remove(_f)
     except Exception as _e:  # pylint: disable=broad-except
         assert False, f"TestGsdIngestManager Exception failure: {_e}"
 
 
-def test_two_threads_spedicfy_file_pattern():
+def test_two_threads_spedicfy_file_pattern(tmp_path):
     """
     integration test for testing multithreaded capability
     """
     try:
-        # setup - remove output files
-        if not os.path.exists('/opt/data/netcdf_to_cb/output/test2'):
-            os.makedirs('/opt/data/netcdf_to_cb/output/test2')
-        for _f in glob("/opt/data/netcdf_to_cb/output/test2/*.json"):
-            os.remove(_f)
         vx_ingest = VXIngest()
         vx_ingest.runit(
             {
                 "job_id": "JOB-TEST:V01:METAR:NETCDF:OBS",
                 "credentials_file": os.environ["CREDENTIALS"],
-                "path": "/opt/data/netcdf_to_cb/input_files",
                 "file_name_mask": "%Y%m%d_%H%M",
-                "output_dir": "/opt/data/netcdf_to_cb/output/test2",
+                "output_dir": f"{tmp_path}",
                 "threads": 2,
                 "file_pattern": "20211105*",
             }
@@ -95,7 +80,7 @@ def test_two_threads_spedicfy_file_pattern():
         assert (
             len(
                 glob(
-                    "/opt/data/netcdf_to_cb/output/test2/[0123456789]???????_[0123456789]???.json"
+                    f"{tmp_path}/[0123456789]???????_[0123456789]???.json"
                 )
             )
             > 0
@@ -104,45 +89,34 @@ def test_two_threads_spedicfy_file_pattern():
         assert (
             len(
                 glob(
-                    "/opt/data/netcdf_to_cb/output/test2/LJ:METAR:netcdf_to_cb.run_ingest_threads:VXIngest:*.json"
+                    f"{tmp_path}/LJ:METAR:netcdf_to_cb.run_ingest_threads:VXIngest:*.json"
                 )
             )
             == 1
         ), "there is no load job output file"
 
         # use file globbing to see if we got one output file for each input file plus one load job file
-        assert len(glob("/opt/data/netcdf_to_cb/output/test2/20211105*.json")) == len(
+        assert len(glob(f"{tmp_path}/20211105*.json")) == len(
             glob("/opt/data/netcdf_to_cb/input_files/20211105*")
         ), "number of output files is incorrect"
-
-        # teardown remove output files
-        for _f in glob("/opt/data/netcdf_to_cb/output/test2/*.json"):
-            os.remove(_f)
     except Exception as _e:  # pylint: disable=broad-except
         assert False, f"TestGsdIngestManager Exception failure: {_e}"
 
 
-def test_one_thread_default():
+def test_one_thread_default(tmp_path):
     """This test will start one thread of the ingestManager and simply make sure it runs with no Exceptions.
     It will attempt to process any files that are in the input directory that atch the file_name_mask.
     TIP: you might want to use local credentials to a local couchbase. If you do
     you will need to run the scripts in the matsmetadata directory to load the local metadata.
     Remove any documents type DD prior to using this test."""
     try:
-        # setup - remove output files
-        if not os.path.exists('/opt/data/netcdf_to_cb/output/test3'):
-            os.makedirs('/opt/data/netcdf_to_cb/output/test3')
-
-        for _f in glob("/opt/data/netcdf_to_cb/output/test3/*.json"):
-            os.remove(_f)
         vx_ingest = VXIngest()
         vx_ingest.runit(
             {
                 "job_id": "JOB-TEST:V01:METAR:NETCDF:OBS",
                 "credentials_file": os.environ["CREDENTIALS"],
-                "path": "/opt/data/netcdf_to_cb/input_files",
                 "file_name_mask": "%Y%m%d_%H%M",
-                "output_dir": "/opt/data/netcdf_to_cb/output/test3",
+                "output_dir": f"{tmp_path}",
                 "file_pattern": "[0123456789]???????_[0123456789]???",
                 "threads": 1,
             }
@@ -150,7 +124,7 @@ def test_one_thread_default():
         assert (
             len(
                 glob(
-                    "/opt/data/netcdf_to_cb/output/test3/[0123456789]???????_[0123456789]???.json"
+                    f"{tmp_path}/[0123456789]???????_[0123456789]???.json"
                 )
             )
             > 0
@@ -159,7 +133,7 @@ def test_one_thread_default():
         assert (
             len(
                 glob(
-                    "/opt/data/netcdf_to_cb/output/test3/LJ:METAR:netcdf_to_cb.run_ingest_threads:VXIngest:*.json"
+                    f"{tmp_path}/LJ:METAR:netcdf_to_cb.run_ingest_threads:VXIngest:*.json"
                 )
             )
             >= 1
@@ -168,7 +142,7 @@ def test_one_thread_default():
         # use file globbing to see if we got one output file for each input file plus one load job file
         assert len(
             glob(
-                "/opt/data/netcdf_to_cb/output/test3/[0123456789]???????_[0123456789]???.json"
+                f"{tmp_path}/[0123456789]???????_[0123456789]???.json"
             )
         ) == len(
             glob(
@@ -176,41 +150,31 @@ def test_one_thread_default():
             )
         ), "number of output files is incorrect"
 
-        # teardown remove output files
-        for _f in glob("/opt/data/netcdf_to_cb/output/test3/*.json"):
-            os.remove(_f)
     except Exception as _e:  # pylint: disable=broad-except
         assert False, f"TestGsdIngestManager Exception failure: {_e}"
 
 
-def test_two_threads_default():
+def test_two_threads_default(tmp_path):
     """This test will start one thread of the ingestManager and simply make sure it runs with no Exceptions.
     It will attempt to process any files that are in the input directory that atch the file_name_mask.
     TIP: you might want to use local credentials to a local couchbase. If you do
     you will need to run the scripts in the matsmetadata directory to load the local metadata.
     Remove any documents type DD prior to using this test."""
     try:
-        # setup - remove output files
-        if not os.path.exists('/opt/data/netcdf_to_cb/output/test4'):
-            os.makedirs('/opt/data/netcdf_to_cb/output/test4')
-
-        for _f in glob("/opt/data/netcdf_to_cb/output/test4/*.json"):
-            os.remove(_f)
         vx_ingest = VXIngest()
         vx_ingest.runit(
             {
                 "job_id": "JOB-TEST:V01:METAR:NETCDF:OBS",
                 "credentials_file": os.environ["CREDENTIALS"],
-                "path": "/opt/data/netcdf_to_cb/input_files",
                 "file_name_mask": "%Y%m%d_%H%M",
-                "output_dir": "/opt/data/netcdf_to_cb/output/test4",
+                "output_dir": f"{tmp_path}",
                 "threads": 2,
             }
         )
         assert (
             len(
                 glob(
-                    "/opt/data/netcdf_to_cb/output/test4/[0123456789]???????_[0123456789]???.json"
+                    f"{tmp_path}/[0123456789]???????_[0123456789]???.json"
                 )
             )
             > 0
@@ -219,7 +183,7 @@ def test_two_threads_default():
         assert (
             len(
                 glob(
-                    "/opt/data/netcdf_to_cb/output/test4/LJ:METAR:netcdf_to_cb.run_ingest_threads:VXIngest:*.json"
+                    f"{tmp_path}/LJ:METAR:netcdf_to_cb.run_ingest_threads:VXIngest:*.json"
                 )
             )
             >= 1
@@ -228,20 +192,15 @@ def test_two_threads_default():
         # use file globbing to see if we got one output file for each input file plus one load job file
         assert len(
             glob(
-                "/opt/data/netcdf_to_cb/output/test4/[0123456789]???????_[0123456789]???.json"
+                f"{tmp_path}/[0123456789]???????_[0123456789]???.json"
             )
         ) == len(
             glob(
                 "/opt/data/netcdf_to_cb/input_files/[0123456789]???????_[0123456789]???"
             )
         ), "number of output files is incorrect"
-
-        # teardown remove output files
-        for _f in glob("/opt/data/netcdf_to_cb/output/test4/*.json"):
-            os.remove(_f)
     except Exception as _e:  # pylint: disable=broad-except
         assert False, f"TestGsdIngestManager Exception failure: {_e}"
-
 
 def check_mismatched_fcst_valid_epoch_to_id():
     """This is a simple ultility test that can be used to see if there are

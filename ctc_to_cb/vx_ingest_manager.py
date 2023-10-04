@@ -107,7 +107,7 @@ class VxIngestManager(
         get the builder name from the ingest document
         """
         if queue_element is None:
-            raise Exception("ingest_document is undefined")
+            raise ValueError("ingest_document queue_element is undefined")
         try:
             self.ingest_type_builder_name = self.load_spec["ingest_documents"][
                 queue_element
@@ -143,7 +143,7 @@ class VxIngestManager(
                 )
                 sys.exit("*** Error getting builder name: ")
 
-            if self.ingest_type_builder_name in self.builder_map.keys():
+            if self.ingest_type_builder_name in self.builder_map:
                 builder = self.builder_map[self.ingest_type_builder_name]
             else:
                 builder_class = getattr(my_builder, self.ingest_type_builder_name)

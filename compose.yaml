@@ -48,5 +48,5 @@ services:
       - ${data}:${data}
     secrets:
       - CREDENTIALS_FILE
-    command: ./scripts/VXingest_utilities/run-ingest.sh -c /run/secrets/CREDENTIALS_FILE -l ${LOGDIR} -o ${OUTDIR} -m ${METRICSDIR} -x ${TRANSFERDIR} -j ${JOBID}
+    command: ./scripts/VXingest_utilities/run-ingest.sh -c /run/secrets/CREDENTIALS_FILE -l ${LOGDIR} -o ${OUTDIR} -m ${METRICSDIR} -x ${TRANSFERDIR} -j ${JOBID} -s ${start_epoch} -e ${end_epoch}
     user: amb-verif

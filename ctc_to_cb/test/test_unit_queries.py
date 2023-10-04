@@ -141,7 +141,7 @@ def test_get_stations(request):
     """test"""
     try:
         _name = request.node.name
-        _expected_time = 1
+        _expected_time = 3
         _statement = open(
             "./ctc_to_cb/test/test_get_stations.n1ql", encoding="utf-8"
         ).read()

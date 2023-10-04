@@ -6,9 +6,9 @@ Abstract:
 History Log:  Initial version
 
 Usage:
-run_ingest_threads -j job_document_id -c credentials_file -p path [-o output_dir -t thread_count -f file_pattern -n number_stations]
+run_ingest_threads -j job_document_id -c credentials_file [-o output_dir -t thread_count -f file_pattern -n number_stations]
 This script processes arguments which specify a job document id,
-a defaults file (for credentials), an input file path, an optional output directory, thread count, and file matching pattern.
+a defaults file (for credentials), an optional output directory, thread count, and file matching pattern.
 The job document id is the id of a job document in the couchbase database.
 The job document might look like this...
 {
@@ -158,10 +158,6 @@ class VXIngest(CommonVxIngest):
         self.thread_count = args["threads"]
         self.output_dir = args["output_dir"].strip()
         self.job_document_id = args["job_id"].strip()
-        # this assignment is only for integration tests to be able to override the input path
-        # normally path will never be passed in as an arg
-        if "path" in args.keys():
-            self.path = args["path"]
         if "file_pattern" in args.keys():
             self.file_pattern = args["file_pattern"].strip()
         try:
@@ -169,7 +165,6 @@ class VXIngest(CommonVxIngest):
             logging.info("getting cb_credentials")
             self.cb_credentials = self.get_credentials(self.load_spec)
             # establish connections to cb, collection
-            logging.info("cb_credentials are: ${self.cb_credentials}")
             self.connect_cb()
             logging.info("connected to cb")
             bucket = self.load_spec["cb_connection"]["bucket"]
@@ -192,11 +187,7 @@ class VXIngest(CommonVxIngest):
             result = self.cluster.query(stmnt)
             result_list = list(result)
             self.fmask = result_list[0]["file_mask"]
-            self.path = (
-                args["path"]
-                if "path" in args.keys()
-                else result_list[0]["input_data_path"]
-            )
+            self.path = result_list[0]["input_data_path"]
             self.load_spec["fmask"] = self.fmask
             self.load_spec["input_data_path"] = self.path
             # stash the load_job in the load_spec

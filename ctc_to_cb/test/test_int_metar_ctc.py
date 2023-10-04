@@ -432,7 +432,8 @@ def test_ctc_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
         if len(cb_fcst_valid_epochs) == 0:
             assert False, "There is no data"
         # choose the last one
-        fcst_valid_epoch = cb_fcst_valid_epochs[-1]
+        #fcst_valid_epoch = cb_fcst_valid_epochs[-1]
+        fcst_valid_epoch = cb_fcst_valid_epochs[round(len(cb_fcst_valid_epochs) / 2)]
         # get all the cb fcstLen values
         result = cluster.query(
             f"""SELECT raw fcstLen

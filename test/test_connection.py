@@ -35,7 +35,7 @@ class TestConnection(TestCase):
         """
         # noinspection PyBroadException
         try:
-            _credentials_file = os.environ['HOME'] + "/adb-cb1-credentials"
+            _credentials_file = os.environ["CREDENTIALS"]
             # specify the cluster and specify an authenticator containing a
             # username and password to be passed to the cluster.
             if not Path(_credentials_file).is_file():

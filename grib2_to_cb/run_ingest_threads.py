@@ -6,9 +6,9 @@ Abstract:
 History Log:  Initial version
 
 Usage:
-run_ingest_threads -j job_document_id -c credentials_file -p path [-o output_dir -t thread_count -f file_pattern -n number_stations]
+run_ingest_threads -j job_document_id -c credentials_file [-o output_dir -t thread_count -f file_pattern -n number_stations]
 This script processes arguments which specify a job document id,
-a defaults file (for credentials), an input file path, an optional output directory, thread count, and file matching pattern.
+a defaults file (for credentials), an optional output directory, thread count, and file matching pattern.
 The job document id is the id of a job document in the couchbase database.
 The job document might look like this...
 {

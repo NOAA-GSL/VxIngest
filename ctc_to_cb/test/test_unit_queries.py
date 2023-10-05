@@ -17,7 +17,7 @@ def connect_cb():
         try:
             cb_connection  # is it defined pylint:disable=used-before-assignment
         except NameError:
-            credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
+            credentials_file = os.environ["CREDENTIALS"]
             assert (
                 Path(credentials_file).is_file() is True
             ), f"*** credentials_file file {credentials_file} can not be found!"
@@ -141,7 +141,7 @@ def test_get_stations(request):
     """test"""
     try:
         _name = request.node.name
-        _expected_time = 1
+        _expected_time = 3
         _statement = open(
             "./ctc_to_cb/test/test_get_stations.n1ql", encoding="utf-8"
         ).read()

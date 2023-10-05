@@ -8,8 +8,10 @@ from pathlib import Path
 
 import netCDF4 as nc
 import numpy as np
-from couchbase.cluster import QueryOptions, QueryScanConsistency
+from couchbase.n1ql import  QueryScanConsistency
 from couchbase.mutation_state import MutationState
+from couchbase.options import QueryOptions
+
 from netcdf_to_cb.netcdf_builder import NetcdfMetarObsBuilderV01
 from netcdf_to_cb.run_ingest_threads import VXIngest
 
@@ -23,7 +25,7 @@ def setup_connection():
     """test setup"""
     try:
         _vx_ingest = VXIngest()
-        _vx_ingest.credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
+        _vx_ingest.credentials_file = os.environ["CREDENTIALS"]
         _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
         _vx_ingest.connect_cb()
         _vx_ingest.load_spec["ingest_document_ids"] = _vx_ingest.collection.get(

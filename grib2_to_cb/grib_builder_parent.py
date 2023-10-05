@@ -11,6 +11,8 @@ import cProfile
 import logging
 import math
 import sys
+import os
+import glob
 from pstats import Stats
 import xarray as xr
 import pyproj
@@ -436,6 +438,24 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
             )
         return doc
 
+    def delete_idx_file(self, queue_element):
+        """
+        cfgrib leaves .idx files in the directory - delete the .idx file
+        """
+        idx_pattern = queue_element.replace(".grib2", '') + '.*.idx'
+        file_list = glob.glob(idx_pattern)
+        # Iterate over the list of filepaths & remove each file.
+        for file_path in file_list:
+            try:
+                os.remove(file_path)
+            except OSError as _e:
+                logging.warning(
+                    "%s Builder.build_document Error - cannot delete idx file %s - %s",
+                    self.__class__.__name__,
+                    file_path,
+                    _e,
+                )
+
     def build_document(
         self, queue_element
     ):  # pylint:disable=too-many-statements, disable=too-many-locals
@@ -452,6 +472,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
         4) enable profiling if requested
         5) handle_document - iterate the template and process all the keys and values
         6) build a datafile document to record that this file has been processed
+        7) cfgrib leaves .idx files in the directory - delete the .idx file
 
         NOTE: For cfgrib variables are contained in datasets. Some variables are continuous,
         like temperature, and some are non-continuous, like ceiling and visibility.
@@ -464,6 +485,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
         A given dataset may have multiple variables with different long_names. For example "2 metre temperature"
         and "2 metre dewpoint temperature" are both in the ds_height_above_ground_2m dataset.
         """
+
         try:
             # get the bucket, scope, and collection from the load_spec
             bucket = self.load_spec["cb_connection"]["bucket"]
@@ -620,48 +642,63 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
 
             # set up the variables map for the translate_template_item method. this way only the
             # translation map needs to be a class variable. Better data hiding.
-            self.ds_translate_item_variables_map = {
-                "2 metre temperature": ds_hgt_2_metre_temperature.variables[
-                    list(ds_hgt_2_metre_temperature.data_vars.keys())[0]
-                ],
-                "2 metre dewpoint temperature": ds_hgt_2_metre_dewpoint_temperature.variables[
-                    list(ds_hgt_2_metre_dewpoint_temperature.data_vars.keys())[0]
-                ],
-                "2 metre relative humidity": ds_hgt_2_metre_relative_humidity.variables[
-                    list(ds_hgt_2_metre_relative_humidity.data_vars.keys())[0]
-                ],
-                "2 metre specific humidity": ds_hgt_2_metre_specific_humidity.variables[
-                    list(ds_hgt_2_metre_specific_humidity.data_vars.keys())[0]
-                ],
-                "10 metre U wind component": ds_hgt_10_metre_u_component_of_wind.variables[
-                    list(ds_hgt_10_metre_u_component_of_wind.data_vars.keys())[0]
-                ],
-                "10 metre V wind component": ds_hgt_10_metre_v_component_of_wind.variables[
-                    list(ds_hgt_10_metre_v_component_of_wind.data_vars.keys())[0]
-                ],
-                "Surface pressure": ds_surface_pressure.variables[
-                    list(ds_surface_pressure.data_vars.keys())[0]
-                ],
-                "Visibility": ds_surface_visibility.variables[
-                    list(ds_surface_visibility.data_vars.keys())[0]
-                ],
-                "Orography": ds_surface_orog.variables[
-                    list(ds_surface_orog.data_vars.keys())[0]
-                ],
-                "Cloud ceiling": ds_cloud_ceiling.variables[
-                    list(ds_cloud_ceiling.data_vars.keys())[0]
-                ],
-                "Vegetation Type": ds_surface_vegetation_type.variables[
-                    list(ds_surface_vegetation_type.data_vars.keys())[0]
-                ],
-                "fcst_valid_epoch": ds_fcst_valid_epoch,
-                "fcst_len": ds_fcst_len,
-                "proj_params": proj_params_dict,
-            }
+            # It seems that cfgrib is graceful about missing variables, so we don't need to check
+            # for them here. But when we try to get the indexed values we will get an exception
+            # if the variable is missing. We will catch that exception and return an empty document
+            try:
+                self.ds_translate_item_variables_map = {
+                    "2 metre temperature": ds_hgt_2_metre_temperature.variables[
+                        list(ds_hgt_2_metre_temperature.data_vars.keys())[0]
+                    ],
+                    "2 metre dewpoint temperature": ds_hgt_2_metre_dewpoint_temperature.variables[
+                        list(ds_hgt_2_metre_dewpoint_temperature.data_vars.keys())[0]
+                    ],
+                    "2 metre relative humidity": ds_hgt_2_metre_relative_humidity.variables[
+                        list(ds_hgt_2_metre_relative_humidity.data_vars.keys())[0]
+                    ],
+                    "2 metre specific humidity": ds_hgt_2_metre_specific_humidity.variables[
+                        list(ds_hgt_2_metre_specific_humidity.data_vars.keys())[0]
+                    ],
+                    "10 metre U wind component": ds_hgt_10_metre_u_component_of_wind.variables[
+                        list(ds_hgt_10_metre_u_component_of_wind.data_vars.keys())[0]
+                    ],
+                    "10 metre V wind component": ds_hgt_10_metre_v_component_of_wind.variables[
+                        list(ds_hgt_10_metre_v_component_of_wind.data_vars.keys())[0]
+                    ],
+                    "Surface pressure": ds_surface_pressure.variables[
+                        list(ds_surface_pressure.data_vars.keys())[0]
+                    ],
+                    "Visibility": ds_surface_visibility.variables[
+                        list(ds_surface_visibility.data_vars.keys())[0]
+                    ],
+                    "Orography": ds_surface_orog.variables[
+                        list(ds_surface_orog.data_vars.keys())[0]
+                    ],
+                    "Cloud ceiling": ds_cloud_ceiling.variables[
+                        list(ds_cloud_ceiling.data_vars.keys())[0]
+                    ],
+                    "Vegetation Type": ds_surface_vegetation_type.variables[
+                        list(ds_surface_vegetation_type.data_vars.keys())[0]
+                    ],
+                    "fcst_valid_epoch": ds_fcst_valid_epoch,
+                    "fcst_len": ds_fcst_len,
+                    "proj_params": proj_params_dict,
+                }
+            except IndexError as _e:
+                logging.exception(
+                    "%s: Exception with builder build_document retrieving grib variables: error: %s",
+                    self.__class__.__name__,
+                    _e,
+                )
+                # remove any idx file that may have been created
+                self.delete_idx_file(queue_element)
+                # return an empty document_map
+                return {}
             # reset the builders document_map for a new file
             self.initialize_document_map()
             # get stations from couchbase and filter them so
             # that we retain only the ones for this models domain which is derived from the projection
+            # also fill in the gridpoints for each station and for each geo within each station
             # NOTE: this is not about regions, this is about models
             self.domain_stations = []
             limit_clause = ";"
@@ -677,6 +714,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                     {limit_clause}"""
             )
             for row in result:
+                station = copy.deepcopy(row)
                 for geo_index in range(len(row["geo"])):
                     lat = row["geo"][geo_index]["lat"]
                     lon = row["geo"][geo_index]["lon"]
@@ -709,11 +747,10 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                             str(_e),
                         )
                         continue
-                    station = copy.deepcopy(row)
                     # set the gridpoint for the station
                     station["geo"][geo_index]["x_gridpoint"] = x_gridpoint
                     station["geo"][geo_index]["y_gridpoint"] = y_gridpoint
-                self.domain_stations.append(station)
+                    self.domain_stations.append(station)
             # if we have asked for profiling go ahead and do it
             if self.do_profiling:
                 with cProfile.Profile() as _pr:
@@ -741,11 +778,15 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                 origin_type=self.template["model"],
             )
             document_map[data_file_doc["id"]] = data_file_doc
+            self.delete_idx_file(queue_element)
             return document_map
         except Exception as _e:  # pylint:disable=broad-except
             logging.exception(
-                "%s: Exception with builder build_document: file_name: %s",
+                "%s: Exception with builder build_document: file_name: %s, exception %s",
                 self.__class__.__name__,
                 queue_element,
+                _e,
             )
+            # remove any idx file that may have been created
+            self.delete_idx_file(queue_element)
             return {}

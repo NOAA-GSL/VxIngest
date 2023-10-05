@@ -108,7 +108,7 @@ def test_one_thread_default(tmp_path):
     It will attempt to process any files that are in the input directory that atch the file_name_mask.
     TIP: you might want to use local credentials to a local couchbase. If you do
     you will need to run the scripts in the matsmetadata directory to load the local metadata.
-    Remove any documents type DD prior to using this test."""
+   """
     try:
         vx_ingest = VXIngest()
         vx_ingest.runit(
@@ -159,7 +159,7 @@ def test_two_threads_default(tmp_path):
     It will attempt to process any files that are in the input directory that atch the file_name_mask.
     TIP: you might want to use local credentials to a local couchbase. If you do
     you will need to run the scripts in the matsmetadata directory to load the local metadata.
-    Remove any documents type DD prior to using this test."""
+    """
     try:
         vx_ingest = VXIngest()
         vx_ingest.runit(

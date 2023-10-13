@@ -13,11 +13,10 @@ import math
 import sys
 import os
 import glob
-import json
+#import json
 from pstats import Stats
 import xarray as xr
 import pyproj
-
 
 from builder_common.builder_utilities import convert_to_iso
 from builder_common.builder_utilities import get_geo_index
@@ -288,12 +287,12 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
             # get the domain_stations for a given grib file - which include the lat/lons
             # and the interpolated gridpoints for each station. Uncomment the following
             # if you need the data for debugging.
-            debugging=True
-            if debugging:
-                json_object = json.dumps(self.domain_stations, indent=4)
-                # Writing to sample.json
-                with open("/tmp/domian_stations.json", "w", encoding='utf-8') as outfile:
-                    outfile.write(json_object)
+            # debugging=True
+            # if debugging:
+            #     json_object = json.dumps(self.domain_stations, indent=4)
+            #     # Writing to sample.json
+            #     with open("/tmp/domian_stations.json", "w", encoding='utf-8') as outfile:
+            #         outfile.write(json_object)
 
             if station_data_size == 0:
                 return

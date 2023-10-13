@@ -769,10 +769,10 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                     station["geo"][geo_index]["x_gridpoint"] = x_gridpoint
                     station["geo"][geo_index]["y_gridpoint"] = y_gridpoint
                 # if we have gridpoints for all the geos in the station, add it to the list
-                has_gridpoints = False
+                has_gridpoints = True
                 for elem in station["geo"]:
-                    if "x_gridpoint" in elem and "y_gridpoint" in elem:
-                        has_gridpoints = True
+                    if "x_gridpoint" not in elem or  "y_gridpoint" not in elem:
+                        has_gridpoints = False
                 if has_gridpoints:
                     self.domain_stations.append(station)
             # if we have asked for profiling go ahead and do it

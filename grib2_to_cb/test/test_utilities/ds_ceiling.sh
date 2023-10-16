@@ -1,5 +1,5 @@
 #!/bin/bash
-export queue_element="/opt/data/grib2_to_cb/input_files/2125214000000"
+export queue_element="/opt/data/grib2_to_cb/hrrr_ops/input_files/2128723000002"
 echo "Ceiling"
 echo
 for j in 10 20 30 40 50 150 250 350 450 550 650 750

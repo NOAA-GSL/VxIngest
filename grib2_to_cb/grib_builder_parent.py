@@ -13,6 +13,7 @@ import math
 import sys
 import os
 import glob
+#import json
 from pstats import Stats
 import xarray as xr
 import pyproj
@@ -280,6 +281,19 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
         try:
             new_document = copy.deepcopy(self.template)
             station_data_size = len(self.domain_stations)
+
+            # save the domain_stations to a file for debugging - this is a lot of data
+            # and it is not necessary to write it every time. It provides a way to
+            # get the domain_stations for a given grib file - which include the lat/lons
+            # and the interpolated gridpoints for each station. Uncomment the following
+            # if you need the data for debugging.
+            # debugging=True
+            # if debugging:
+            #     json_object = json.dumps(self.domain_stations, indent=4)
+            #     # Writing to sample.json
+            #     with open("/tmp/domian_stations.json", "w", encoding='utf-8') as outfile:
+            #         outfile.write(json_object)
+
             if station_data_size == 0:
                 return
             # make a copy of the template, which will become the new document
@@ -507,6 +521,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                         "typeOfLevel": "heightAboveGround",
                         "stepType": "instant",
                         "level": 2,
+                        #"indexpath": "",  # supress the idx files
                     },
                     "read_keys": ["projString"],
                 },
@@ -519,6 +534,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                         "typeOfLevel": "heightAboveGround",
                         "stepType": "instant",
                         "level": 10,
+                        #"indexpath": "",  # supress the idx files
                     }
                 },
             )
@@ -608,6 +624,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                     "filter_by_keys": {
                         "typeOfLevel": "cloudCeiling",
                         "stepType": "instant",
+                        #"indexpath": "",  # supress the idx files
                     }
                 },
             )
@@ -621,6 +638,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                 backend_kwargs={
                     "filter_by_keys": {"typeOfLevel": "surface", "stepType": "instant"},
                     "read_keys": ["projString"],
+                    #"indexpath": "",  # supress the idx files
                 },
             )
             ds_surface_pressure = ds_surface.filter_by_attrs(
@@ -750,6 +768,12 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                     # set the gridpoint for the station
                     station["geo"][geo_index]["x_gridpoint"] = x_gridpoint
                     station["geo"][geo_index]["y_gridpoint"] = y_gridpoint
+                # if we have gridpoints for all the geos in the station, add it to the list
+                has_gridpoints = True
+                for elem in station["geo"]:
+                    if "x_gridpoint" not in elem or  "y_gridpoint" not in elem:
+                        has_gridpoints = False
+                if has_gridpoints:
                     self.domain_stations.append(station)
             # if we have asked for profiling go ahead and do it
             if self.do_profiling:

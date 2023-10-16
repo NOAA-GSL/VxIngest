@@ -17,7 +17,7 @@ The Dockerfile has two targets, dev and prod. With the dev target you get some d
 To build a docker image cd to the directory where VXingest was cloned
 and check out the branch that you want to build, then to create an image ...
 
-```@bash
+```bash
 $ docker build \
     --build-arg BUILDVER=dev \
     --build-arg COMMITBRANCH=$(git branch --show-current) \
@@ -30,7 +30,7 @@ $ docker build \
 Of course the --target=prod could also be --target=dev
 or without the broken lines...
 
-``` @bash
+``` bash
 docker build --build-arg BUILDVER=dev --build-arg COMMITBRANCH=$(git branch --show-current) --build-arg COMMITSHA=$(git rev-parse HEAD) --target=prod -t vxingest/development:dev .
 ```
 
@@ -40,8 +40,8 @@ Of course the --target=prod could also be --target=dev.
 
 ### Run the image in docker with a bash terminal
 
-``` @bash
-docker run -it -v docker.io/vxingest/development:dev /bin/bash
+``` bash
+docker run -it docker.io/vxingest/development:dev /bin/bash
 ```
 
 Running like this allows you to exaamine the container.
@@ -52,7 +52,7 @@ You can run unit or int tests and debug problems with pdb if you create a creden
 Docker compose takes care of most of the details of running unit or integration tests, the actual ingest process, the import process, or just a shell for debugging and examining the container.
 You may have to init a swarm if you haven't already done that.
 
-``` @bash
+``` bash
 docker swarm init
 ```
 
@@ -87,16 +87,22 @@ depending on the service.
 These are single run services. To run a compose service do
 "docker compose run service-name" like
 
-```@bash
-docker compose run unit_test
+```bash
+data=/opt/data docker compose run unit_test
 
+```
+
+or
+
+```bash
+data=/opt/data docker compose run int_test
 ```
 
 ### Running the ingest service
 
 To run an ingest there are a few extra parameters in addition to the /data directory. This is the typical invocation.
 
-```@bash
+```bash
 docker compose run ingest -e LOGDIR="log directory" OUTDIR="/data" METRICSDIR="/data/common/job_metrics" TRANSFERDIR="/data/temp"
 ```
 
@@ -106,7 +112,7 @@ Where LOGDIR is where you want to store and archive log files, /data is the dire
 
 To run a single ingest job there are a few extra parameters in addition to the /data directory. This is the typical invocation.
 
-```@bash
+```bash
  data=/opt/data LOGDIR="/opt/data/logs" OUTDIR="/opt/data" METRICSDIR="/opt/data/common/job_metrics" TRANSFERDIR="/opt/data/temp" JOBID="JOB-TEST:V01:METAR:CTC:SUM:MODEL:HRRR_RAP_130" docker compose run job
 ```
 

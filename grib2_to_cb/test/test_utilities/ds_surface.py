@@ -3,7 +3,7 @@
 """
 import xarray as xr
 
-QUEUE_ELEMENT = "/opt/data/grib2_to_cb/input_files/2125214000000"
+QUEUE_ELEMENT = "/opt/data/grib2_to_cb/hrrr_ops/input_files/2128723000002"
 ds_surface = xr.open_dataset(
     QUEUE_ELEMENT,
     engine="cfgrib",
@@ -19,9 +19,9 @@ for j in jvals:
         str(j)
         + "\t"
         + str(
-            ds_surface_pressure.variables[
+            round(ds_surface_pressure.variables[
                 list(ds_surface_pressure.data_vars.keys())[0]
-            ].values[j - 1, 10]
+            ].values[j - 1, 10])
         )
         + "\n"
     )
@@ -32,9 +32,9 @@ for i in ivals:
         str(i)
         + "\t"
         + str(
-            ds_surface_pressure.variables[
+            round(ds_surface_pressure.variables[
                 list(ds_surface_pressure.data_vars.keys())[0]
-            ].values[10, i - 1]
+            ].values[10, i - 1])
         )
         + "\n"
     )
@@ -47,9 +47,9 @@ for j in jvals:
         str(j)
         + "\t"
         + str(
-            ds_visibility.variables[list(ds_visibility.data_vars.keys())[0]].values[
+            round(ds_visibility.variables[list(ds_visibility.data_vars.keys())[0]].values[
                 j - 1, 10
-            ]
+            ])
         )
         + "\n"
     )
@@ -60,9 +60,9 @@ for i in ivals:
         str(i)
         + "\t"
         + str(
-            ds_visibility.variables[list(ds_visibility.data_vars.keys())[0]].values[
+            round(ds_visibility.variables[list(ds_visibility.data_vars.keys())[0]].values[
                 10, i - 1
-            ]
+            ])
         )
         + "\n"
     )

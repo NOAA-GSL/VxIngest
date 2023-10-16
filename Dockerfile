@@ -45,7 +45,8 @@ COPY --from=prod / /
 RUN apt-get update && \
         apt-get upgrade -y && \
         apt-get install -y procps && \
-        apt-get install -y vim
+        apt-get install -y vim && \
+        apt-get install -y iputils-ping
 
 USER amb-verif
 

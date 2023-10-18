@@ -54,8 +54,10 @@ def test_one_thread_specify_file_pattern(tmp_path):  # pylint:disable=missing-fu
         ), "there is no load job output file"
 
         # use file globbing to see if we got one output file for each input file plus one load job file
+        if "data" not in os.environ:
+            os.environ["data"] = "/opt/data"
         assert len(glob(f"{tmp_path}/20211108*.json")) == len(
-            glob("/opt/data/netcdf_to_cb/input_files/20211108_0000")
+            glob(os.environ["data"] + "/netcdf_to_cb/input_files/20211108_0000")
         ), "number of output files is incorrect"
     except Exception as _e:  # pylint: disable=broad-except
         assert False, f"TestGsdIngestManager Exception failure: {_e}"
@@ -96,8 +98,10 @@ def test_two_threads_spedicfy_file_pattern(tmp_path):
         ), "there is no load job output file"
 
         # use file globbing to see if we got one output file for each input file plus one load job file
+        if "data" not in os.environ:
+            os.environ["data"] = "/opt/data"
         assert len(glob(f"{tmp_path}/20211105*.json")) == len(
-            glob("/opt/data/netcdf_to_cb/input_files/20211105*")
+            glob(os.environ["data"] + "/netcdf_to_cb/input_files/20211105*")
         ), "number of output files is incorrect"
     except Exception as _e:  # pylint: disable=broad-except
         assert False, f"TestGsdIngestManager Exception failure: {_e}"
@@ -140,13 +144,15 @@ def test_one_thread_default(tmp_path):
         ), "there is no load job output file"
 
         # use file globbing to see if we got one output file for each input file plus one load job file
+        if "data" not in os.environ:
+            os.environ["data"] = "/opt/data"
         assert len(
             glob(
                 f"{tmp_path}/[0123456789]???????_[0123456789]???.json"
             )
         ) == len(
             glob(
-                "/opt/data/netcdf_to_cb/input_files/[0123456789]???????_[0123456789]???"
+                os.environ["data"] + "/netcdf_to_cb/input_files/[0123456789]???????_[0123456789]???"
             )
         ), "number of output files is incorrect"
 
@@ -190,13 +196,15 @@ def test_two_threads_default(tmp_path):
         ), "there is no load job output file"
 
         # use file globbing to see if we got one output file for each input file plus one load job file
+        if "data" not in os.environ:
+            os.environ["data"] = "/opt/data"
         assert len(
             glob(
                 f"{tmp_path}/[0123456789]???????_[0123456789]???.json"
             )
         ) == len(
             glob(
-                "/opt/data/netcdf_to_cb/input_files/[0123456789]???????_[0123456789]???"
+                os.environ["data"] + "/netcdf_to_cb/input_files/[0123456789]???????_[0123456789]???"
             )
         ), "number of output files is incorrect"
     except Exception as _e:  # pylint: disable=broad-except

@@ -46,7 +46,8 @@ RUN apt-get update && \
         apt-get upgrade -y && \
         apt-get install -y procps && \
         apt-get install -y vim && \
-        apt-get install -y iputils-ping
+        apt-get install -y iputils-ping && \
+        && rm -rf /var/lib/apt/lists/*
 
 USER amb-verif
 

@@ -19,9 +19,6 @@ from ctc_to_cb.run_ingest_threads import VXIngest
 
 
 # This test expects to find obs data and model data for hrrr_ops.
-# This test expects to write to the local output directory /opt/data/ctc_to_cb/output
-# so that directory should exist.
-
 # /public/data/grib/hrrr_wrfsfc/7/0/83/0_1905141_30/2125112000000
 # "DD:V01:METAR:HRRR_OPS:1631102400:0
 # DD:V01:METAR:obs:1631102400
@@ -305,9 +302,11 @@ def test_ctc_builder_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
     global stations
 
     try:
+        if "data" not in os.environ:
+            os.environ["data"] = "/opt/data"
         credentials_file = os.environ["CREDENTIALS"]
         job_id = "JOB-TEST:V01:METAR:CTC:SUM:MODEL:HRRR_RAP_130"
-        outdir = "/opt/data/ctc_to_cb/hrrr_ops/output"
+        outdir = os.environ["data"] + "/ctc_to_cb/hrrr_ops/output"
         filepaths = outdir + "/*.json"
         files = glob.glob(filepaths)
         for _f in files:

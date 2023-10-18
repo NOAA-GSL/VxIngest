@@ -1,13 +1,9 @@
 """
     utility for comparing cfgrib data to wgrib2 data
 """
-import os
 import xarray as xr
 
-if "data" not in os.environ:
-    os.environ["data"] = "/opt/data"
-
-QUEUE_ELEMENT = os.environ["data"] + "/grib2_to_cb/hrrr_ops/input_files/2128723000002"
+QUEUE_ELEMENT = "/opt/data/grib2_to_cb/input_files/2125214000000"
 ds_surface = xr.open_dataset(
     QUEUE_ELEMENT,
     engine="cfgrib",

@@ -337,10 +337,8 @@ def test_handle_station():
         _pattern = "%Y%m%d_%H%M"
         # fmask is usually set in the run_ingest_threads
         _builder.load_spec["fmask"] = _pattern
-        if "data" not in os.environ:
-            os.environ["data"] = "/opt/data"
         _builder.ncdf_data_set = nc.Dataset(  # pylint:disable=no-member
-            os.environ["data"] + "/netcdf_to_cb/input_files/20211108_0000"
+            "/opt/data/netcdf_to_cb/input_files/20211108_0000"
         )
         rec_num_length = _builder.ncdf_data_set["stationName"].shape[0]
         # find the rec_num of the stationName ZBAA

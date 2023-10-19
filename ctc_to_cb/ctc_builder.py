@@ -490,7 +490,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
             max_ctc_fcst_valid_epochs = self.load_spec["first_last_params"]["first_epoch"]
             max_ctc_fcst_valid_epochs_result = list(result)
             # if there are ctc's for this model and region then get the max epoch from the query
-            max_ctc_fcst_valid_epochs = max_ctc_fcst_valid_epochs_result[0]
+            max_ctc_fcst_valid_epochs = max_ctc_fcst_valid_epochs_result[0] if max_ctc_fcst_valid_epochs_result[0] is not None  else 0
 
             # Second get the intersection of the fcstValidEpochs that correspond for this
             # model and the obs for all fcstValidEpochs greater than the first_epoch ctc

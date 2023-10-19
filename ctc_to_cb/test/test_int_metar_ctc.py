@@ -182,6 +182,7 @@ def calculate_cb_ctc(  # pylint: disable=dangerous-default-value,missing-functio
     model,
     subset,
     region,
+    doc_sub_type,
     reject_stations=[],
 ):
     global cb_model_obs_data
@@ -211,7 +212,7 @@ def calculate_cb_ctc(  # pylint: disable=dangerous-default-value,missing-functio
     load_spec["cluster"] = cluster
     load_spec["collection"] = collection
     ingest_document_result = load_spec["collection"].get(
-        f"MD:V01:{subset}:{model}:ALL_HRRR:CTC:CEILING:ingest"
+        f"MD:V01:{subset}:{model}:ALL_HRRR:CTC:{doc_sub_type.upper()}:ingest"
     )
     ingest_document = ingest_document_result.content_as[dict]
     # instantiate a ctcBuilder so we can use its get_station methods
@@ -253,13 +254,13 @@ def calculate_cb_ctc(  # pylint: disable=dangerous-default-value,missing-functio
             continue
         model_data = full_model_data["data"][station]
         # add to model_obs_data
-        if obs_data and model_data and obs_data["Ceiling"] and model_data["Ceiling"]:
+        if obs_data and model_data and obs_data[doc_sub_type] and model_data[doc_sub_type]:
             dat = {
                 "time": epoch,
                 "fcst_len": fcst_len,
                 "thrsh": threshold,
-                "model": model_data["Ceiling"] if model_data else None,
-                "obs": obs_data["Ceiling"] if obs_data else None,
+                "model": model_data[doc_sub_type] if model_data else None,
+                "obs": obs_data[doc_sub_type] if obs_data else None,
                 "name": station,
             }
             cb_model_obs_data.append(dat)
@@ -308,7 +309,10 @@ def test_ctc_builder_ceiling_hrrr_ops_all_hrrr():  # pylint: disable=too-many-lo
     try:
         credentials_file = os.environ["CREDENTIALS"]
         job_id = "JOB-TEST:V01:METAR:CTC:CEILING:MODEL:OPS"
-        outdir = "/opt/data/ctc_to_cb/hrrr_ops/output"
+        outdir = "/opt/data/ctc_to_cb/hrrr_ops/ceiling/output"
+        if not os.path.exists(outdir):
+            # Create a new directory because it does not exist
+            os.makedirs(outdir)
         filepaths = outdir + "/*.json"
         files = glob.glob(filepaths)
         for _f in files:
@@ -376,6 +380,7 @@ def test_ctc_builder_ceiling_hrrr_ops_all_hrrr():  # pylint: disable=too-many-lo
                     threshold=int(_t),
                     model="HRRR_OPS",
                     subset="METAR",
+                    doc_sub_type="Ceiling",
                     region="ALL_HRRR",
                 )
                 if cb_ctc is None:
@@ -403,7 +408,10 @@ def test_ctc_builder_visibility_hrrr_ops_all_hrrr():  # pylint: disable=too-many
     try:
         credentials_file = os.environ["CREDENTIALS"]
         job_id = "JOB-TEST:V01:METAR:CTC:VISIBILITY:MODEL:OPS"
-        outdir = "/opt/data/ctc_to_cb/hrrr_ops/output"
+        outdir = "/opt/data/ctc_to_cb/hrrr_ops/visibility/output"
+        if not os.path.exists(outdir):
+            # Create a new directory because it does not exist
+            os.makedirs(outdir)
         filepaths = outdir + "/*.json"
         files = glob.glob(filepaths)
         for _f in files:
@@ -468,9 +476,10 @@ def test_ctc_builder_visibility_hrrr_ops_all_hrrr():  # pylint: disable=too-many
                 cb_ctc = calculate_cb_ctc(
                     epoch=_elem["fcstValidEpoch"],
                     fcst_len=_i,
-                    threshold=int(_t),
+                    threshold=float(_t),
                     model="HRRR_OPS",
                     subset="METAR",
+                    doc_sub_type="Visibility",
                     region="ALL_HRRR",
                 )
                 if cb_ctc is None:
@@ -599,10 +608,11 @@ def test_ctc_ceiling_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-local
                 _ctc = calculate_cb_ctc(
                     fcst_valid_epoch,
                     fcstln,
-                    int(float(_threshold)),
+                    int(_threshold),
                     "HRRR_OPS",
                     _collection,
-                    "ALL_HRRR",
+                    doc_sub_type="Ceiling",
+                    region="ALL_HRRR",
                 )
                 # assert ctc values
                 fields = ["hits", "misses", "false_alarms", "correct_negatives"]
@@ -740,7 +750,8 @@ def test_ctc_visibiltiy_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-lo
                     int(float(_threshold)),
                     "HRRR_OPS",
                     _collection,
-                    "ALL_HRRR",
+                    doc_sub_type="Visibility",
+                    region="ALL_HRRR",
                 )
                 # assert ctc values
                 fields = ["hits", "misses", "false_alarms", "correct_negatives"]

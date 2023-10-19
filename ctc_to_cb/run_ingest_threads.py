@@ -235,6 +235,7 @@ class VXIngest(CommonVxIngest):
                 ingest_manager_thread.start()
             except Exception as _e:  # pylint:disable=broad-except
                 logging.error("*** Error in VXIngest %s***", str(_e))
+                raise _e
         # be sure to join all the threads to wait on them
         finished = [proc.join() for proc in ingest_manager_list]
         self.write_load_job_to_files()

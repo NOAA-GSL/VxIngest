@@ -7,7 +7,7 @@ services:
   shell:
     image : docker.io/vxingest/development:dev
     volumes:
-      - ${data}:${data}
+      - ${data}:/opt/data
     secrets:
       - CREDENTIALS_FILE
     environment:
@@ -17,7 +17,7 @@ services:
   unit_test:
     image : docker.io/vxingest/development:dev
     volumes:
-      -  ${data}:${data}
+      -  ${data}:/opt/data
     secrets:
       - CREDENTIALS_FILE
     environment:
@@ -27,7 +27,7 @@ services:
   int_test:
     image : docker.io/vxingest/development:dev
     volumes:
-      -  ${data}:${data}
+      -  ${data}:/opt/data
     secrets:
       - CREDENTIALS_FILE
     environment:
@@ -37,7 +37,7 @@ services:
   ingest:
     image : docker.io/vxingest/development:dev
     volumes:
-      - ${data}:${data}
+      - ${data}:/opt/data
     secrets:
       - CREDENTIALS_FILE
     command: ./scripts/VXingest_utilities/run-ingest.sh -c /run/secrets/CREDENTIALS_FILE -l ${LOGDIR} -o ${OUTDIR} -m ${METRICSDIR} -x ${TRANSFERDIR}
@@ -45,7 +45,7 @@ services:
   job:
     image : docker.io/vxingest/development:dev
     volumes:
-      - ${data}:${data}
+      - ${data}:/opt/data
     secrets:
       - CREDENTIALS_FILE
     command: ./scripts/VXingest_utilities/run-ingest.sh -c /run/secrets/CREDENTIALS_FILE -l ${LOGDIR} -o ${OUTDIR} -m ${METRICSDIR} -x ${TRANSFERDIR} -j ${JOBID} -s ${start_epoch} -e ${end_epoch}

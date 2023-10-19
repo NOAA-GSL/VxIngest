@@ -105,7 +105,7 @@ def test_two_threads_spedicfy_file_pattern(tmp_path):
 
 def test_one_thread_default(tmp_path):
     """This test will start one thread of the ingestManager and simply make sure it runs with no Exceptions.
-    It will attempt to process any files that are in the input directory that atch the file_name_mask.
+    It will attempt to process any files that are in the input directory that match the file_name_mask.
     TIP: you might want to use local credentials to a local couchbase. If you do
     you will need to run the scripts in the matsmetadata directory to load the local metadata.
    """

@@ -185,8 +185,8 @@ def calculate_cb_ctc(  # pylint: disable=dangerous-default-value,missing-functio
     doc_sub_type,
     reject_stations=[],
 ):
-    global cb_model_obs_data
-    global stations
+    global cb_model_obs_data #pylint: disable=global-statement
+    global stations #pylint: disable=global-statement
 
     credentials_file = os.environ["CREDENTIALS"]
     assert Path(credentials_file).is_file(), "credentials_file Does not exist"
@@ -254,7 +254,7 @@ def calculate_cb_ctc(  # pylint: disable=dangerous-default-value,missing-functio
             continue
         model_data = full_model_data["data"][station]
         # add to model_obs_data
-        if obs_data and model_data and obs_data[doc_sub_type] and model_data[doc_sub_type]:
+        if obs_data and model_data and obs_data[doc_sub_type] is not None and model_data[doc_sub_type] is not None:
             dat = {
                 "time": epoch,
                 "fcst_len": fcst_len,
@@ -303,8 +303,8 @@ def test_ctc_builder_ceiling_hrrr_ops_all_hrrr():  # pylint: disable=too-many-lo
     Then the couchbase CTC fcstValidEpochs are compared and asserted against the derived CTC.
     """
     # noinspection PyBroadException
-    global cb_model_obs_data
-    global stations
+    global cb_model_obs_data #pylint: disable=global-variable-not-assigned
+    global stations #pylint: disable=global-variable-not-assigned
 
     try:
         credentials_file = os.environ["CREDENTIALS"]
@@ -402,8 +402,8 @@ def test_ctc_builder_visibility_hrrr_ops_all_hrrr():  # pylint: disable=too-many
     Then the couchbase CTC fcstValidEpochs are compared and asserted against the derived CTC.
     """
     # noinspection PyBroadException
-    global cb_model_obs_data
-    global stations
+    global cb_model_obs_data #pylint: disable=global-variable-not-assigned
+    global stations #pylint: disable=global-variable-not-assigned
 
     try:
         credentials_file = os.environ["CREDENTIALS"]
@@ -448,7 +448,7 @@ def test_ctc_builder_visibility_hrrr_ops_all_hrrr():  # pylint: disable=too-many
             fcst_valid_epochs = {doc["fcstValidEpoch"] for doc in vx_ingest_output_data}
             # take a fcstValidEpoch in the middle of the list
             fcst_valid_epoch = list(fcst_valid_epochs)[int(len(fcst_valid_epochs) / 2)]
-            _thresholds = ["1.0","3.0","5.0", "10.0", "0.5"]
+            _thresholds = ["0.5","1.0","3.0","5.0","10.0"]
             # get all the documents that have the chosen fcstValidEpoch
             docs = [
                 _doc
@@ -469,14 +469,14 @@ def test_ctc_builder_visibility_hrrr_ops_all_hrrr():  # pylint: disable=too-many
                 if _elem["fcstLen"] == _i:
                     break
             # process all the thresholds
-            for _t in _thresholds:
+            for _threshold in _thresholds:
                 print(
-                    f"Asserting derived CTC for fcstValidEpoch: {_elem['fcstValidEpoch']} model: HRRR_OPS region: ALL_HRRR fcst_len: {_i} threshold: {_t}"
+                    f"Asserting derived CTC for fcstValidEpoch: {_elem['fcstValidEpoch']} model: HRRR_OPS region: ALL_HRRR fcst_len: {_i} threshold: {_threshold}"
                 )
                 cb_ctc = calculate_cb_ctc(
                     epoch=_elem["fcstValidEpoch"],
                     fcst_len=_i,
-                    threshold=float(_t),
+                    threshold=float(_threshold),
                     model="HRRR_OPS",
                     subset="METAR",
                     doc_sub_type="Visibility",
@@ -484,7 +484,7 @@ def test_ctc_builder_visibility_hrrr_ops_all_hrrr():  # pylint: disable=too-many
                 )
                 if cb_ctc is None:
                     print(
-                        f"cb_ctc is None for threshold {str(_t)}- contunuing"
+                        f"cb_ctc is None for threshold {str(_threshold)}- contunuing"
                     )
                     continue
     except Exception as _e:  # pylint: disable=broad-except
@@ -556,15 +556,15 @@ def test_ctc_ceiling_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-local
         )
         cb_fcst_valid_lens = list(result)
         # get the thesholdDescriptions from the couchbase metadata
-        result = cluster.query(
-            f"""
-            SELECT RAW thresholdDescriptions.ceiling
-            FROM `{_bucket}`.{_scope}.{_collection}
-            WHERE type="MD"
-                AND docType="matsAux"
-            """,
-            read_only=True,
-        )
+        # result = cluster.query(
+        #     f"""
+        #     SELECT RAW thresholdDescriptions.ceiling
+        #     FROM `{_bucket}`.{_scope}.{_collection}
+        #     WHERE type="MD"
+        #         AND docType="matsAux"
+        #     """,
+        #     read_only=True,
+        # )
         # get the associated couchbase ceiling model data
         # get the associated couchbase obs
         # get the ctc couchbase data
@@ -608,7 +608,7 @@ def test_ctc_ceiling_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-local
                 _ctc = calculate_cb_ctc(
                     fcst_valid_epoch,
                     fcstln,
-                    int(_threshold),
+                    float(_threshold),
                     "HRRR_OPS",
                     _collection,
                     doc_sub_type="Ceiling",
@@ -661,17 +661,16 @@ def test_ctc_visibiltiy_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-lo
     cluster = Cluster("couchbase://" + _host, options)
     # get available fcstValidEpochs for couchbase
     try:
-        result = cluster.query(
-            f"""SELECT RAW fcstValidEpoch
-            FROM `{_bucket}`.{_scope}.{_collection}
-            WHERE type="DD"
-                AND docType="CTC"
-                AND subDocType = "VISIBILITY"
-                AND model='HRRR_OPS'
-                AND region='ALL_HRRR'
-                AND version='V01'
-                AND subset='{_collection}'"""
-        )
+        stmnt = f"""SELECT RAW fcstValidEpoch
+        FROM `{_bucket}`.{_scope}.{_collection}
+        WHERE type="DD"
+            AND docType="CTC"
+            AND subDocType = "VISIBILITY"
+            AND model='HRRR_OPS'
+            AND region='ALL_HRRR'
+            AND version='V01'
+            AND subset='{_collection}'"""
+        result = cluster.query(stmnt)
         cb_fcst_valid_epochs = list(result)
         if len(cb_fcst_valid_epochs) == 0:
             assert False, "There is no data"
@@ -695,15 +694,15 @@ def test_ctc_visibiltiy_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-lo
         )
         cb_fcst_valid_lens = list(result)
         # get the thesholdDescriptions from the couchbase metadata
-        result = cluster.query(
-            f"""
-            SELECT RAW thresholdDescriptions.visibility
-            FROM `{_bucket}`.{_scope}.{_collection}
-            WHERE type="MD"
-                AND docType="matsAux"
-            """,
-            read_only=True,
-        )
+        # result = cluster.query(
+        #     f"""
+        #     SELECT RAW thresholdDescriptions.visibility
+        #     FROM `{_bucket}`.{_scope}.{_collection}
+        #     WHERE type="MD"
+        #         AND docType="matsAux"
+        #     """,
+        #     read_only=True,
+        # )
         # get the associated couchbase ceiling model data
         # get the associated couchbase obs
         # get the ctc couchbase data
@@ -747,7 +746,7 @@ def test_ctc_visibiltiy_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-lo
                 _ctc = calculate_cb_ctc(
                     fcst_valid_epoch,
                     fcstln,
-                    int(float(_threshold)),
+                    float(_threshold),
                     "HRRR_OPS",
                     _collection,
                     doc_sub_type="Visibility",

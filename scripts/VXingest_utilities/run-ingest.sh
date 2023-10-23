@@ -16,7 +16,7 @@
 # and this scripts run duration in seconds.
 
 function usage {
-  echo "Usage $0 -c credentials-file -d VxIngest directory -l log directory -o output directory -m metrics directory -x transfer directory [-j job_id -s start_epoch -e end_epoch]"
+  echo "Usage $0 -c credentials-file -d VxIngest directory -l log directory -o output directory -m metrics directory -x transfer directory [-j job_id -f file_pattern]"
   echo "The credentials-file specifies cb_host, cb_user, and cb_password."
   echo "The VxIngest directory specifies the directory where The VxIngest repo has been cloned."
   echo "The log directory is where the program will put its log files."
@@ -24,18 +24,18 @@ function usage {
   echo "The transfer directory is where this script will put a tarball of the output data for importing."
   echo "The metrics directory is where the scraper will place the metrics."
   echo "The jobid is optional and if provided will run only the particular job, independent of the schedule of the job document as long as the type is 'JOB' or 'JOB-TEST' and status contains 'active'."
+  echo "The file_pattern is optional and if provided will be passed to the run_ingest_threads.py to qualify the input files."
   exit 1
 }
 
 credentials_file=""
 jobid=""
-start_epoch=""
-end_epoch=""
+file_pattern=""
 success_job_count=0
 failed_job_count=0
 start=$(date +%s)
 clonedir=${PWD}
-while getopts 'c:l:m:o:x:j:s:e:' param; do
+while getopts 'c:l:m:o:x:j:f:' param; do
   case "${param}" in
   c)
     credentials_file=${OPTARG}
@@ -83,11 +83,8 @@ while getopts 'c:l:m:o:x:j:s:e:' param; do
   j)
     jobid=$(echo "${OPTARG}")
     ;;
-  s)
-    start_epoch="-f ${OPTARG}"
-    ;;
-  e)
-    end_epoch="-l ${OPTARG}"
+  f)
+    file_pattern="-f ${OPTARG}"
     ;;
   *)
     echo "ERROR: wrong parameter, I don't do ${param}"
@@ -217,8 +214,8 @@ for i in "${!ids[@]}"; do
   else
     threads=""
   fi
-  echo "RUNNING - python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ${credentials_file} -o $out_dir ${threads}  ${start_epoch} ${end_epoch}"
-  python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ${credentials_file} -o $out_dir ${threads} ${start_epoch} ${end_epoch} >>${log_file} 2>&1
+  echo "RUNNING - python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ${credentials_file} -o $out_dir ${threads} ${file_pattern}"
+  python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ${credentials_file} -o $out_dir ${threads} ${file_pattern}
   exit_code=$?
   if [[ "${exit_code}" -ne "0" ]]; then
     failed_job_count=$((failed_job_count + 1))

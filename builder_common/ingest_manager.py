@@ -61,6 +61,8 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
         self.cluster = None
         self.collection = None
         self.output_dir = output_dir
+        if not os.path.exists(self.output_dir):
+            os.makedirs(self.output_dir)
         if not os.access(self.output_dir, os.W_OK):
             _re = RuntimeError("Output directory: %s is not writable!", self.output_dir)
             logging.exception(_re)

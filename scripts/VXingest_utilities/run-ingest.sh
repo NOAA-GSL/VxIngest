@@ -228,7 +228,7 @@ for i in "${!ids[@]}"; do
   # mv the log_file to the output dir
   mv ${log_file} ${out_dir}
   # tar the output dir into the transfer directory and remove the files
-  tar -czf ${xfer_dir}${tar_file_name} --remove-files -C ${out_dir} .
+  tar -czf ${xfer_dir}/${tar_file_name} --remove-files -C ${out_dir} .
   # rm the output directory if it is empty
   find ${outdir} -depth -type d -empty -exec rmdir {} \;
 done

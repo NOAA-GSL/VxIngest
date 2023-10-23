@@ -8,7 +8,7 @@ import sys
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Optional, TypedDict
 
 import yaml
 from couchbase.auth import PasswordAuthenticator  # type: ignore
@@ -33,7 +33,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def get_credentials(path: str) -> Dict[str, str]:
+def get_credentials(path: Path) -> dict[str, str]:
     """
     Loads a YAML config file from the given path.
 
@@ -41,12 +41,12 @@ def get_credentials(path: str) -> Dict[str, str]:
     """
 
     # Check the file exists
-    if not Path(path).is_file():
+    if not path.is_file():
         raise FileNotFoundError(f"Credentials file can not be found: {path}")
 
     # Load the file
-    config: Dict[str, str] = {}
-    with open(path, encoding="utf-8") as file:
+    config: dict[str, str] = {}
+    with path.open() as file:
         config = yaml.load(file, yaml.SafeLoader)
 
     # Check that nothing's missing
@@ -89,7 +89,7 @@ def process_cli():
     parser.add_argument(
         "-c",
         "--credentials_file",
-        type=str,
+        type=Path,
         required=False,
         default="config.yaml",
         help="Path to the credentials file",
@@ -97,28 +97,28 @@ def process_cli():
     parser.add_argument(
         "-m",
         "--metrics_dir",
-        type=str,
+        type=Path,
         required=True,
         help="Path to write metrics files",
     )
     parser.add_argument(
         "-o",
         "--output_dir",
-        type=str,
+        type=Path,
         required=True,
         help="Path to write output couchbase JSON files",
     )
     parser.add_argument(
         "-x",
         "--transfer_dir",
-        type=str,
+        type=Path,
         required=True,
         help="Path to the 'transfer directory'",
     )
     parser.add_argument(
         "-l",
         "--log_dir",
-        type=str,
+        type=Path,
         required=True,
         help="Path to write log files",
     )
@@ -143,19 +143,29 @@ def process_cli():
     return args
 
 
-def create_dirs(paths: list[str] | list[Path]) -> None:
+def create_dirs(paths: list[Path]) -> None:
     """Creates directory structure"""
     for path in paths:
-        Path(path).mkdir(parents=True, exist_ok=True)
+        path.mkdir(parents=True, exist_ok=True)
+
+
+class JobDoc(TypedDict):
+    """A type class describing the expected return result from Couchbase"""
+
+    id: str
+    name: str
+    offset_minutes: int
+    run_priority: int
+    sub_type: str
 
 
 def get_job_docs(
-    cluster,  #: Cluster.bucket.Collection,
-    creds: Dict[str, str],
+    cluster: Cluster,
+    creds: dict[str, str],
     job_id: Optional[str] = None,
-) -> list[dict]:
+) -> list[JobDoc]:
     """Queries Couchbase for the given job doc or job docs in need of processing if no job ID is given"""
-    
+
     # TODO - We're doing this query at the cluster level. Would it be better to query at the scope level if we're using Couchbase 7?
     # https://docs.couchbase.com/python-sdk/current/howtos/n1ql-queries-with-sdk.html#querying-at-scope-level
     if job_id is not None:
@@ -176,7 +186,7 @@ def get_job_docs(
                 "AND CONTAINS(status, 'active') "
         )
         # fmt: on
-        row_iter = cluster.query(query, QueryOptions(read_only=True))
+        row_iter = cluster.query(query, QueryOptions(read_only=True))  # type: ignore[assignment]
         return [row for row in row_iter]
 
     # fmt: off
@@ -208,11 +218,11 @@ def get_job_docs(
                 "run_priority "
     )
     # fmt: on
-    row_iter = cluster.query(query, QueryOptions(read_only=True))
+    row_iter = cluster.query(query, QueryOptions(read_only=True))  # type: ignore[assignment]
     return [row for row in row_iter]
 
 
-def connect_cb(creds: Dict[str, str]) -> Cluster:
+def connect_cb(creds: dict[str, str]) -> Cluster:
     """
     Create a connection to the specified Couchbase cluster
     """
@@ -241,7 +251,7 @@ def connect_cb(creds: Dict[str, str]) -> Cluster:
     return cluster
 
 
-def process_jobs(job_docs, starttime, args):
+def process_jobs(job_docs: list[JobDoc], starttime: datetime, args) -> None:
     """
     Parses the given job docs and determines which method to ingest them with
 
@@ -290,7 +300,7 @@ def process_jobs(job_docs, starttime, args):
 
         config = {
             "job_id": job["id"],
-            "credentials_file": args.credentials_file,
+            "credentials_file": str(args.credentials_file),
             "output_dir": str(output_dir),
             "threads": 8,
         }
@@ -299,8 +309,8 @@ def process_jobs(job_docs, starttime, args):
             case "grib2":
                 # FIXME: Update calling code to raise instead of calling sys.exit
                 try:
-                    ingest = grib2_to_cb.run_ingest_threads.VXIngest()
-                    ingest.runit(config)
+                    grib_ingest = grib2_to_cb.run_ingest_threads.VXIngest()
+                    grib_ingest.runit(config)
                 except SystemExit as e:
                     if e.code == 0:
                         # Job succeeded
@@ -310,8 +320,8 @@ def process_jobs(job_docs, starttime, args):
             case "netcdf":
                 # FIXME: Update calling code to raise instead of calling sys.exit
                 try:
-                    ingest = netcdf_to_cb.run_ingest_threads.VXIngest()
-                    ingest.runit(config)
+                    netcdf_ingest = netcdf_to_cb.run_ingest_threads.VXIngest()
+                    netcdf_ingest.runit(config)
                 except SystemExit as e:
                     if e.code == 0:
                         # Job succeeded
@@ -319,19 +329,19 @@ def process_jobs(job_docs, starttime, args):
                 else:
                     job_succeeded = True
             case "ctc":
-                # FIXME: We need to override the config as CTCs are currently inconsistent and take extra values
+                # FIXME: We need to override the config as CTCs currently take extra values
                 config = {
                     "job_id": job["id"],
-                    "credentials_file": args.credentials_file,
+                    "credentials_file": str(args.credentials_file),
                     "output_dir": str(output_dir),
-                    "threads": 8,  # TODO - does this need to thread on the for loop?
-                    "first_epoch": args.start_epoch,  # TODO - this is inconsistent - only for CTCs - default is 0 - flag is "-f"
-                    "last_epoch": args.end_epoch,  # TODO - this is inconsistenet - only for CTCs - default is sys.maxsize - flag is "-l"
+                    "threads": 8,
+                    "first_epoch": args.start_epoch,  # TODO - this is only supported by CTCs at the moment
+                    "last_epoch": args.end_epoch,  # TODO - this is only supported by CTCs  at the moment
                 }
                 # FIXME: Update calling code to raise instead of calling sys.exit
                 try:
-                    ingest = ctc_to_cb.run_ingest_threads.VXIngest()
-                    ingest.runit(config)
+                    ctc_ingest = ctc_to_cb.run_ingest_threads.VXIngest()
+                    ctc_ingest.runit(config)
                 except SystemExit as e:
                     if e.code == 0:
                         # Job succeeded
@@ -349,7 +359,7 @@ def process_jobs(job_docs, starttime, args):
     # TODO: make a prom metrics file with same metrics that run_ingest.sh emits # TODO - use the prometheus client & the write_to_textfile writer
 
 
-def run_ingest():
+def run_ingest() -> None:
     """entrypoint"""
     args = process_cli()
     creds = get_credentials(args.credentials_file)

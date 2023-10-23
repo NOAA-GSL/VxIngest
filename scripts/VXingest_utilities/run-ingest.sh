@@ -23,7 +23,7 @@ function usage {
   echo "The output directory is where the ingest will write its result documents."
   echo "The transfer directory is where this script will put a tarball of the output data for importing."
   echo "The metrics directory is where the scraper will place the metrics."
-  echo "The jobid is optional and if provided will run only the particular job, independent of the schedule of the job document."
+  echo "The jobid is optional and if provided will run only the particular job, independent of the schedule of the job document as long as the type is 'JOB' or 'JOB-TEST' and status contains 'active'."
   exit 1
 }
 
@@ -129,7 +129,7 @@ SELECT meta().id AS id,
        input_data_path as input_data_path
 FROM vxdata._default.METAR
 WHERE id="${jobid}"
-    AND type = "JOB-TEST"
+    AND (type = "JOB-TEST" or type = "JOB")
     AND version = "V01"
     AND CONTAINS(status, "active")
 %EndOfJobStatement
@@ -165,7 +165,7 @@ fi
 # job_docs should either get one document if jobid was specified or all the currently scheduled job documents otherwise
 job_docs=$(curl -s http://${cb_host}:8093/query/service -u"${cred}" -d "statement=${statement}" | jq -r '.results | .[]')
 ids=($(echo $job_docs | jq -r .id))
-if [ -z ${jobid+x} ]; then        # no jobid specified so got all the currently scheduled jobs
+if [ ! -z ${jobid+x} ]; then        # no jobid specified so got all the currently scheduled jobs
   if [[ ${#ids[@]} -eq 0 ]]; then #no jobs found currently scheduled
     echo "no jobs are currently scheduled for this time"
     exit 0

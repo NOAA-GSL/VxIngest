@@ -239,5 +239,5 @@ echo "run_ingest_duration $((end - start))" >${m_file}
 echo "run_ingest_success_count ${success_job_count}" >>${m_file}
 echo "run_ingest_failure_count ${failed_job_count}" >>${m_file}
 mv ${m_file} "${metrics_dir}/run_ingest_metrics.prom"
-chmod a+rw -R "${metrics_dir}" "${log_dir}" "${output_dir}" "${xfer_dir}"
+chmod a+rw -R "${metrics_dir}/*" "${log_dir}/*" "${output_dir}/*" "${xfer_dir}/*"
 exit 0

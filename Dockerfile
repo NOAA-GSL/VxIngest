@@ -25,8 +25,24 @@ RUN apt-get update && \
         apt-get install -y wget && \
         wget http://nz2.archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb && \
         dpkg -i libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb && \
+        apt-get install libnetcdff-dev libopenjp2-7-dev gfortran make unzip git cmake -y && \
+        apt-get install -y proj-bin && \
+        apt-get install build-essential -y && \
+        cd && mkdir source_builds && cd source_builds && \
+        wget https://confluence.ecmwf.int/download/attachments/45757960/eccodes-2.32.0-Source.tar.gz && \
+        tar -xzf  eccodes-2.32.0-Source.tar.gz && \
+        mkdir build ; cd build && \
+        cmake -DCMAKE_INSTALL_PREFIX=/usr/src/eccodes -DENABLE_JPG=ON ../eccodes-2.32.0-Source && \
+        make && \
+        ctest && \
+        make install && \
+        cp -r /usr/src/eccodes/bin/* /usr/bin/ && \
+        echo 'export ECCODES_DIR=/usr/src/eccodes' >> ~/.bashrc && \
+        echo 'export ECCODES_DEFINITION_PATH=/usr/src/eccodes/share/eccodes/definitions' >> ~/.bashrc && \
+        cp /usr/src/eccodes/lib/libeccodes.so /usr/lib && \
+        cp /usr/src/eccodes/include/* /usr/include/ && \
         apt-get remove -y wget && \
-        apt-get install -y libeccodes-dev
+        cd && rm -rf source_builds
 
 COPY . /home/amb-verif/VxIngest
 

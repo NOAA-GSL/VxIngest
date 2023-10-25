@@ -24,12 +24,7 @@ import ctc_to_cb.run_ingest_threads
 import grib2_to_cb.run_ingest_threads
 import netcdf_to_cb.run_ingest_threads
 
-# Logger setup
-logging.basicConfig(
-    level=logging.DEBUG if os.environ.get("DEBUG", False) else logging.INFO,
-    format="%(asctime)s [%(levelname)s] (%(name)s) %(message)s",
-    datefmt="%Y-%m-%dT%H:%M:%S%z",  # ISO 8601
-)
+# Get a logger with this module's name to help with debugging
 logger = logging.getLogger(__name__)
 
 
@@ -143,6 +138,43 @@ def process_cli():
     return args
 
 
+def configure_logging(logpath: Optional[Path] = None) -> None:
+    """Configure the root logger so all subsequent loggers inherit this config
+
+    By default, log INFO level messages. However, log DEBUG messages if DEBUG is set in
+    the environment. This configuration creates a default handler to log messages to
+    stderr. If given a filepath, it will also log messages to the given file.
+
+    Logging can be done in other modules by calling:
+      `logger = logging.getLogger(__name__)`
+    and then logging with logger.info(), etc...
+    """
+    # Set log format & log level
+    log_format = logging.Formatter(
+        fmt="%(asctime)s [%(levelname)s] (%(name)s) %(message)s",
+        datefmt="%Y-%m-%dT%H:%M:%S%z",  # ISO 8601
+    )
+    level = logging.DEBUG if os.environ.get("DEBUG", False) else logging.INFO
+
+    # Get the root logger and set the global log level - handlers can only accept levels that are higher than the root
+    root_logger = logging.getLogger()
+    root_logger.setLevel(level)
+
+    # Create the handler for stderr with the same log level
+    c_handler = logging.StreamHandler()
+    c_handler.setLevel(level)
+    c_handler.setFormatter(log_format)
+    # Add handlers to the logger
+    root_logger.addHandler(c_handler)
+
+    # Create a file logger if we have a logpath
+    if logpath:
+        f_handler = logging.FileHandler(logpath)
+        f_handler.setLevel(level)
+        f_handler.setFormatter(log_format)
+        root_logger.addHandler(f_handler)
+
+
 def create_dirs(paths: list[Path]) -> None:
     """Creates directory structure"""
     for path in paths:
@@ -251,7 +283,7 @@ def connect_cb(creds: dict[str, str]) -> Cluster:
     return cluster
 
 
-def process_jobs(job_docs: list[JobDoc], starttime: datetime, args) -> None:
+def process_jobs(job_docs: list[JobDoc], args) -> None:
     """
     Parses the given job docs and determines which method to ingest them with
 
@@ -293,7 +325,6 @@ def process_jobs(job_docs: list[JobDoc], starttime: datetime, args) -> None:
             / f"{uuid.uuid4()}"
         )
         create_dirs([output_dir])
-        logfile = Path(args.log_dir) / f"{name}-{starttime}.log"
         # TODO: create a log_dir/$(name)-$(runtime).log file
 
         # TODO: create a metric_name  - $(name)_$(hostname | tr '-' '_') & insert into logfile
@@ -362,6 +393,8 @@ def process_jobs(job_docs: list[JobDoc], starttime: datetime, args) -> None:
 def run_ingest() -> None:
     """entrypoint"""
     args = process_cli()
+    runtime = datetime.now()
+    configure_logging(args.log_dir / f"{runtime.strftime('%Y-%m-%dT%H:%M:%S%z')}.log")
     creds = get_credentials(args.credentials_file)
 
     dirs = [args.metrics_dir, args.output_dir, args.log_dir, args.transfer_dir]
@@ -384,8 +417,7 @@ def run_ingest() -> None:
     logger.debug(f"Job docs to process: {docs}")
 
     logger.info("Processing job docs")
-    runtime = datetime.now()
-    process_jobs(docs, runtime, args)
+    process_jobs(docs, args)
     logger.info("Done processing job docs")
 
 

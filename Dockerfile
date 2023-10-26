@@ -26,7 +26,6 @@ RUN apt-get update && \
         wget http://nz2.archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb && \
         dpkg -i libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb && \
         apt-get install libnetcdff-dev libopenjp2-7-dev gfortran make unzip git cmake -y && \
-        apt-get install -y proj-bin && \
         apt-get install build-essential -y && \
         cd && mkdir source_builds && cd source_builds && \
         wget https://confluence.ecmwf.int/download/attachments/45757960/eccodes-2.32.0-Source.tar.gz && \
@@ -42,6 +41,7 @@ RUN apt-get update && \
         cp /usr/src/eccodes/lib/libeccodes.so /usr/lib && \
         cp /usr/src/eccodes/include/* /usr/include/ && \
         apt-get remove -y wget && \
+        apt-get remove -y build-essential && \
         cd && rm -rf source_builds
 
 COPY . /home/amb-verif/VxIngest

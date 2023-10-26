@@ -19,7 +19,6 @@ services:
     image : docker.io/vxingest/development:dev
     volumes:
       -  ${data}:/opt/data
-      - /public:/public
     secrets:
       - CREDENTIALS_FILE
     environment:
@@ -30,7 +29,6 @@ services:
     image : docker.io/vxingest/development:dev
     volumes:
       -  ${data}:/opt/data
-      - /public:/public
     secrets:
       - CREDENTIALS_FILE
     environment:

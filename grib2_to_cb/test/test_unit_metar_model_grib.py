@@ -39,6 +39,7 @@ def setup_connection():
 
 def test_credentials_and_load_spec():
     """test the get_credentials and load_spec"""
+    vx_ingest = None
     try:
         vx_ingest = setup_connection()
         assert True, vx_ingest.load_spec["cb_connection"]["user"] == "cb_user"
@@ -47,9 +48,9 @@ def test_credentials_and_load_spec():
     finally:
         vx_ingest.close_cb()
 
-
 def test_credentials_and_load_spec_multiple_ingest_ids():
     """test the get_credentials and load_spec"""
+    vx_ingest = None
     try:
         vx_ingest = setup_connection_multiple_ingest_ids()
         assert True, vx_ingest.load_spec["cb_connection"]["user"] == "cb_user"
@@ -61,6 +62,7 @@ def test_credentials_and_load_spec_multiple_ingest_ids():
 
 def test_cb_connect_disconnect():
     """test the cb connect and close"""
+    vx_ingest = None
     try:
         vx_ingest = setup_connection()
         result = vx_ingest.cluster.query("SELECT raw CLOCK_LOCAL() as time")
@@ -75,6 +77,7 @@ def test_cb_connect_disconnect():
 
 def test_write_load_job_to_files():
     """test write the load job"""
+    vx_ingest = None
     try:
         vx_ingest = setup_connection()
         vx_ingest.load_job_id = "test_id"
@@ -90,6 +93,7 @@ def test_write_load_job_to_files():
 
 def test_build_load_job_doc():
     """test the build load job"""
+    vx_ingest = None
     try:
         vx_ingest = setup_connection()
         vx_ingest.load_job_id = "test_id"
@@ -108,6 +112,7 @@ def test_build_load_job_doc():
 
 def test_vxingest_get_file_list():
     """test the vxingest get_file_list"""
+    vx_ingest = None
     try:
         vx_ingest = setup_connection()
         vx_ingest.load_job_id = "test_id"

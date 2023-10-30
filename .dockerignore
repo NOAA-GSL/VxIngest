@@ -1,0 +1,10 @@
+**/__pycache__
+**/.pytest_cache
+.dockerignore
+.dockerignore.swp
+.git
+.github
+.gitignore
+.history
+.pytest_cache
+.vscode

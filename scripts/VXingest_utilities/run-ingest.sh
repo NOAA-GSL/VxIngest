@@ -214,8 +214,8 @@ for i in "${!ids[@]}"; do
   else
     threads=""
   fi
-  echo "RUNNING - python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ${credentials_file} -o $out_dir ${threads} ${file_pattern}"
-  python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ${credentials_file} -o $out_dir ${threads} ${file_pattern}
+  echo "RUNNING - python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ${credentials_file} -o $out_dir ${threads} ${file_pattern}" >>${log_file}
+  python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ${credentials_file} -o $out_dir ${threads} ${file_pattern} >>${log_file}
   exit_code=$?
   if [[ "${exit_code}" -ne "0" ]]; then
     failed_job_count=$((failed_job_count + 1))
@@ -239,5 +239,5 @@ echo "run_ingest_duration $((end - start))" >${m_file}
 echo "run_ingest_success_count ${success_job_count}" >>${m_file}
 echo "run_ingest_failure_count ${failed_job_count}" >>${m_file}
 mv ${m_file} "${metrics_dir}/run_ingest_metrics.prom"
-chmod a+rw -R ${metrics_dir}/* ${log_dir}/* ${output_dir}/* ${xfer_dir}/*
+chmod a+rw -R ${metrics_dir}/* ${log_dir}/* ${output_dir}/* ${xfer_dir}/* > /dev/null 2>&1
 exit 0

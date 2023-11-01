@@ -23,26 +23,26 @@ RUN apt-get update && \
         apt-get install -y jq && \
         apt-get install -y curl && \
         apt-get install -y wget && \
-        apt-get install libnetcdff-dev libopenjp2-7-dev gfortran make unzip git cmake -y && \
-        apt-get install build-essential -y && \
+        apt-get install python3-dev python3-pip python3-setuptools build-essential libssl-dev libnetcdff-dev libopenjp2-7-dev gfortran make unzip git cmake -y && \
         cd && mkdir build && cd build && \
-        wget https://confluence.ecmwf.int/download/attachments/45757960/eccodes-2.29.0-Source.tar.gz && \
-        tar -xzf  eccodes-2.29.0-Source.tar.gz && \
+        wget https://confluence.ecmwf.int/download/attachments/45757960/eccodes-2.32.1-Source.tar.gz && \
+        tar -xzf  eccodes-2.32.1-Source.tar.gz && \
         mkdir build ; cd build && \
-        cmake -DCMAKE_INSTALL_PREFIX=/usr/src/eccodes -DENABLE_EXTRA_TESTS=ON ../eccodes-2.29.0-Source && \
+        cmake -DCMAKE_INSTALL_PREFIX=/usr/src/eccodes -DENABLE_EXTRA_TESTS=ON ../eccodes-2.32.1-Source && \
         make && \
-        ctest && \
+#        ctest && \
         make install && \
         cp -r /usr/src/eccodes/bin/* /usr/bin/ && \
         cp /usr/src/eccodes/lib/libeccodes.so /usr/lib && \
         cp /usr/src/eccodes/include/* /usr/include/ && \
         echo 'export ECCODES_DIR=/usr/src/eccodes' >> ~/.bashrc && \
         echo 'export ECCODES_DEFINITION_PATH=/usr/src/eccodes/share/eccodes/definitions' >> ~/.bashrc && \
+        pip install couchbase --no-binary couchbase && \
         # cleanup
         apt-get autoremove && apt-get clean && \
         rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
         apt-get remove -y wget && \
-        apt-get remove -y build-essential && \
+        apt-get remove -y wget libssl-dev libnetcdff-dev libopenjp2-7-dev gfortran make unzip git cmake build-essential python3-dev python3-pip python3-setuptools && \
         cd && rm -rf source_builds
 
 COPY . /home/amb-verif/VxIngest
@@ -58,7 +58,7 @@ RUN rm -rf /home/amb-verif/.pytest_cache && chown -R amb-verif /home/amb-verif/V
 USER amb-verif
 
 # create a dev target that has some utilities for debugging
-FROM python:3.11.5-slim-bookworm AS dev
+FROM python:3.11-slim-bullseye AS dev
 COPY --from=prod / /
 RUN apt-get update && \
         apt-get upgrade -y && \

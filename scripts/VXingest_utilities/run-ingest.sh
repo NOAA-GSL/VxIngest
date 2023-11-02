@@ -210,8 +210,8 @@ for i in "${!ids[@]}"; do
   echo "metric_name ${metric_name}" >${log_file}
   # have to have a PYTHONPATH that includes the clonedir
   export PYTHONPATH=$(pwd)
-  if [ -z ${jobid+x} ]; then # no jobid specified so got all the currently scheduled jobs
-    threads=" -t8"
+  if [[ -z ${jobid} ]]; then # no jobid specified so got all the currently scheduled jobs use 6 threads
+    threads=" -t6"
   else
     threads=""
   fi

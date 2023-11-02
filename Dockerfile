@@ -28,7 +28,7 @@ RUN apt-get update && \
         wget https://confluence.ecmwf.int/download/attachments/45757960/eccodes-2.32.1-Source.tar.gz && \
         tar -xzf  eccodes-2.32.1-Source.tar.gz && \
         mkdir build ; cd build && \
-        cmake -DCMAKE_INSTALL_PREFIX=/usr/src/eccodes -DENABLE_EXTRA_TESTS=ON ../eccodes-2.32.1-Source && \
+        cmake -DCMAKE_INSTALL_PREFIX=/usr/src/eccodes ../eccodes-2.32.1-Source && \
         make && \
 #        ctest && \
         make install && \

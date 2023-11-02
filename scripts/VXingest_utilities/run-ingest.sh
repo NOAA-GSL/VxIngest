@@ -164,12 +164,12 @@ job_docs=$(curl -s http://${cb_host}:8093/query/service -u"${cred}" -d "statemen
 ids=($(echo $job_docs | jq -r .id))
 if [ ! -z ${jobid+x} ]; then        # no jobid specified so got all the currently scheduled jobs
   if [[ ${#ids[@]} -eq 0 ]]; then #no jobs found currently scheduled
-    echo "no jobs are currently scheduled for this time"
+    echo "no specific jobs are currently scheduled for this time"
     exit 0
   fi
 else
   if [[ ${#ids[@]} -eq 0 ]]; then #jobid specified but no job found
-    echo "no jobs are currently scheduled for this time"
+    echo "no scheduled jobs are currently scheduled for this time"
     exit 0
   fi
 fi

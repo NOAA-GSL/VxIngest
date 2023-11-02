@@ -8,7 +8,7 @@ services:
     image : docker.io/vxingest/development:dev
     volumes:
       - ${data}:/opt/data
-      - /public:/public
+      - ${public}:/public
     secrets:
       - CREDENTIALS_FILE
     environment:
@@ -39,17 +39,16 @@ services:
     image : docker.io/vxingest/development:dev
     volumes:
       - ${data}:/opt/data
-      - /public:/public
+      - ${public}:/public
     secrets:
       - CREDENTIALS_FILE
-    command: ./scripts/VXingest_utilities/run-ingest.sh -c /run/secrets/CREDENTIALS_FILE -l ${LOGDIR} -o ${OUTDIR} -m ${METRICSDIR} -x ${TRANSFERDIR}
+    command: ./scripts/VXingest_utilities/run-ingest.sh
     user: amb-verif
-  job:
+  import:
     image : docker.io/vxingest/development:dev
     volumes:
       - ${data}:/opt/data
-      - /public:/public
     secrets:
       - CREDENTIALS_FILE
-    command: ./scripts/VXingest_utilities/run-ingest.sh -c /run/secrets/CREDENTIALS_FILE -l ${LOGDIR} -o ${OUTDIR} -m ${METRICSDIR} -x ${TRANSFERDIR} -j ${JOBID} ${file_pattern} ${start_epoch} ${end_epoch} ${num_stations}
+    command: ./scripts/VXingest_utilities/run-import.sh
     user: amb-verif

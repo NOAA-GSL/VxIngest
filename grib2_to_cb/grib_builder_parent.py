@@ -523,7 +523,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                         "level": 2,
                     },
                     "read_keys": ["projString"],
-                    "indexpath": None
+                    "indexpath": ''
                 },
             )
             ds_height_above_ground_10m = xr.open_dataset(
@@ -535,7 +535,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                         "stepType": "instant",
                         "level": 10,
                     },
-                    "indexpath": None
+                    "indexpath": ''
                 },
             )
             in_proj = pyproj.Proj(proj="latlon")
@@ -625,7 +625,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                         "typeOfLevel": "cloudCeiling",
                         "stepType": "instant",
                     },
-                    "indexpath": None
+                    "indexpath": ''
                 },
             )
             # to get the values you can use the following...
@@ -638,7 +638,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                 backend_kwargs={
                     "filter_by_keys": {"typeOfLevel": "surface", "stepType": "instant"},
                     "read_keys": ["projString"],
-                    "indexpath": None
+                    "indexpath": ''
                 },
             )
             ds_surface_pressure = ds_surface.filter_by_attrs(

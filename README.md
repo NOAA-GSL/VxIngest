@@ -71,16 +71,17 @@ cb_collection: METAR
 The docker compose file expects a few directories to be available on the docker host (possibly your development platform)
 depending on the service.
 /opt/data has test data
-/data is a shared data that is used by ingest to store output documents and by import to read the output documents.
-/public is the DSG /public that has all of GSL data in it. This is where the ingest processes find grib and netcdf files.
+/opt/data is a shared mounted directory that is used by ingest to store output documents and by import to read the output documents. It also has test data.
+/public is usually the DSG /public that has all of GSL data in it. This is where the ingest processes find grib and netcdf files etc..
+You must specify data for all services and both data and public for ingest and shell services.
 
 #### services
 
-  shell: expects no directories for mounting
-  unit_test: expects /opt/data
-  int_test: expects /opt/data
-  ingest: expects /data and /public
-  job: expects /data and /public
+  shell: expects /data and /public for mounting
+  unit_test: expects /opt/data for mounting
+  int_test: expects /opt/data for mounting
+  ingest: expects /data and /public for mounting
+  import: expects /data for mounting
 
 #### invocations
 
@@ -103,20 +104,40 @@ data=/opt/data docker compose run int_test
 To run an ingest there are a few extra parameters in addition to the /data directory. This is the typical invocation.
 
 ```bash
-docker compose run ingest -e LOGDIR="log directory" OUTDIR="/data" METRICSDIR="/data/common/job_metrics" TRANSFERDIR="/data/temp"
+data=/data-ingest/data public=/public docker compose run ingest ./scripts/VXingest_utilities/run-ingest.sh -c /run/secrets/CREDENTIALS_FILE -o /opt/data/test/outdir -l /opt/data/test/logs -m /opt/data/test/metrics -x /opt/data/test/xfer"
+
 ```
 
-Where LOGDIR is where you want to store and archive log files, /data is the directory for temporarily storing output documents, METRICS is the directory where job metrics are stored to be collected, and TRANSFERDIR is the directory where archived job results (documents and associated log files) are stored in expectation of being imported and scraped by an import process. Scraping is the process of gathering metrics from the log files. The arguments will be passed to the service through the environment. The ingest service will run all of the jobs that are currently scheduled (in the job documents) to run in the current fifteen minute interval i.e. quarter hour.
+The part after "run ingest" overrides the simple command in the service with all the necessary parameters. These parameters can be changed as required.
+
+The ingest service will run all of the jobs that are currently scheduled (in the job documents) to run in the current fifteen minute interval i.e. quarter hour.
 
 ### Running an ingest job service
 
-To run a single ingest job there are a few extra parameters in addition to the /data directory. This is the typical invocation.
+To run a single ingest job there are a few extra parameters in addition to the /data directory. This is a typical invocation.
 
 ```bash
- data=/opt/data LOGDIR="/opt/data/logs" OUTDIR="/opt/data" METRICSDIR="/opt/data/common/job_metrics" TRANSFERDIR="/opt/data/temp" JOBID="JOB-TEST:V01:METAR:CTC:SUM:MODEL:HRRR_RAP_130" docker compose run job
+ data=/data-ingest/data public=/public docker compose run ingest ./scripts/VXingest_utilities/run-ingest.sh -c /run/secrets/CREDENTIALS_FILE -o /opt/data/test/outdir -j JOB:V01:METAR:GRIB2:MODEL:HRRR -l /opt/data/test/logs -m /opt/data/test/metrics -x /opt/data/test/xfer -f 20329817000006"
 ```
 
-Where LOGDIR is where you want to store and archive log files, /data is the directory for temporarily storing output documents, METRICS is the directory where job metrics are stored to be collected, and TRANSFERDIR is the directory where archived job results (documents and associated log files) are stored in expectation of being imported and scraped by an import process. Scraping is the process of gathering metrics from the log files. The arguments will be passed to the service through the environment. The ingest service will run all of the jobs that are currently scheduled (in the job documents) to run in the current fifteen minute interval i.e. quarter hour.
+Where -c is the internal credentials file passed as a secret. Don't change that path, but do be sure to have a "credentials" file in your 4{HOME}. The -l is where you want to store and archive log files, /data is the directory for temporarily storing output documents, -m is the directory where job metrics are stored to be collected, -j is a job document id, and -x is the directory where archived job results (documents and associated log files) are stored in expectation of being imported and scraped by an import process. Scraping is the process of gathering metrics from the log files. The arguments will be passed to the service through the environment. The ingest service will run all of the jobs that are currently scheduled (in the job documents) to run in the current fifteen minute interval i.e. quarter hour.
+
+### Running an import job service
+
+data=/data-ingest/data docker compose run import ./scripts/VXingest_utilities/run-import.sh -c credentials-file -l load directory -t temp_dir -m metrics_directory
+
+The parameters are very similar to the ingest service.
+
+- The credentials-file specifies cb_host, cb_user, and cb_password.
+- The load directory is where the program will look for the tar files
+- The temp_dir directory is where the program will unbundle the tar files (in uniq temporary subdirs)
+- The metrics directory is where the scraper will place the metrics
+
+for example:
+
+```bash
+ data=/data-ingest/data docker compose run import ./scripts/VXingest_utilities/run-import.sh -c credentials-file  -l load directory -t temp_dir -m metrics_directory
+```
 
 ## data model
 

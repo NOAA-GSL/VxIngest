@@ -115,23 +115,9 @@ current_hour=$(date +"%H")   # avoid divide by 0
 current_minute=$(date +"%M") # avoid divide by 0
 current_quarter=$(($current_minute / 15))
 
-if [ ! -z ${jobid+x} ]; then
-  echo "jobid is set to ${jobid}"
+if [[ -z ${jobid} ]]; then
+  echo "jobid is not set"
   read -r -d '' statement <<%EndOfJobStatement
-SELECT meta().id AS id,
-       LOWER(META().id) as name,
-       run_priority,
-       offset_minutes,
-       LOWER(subType) as sub_type,
-       input_data_path as input_data_path
-FROM vxdata._default.METAR
-WHERE id="${jobid}"
-    AND (type = "JOB-TEST" or type = "JOB")
-    AND version = "V01"
-    AND CONTAINS(status, "active")
-%EndOfJobStatement
-else
-  read -r -d '' statement <<%EndOfStatement
 SELECT meta().id AS id,
        LOWER(META().id) as name,
        run_priority,
@@ -156,20 +142,35 @@ WHERE type='JOB'
     AND IDIV(DATE_PART_MILLIS(millis, 'minute', 'UTC'), 15) = IDIV(minute, 15)
 ORDER BY offset_minutes,
          run_priority
+%EndOfJobStatement
+else
+  echo "jobid is set to ${jobid}"
+  read -r -d '' statement <<%EndOfStatement
+SELECT meta().id AS id,
+       LOWER(META().id) as name,
+       run_priority,
+       offset_minutes,
+       LOWER(subType) as sub_type,
+       input_data_path as input_data_path
+FROM vxdata._default.METAR
+WHERE id="${jobid}"
+    AND (type = "JOB-TEST" or type = "JOB")
+    AND version = "V01"
+    AND CONTAINS(status, "active")
 %EndOfStatement
 fi
 
 # job_docs should either get one document if jobid was specified or all the currently scheduled job documents otherwise
 job_docs=$(curl -s http://${cb_host}:8093/query/service -u"${cred}" -d "statement=${statement}" | jq -r '.results | .[]')
 ids=($(echo $job_docs | jq -r .id))
-if [ ! -z ${jobid+x} ]; then        # no jobid specified so got all the currently scheduled jobs
+if [[ -z ${jobid} ]]; then        # no jobid specified so got all the currently scheduled jobs
   if [[ ${#ids[@]} -eq 0 ]]; then #no jobs found currently scheduled
-    echo "no jobs are currently scheduled for this time"
+    echo "no scheduled and active jobs are currently cwavailable at this time"
     exit 0
   fi
 else
   if [[ ${#ids[@]} -eq 0 ]]; then #jobid specified but no job found
-    echo "no jobs are currently scheduled for this time"
+    echo "specified job ${jobid} is not active or available at this time"
     exit 0
   fi
 fi
@@ -214,8 +215,8 @@ for i in "${!ids[@]}"; do
   else
     threads=""
   fi
-  echo "RUNNING - python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ${credentials_file} -o $out_dir ${threads} ${file_pattern}"
-  python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ${credentials_file} -o $out_dir ${threads} ${file_pattern}
+  echo "RUNNING - python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ${credentials_file} -o $out_dir ${threads} ${file_pattern}" >>${log_file}
+  python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ${credentials_file} -o $out_dir ${threads} ${file_pattern} >>${log_file}
   exit_code=$?
   if [[ "${exit_code}" -ne "0" ]]; then
     failed_job_count=$((failed_job_count + 1))
@@ -239,5 +240,5 @@ echo "run_ingest_duration $((end - start))" >${m_file}
 echo "run_ingest_success_count ${success_job_count}" >>${m_file}
 echo "run_ingest_failure_count ${failed_job_count}" >>${m_file}
 mv ${m_file} "${metrics_dir}/run_ingest_metrics.prom"
-chmod a+rw -R ${metrics_dir}/* ${log_dir}/* ${output_dir}/* ${xfer_dir}/*
+chmod a+rw -R ${metrics_dir}/* ${log_dir}/* ${output_dir}/* ${xfer_dir}/* > /dev/null 2>&1
 exit 0

@@ -57,9 +57,7 @@ class Builder:  # pylint: disable=too-many-arguments disable=too-many-instance-a
         """
         try:
             base_name = os.path.basename(file_name)
-            an_id = "DF:{s}:{f}:{o}:{b}".format(
-                s=subset, f=file_type, o=origin_type, b=base_name
-            )
+            an_id = f"DF:{subset}:{file_type}:{origin_type}:{base_name}"
             return an_id
         except Exception as _e:  # pylint: disable=broad-except
             logging.exception("%s create_data_file_id", self.__class__.__name__)

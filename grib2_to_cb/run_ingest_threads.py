@@ -162,6 +162,9 @@ class VXIngest(CommonVxIngest):
     def runit(self, args):  # pylint:disable=too-many-locals
         """
         This is the entry point for run_ingest_threads.py
+        There is a file_pattern and a file_mask. The file_mask is a python time.strftime format e.g. '%y%j%H%f'.
+        The file_pattern is a glob pattern that is used to match filenames that are derived from the path and file_mask.
+        The file_mask is specified in the load_spec. The file_pattern is specified on the command line.
         """
         self.credentials_file = args["credentials_file"].strip()
         self.thread_count = args["threads"]
@@ -186,7 +189,7 @@ class VXIngest(CommonVxIngest):
             # put all the ingest documents into the load_spec too
             self.load_spec["ingest_documents"] = {}
             for _id in self.load_spec["ingest_document_ids"]:
-                self.load_spec["ingest_documents"][_id]= self.collection.get(_id).content
+                self.load_spec["ingest_documents"][_id]= self.collection.get(_id).content_as[dict]
             # load the fmask and input_data_path into the load_spec
             stmnt=f"Select file_mask, input_data_path from `{self.cb_credentials['bucket']}`.{self.cb_credentials['scope']}.{self.cb_credentials['collection']} where meta().id = \"{self.job_document_id}\""
             result = self.cluster.query(stmnt)

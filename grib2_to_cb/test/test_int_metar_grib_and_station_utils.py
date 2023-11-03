@@ -13,7 +13,7 @@ import yaml
 from couchbase.cluster import Cluster, ClusterOptions
 
 # from couchbase.search import GeoBoundingBoxQuery
-from couchbase_core.cluster import PasswordAuthenticator
+from couchbase.auth import PasswordAuthenticator
 
 import grib2_to_cb.get_grid as gg
 
@@ -40,7 +40,7 @@ def test_utility_script():  # pylint: disable=too-many-locals
         options = ClusterOptions(PasswordAuthenticator(user, password))
         cluster = Cluster("couchbase://" + host, options)
         result = cluster.query("SELECT RAW CLOCK_MILLIS()")
-        current_clock = result.rows()[0] / 1000
+        current_clock = (list(result.rows())[0])/ 1000
         current_time = time.time()
 
         assert current_clock == pytest.approx(
@@ -65,7 +65,7 @@ def test_utility_script():  # pylint: disable=too-many-locals
         in_proj = pyproj.Proj(proj="latlon")
         out_proj = projection
         transformer = pyproj.Transformer.from_proj(proj_from=in_proj, proj_to=out_proj)
-        transformer_reverse = (
+        _transformer_reverse = (
             pyproj.Transformer.from_proj(  # pylint: disable=unused-variable
                 proj_from=out_proj, proj_to=in_proj
             )
@@ -76,21 +76,20 @@ def test_utility_script():  # pylint: disable=too-many-locals
         result = cluster.query(
             "SELECT geo, name from `vxdata`._default.METAR where type='MD' and docType='station' and subset='METAR' and version='V01'"
         )
-        for row in result:
+        rows = list(result.rows())
+        for row in rows:
             # choose the geo whose timeframe includes this grib file init time
             geo_index = get_geo_index(fcst_valid_epoch, row["geo"])
-            x, y = transformer.transform(
+            _x,_y = transformer.transform( # pylint: disable=unpacking-non-sequence
                 row["geo"][geo_index]["lon"],
                 row["geo"][geo_index]["lat"],
                 radians=False,
             )
-            x_stat, y_stat = x / spacing, y / spacing
+            x_stat, y_stat = _x / spacing, _y / spacing
             if x_stat < 0 or x_stat > max_x or y_stat < 0 or y_stat > max_y:
                 continue
             domain_stations.append(row)
-        assert len(domain_stations) != len(
-            result.buffered_rows
-        ), "station query result and domain_station length are the same - no filtering?"
+        assert len(domain_stations) != len(rows), "station query result and domain_station length are the same - no filtering?"
     except Exception as _e:  # pylint: disable=broad-except
         assert False, f"TestGsdIngestManager Exception failure: {_e}"
 

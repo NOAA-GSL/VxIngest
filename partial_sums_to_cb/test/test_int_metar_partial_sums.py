@@ -12,9 +12,9 @@ from pathlib import Path
 
 import yaml
 from couchbase.cluster import Cluster, ClusterOptions, ClusterTimeoutOptions
-from couchbase_core.cluster import PasswordAuthenticator
+from couchbase.auth import PasswordAuthenticator
 
-#from partial_sums_to_cb import partial_sums_builder
+from partial_sums_to_cb import partial_sums_builder
 from partial_sums_to_cb.run_ingest_threads import VXIngest
 
 
@@ -111,7 +111,7 @@ def test_get_stations_geo_search():
         load_spec['ingest_document_ids'] = [f"MD:V01:{_collection}:HRRR_OPS:ALL_HRRR:PARTIALSUMS:SURFACE:ingest"]
         # get the ingest document id.
         ingest_document_result = collection.get(f"MD-TEST:V01:{_collection}:HRRR_OPS:ALL_HRRR:PARTIALSUMS:SURFACE:ingest")
-        ingest_document = ingest_document_result.content
+        ingest_document = ingest_document_result.content_as[dict]
         # instantiate a partialsumsBuilder so we can use its get_station methods
         builder_class = getattr(partial_sums_builder, "PARTIALSUMSModelObsBuilderV01")
         builder = builder_class(load_spec, ingest_document)
@@ -144,7 +144,7 @@ def test_get_stations_geo_search():
             # get the legacy station list from the test document (this came from mysql)
             # classic_station_id = "MD-TEST:V01:CLASSIC_STATIONS:" + row["name"]
             # doc = collection.get(classic_station_id.strip())
-            # classic_stations = sorted(doc.content["stations"])
+            # classic_stations = sorted(doc.content_as[dict]["stations"])
             classic_stations = builder.get_legacy_stations_for_region(row["name"])
             stations_difference = [
                 i
@@ -199,7 +199,7 @@ def calculate_cb_partial_sums(  # pylint: disable=dangerous-default-value,missin
     ingest_document_result = load_spec["collection"].get(
         f"MD:V01:{subset}:{model}:ALL_HRRR:PARTIALSUMS:SURFACE:ingest"
     )
-    ingest_document = ingest_document_result.content
+    ingest_document = ingest_document_result.content_as[dict]
     # instantiate a PartialSumsSurfaceBuilder so we can use its get_station methods
     builder_class = getattr(partial_sums_builder, "PartialSumsSurfaceModelObsBuilderV01")
     builder = builder_class(load_spec, ingest_document)
@@ -226,16 +226,16 @@ def calculate_cb_partial_sums(  # pylint: disable=dangerous-default-value,missin
     )
     print("cb_ps model_id:", model_id, " obs_id:", obs_id)
     try:
-        full_model_data = load_spec["collection"].get(model_id).content
+        full_model_data = load_spec["collection"].get(model_id).content_as[dict]
     except:  # pylint: disable=bare-except
         time.sleep(0.25)
-        full_model_data = load_spec["collection"].get(model_id).content
+        full_model_data = load_spec["collection"].get(model_id).content_as[dict]
     cb_model_obs_data = []  # pylint: disable=redefined-outer-name
     try:
-        full_obs_data = load_spec["collection"].get(obs_id).content
+        full_obs_data = load_spec["collection"].get(obs_id).content_as[dict]
     except:  # pylint: disable=bare-except
         time.sleep(0.25)
-        full_obs_data = load_spec["collection"].get(obs_id).content
+        full_obs_data = load_spec["collection"].get(obs_id).content_as[dict]
     for station in stations:
         # find observation data for this station
         if not station in full_obs_data["data"].keys():

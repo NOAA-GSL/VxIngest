@@ -13,8 +13,7 @@ import json
 from pathlib import Path
 from couchbase.exceptions import TimeoutException
 from couchbase.cluster import Cluster, ClusterOptions, ClusterTimeoutOptions
-from couchbase_core.cluster import PasswordAuthenticator
-
+from couchbase.auth import PasswordAuthenticator
 
 class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attributes
     """
@@ -73,7 +72,7 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
         close couchbase connection
         """
         if self.cluster:
-            self.cluster.disconnect()
+            self.cluster.close()
         self.cluster = None
         self.collection = None
 
@@ -246,7 +245,7 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
                         num_documents,
                         complete_file_name,
                     )
-                    _f = open(complete_file_name, "w")
+                    _f = open(complete_file_name, "w", encoding="utf-8")
                     # we need to write out a list of the values of the _document_map for cbimport
                     _f.write(json.dumps(list(document_map.values())))
                     _f.close()

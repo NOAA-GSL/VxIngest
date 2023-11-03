@@ -28,7 +28,7 @@ def getGrid(grib2_file):
     transformer = pyproj.Transformer.from_proj(
         proj_from=latlon_proj, proj_to=init_projection
     )
-    x, y = transformer.transform(
+    x, y = transformer.transform( #pylint: disable=unpacking-non-sequence
         lon_0, lat_0, radians=False
     )  # the lower left coordinates in the projection space
 

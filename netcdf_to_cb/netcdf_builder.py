@@ -150,10 +150,10 @@ class NetcdfBuilder(Builder):  # pylint disable=too-many-instance-attributes
 
     def handle_document(self):
         """
-        This routine processes the complete document (essentially a complete grib file)
+        This routine processes the complete document (essentially a complete netcdf file)
         Each template key or value that corresponds to a variable will be selected from
-        the grib file into a pygrib message and then
-        each station will get values from the grib message.
+        the netcdf file into a netcdf data set and then
+        each station will get values from the record.
         :return: The modified document_map
         """
         # noinspection PyBroadException

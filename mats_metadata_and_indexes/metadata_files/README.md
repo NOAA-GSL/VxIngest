@@ -307,7 +307,7 @@ There are common metadata documents. These will be type "MD" documents with a su
 ``` sql
 SELECT meta(mdata).id
 FROM mdata
-WHERE 
+WHERE
     type="MD"
     AND subset = "COMMON"
     AND app is missing
@@ -348,5 +348,10 @@ Those template documents don't have up-to-date values, because the values get up
 the update_ceiling_mats_metadata.sh script from the same directory. The actual values depend on the currently ingested data so what is in the git repo is really just a template.
 
 Running the script is pretty straightforward. cd to the root of the vxingest local repo (where you cloned the VXingest repo) then
-``` > ./mats_metadata_and_indexes/metadata_files/import_ceiling_auxilliary.sh credentials_file```
+
+``` bash
+> ./mats_metadata_and_indexes/metadata_files/import_ceiling_auxilliary.sh credentials_file
+
+```
+
 where credentials_file is the actual credentials file (full path). The script imports the document that you checked in. Typically this script is run automatically when the ingest is triggered.

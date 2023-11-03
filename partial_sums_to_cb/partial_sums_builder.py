@@ -336,7 +336,7 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
                     logging.info("Looking up model document: %s", fve["id"])
                     try:
                         _model_doc = self.load_spec["collection"].get(fve["id"])
-                        self.model_data = _model_doc.content
+                        self.model_data = _model_doc.content_as[dict]
                     except DocumentNotFoundException:
                         logging.info(
                             "%s handle_fcstValidEpochs: model document %s was not found! ",
@@ -364,7 +364,7 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
                             or not self.obs_data
                         ):
                             _obs_doc = self.load_spec["collection"].get(obs_id)
-                            _obs_data = _obs_doc.content
+                            _obs_data = _obs_doc.content_as[dict]
                             for key in _obs_data["data"].keys():
                                 self.obs_data[key] = _obs_data["data"][key]
                                 self.obs_station_names.append(key)
@@ -536,7 +536,7 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
             if self.do_profiling:
                 with cProfile.Profile() as _pr:
                     self.handle_fcstValidEpochs()
-                    with open("profiling_stats.txt", "w") as stream:
+                    with open("profiling_stats.txt", "w", encoding="utf-8") as stream:
                         stats = Stats(_pr, stream=stream)
                         stats.strip_dirs()
                         stats.sort_stats("time")
@@ -617,7 +617,7 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
         try:
             classic_station_id = "MD-TEST:V01:CLASSIC_STATIONS:" + region_name
             doc = self.load_spec["collection"].get(classic_station_id.strip())
-            classic_stations = doc.content["stations"]
+            classic_stations = doc.content_as[list]["stations"]
             classic_stations.sort()
             return classic_stations
         except Exception as _e:  # pylint: disable=broad-except
@@ -833,7 +833,7 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
                     except Exception as _e:  # pylint: disable=broad-except
                         logging.exception("unexpected exception:%s", str(_e))
                 data_elem[threshold] = (
-                    data_elem[threshold] if threshold in data_elem.keys() else {}
+                    data_elem[threshold] if threshold in data_elem else {}
                 )
                 data_elem[threshold]["hits"] = hits
                 data_elem[threshold]["false_alarms"] = false_alarms
@@ -879,7 +879,7 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
         """
         return self.model_data["fcstLen"]
 
-    def handleWindDirU(self, params_dict):  # pylint: disable=unused-argument
+    def handleWindDirU(self, params_dict):  # pylint: disable=unused-argument, invalid-name
         """returns the wind direction U component for this document
         Args:
             params_dict (dict): contains named_function parameters
@@ -888,7 +888,7 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
         """
         return self.model_data["windDirU"]
 
-    def handleWindDirV(self, params_dict):  # pylint: disable=unused-argument
+    def handleWindDirV(self, params_dict):  # pylint: disable=unused-argument, invalid-name
         """returns the wind direction V component for this document
         Args:
             params_dict (dict): contains named_function parameters

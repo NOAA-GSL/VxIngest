@@ -363,9 +363,9 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
             self.transformer = pyproj.Transformer.from_proj(
                 proj_from=self.in_proj, proj_to=self.out_proj
             )
-            self.transformer_reverse = pyproj.Transformer.from_proj(
-                proj_from=self.out_proj, proj_to=self.in_proj
-            )
+            # use these if necessary to compare the projections
+            # print()
+            # print ('in_proj', self.in_proj, 'out_proj', self.out_proj, 'max_x', max_x, 'max_y', max_y, 'spacing', self.spacing)
 
             # reset the builders document_map for a new file
             self.initialize_document_map()
@@ -391,8 +391,10 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                     lon = row["geo"][geo_index]["lon"]
                     if lat == -90 and lon == 180:
                         continue  # don't know how to transform that station
-                    _x, _y = self.transformer.transform(lon, lat, radians=False)
+                    _x, _y = self.transformer.transform(lon, lat, radians=False) # pylint:disable=unpacking-non-sequence
                     x_gridpoint, y_gridpoint = _x / self.spacing, _y / self.spacing
+                    # use for ddebugging if you must
+                    # print (f"transform - lat: {lat}, lon: {lon}, x_gridpoint: {x_gridpoint}, y_gridpoint: {y_gridpoint}")
                     try:
                         # pylint: disable=c-extension-no-member
                         if (
@@ -413,12 +415,11 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                     station["geo"][geo_index]["x_gridpoint"] = x_gridpoint
                     station["geo"][geo_index]["y_gridpoint"] = y_gridpoint
                     self.domain_stations.append(station)
-
             # if we have asked for profiling go ahead and do it
             if self.do_profiling:
                 with cProfile.Profile() as _pr:
                     self.handle_document()
-                    with open("profiling_stats.txt", "w") as stream:
+                    with open("profiling_stats.txt", "w", encoding='utf-8') as stream:
                         stats = Stats(_pr, stream=stream)
                         stats.strip_dirs()
                         stats.sort_stats("time")
@@ -595,6 +596,7 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
             values = message["values"]
             surface_values = []
             fcst_valid_epoch = round(message.validDate.timestamp())
+            print('fcst_valid_epoch',fcst_valid_epoch)
             for station in self.domain_stations:
                 geo_index = get_geo_index(fcst_valid_epoch, station["geo"])
                 x_gridpoint = round(station["geo"][geo_index]["x_gridpoint"])
@@ -602,7 +604,7 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
                 surface_values.append(values[y_gridpoint, x_gridpoint])
 
             message = self.grbs.select(
-                name="Geopotential Height", typeOfFirstFixedSurface="215"
+                name="Geopotential height", typeOfFirstFixedSurface="215"
             )[0]
             values = message["values"]
             fcst_valid_epoch = round(message.validDate.timestamp())
@@ -640,6 +642,7 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
                                     ceil_agl.append(0)
                                 else:
                                     ceil_agl.append(tmp_ceil)
+                # print (station["geo"][0]['x_gridpoint'],station["geo"][0]['y_gridpoint'],round(ceil_msl_values[i],3), round(surface_values[i],3), round(ceil_agl[i],3))
                 i = i + 1
             return ceil_agl
         except Exception as _e:  # pylint:disable=broad-except

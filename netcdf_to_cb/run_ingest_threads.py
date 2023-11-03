@@ -173,17 +173,15 @@ class VXIngest(CommonVxIngest):
             scope = self.load_spec['cb_connection']['scope']
             collection = self.load_spec['cb_connection']['collection']
             # load the ingest document ids into the load_spec (this might be redundant)
-            stmnt="Select ingest_document_ids from `{bucket}`.{scope}.{collection} where meta().id = \"{id}\"".format(
-                    id=self.job_document_id, bucket=bucket, scope=scope, collection=collection)
+            stmnt=f"Select ingest_document_ids from `{bucket}`.{scope}.{collection} where meta().id = \"{self.job_document_id}\""
             result = self.cluster.query(stmnt)
             self.load_spec['ingest_document_ids'] = list(result)[0]["ingest_document_ids"]
             # put all the ingest documents into the load_spec too
             self.load_spec["ingest_documents"] = {}
             for _id in self.load_spec["ingest_document_ids"]:
-                self.load_spec["ingest_documents"][_id]= self.collection.get(_id).content
+                self.load_spec["ingest_documents"][_id] = self.collection.get(_id).content_as[dict]
             # load the fmask and input_data_path into the load_spec
-            stmnt="Select file_mask, input_data_path from `{bucket}`.{scope}.{collection} where meta().id = \"{id}\"".format(
-                    id=self.job_document_id, bucket=bucket, scope=scope, collection=collection)
+            stmnt=f"Select file_mask, input_data_path from `{bucket}`.{scope}.{collection} where meta().id = \"{self.job_document_id}\""
             result = self.cluster.query(stmnt)
             result_list = list(result)
             self.fmask = result_list[0]["file_mask"]
@@ -208,7 +206,7 @@ class VXIngest(CommonVxIngest):
         # for netcdf type ingests there is only one ingest document so we can just use the first
         # subset
         subset = self.load_spec["ingest_documents"][self.load_spec["ingest_document_ids"][0]]["subset"]
-        file_query = """
+        file_query = f"""
             SELECT url, mtime
             FROM `{bucket}`.{scope}.{collection}
             WHERE
@@ -216,7 +214,7 @@ class VXIngest(CommonVxIngest):
             AND type='DF'
             AND fileType='netcdf'
             AND originType='madis' order by url;
-            """.format(subset=subset, bucket=bucket, scope=scope, collection=collection)
+            """
         file_names = self.get_file_list(file_query, self.path, self.file_pattern)
         for _f in file_names:
             _q.put(_f)

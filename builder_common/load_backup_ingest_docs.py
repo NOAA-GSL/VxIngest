@@ -16,8 +16,7 @@ from pathlib import Path
 
 import yaml
 from couchbase.cluster import Cluster, ClusterOptions
-from couchbase_core.cluster import PasswordAuthenticator
-
+from couchbase.auth import PasswordAuthenticator
 
 def parse_args(args):
     """parse command line arguments"""
@@ -62,7 +61,7 @@ class LoadBackupIngestDocs:
                     + credentials_file
                     + " can not be found!"
                 )
-            _f = open(credentials_file)
+            _f = open(credentials_file, encoding="utf-8")
             yaml_data = yaml.load(_f, yaml.SafeLoader)
             self.cb_credentials["host"] = yaml_data["cb_host"]
             self.cb_credentials["user"] = yaml_data["cb_user"]
@@ -71,7 +70,7 @@ class LoadBackupIngestDocs:
 
             f_name = args["file_name"]
             # Opening JSON file
-            _f = open(f_name)
+            _f = open(f_name, encoding="utf-8")
             # returns JSON object as
             # a dictionary
             list_data = json.load(_f)
@@ -92,7 +91,7 @@ class LoadBackupIngestDocs:
     def close_cb(self):
         """close the cluster"""
         if self.cluster:
-            self.cluster.disconnect()
+            self.cluster.close()
 
     def connect_cb(self):
         """Connect to database"""

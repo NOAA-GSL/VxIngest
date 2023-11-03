@@ -1,0 +1,54 @@
+version: "3.2"
+secrets:
+  CREDENTIALS_FILE:
+    file: ${HOME}/credentials
+
+services:
+  shell:
+    image : docker.io/vxingest/development:dev
+    volumes:
+      - ${data}:/opt/data
+      - ${public}:/public
+    secrets:
+      - CREDENTIALS_FILE
+    environment:
+    - CREDENTIALS=/run/secrets/CREDENTIALS_FILE
+    command: /bin/bash
+    user: amb-verif
+  unit_test:
+    image : docker.io/vxingest/development:dev
+    volumes:
+      -  ${data}:/opt/data
+    secrets:
+      - CREDENTIALS_FILE
+    environment:
+    - CREDENTIALS=/run/secrets/CREDENTIALS_FILE
+    command: ./scripts/VXingest_utilities/run_unit_tests.sh
+    user: amb-verif
+  int_test:
+    image : docker.io/vxingest/development:dev
+    volumes:
+      -  ${data}:/opt/data
+    secrets:
+      - CREDENTIALS_FILE
+    environment:
+    - CREDENTIALS=/run/secrets/CREDENTIALS_FILE
+    command: ./scripts/VXingest_utilities/run_int_tests.sh
+    user: amb-verif
+  ingest:
+    image : docker.io/vxingest/development:dev
+    volumes:
+      - ${data}:/opt/data
+      - ${public}:/public
+    secrets:
+      - CREDENTIALS_FILE
+    command: ./scripts/VXingest_utilities/run-ingest.sh
+    user: amb-verif
+  import:
+    image : docker.io/vxingest/development:dev
+    volumes:
+      - ${data}:/opt/data
+    secrets:
+      - CREDENTIALS_FILE
+    command: ./scripts/VXingest_utilities/run-import.sh
+    user: amb-verif

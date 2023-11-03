@@ -40,13 +40,13 @@ def get_geo_index(fcst_valid_epoch, geo):
     latest_index = 0
     try:
         geo_index = 0
+        found = False
         for geo_index, geo_item in enumerate(geo):
             if geo_item["lastTime"] > latest_time:
                 latest_time = geo_item["lastTime"]
                 latest_index = geo_index
-            found = False
             if (
-                geo_item["firstTime"] >= fcst_valid_epoch
+                geo_item["firstTime"] <= fcst_valid_epoch
                 and fcst_valid_epoch <= geo_item["lastTime"]
             ):
                 found = True

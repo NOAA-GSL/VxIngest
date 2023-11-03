@@ -107,9 +107,11 @@ class VxIngestManager(
         get the builder name from the ingest document
         """
         if queue_element is None:
-            raise Exception("ingest_document is undefined")
+            raise ValueError("ingest_document queue_element is undefined")
         try:
-            self.ingest_type_builder_name = self.load_spec["ingest_documents"][queue_element]["builder_type"]
+            self.ingest_type_builder_name = self.load_spec["ingest_documents"][
+                queue_element
+            ]["builder_type"]
         except Exception as _e:  # pylint:disable=broad-except
             logging.exception(
                 "%s: process_element: Exception getting ingest document for %s",
@@ -141,20 +143,19 @@ class VxIngestManager(
                 )
                 sys.exit("*** Error getting builder name: ")
 
-            if self.ingest_type_builder_name in self.builder_map.keys():
+            if self.ingest_type_builder_name in self.builder_map:
                 builder = self.builder_map[self.ingest_type_builder_name]
             else:
                 builder_class = getattr(my_builder, self.ingest_type_builder_name)
                 self.ingest_document = self.load_spec["ingest_documents"][queue_element]
-                builder = builder_class(
-                    self.load_spec,
-                    self.ingest_document
-                )
+                builder = builder_class(self.load_spec, self.ingest_document)
                 self.builder_map[self.ingest_type_builder_name] = builder
             logging.info("building document map for %s", queue_element)
             document_map = builder.build_document(queue_element)
             if self.output_dir:
-                logging.info("writing document map for %s to %s", queue_element, self.output_dir)
+                logging.info(
+                    "writing document map for %s to %s", queue_element, self.output_dir
+                )
                 self.write_document_to_files(queue_element, document_map)
             else:
                 logging.info("writing document map for %s to database", queue_element)

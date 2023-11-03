@@ -9,17 +9,17 @@ import time
 from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
-import pytest
 
 import yaml
-from couchbase.cluster import Cluster, ClusterOptions, ClusterTimeoutOptions
+from couchbase.cluster import Cluster
 from couchbase.auth import PasswordAuthenticator
-
+from couchbase.options import ClusterOptions, ClusterTimeoutOptions
 from ctc_to_cb import ctc_builder
 from ctc_to_cb.run_ingest_threads import VXIngest
 
 
-# This test expects to find obs data and model data for hrrr_ops.
+# This test expects to find obs data and model data
+# in the local directory /opt/data/ctc_to_cb/input
 # This test expects to write to the local output directory /opt/data/ctc_to_cb/output
 # so that directory should exist.
 
@@ -38,9 +38,9 @@ def test_check_fcst_valid_epoch_fcst_valid_iso():
     integration test to check fcst_valid_epoch is derived correctly
     """
     try:
-        credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
+        credentials_file = os.environ["CREDENTIALS"]
         assert Path(credentials_file).is_file(), "credentials_file Does not exist"
-        _f = open(credentials_file)
+        _f = open(credentials_file, encoding="utf-8")
         yaml_data = yaml.load(_f, yaml.SafeLoader)
         _host = yaml_data["cb_host"]
         _user = yaml_data["cb_user"]
@@ -50,11 +50,13 @@ def test_check_fcst_valid_epoch_fcst_valid_iso():
         _scope = yaml_data["cb_scope"]
         _f.close()
 
-        timeout_options=ClusterTimeoutOptions(kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120))
-        options=ClusterOptions(PasswordAuthenticator(_user, _password), timeout_options=timeout_options)
-        cluster = Cluster(
-            "couchbase://" + _host, options
+        timeout_options = ClusterTimeoutOptions(
+            kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
         )
+        options = ClusterOptions(
+            PasswordAuthenticator(_user, _password), timeout_options=timeout_options
+        )
+        cluster = Cluster("couchbase://" + _host, options)
         options = ClusterOptions(PasswordAuthenticator(_user, _password))
         cluster = Cluster("couchbase://" + _host, options)
         stmnt = f"""SELECT m0.fcstValidEpoch fve, fcstValidISO fvi
@@ -88,9 +90,9 @@ def test_get_stations_geo_search():
     stations list. This test does show those differences. The assertion is commented out.
     """
     try:
-        credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
+        credentials_file = os.environ["CREDENTIALS"]
         assert Path(credentials_file).is_file(), "credentials_file Does not exist"
-        _f = open(credentials_file)
+        _f = open(credentials_file, encoding="utf-8")
         yaml_data = yaml.load(_f, yaml.SafeLoader)
         _host = yaml_data["cb_host"]
         _user = yaml_data["cb_user"]
@@ -100,23 +102,29 @@ def test_get_stations_geo_search():
         _scope = yaml_data["cb_scope"]
         _f.close()
 
-        timeout_options=ClusterTimeoutOptions(kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120))
-        options=ClusterOptions(PasswordAuthenticator(_user, _password), timeout_options=timeout_options)
-        cluster = Cluster(
-            "couchbase://" + _host, options
+        timeout_options = ClusterTimeoutOptions(
+            kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
         )
-        collection=cluster.bucket(_bucket).scope(_scope).collection(_collection)
+        options = ClusterOptions(
+            PasswordAuthenticator(_user, _password), timeout_options=timeout_options
+        )
+        cluster = Cluster("couchbase://" + _host, options)
+        collection = cluster.bucket(_bucket).scope(_scope).collection(_collection)
         load_spec = {}
         load_spec["cluster"] = cluster
         load_spec["collection"] = collection
-        load_spec['ingest_document_ids'] = [f"MD:V01:{_collection}:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest"]
+        load_spec["ingest_document_ids"] = [
+            f"MD:V01:{_collection}:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest"
+        ]
         # get the ingest document id.
-        ingest_document_result = collection.get(f"MD-TEST:V01:{_collection}:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest")
+        ingest_document_result = collection.get(
+            f"MD-TEST:V01:{_collection}:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest"
+        )
         ingest_document = ingest_document_result.content_as[dict]
         # instantiate a ctcBuilder so we can use its get_station methods
         builder_class = getattr(ctc_builder, "CTCModelObsBuilderV01")
         builder = builder_class(load_spec, ingest_document)
-            # usually these would get assigned in build_document
+        # usually these would get assigned in build_document
         builder.bucket = _bucket
         builder.scope = _scope
         builder.collection = _collection
@@ -166,6 +174,7 @@ def test_get_stations_geo_search():
     except Exception as _e:  # pylint: disable=broad-except
         assert False, f"TestGsdIngestManager Exception failure:  {_e}"
 
+
 def calculate_cb_ctc(  # pylint: disable=dangerous-default-value,missing-function-docstring
     epoch,
     fcst_len,
@@ -173,14 +182,15 @@ def calculate_cb_ctc(  # pylint: disable=dangerous-default-value,missing-functio
     model,
     subset,
     region,
+    doc_sub_type,
     reject_stations=[],
 ):
-    global cb_model_obs_data
-    global stations
+    global cb_model_obs_data #pylint: disable=global-statement
+    global stations #pylint: disable=global-statement
 
-    credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
+    credentials_file = os.environ["CREDENTIALS"]
     assert Path(credentials_file).is_file(), "credentials_file Does not exist"
-    _f = open(credentials_file)
+    _f = open(credentials_file, encoding="utf-8")
     yaml_data = yaml.load(_f, yaml.SafeLoader)
     _host = yaml_data["cb_host"]
     _user = yaml_data["cb_user"]
@@ -190,17 +200,19 @@ def calculate_cb_ctc(  # pylint: disable=dangerous-default-value,missing-functio
     _scope = yaml_data["cb_scope"]
     _f.close()
 
-    timeout_options=ClusterTimeoutOptions(kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120))
-    options=ClusterOptions(PasswordAuthenticator(_user, _password), timeout_options=timeout_options)
-    cluster = Cluster(
-        "couchbase://" + _host, options
+    timeout_options = ClusterTimeoutOptions(
+        kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
     )
-    collection=cluster.bucket(_bucket).scope(_scope).collection(_collection)
+    options = ClusterOptions(
+        PasswordAuthenticator(_user, _password), timeout_options=timeout_options
+    )
+    cluster = Cluster("couchbase://" + _host, options)
+    collection = cluster.bucket(_bucket).scope(_scope).collection(_collection)
     load_spec = {}
     load_spec["cluster"] = cluster
     load_spec["collection"] = collection
     ingest_document_result = load_spec["collection"].get(
-        f"MD:V01:{subset}:{model}:ALL_HRRR:CTC:CEILING:ingest"
+        f"MD:V01:{subset}:{model}:ALL_HRRR:CTC:{doc_sub_type.upper()}:ingest"
     )
     ingest_document = ingest_document_result.content_as[dict]
     # instantiate a ctcBuilder so we can use its get_station methods
@@ -215,18 +227,11 @@ def calculate_cb_ctc(  # pylint: disable=dangerous-default-value,missing-functio
         #                builder.get_stations_for_region_by_geosearch(region, epoch)
         builder.get_stations_for_region_by_sort(region, epoch)
     )
-    obs_id = "DD:V01:{subset}:obs:{fcst_valid_epoch}".format(
-        subset=subset, fcst_valid_epoch=epoch
-    )
+    obs_id = f"DD:V01:{subset}:obs:{epoch}"
     stations = sorted(  # pylint: disable=redefined-outer-name
         [station for station in legacy_stations if station not in reject_stations]
     )
-    model_id = "DD:V01:{subset}:{model}:{fcst_valid_epoch}:{fcst_len}".format(
-        subset=subset,
-        model=model,
-        fcst_valid_epoch=epoch,
-        fcst_len=fcst_len,
-    )
+    model_id = f"DD:V01:{subset}:{model}:{epoch}:{fcst_len}"
     print("cb_ctc model_id:", model_id, " obs_id:", obs_id)
     try:
         full_model_data = load_spec["collection"].get(model_id).content_as[dict]
@@ -249,13 +254,13 @@ def calculate_cb_ctc(  # pylint: disable=dangerous-default-value,missing-functio
             continue
         model_data = full_model_data["data"][station]
         # add to model_obs_data
-        if obs_data and model_data and obs_data["Ceiling"] and model_data["Ceiling"]:
+        if obs_data and model_data and obs_data[doc_sub_type] is not None and model_data[doc_sub_type] is not None:
             dat = {
                 "time": epoch,
                 "fcst_len": fcst_len,
                 "thrsh": threshold,
-                "model": model_data["Ceiling"] if model_data else None,
-                "obs": obs_data["Ceiling"] if obs_data else None,
+                "model": model_data[doc_sub_type] if model_data else None,
+                "obs": obs_data[doc_sub_type] if obs_data else None,
                 "name": station,
             }
             cb_model_obs_data.append(dat)
@@ -287,7 +292,7 @@ def calculate_cb_ctc(  # pylint: disable=dangerous-default-value,missing-functio
     return ctc
 
 
-def test_ctc_builder_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
+def test_ctc_builder_ceiling_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
     """
     This test verifies that data is returned for each fcstLen and each threshold.
     It can be used to debug the builder by putting a specific epoch for first_epoch.
@@ -298,13 +303,16 @@ def test_ctc_builder_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
     Then the couchbase CTC fcstValidEpochs are compared and asserted against the derived CTC.
     """
     # noinspection PyBroadException
-    global cb_model_obs_data
-    global stations
+    global cb_model_obs_data #pylint: disable=global-variable-not-assigned
+    global stations #pylint: disable=global-variable-not-assigned
 
     try:
-        credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
-        job_id="JOB:V01:METAR:CTC:SUM:MODEL:HRRR_RAP_130"
-        outdir = "/opt/data/ctc_to_cb/hrrr_ops/output"
+        credentials_file = os.environ["CREDENTIALS"]
+        job_id = "JOB-TEST:V01:METAR:CTC:CEILING:MODEL:OPS"
+        outdir = "/opt/data/ctc_to_cb/hrrr_ops/ceiling/output"
+        if not os.path.exists(outdir):
+            # Create a new directory because it does not exist
+            os.makedirs(outdir)
         filepaths = outdir + "/*.json"
         files = glob.glob(filepaths)
         for _f in files:
@@ -313,6 +321,7 @@ def test_ctc_builder_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
             except OSError as _e:
                 assert False, f"Error:  {_e}"
         vx_ingest = VXIngest()
+        # These CTC's might already have been ingested in which case this won't do anything.
         vx_ingest.runit(
             {
                 "job_id": job_id,
@@ -320,18 +329,22 @@ def test_ctc_builder_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
                 "output_dir": outdir,
                 "threads": 1,
                 "first_epoch": 1638489600,
-                "last_epoch": 1638496800
+                "last_epoch": 1638496800,
             }
         )
 
-        list_of_output_files = glob.glob("/opt/data/ctc_to_cb/output/*")
+        list_of_output_files = glob.glob(outdir + "/*")
         # latest_output_file = max(list_of_output_files, key=os.path.getctime)
         latest_output_file = min(list_of_output_files, key=os.path.getctime)
         try:
             # Opening JSON file
-            output_file = open(latest_output_file)
+            output_file = open(latest_output_file, encoding="utf8")
             # returns JSON object as a dictionary
             vx_ingest_output_data = json.load(output_file)
+            # if this is an LJ document then the CTC's were already ingested
+            # and the test should stop here
+            if vx_ingest_output_data[0]['type'] == "LJ":
+                return
             # get the last fcstValidEpochs
             fcst_valid_epochs = {doc["fcstValidEpoch"] for doc in vx_ingest_output_data}
             # take a fcstValidEpoch in the middle of the list
@@ -359,9 +372,7 @@ def test_ctc_builder_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
             # process all the thresholds
             for _t in _thresholds:
                 print(
-                    "Asserting derived CTC for fcstValidEpoch: {epoch} model: HRRR_OPS region: ALL_HRRR fcst_len: {fcst_len} threshold: {thrsh}".format(
-                        epoch=_elem["fcstValidEpoch"], thrsh=_t, fcst_len=_i
-                    )
+                    f"Asserting derived CTC for fcstValidEpoch: {_elem['fcstValidEpoch']} model: HRRR_OPS region: ALL_HRRR fcst_len: {_i} threshold: {_t}"
                 )
                 cb_ctc = calculate_cb_ctc(
                     epoch=_elem["fcstValidEpoch"],
@@ -369,19 +380,118 @@ def test_ctc_builder_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
                     threshold=int(_t),
                     model="HRRR_OPS",
                     subset="METAR",
+                    doc_sub_type="Ceiling",
                     region="ALL_HRRR",
                 )
                 if cb_ctc is None:
                     print(
-                        "cb_ctc is None for threshold {thrsh}- contunuing".format(
-                            thrsh=str(_t)
-                        )
+                        f"cb_ctc is None for threshold {str(_t)}- contunuing"
                     )
                     continue
     except Exception as _e:  # pylint: disable=broad-except
         assert False, f"TestCTCBuilderV01 Exception failure: {_e}"
 
-def test_ctc_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
+def test_ctc_builder_visibility_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
+    """
+    This test verifies that data is returned for each fcstLen and each threshold.
+    It can be used to debug the builder by putting a specific epoch for first_epoch.
+    By default it will build all unbuilt CTC objects and put them into the output folder.
+    Then it takes the last output json file and loads that file.
+    Then the test derives the same CTC.
+    It calculates the CTC using couchbase data for input.
+    Then the couchbase CTC fcstValidEpochs are compared and asserted against the derived CTC.
+    """
+    # noinspection PyBroadException
+    global cb_model_obs_data #pylint: disable=global-variable-not-assigned
+    global stations #pylint: disable=global-variable-not-assigned
+
+    try:
+        credentials_file = os.environ["CREDENTIALS"]
+        job_id = "JOB-TEST:V01:METAR:CTC:VISIBILITY:MODEL:OPS"
+        outdir = "/opt/data/ctc_to_cb/hrrr_ops/visibility/output"
+        if not os.path.exists(outdir):
+            # Create a new directory because it does not exist
+            os.makedirs(outdir)
+        filepaths = outdir + "/*.json"
+        files = glob.glob(filepaths)
+        for _f in files:
+            try:
+                os.remove(_f)
+            except OSError as _e:
+                assert False, f"Error:  {_e}"
+        vx_ingest = VXIngest()
+        # These CTC's might already have been ingested in which case this won't do anything.
+        vx_ingest.runit(
+            {
+                "job_id": job_id,
+                "credentials_file": credentials_file,
+                "output_dir": outdir,
+                "threads": 1,
+                "first_epoch": 1638489600,
+                "last_epoch": 1638496800,
+            }
+        )
+
+        list_of_output_files = glob.glob(outdir + "/*")
+        # latest_output_file = max(list_of_output_files, key=os.path.getctime)
+        latest_output_file = min(list_of_output_files, key=os.path.getctime)
+        try:
+            # Opening JSON file
+            output_file = open(latest_output_file, encoding="utf8")
+            # returns JSON object as a dictionary
+            vx_ingest_output_data = json.load(output_file)
+            # if this is an LJ document then the CTC's were already ingested
+            # and the test should stop here
+            if vx_ingest_output_data[0]['type'] == "LJ":
+                return
+            # get the last fcstValidEpochs
+            fcst_valid_epochs = {doc["fcstValidEpoch"] for doc in vx_ingest_output_data}
+            # take a fcstValidEpoch in the middle of the list
+            fcst_valid_epoch = list(fcst_valid_epochs)[int(len(fcst_valid_epochs) / 2)]
+            _thresholds = ["0.5","1.0","3.0","5.0","10.0"]
+            # get all the documents that have the chosen fcstValidEpoch
+            docs = [
+                _doc
+                for _doc in vx_ingest_output_data
+                if _doc["fcstValidEpoch"] == fcst_valid_epoch
+            ]
+            # get all the fcstLens for those docs
+            fcst_lens = []
+            for _elem in docs:
+                fcst_lens.append(_elem["fcstLen"])
+            output_file.close()
+        except Exception as _e:  # pylint: disable=broad-except
+            assert False, f"TestCTCBuilderV01 Exception failure opening output: {_e}"
+        for _i in fcst_lens:
+            _elem = None
+            # find the document for this fcst_len
+            for _elem in docs:
+                if _elem["fcstLen"] == _i:
+                    break
+            # process all the thresholds
+            for _threshold in _thresholds:
+                print(
+                    f"Asserting derived CTC for fcstValidEpoch: {_elem['fcstValidEpoch']} model: HRRR_OPS region: ALL_HRRR fcst_len: {_i} threshold: {_threshold}"
+                )
+                cb_ctc = calculate_cb_ctc(
+                    epoch=_elem["fcstValidEpoch"],
+                    fcst_len=_i,
+                    threshold=float(_threshold),
+                    model="HRRR_OPS",
+                    subset="METAR",
+                    doc_sub_type="Visibility",
+                    region="ALL_HRRR",
+                )
+                if cb_ctc is None:
+                    print(
+                        f"cb_ctc is None for threshold {str(_threshold)}- contunuing"
+                    )
+                    continue
+    except Exception as _e:  # pylint: disable=broad-except
+        assert False, f"TestCTCBuilderV01 Exception failure: {_e}"
+
+
+def test_ctc_ceiling_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
     # noinspection PyBroadException
     """
     This test is a comprehensive test of the ctcBuilder data. It will retrieve CTC documents
@@ -391,9 +501,9 @@ def test_ctc_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
     corrctly.
     """
 
-    credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
+    credentials_file = os.environ["CREDENTIALS"]
     assert Path(credentials_file).is_file(), "credentials_file Does not exist"
-    _f = open(credentials_file)
+    _f = open(credentials_file, encoding="utf8")
     yaml_data = yaml.load(_f, yaml.SafeLoader)
     _host = yaml_data["cb_host"]
     _user = yaml_data["cb_user"]
@@ -403,13 +513,14 @@ def test_ctc_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
     _scope = yaml_data["cb_scope"]
     _f.close()
 
-    timeout_options=ClusterTimeoutOptions(kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120))
-    options=ClusterOptions(PasswordAuthenticator(_user, _password), timeout_options=timeout_options)
-    cluster = Cluster(
-        "couchbase://" + _host, options
+    timeout_options = ClusterTimeoutOptions(
+        kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
     )
-    collection=cluster.bucket(_bucket).scope(_scope).collection(_collection)
-        # get available fcstValidEpochs for couchbase
+    options = ClusterOptions(
+        PasswordAuthenticator(_user, _password), timeout_options=timeout_options
+    )
+    cluster = Cluster("couchbase://" + _host, options)
+    # get available fcstValidEpochs for couchbase
     try:
         result = cluster.query(
             f"""SELECT RAW fcstValidEpoch
@@ -426,7 +537,8 @@ def test_ctc_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
         if len(cb_fcst_valid_epochs) == 0:
             assert False, "There is no data"
         # choose the last one
-        fcst_valid_epoch = cb_fcst_valid_epochs[-1]
+        #fcst_valid_epoch = cb_fcst_valid_epochs[-1]
+        fcst_valid_epoch = cb_fcst_valid_epochs[round(len(cb_fcst_valid_epochs) / 2)]
         # get all the cb fcstLen values
         result = cluster.query(
             f"""SELECT raw fcstLen
@@ -444,15 +556,15 @@ def test_ctc_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
         )
         cb_fcst_valid_lens = list(result)
         # get the thesholdDescriptions from the couchbase metadata
-        result = cluster.query(
-            f"""
-            SELECT RAW thresholdDescriptions
-            FROM `{_bucket}`.{_scope}.{_collection}
-            WHERE type="MD"
-                AND docType="matsAux"
-            """,
-            read_only=True,
-        )
+        # result = cluster.query(
+        #     f"""
+        #     SELECT RAW thresholdDescriptions.ceiling
+        #     FROM `{_bucket}`.{_scope}.{_collection}
+        #     WHERE type="MD"
+        #         AND docType="matsAux"
+        #     """,
+        #     read_only=True,
+        # )
         # get the associated couchbase ceiling model data
         # get the associated couchbase obs
         # get the ctc couchbase data
@@ -491,22 +603,163 @@ def test_ctc_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
                 order by fcstLen;"""
         )
         for _cb_ctc in cb_results:
-            fcstln = _cb_ctc['METAR']['fcstLen']
-            for _threshold in _cb_ctc['METAR']['data'].keys():
-                _ctc=calculate_cb_ctc(
+            fcstln = _cb_ctc["METAR"]["fcstLen"]
+            for _threshold in _cb_ctc["METAR"]["data"].keys():
+                _ctc = calculate_cb_ctc(
                     fcst_valid_epoch,
                     fcstln,
-                    int(float(_threshold)),
-                    'HRRR_OPS',
+                    float(_threshold),
+                    "HRRR_OPS",
                     _collection,
-                    'ALL_HRRR'
+                    doc_sub_type="Ceiling",
+                    region="ALL_HRRR",
                 )
                 # assert ctc values
-                fields= ['hits', 'misses', 'false_alarms', 'correct_negatives']
+                fields = ["hits", "misses", "false_alarms", "correct_negatives"]
                 for field in fields:
                     _ctc_value = _ctc[field]
-                    _cb_ctc_value = _cb_ctc[_collection]['data'][_threshold][field]
-                    assert _ctc_value == _cb_ctc_value, f"""
+                    _cb_ctc_value = _cb_ctc[_collection]["data"][_threshold][field]
+                    assert (
+                        _ctc_value == _cb_ctc_value
+                    ), f"""
+                    For epoch : {_ctc['fcst_valid_epoch']}
+                    and fstLen: {_ctc['fcst_len']}
+                    and threshold: {_threshold}
+                    the derived CTC {field}: {_ctc_value} and caclulated CTC {field}: {_cb_ctc_value} values do not match"""
+    except Exception as _e:  # pylint: disable=broad-except
+        assert False, f"TestCTCBuilderV01 Exception failure:  {_e}"
+    return
+
+def test_ctc_visibiltiy_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
+    # noinspection PyBroadException
+    """
+    This test is a comprehensive test of the ctcBuilder data. It will retrieve CTC documents
+    for a specific fcstValidEpoch from couchbase and calculate the CTC's for the same fcstValidEpoch.
+    It then compares the data with assertions. The intent is to
+    demonstrate that the data transformation from input model obs pairs is being done
+    corrctly.
+    """
+
+    credentials_file = os.environ["CREDENTIALS"]
+    assert Path(credentials_file).is_file(), "credentials_file Does not exist"
+    _f = open(credentials_file, encoding="utf8")
+    yaml_data = yaml.load(_f, yaml.SafeLoader)
+    _host = yaml_data["cb_host"]
+    _user = yaml_data["cb_user"]
+    _password = yaml_data["cb_password"]
+    _bucket = yaml_data["cb_bucket"]
+    _collection = yaml_data["cb_collection"]
+    _scope = yaml_data["cb_scope"]
+    _f.close()
+
+    timeout_options = ClusterTimeoutOptions(
+        kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
+    )
+    options = ClusterOptions(
+        PasswordAuthenticator(_user, _password), timeout_options=timeout_options
+    )
+    cluster = Cluster("couchbase://" + _host, options)
+    # get available fcstValidEpochs for couchbase
+    try:
+        stmnt = f"""SELECT RAW fcstValidEpoch
+        FROM `{_bucket}`.{_scope}.{_collection}
+        WHERE type="DD"
+            AND docType="CTC"
+            AND subDocType = "VISIBILITY"
+            AND model='HRRR_OPS'
+            AND region='ALL_HRRR'
+            AND version='V01'
+            AND subset='{_collection}'"""
+        result = cluster.query(stmnt)
+        cb_fcst_valid_epochs = list(result)
+        if len(cb_fcst_valid_epochs) == 0:
+            assert False, "There is no data"
+        # choose the last one
+        #fcst_valid_epoch = cb_fcst_valid_epochs[-1]
+        fcst_valid_epoch = cb_fcst_valid_epochs[round(len(cb_fcst_valid_epochs) / 2)]
+        # get all the cb fcstLen values
+        result = cluster.query(
+            f"""SELECT raw fcstLen
+            FROM `{_bucket}`.{_scope}.{_collection}
+            WHERE type='DD'
+                AND docType = "CTC"
+                AND subDocType = "VISIBILITY"
+                AND model='HRRR_OPS'
+                AND region='ALL_HRRR'
+                AND version='V01'
+                AND subset='{_collection}'
+                AND fcstValidEpoch = {fcst_valid_epoch}
+                order by fcstLen
+            """
+        )
+        cb_fcst_valid_lens = list(result)
+        # get the thesholdDescriptions from the couchbase metadata
+        # result = cluster.query(
+        #     f"""
+        #     SELECT RAW thresholdDescriptions.visibility
+        #     FROM `{_bucket}`.{_scope}.{_collection}
+        #     WHERE type="MD"
+        #         AND docType="matsAux"
+        #     """,
+        #     read_only=True,
+        # )
+        # get the associated couchbase ceiling model data
+        # get the associated couchbase obs
+        # get the ctc couchbase data
+        result = cluster.query(
+            f"""
+            SELECT *
+            FROM `{_bucket}`.{_scope}.{_collection}
+            WHERE type='DD'
+                AND docType = "CTC"
+                AND subDocType = "VISIBILITY"
+                AND model='HRRR_OPS'
+                AND region='ALL_HRRR'
+                AND version='V01'
+                AND subset='{_collection}'
+                AND fcstValidEpoch = {fcst_valid_epoch}
+                AND fcstLen IN {cb_fcst_valid_lens}
+                order by fcstLen;
+            """
+        )
+        cb_results = list(result)
+        # print the couchbase statement
+        print(
+            "cb statement is:"
+            + f"""
+            SELECT *
+            FROM `{_bucket}`.{_scope}.{_collection}
+            WHERE type='DD'
+                AND docType = "CTC"
+                AND subDocType = "VISIBILITY"
+                AND model='HRRR_OPS'
+                AND region='ALL_HRRR'
+                AND version='V01'
+                AND subset='{_collection}'
+                AND fcstValidEpoch = {fcst_valid_epoch}
+                AND fcstLen IN {cb_fcst_valid_lens}
+                order by fcstLen;"""
+        )
+        for _cb_ctc in cb_results:
+            fcstln = _cb_ctc["METAR"]["fcstLen"]
+            for _threshold in _cb_ctc["METAR"]["data"].keys():
+                _ctc = calculate_cb_ctc(
+                    fcst_valid_epoch,
+                    fcstln,
+                    float(_threshold),
+                    "HRRR_OPS",
+                    _collection,
+                    doc_sub_type="Visibility",
+                    region="ALL_HRRR",
+                )
+                # assert ctc values
+                fields = ["hits", "misses", "false_alarms", "correct_negatives"]
+                for field in fields:
+                    _ctc_value = _ctc[field]
+                    _cb_ctc_value = _cb_ctc[_collection]["data"][_threshold][field]
+                    assert (
+                        _ctc_value == _cb_ctc_value
+                    ), f"""
                     For epoch : {_ctc['fcst_valid_epoch']}
                     and fstLen: {_ctc['fcst_len']}
                     and threshold: {_threshold}

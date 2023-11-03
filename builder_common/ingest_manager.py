@@ -11,10 +11,17 @@ import time
 from datetime import timedelta
 import json
 from pathlib import Path
+# This pyproj import has to remain here in order to enforce the
+# order of loading of the pyproj and cocuhbase libraries.  If ipyproj is loaded after
+# the couchbase library, it will cause a segmentation fault.
+# pyproj is used by the grib2_to_cb IngestManger and supporting
+# test code. The root cause of this is Couchbase. This incompatibility is supposed to be fixed
+# in the next release of Couchbase.
+import pyproj # pylint:disable=unused-import
 from couchbase.exceptions import TimeoutException
-from couchbase.cluster import Cluster, ClusterOptions, ClusterTimeoutOptions
+from couchbase.cluster import Cluster
 from couchbase.auth import PasswordAuthenticator
-
+from couchbase.options import ClusterOptions, ClusterTimeoutOptions
 class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attributes
     """
     IngestManager is a Process Thread that manages an object pool of
@@ -61,6 +68,12 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
         self.cluster = None
         self.collection = None
         self.output_dir = output_dir
+        if not os.path.exists(self.output_dir):
+            os.makedirs(self.output_dir)
+        if not os.access(self.output_dir, os.W_OK):
+            _re = RuntimeError("Output directory: %s is not writable!", self.output_dir)
+            logging.exception(_re)
+            raise _re
 
     def process_queue_element(
         self, queue_element
@@ -247,13 +260,11 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
                     )
                     _f = open(complete_file_name, "w", encoding="utf-8")
                     # we need to write out a list of the values of the _document_map for cbimport
-                    _f.write(json.dumps(list(document_map.values())))
+                    json_data = json.dumps(list(document_map.values()))
+                    _f.write(json_data)
                     _f.close()
                 except Exception as _e1:  # pylint:disable=broad-except
-                    logging.exception("write_document_to_files - trying write: Got Exception")
+                    logging.exception("write_document_to_files - trying write: Got Exception %s", str(_e1))
         except Exception as _e:  # pylint:disable=broad-except
-            logging.exception(
-                ": *** %s Error writing to files: in process_element writing document***",
-                self.thread_name,
-            )
+            logging.exception(": *** {self.thread_name} Error writing to files: in process_element writing document*** %s", str(_e))
             raise _e

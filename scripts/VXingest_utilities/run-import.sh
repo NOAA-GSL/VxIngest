@@ -6,21 +6,19 @@
 # Scrape the logfiles and update the metrics.
 # On success destroy each temporary directory and the associated tarball.
 # On failure archive the tarball, and destroy the temp directory.
-# This script expects to execute inside the clone directory of the VxIngest repo.
+# This script expects to execute inside the VxIngest directory.
 # This script expects to be run as user amb-verif very frequently (like two minutes).
 # This script expects to have a python virtual environment in the amb-verif home directory in the subdirectory vxingest-env.
 # This script will generate metrics to track its success or failure, and to track how frequently it runs.
 
 function usage {
-  echo "Usage $0 -c credentials-file -d VxIngest directory -l load directory -t temp_dir -m metrics_directory"
+  echo "Usage $0 -c credentials-file -l load directory -t temp_dir -m metrics_directory"
   echo "The credentials-file specifies cb_host, cb_user, and cb_password."
-  echo "The VxIngest directory specifies the directory where The VxIngest repo has been cloned."
   echo "The load directory is where the program will look for the tar files"
   echo "The tar_dir directory is where the program will unbundle the tar files (in uniq temporary subdirs)"
   echo "The metrics directory is where the scraper will place the metrics"
-  echo "This script expects to execute inside the clone directory of the VxIngest repo"
+  echo "This script expects to execute inside the VxIngest directory"
   echo "This script expects to be run as user amb-verif"
-  echo "This script expects to have a python virtual environment in the amb-verif home directory in the subdirectory vxingest-env"
   failed_import_count=$((failed_import_count+1))
   exit 1
 }
@@ -31,7 +29,7 @@ success_scrape_count=0
 failed_scrape_count=0
 start=$(date +%s)
 
-while getopts 'c:d:l:t:m:' param; do
+while getopts 'c:l:t:m:' param; do
   case "${param}" in
   c)
     credentials_file=${OPTARG}
@@ -50,14 +48,6 @@ while getopts 'c:d:l:t:m:' param; do
     collection=$(grep cb_collection ${credentials_file} | awk '{print $2}')
     scope=$(grep cb_scope ${credentials_file} | awk '{print $2}')
     cred="${cb_user}:${cb_pwd}"
-    ;;
-  d)
-    # remove the last '/' if it is there
-    export clonedir=$(echo "${OPTARG}" | sed 's|/$||')
-    if [[ ! -d "${clonedir}" ]]; then
-      echo "ERROR: VxIngest clone directory ${clonedir} does not exist"
-      usage
-    fi
     ;;
   l)
     # remove the last '/' if it is there
@@ -89,10 +79,9 @@ while getopts 'c:d:l:t:m:' param; do
     ;;
   esac
 done
-if [[ -z ${credentials_file} ]] || [[ -z ${clonedir} ]] || [[ -z ${load_dir} ]] || [[ -z ${metrics_dir} ]] || [[ -z ${tar_dir} ]]; then
+if [[ -z ${credentials_file} ]] || [[ -z ${load_dir} ]] || [[ -z ${metrics_dir} ]] || [[ -z ${tar_dir} ]]; then
   echo "*missing parameter*"
   echo "provided credentials_file is ${credentials_file}"
-  echo "provided clonedir is ${clonedir}"
   echo "provided load_dir is ${load_dir}"
   echo "provided metrics_dir is ${metrics_dir}"
   echo "provided tar_dir is ${tar_dir}"
@@ -102,15 +91,6 @@ fi
 pid=$$
 if [ "$(whoami)" != "amb-verif" ]; then
         echo "Script must be run as user: amb-verif"
-        usage
-fi
-
-source ${HOME}/vxingest-env/bin/activate
-
-cd ${clonedir} && export PYTHONPATH=`pwd`
-gitroot=$(git rev-parse --show-toplevel)
-if [ "$gitroot" != "$(pwd)" ];then
-        echo "$(pwd) is not a git root directory: Usage $0 VxIngest_clonedir"
         usage
 fi
 

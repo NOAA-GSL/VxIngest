@@ -6,9 +6,9 @@ Abstract:
 History Log:  Initial version
 
 Usage:
-run_ingest_threads -j job_document_id -c credentials_file -p path [-o output_dir -t thread_count -f file_pattern -n number_stations]
+run_ingest_threads -j job_document_id -c credentials_file [-o output_dir -t thread_count -f file_pattern -n number_stations]
 This script processes arguments which specify a job document id,
-a defaults file (for credentials), an input file path, an optional output directory, thread count, and file matching pattern.
+a defaults file (for credentials), an optional output directory, thread count, and file matching pattern.
 The job document id is the id of a job document in the couchbase database.
 The job document might look like this...
 {
@@ -158,37 +158,39 @@ class VXIngest(CommonVxIngest):
         self.thread_count = args["threads"]
         self.output_dir = args["output_dir"].strip()
         self.job_document_id = args["job_id"].strip()
-        # this assignment is only for integration tests to be able to override the input path
-        # normally path will never be passed in as an arg
-        if "path" in args.keys():
-            self.path = args['path']
         if "file_pattern" in args.keys():
             self.file_pattern = args["file_pattern"].strip()
         try:
             # put the real credentials into the load_spec
+            logging.info("getting cb_credentials")
             self.cb_credentials = self.get_credentials(self.load_spec)
             # establish connections to cb, collection
             self.connect_cb()
-            bucket = self.load_spec['cb_connection']['bucket']
-            scope = self.load_spec['cb_connection']['scope']
-            collection = self.load_spec['cb_connection']['collection']
+            logging.info("connected to cb")
+            bucket = self.load_spec["cb_connection"]["bucket"]
+            scope = self.load_spec["cb_connection"]["scope"]
+            collection = self.load_spec["cb_connection"]["collection"]
             # load the ingest document ids into the load_spec (this might be redundant)
-            stmnt=f"Select ingest_document_ids from `{bucket}`.{scope}.{collection} where meta().id = \"{self.job_document_id}\""
+            stmnt = f'Select ingest_document_ids from `{bucket}`.{scope}.{collection} where meta().id = "{self.job_document_id}"'
             result = self.cluster.query(stmnt)
-            self.load_spec['ingest_document_ids'] = list(result)[0]["ingest_document_ids"]
+            self.load_spec["ingest_document_ids"] = list(result)[0][
+                "ingest_document_ids"
+            ]
             # put all the ingest documents into the load_spec too
             self.load_spec["ingest_documents"] = {}
             for _id in self.load_spec["ingest_document_ids"]:
-                self.load_spec["ingest_documents"][_id] = self.collection.get(_id).content_as[dict]
+                self.load_spec["ingest_documents"][_id] = self.collection.get(
+                    _id
+                ).content_as[dict]
             # load the fmask and input_data_path into the load_spec
-            stmnt=f"Select file_mask, input_data_path from `{bucket}`.{scope}.{collection} where meta().id = \"{self.job_document_id}\""
+            stmnt = f'Select file_mask, input_data_path from `{bucket}`.{scope}.{collection} where meta().id = "{self.job_document_id}"'
             result = self.cluster.query(stmnt)
             result_list = list(result)
             self.fmask = result_list[0]["file_mask"]
-            self.path = args['path'] if 'path' in args.keys() else result_list[0]["input_data_path"]
+            self.path = result_list[0]["input_data_path"]
             self.load_spec["fmask"] = self.fmask
             self.load_spec["input_data_path"] = self.path
-            #stash the load_job in the load_spec
+            # stash the load_job in the load_spec
             self.load_spec["load_job_doc"] = self.build_load_job_doc("madis")
         except (RuntimeError, TypeError, NameError, KeyError):
             logging.error(
@@ -205,7 +207,9 @@ class VXIngest(CommonVxIngest):
         # get the urls (full_file_names) from all the datafiles for this type of ingest
         # for netcdf type ingests there is only one ingest document so we can just use the first
         # subset
-        subset = self.load_spec["ingest_documents"][self.load_spec["ingest_document_ids"][0]]["subset"]
+        subset = self.load_spec["ingest_documents"][
+            self.load_spec["ingest_document_ids"][0]
+        ]["subset"]
         file_query = f"""
             SELECT url, mtime
             FROM `{bucket}`.{scope}.{collection}

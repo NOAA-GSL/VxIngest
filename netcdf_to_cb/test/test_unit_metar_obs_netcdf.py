@@ -8,11 +8,10 @@ from pathlib import Path
 
 import netCDF4 as nc
 import numpy as np
-import pymysql
-import yaml
-from pymysql.constants import CLIENT
-from couchbase.cluster import QueryOptions, QueryScanConsistency
+from couchbase.n1ql import  QueryScanConsistency
 from couchbase.mutation_state import MutationState
+from couchbase.options import QueryOptions
+
 from netcdf_to_cb.netcdf_builder import NetcdfMetarObsBuilderV01
 from netcdf_to_cb.run_ingest_threads import VXIngest
 
@@ -22,41 +21,16 @@ from netcdf_to_cb.run_ingest_threads import VXIngest
 # python3 -m pytest -s -v  netcdf_to_cb/test/test_unit_metar_obs_netcdf.py::TestNetcdfObsBuilderV01Unit::test....
 
 
-
-def setup_mysql_connection():
-    """setup the mysql connection
-    Returns:
-        cursor: a mysql cursor
-    """
-    _credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
-    _f = open(_credentials_file, encoding="utf_8")
-    _yaml_data = yaml.load(_f, yaml.SafeLoader)
-    _f.close()
-    host = _yaml_data["mysql_host"]
-    user = _yaml_data["mysql_user"]
-    passwd = _yaml_data["mysql_password"]
-    connection = pymysql.connect(
-        host=host,
-        user=user,
-        passwd=passwd,
-        local_infile=True,
-        autocommit=True,
-        charset="utf8mb4",
-        cursorclass=pymysql.cursors.SSDictCursor,
-        client_flag=CLIENT.MULTI_STATEMENTS,
-    )
-    _cursor = connection.cursor(pymysql.cursors.SSDictCursor)
-    return _cursor
-
-
 def setup_connection():
     """test setup"""
     try:
         _vx_ingest = VXIngest()
-        _vx_ingest.credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
+        _vx_ingest.credentials_file = os.environ["CREDENTIALS"]
         _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
         _vx_ingest.connect_cb()
-        _vx_ingest.load_spec['ingest_document_ids'] = _vx_ingest.collection.get("JOB:V01:METAR:NETCDF:OBS").content_as[dict]["ingest_document_ids"]
+        _vx_ingest.load_spec["ingest_document_ids"] = _vx_ingest.collection.get(
+            "JOB:V01:METAR:NETCDF:OBS"
+        ).content_as[dict]["ingest_document_ids"]
         return _vx_ingest
     except Exception as _e:  # pylint:disable=broad-except
         assert False, f"test_credentials_and_load_spec Exception failure: {_e}"
@@ -215,6 +189,7 @@ def test_vxingest_get_file_list():
         # update the mtime in the df record so that the file will not be included
         df_record["mtime"] = round(time.time())
         vx_ingest.collection.upsert("DF:metar:grib2:HRRR_OPS:f_fred_01", df_record)
+        time.sleep(1)
         # do a query with scan consistency set so that we know the record got persisted
         vx_ingest.cluster.query(
             query, QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS)
@@ -369,7 +344,9 @@ def test_handle_station():
         for i in range(rec_num_length):
             if (
                 str(
-                    nc.chartostring(_builder.ncdf_data_set["stationName"][i]) # pylint: disable=no-member
+                    nc.chartostring(
+                        _builder.ncdf_data_set["stationName"][i]
+                    )  # pylint: disable=no-member
                 )  # pylint: disable=no-member
                 == "ZBAA"
             ):  # pylint:disable=no-member
@@ -403,7 +380,7 @@ def test_handle_station():
         result = _cluster.query(
             " ".join(
                 (
-                   f"""
+                    f"""
             SELECT METAR.*
             From `{vx_ingest.cb_credentials['bucket']}`.{vx_ingest.cb_credentials['scope']}.{vx_ingest.cb_credentials['collection']}
             WHERE type = 'MD'

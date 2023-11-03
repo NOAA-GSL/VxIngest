@@ -22,8 +22,16 @@ from glob import glob
 from pathlib import Path
 from datetime import timedelta
 import yaml
-from couchbase.cluster import Cluster, ClusterOptions, ClusterTimeoutOptions
+# This pyproj import has to remain here in order to enforce the
+# order of loading of the pyproj and cocuhbase libraries.  If ipyproj is loaded after
+# the couchbase library, it will cause a segmentation fault.
+# pyproj is used by the grib2_to_cb IngestManger and supporting
+# test code. The root cause of this is Couchbase. This incompatibility is supposed to be fixed
+# in the next release of Couchbase.
+import pyproj # pylint: disable=unused-import
+from couchbase.cluster import Cluster
 from couchbase.auth import PasswordAuthenticator
+from couchbase.options import ClusterOptions, ClusterTimeoutOptions
 
 class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-instance-attributes
     """
@@ -88,8 +96,9 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
         """
         This method will build a load_job document
         """
-        stream = os.popen("git rev-parse HEAD")
-        git_hash = stream.read().strip()
+        # stream = os.popen("git rev-parse HEAD")
+        # git_hash = stream.read().strip()
+        git_hash = os.environ.get("COMMIT", "unknown")
         _document_id = (
             self.load_spec["ingest_document_ids"][0]
             if "ingest_document_ids" in self.load_spec
@@ -139,7 +148,7 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
             self.load_spec["cb_credentials"] = self.cb_credentials
             logging.info("%s: Couchbase connection success")
         except Exception as _e:  # pylint:disable=broad-except
-            logging.exception("*** builder_common.CommonVxIngest Error in connect_cb ***")
+            logging.exception("*** builder_common.CommonVxIngest Error in connect_cb *** %s", str(_e))
             sys.exit("*** builder_common.CommonVxIngest Error when connecting to cb database: ")
 
     def get_file_list(self, df_query, directory, file_pattern):

@@ -33,6 +33,9 @@ from couchbase.cluster import Cluster
 from couchbase.auth import PasswordAuthenticator
 from couchbase.options import ClusterOptions, ClusterTimeoutOptions
 
+# Get a logger with this module's name to help with debugging
+logger = logging.getLogger(__name__)
+
 class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-instance-attributes
     """
     Parent class for all VxIngest.
@@ -62,12 +65,6 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
         self.cluster = None
         self.ingest_document_id = None
         self.ingest_document = None
-        root=logging.getLogger()
-        root.setLevel(logging.INFO)
-        handler = logging.StreamHandler(sys.stdout)
-        handler.setLevel(logging.INFO)
-        root.addHandler(handler)
-
 
     def parse_args(self, args):  # pylint: disable=missing-function-docstring
         """This method is intended to be overriden"""
@@ -90,11 +87,11 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
                 _f.write(json.dumps([self.load_spec["load_job_doc"]]))
                 _f.close()
             except Exception as _e:  # pylint: disable=broad-except
-                logging.info(
+                logger.info(
                     "process_file - trying write load_job: Got Exception - %s", str(_e)
                 )
         except Exception as _e:
-            logging.error(": *** Error writing load_job to files: %s***", str(_e))
+            logger.error(": *** Error writing load_job to files: %s***", str(_e))
             raise _e
 
     def build_load_job_doc(self, lineage):
@@ -134,7 +131,7 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
         """
         create a couchbase connection and maintain the collection and cluster objects.
         """
-        logging.debug("%s: data_type_manager - Connecting to couchbase")
+        logger.debug("%s: data_type_manager - Connecting to couchbase")
         # get a reference to our cluster
         # noinspection PyBroadException
         try:
@@ -151,9 +148,9 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
             )
             # stash the credentials for the VxIngestManager - see NOTE at the top of this file.
             self.load_spec["cb_credentials"] = self.cb_credentials
-            logging.info("%s: Couchbase connection success")
+            logger.info("%s: Couchbase connection success")
         except Exception as _e:  # pylint:disable=broad-except
-            logging.exception("*** builder_common.CommonVxIngest Error in connect_cb *** %s", str(_e))
+            logger.exception("*** builder_common.CommonVxIngest Error in connect_cb *** %s", str(_e))
             sys.exit("*** builder_common.CommonVxIngest Error when connecting to cb database: ")
 
     def get_file_list(self, df_query, directory, file_pattern):
@@ -191,7 +188,7 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
                         # check to see if this file has already been ingested
                         # (if it is not in the df_full_names - add it)
                         if filename not in df_full_names:
-                            logging.debug(
+                            logger.debug(
                                 "%s - File %s is added because it isn't in any datafile document",
                                 self.__class__.__name__,
                                 filename,
@@ -206,7 +203,7 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
                                 if element["url"] == filename
                             )
                             if int(os.path.getmtime(filename)) > int(df_entry["mtime"]):
-                                logging.debug(
+                                logger.debug(
                                     "%s - File %s is added because file mtime %s is greater than df mtime %s",
                                     self.__class__.__name__,
                                     filename,
@@ -215,7 +212,7 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
                                 )
                                 file_names.append(filename)
                             else:
-                                logging.debug(
+                                logger.debug(
                                     "%s - File %s has already been processed - not adding",
                                     self.__class__.__name__,
                                     filename,
@@ -224,10 +221,10 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
                         # don't care, it just means it wasn't a properly formatted file per the mask
                         continue
             if len(file_names) == 0:
-                logging.info("get_file_list: No files to Process!")
+                logger.info("get_file_list: No files to Process!")
             return file_names
         except Exception as _e:  # pylint: disable=bare-except, disable=broad-except
-            logging.error(
+            logger.error(
                 "%s get_file_list Error: %s",
                 self.__class__.__name__,
                 str(_e),
@@ -241,7 +238,7 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
         Returns:
             [dict]: [the new load_spec with the credentials]
         """
-        logging.debug("credentials filename is %s", self.credentials_file)
+        logger.debug("credentials filename is %s", self.credentials_file)
         try:
             # check for existence of file
             if not Path(self.credentials_file).is_file():
@@ -261,13 +258,13 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
             load_spec["cb_connection"]["scope"] = _yaml_data["cb_scope"]
             _f.close()
             return load_spec["cb_connection"]
-        except (RuntimeError, TypeError, NameError, KeyError):
-            logging.error("*** %s in read ***", sys.exc_info()[0])
+        except (RuntimeError, TypeError, NameError, KeyError) as e:
+            logger.error(f"*** Error reading credential file: {e} ***")
             sys.exit("*** Parsing error(s) in load_spec file!")
 
     def main(self):
         """run_ingest_threads main entry. Manages a set of VxIngestManagers for processing input files"""
-        logging.info("PYTHONPATH: %s", os.environ["PYTHONPATH"])
+        logger.info("PYTHONPATH: %s", os.environ["PYTHONPATH"])
         args = self.parse_args(sys.argv[1:])
         self.runit(vars(args))
         sys.exit(0)

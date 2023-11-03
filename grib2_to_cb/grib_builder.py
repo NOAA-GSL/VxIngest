@@ -17,6 +17,9 @@ import numpy as np
 from grib2_to_cb.grib_builder_parent import GribBuilder
 from builder_common.builder_utilities import get_geo_index
 
+# Get a logger with this module's name to help with debugging
+logger = logging.getLogger(__name__)
+
 
 # Concrete builders
 class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attributes
@@ -215,7 +218,7 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
                 i = i + 1
             return ceil_agl
         except Exception as _e:  # pylint:disable=broad-except
-            logging.error(
+            logger.error(
                 "%s handle_ceiling: Exception  error: %s",
                 self.__class__.__name__,
                 str(_e),

@@ -40,6 +40,9 @@ import time
 from builder_common.ingest_manager import CommonVxIngestManager
 from netcdf_to_cb import netcdf_builder as my_builder
 
+# Get a logger with this module's name to help with debugging
+logger = logging.getLogger(__name__)
+
 
 class VxIngestManager(
     CommonVxIngestManager
@@ -75,6 +78,8 @@ class VxIngestManager(
         load_spec,
         element_queue,
         output_dir,
+        logging_queue,
+        logging_configurer,
     ):
         """constructor for VxIngestManager
         Args:
@@ -104,6 +109,8 @@ class VxIngestManager(
             self.load_spec,
             self.queue,
             self.output_dir,
+            logging_queue,
+            logging_configurer,
         )
 
     def set_builder_name(self, queue_element):
@@ -114,7 +121,7 @@ class VxIngestManager(
             try:
                 self.ingest_type_builder_name = self.ingest_document["builder_type"]
             except Exception as _e:  # pylint:disable=broad-except
-                logging.exception(
+                logger.exception(
                     "%s: process_element: Exception getting ingest document for %s ",
                     self.thread_name,
                     queue_element,
@@ -134,11 +141,11 @@ class VxIngestManager(
         document_map = {}
         # noinspection PyBroadException
         try:
-            logging.info("process_element - : start time: %s", str(start_process_time))
+            logger.info("process_element - : start time: %s", str(start_process_time))
             try:
                 self.set_builder_name(queue_element)
             except Exception as _e:  # pylint:disable=broad-except
-                logging.exception(
+                logger.exception(
                     "%s: *** Error in IngestManager run getting builder name ***",
                     self.thread_name,
                 )
@@ -156,7 +163,7 @@ class VxIngestManager(
             else:
                 self.write_document_to_cb(queue_element, document_map)
         except Exception as _e:  # pylint:disable=broad-except
-            logging.exception(
+            logger.exception(
                 "%s: Exception in builder: %s",
                 self.thread_name,
                 str(self.ingest_type_builder_name),
@@ -166,7 +173,7 @@ class VxIngestManager(
             # reset the document map and record stop time
             stop_process_time = int(time.time())
             document_map = {}
-            logging.info(
+            logger.info(
                 "IngestManager.process_element: elapsed time: %s",
                 str(stop_process_time - start_process_time),
             )

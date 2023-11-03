@@ -3,12 +3,14 @@
 
 import argparse
 import logging
+import logging.config
+import logging.handlers
 import os
 import sys
-import uuid
 from datetime import datetime, timedelta
+from multiprocessing import Queue
 from pathlib import Path
-from typing import Optional, TypedDict
+from typing import Callable, Optional, TypedDict
 
 import yaml
 from couchbase.auth import PasswordAuthenticator  # type: ignore
@@ -138,7 +140,55 @@ def process_cli():
     return args
 
 
-def configure_logging(logpath: Optional[Path] = None) -> None:
+def get_logformat() -> logging.Formatter:
+    """A function to get a common log formatter"""
+    # FIXME - Eventually, it would be good to move this to configure_logging and remove the log stuff from process_jobs
+    return logging.Formatter(
+        fmt="%(asctime)s [%(levelname)s] <%(processName)s> (%(name)s): %(message)s",
+        datefmt="%Y-%m-%dT%H:%M:%S%z",  # ISO 8601
+    )
+
+
+def get_loglevel():
+    """A function to get a common loglevel"""
+    # FIXME - Eventually, it would be good to move this to configure_logging and remove the log stuff from process_jobs
+    return logging.DEBUG if os.environ.get("DEBUG", False) else logging.INFO
+
+
+def add_logfile(
+    ql: logging.handlers.QueueListener, logpath: Path
+) -> logging.FileHandler:
+    """Adds a new logfile to the root logger, and updates the given QueueListener to log to it
+
+    returns a FileHandler so that it can be removed if desired"""
+    # Add a logging file handler with a unique name for just this job
+    root_logger = logging.getLogger()
+    # Set log format & log level
+    log_format = get_logformat()
+    level = get_loglevel()
+    f_handler = logging.FileHandler(logpath)
+    f_handler.setLevel(level)
+    f_handler.setFormatter(log_format)
+    root_logger.addHandler(f_handler)
+    ql.handlers = ql.handlers + (f_handler,)
+    return f_handler
+
+
+def remove_logfile(
+    filehandler: logging.FileHandler, ql: logging.handlers.QueueListener
+) -> None:
+    """Removes the given logging.FileHandler from the root logger and queue listener"""
+    root_logger = logging.getLogger()
+    root_logger.removeHandler(filehandler)
+    queue_handlers = list(ql.handlers)
+    queue_handlers.remove(filehandler)
+    ql.handlers = tuple(queue_handlers)
+    filehandler.close()
+
+
+def configure_logging(
+    queue, logpath: Optional[Path] = None
+) -> logging.handlers.QueueListener:
     """Configure the root logger so all subsequent loggers inherit this config
 
     By default, log INFO level messages. However, log DEBUG messages if DEBUG is set in
@@ -148,13 +198,12 @@ def configure_logging(logpath: Optional[Path] = None) -> None:
     Logging can be done in other modules by calling:
       `logger = logging.getLogger(__name__)`
     and then logging with logger.info(), etc...
+
+    Returns a QueueListener so that the caller can call QueueListener.stop()
     """
     # Set log format & log level
-    log_format = logging.Formatter(
-        fmt="%(asctime)s [%(levelname)s] (%(name)s) %(message)s",
-        datefmt="%Y-%m-%dT%H:%M:%S%z",  # ISO 8601
-    )
-    level = logging.DEBUG if os.environ.get("DEBUG", False) else logging.INFO
+    log_format = get_logformat()
+    level = get_loglevel()
 
     # Get the root logger and set the global log level - handlers can only accept levels that are higher than the root
     root_logger = logging.getLogger()
@@ -168,11 +217,36 @@ def configure_logging(logpath: Optional[Path] = None) -> None:
     root_logger.addHandler(c_handler)
 
     # Create a file logger if we have a logpath
+    f_handler = None
     if logpath:
         f_handler = logging.FileHandler(logpath)
         f_handler.setLevel(level)
         f_handler.setFormatter(log_format)
         root_logger.addHandler(f_handler)
+
+    if f_handler:
+        ql = logging.handlers.QueueListener(
+            queue, c_handler, f_handler, respect_handler_level=True
+        )
+    else:
+        ql = logging.handlers.QueueListener(
+            queue, c_handler, respect_handler_level=True
+        )
+    ql.start()
+
+    return ql
+
+
+def worker_log_configurer(queue):
+    """Configures logging for multiprocess workers
+
+    Needs to be called at the start of the worker's Process.Run() method"""
+    h = logging.handlers.QueueHandler(queue)  # Just the one handler needed
+    root = logging.getLogger()
+    root.addHandler(h)
+    root.setLevel(
+        logging.DEBUG
+    )  # Send everything to the log queue and let the root logger filter
 
 
 def create_dirs(paths: list[Path]) -> None:
@@ -283,9 +357,16 @@ def connect_cb(creds: dict[str, str]) -> Cluster:
     return cluster
 
 
-def process_jobs(job_docs: list[JobDoc], args) -> None:
+def process_jobs(
+    job_docs: list[JobDoc],
+    startime: datetime,
+    args,
+    log_configurer: Callable,
+    log_queue: Queue,
+    ql,
+) -> None:
     """
-    Parses the given job docs and determines which method to ingest them with
+    Parses the given job docs with the appropriate method
 
     Test Job IDs:
     [
@@ -315,19 +396,24 @@ def process_jobs(job_docs: list[JobDoc], args) -> None:
         # TODO - why is this needed?
         name = job["name"].replace("_", "__").replace(":", "_")
 
-        # create an output_dir/(sub_type field)_to_cb/output/$(date +%Y%m%d%H%M%S) directory
-        # output_dir = Path("output_dir") / f"{job['sub_type']}_to_cb" / "output" / f"{datetime.now().strftime('%Y%m%d%H%M%S')}"
-        # create a unique output_dir for this job so we can run multiple jobs
+        # Add a logging file handler with a unique name for just this job
+        logpath = (
+            args.log_dir / f"{name}-{startime.strftime('%Y-%m-%dT%H:%M:%S%z')}.log"
+        )
+        f_handler = add_logfile(ql, logpath)
+
+        hostname = os.uname().nodename.split(".")[0]
+        metric_name = f"{name}_{hostname}"
+        logger.info(f"metric_name {metric_name}")
+
+        # create an output directory with the time this job was started.
         output_dir = (
             Path(args.output_dir)
             / f"{job['sub_type']}_to_cb"
             / "output"
-            / f"{uuid.uuid4()}"
+            / f"{startime.strftime('%Y%m%d%H%M%S')}"
         )
         create_dirs([output_dir])
-        # TODO: create a log_dir/$(name)-$(runtime).log file
-
-        # TODO: create a metric_name  - $(name)_$(hostname | tr '-' '_') & insert into logfile
 
         config = {
             "job_id": job["id"],
@@ -341,7 +427,11 @@ def process_jobs(job_docs: list[JobDoc], args) -> None:
                 # FIXME: Update calling code to raise instead of calling sys.exit
                 try:
                     grib_ingest = grib2_to_cb.run_ingest_threads.VXIngest()
-                    grib_ingest.runit(config)
+                    grib_ingest.runit(
+                        config,
+                        log_queue,
+                        log_configurer,
+                    )
                 except SystemExit as e:
                     if e.code == 0:
                         # Job succeeded
@@ -352,7 +442,11 @@ def process_jobs(job_docs: list[JobDoc], args) -> None:
                 # FIXME: Update calling code to raise instead of calling sys.exit
                 try:
                     netcdf_ingest = netcdf_to_cb.run_ingest_threads.VXIngest()
-                    netcdf_ingest.runit(config)
+                    netcdf_ingest.runit(
+                        config,
+                        log_queue,
+                        log_configurer,
+                    )
                 except SystemExit as e:
                     if e.code == 0:
                         # Job succeeded
@@ -366,43 +460,65 @@ def process_jobs(job_docs: list[JobDoc], args) -> None:
                     "credentials_file": str(args.credentials_file),
                     "output_dir": str(output_dir),
                     "threads": 8,
-                    "first_epoch": args.start_epoch,  # TODO - this is only supported by CTCs at the moment
-                    "last_epoch": args.end_epoch,  # TODO - this is only supported by CTCs  at the moment
+                    "first_epoch": args.start_epoch,  # TODO - this arg is only supported by CTCs at the moment
+                    "last_epoch": args.end_epoch,  # TODO - this arg is only supported by CTCs  at the moment
                 }
                 # FIXME: Update calling code to raise instead of calling sys.exit
                 try:
                     ctc_ingest = ctc_to_cb.run_ingest_threads.VXIngest()
-                    ctc_ingest.runit(config)
+                    ctc_ingest.runit(
+                        config,
+                        log_queue,
+                        log_configurer,
+                    )
                 except SystemExit as e:
                     if e.code == 0:
                         # Job succeeded
                         job_succeeded = True
                 else:
                     job_succeeded = True
-
+            case _:
+                logger.error(f"No ingest method for {job['sub_type']}")
+                job_succeeded = False
         if job_succeeded:
             success_count += 1
         else:
             fail_count += 1
-
+        logger.info(f"Done processing job: {job}")
+        logger.info(f"exit_code:{0 if job_succeeded else 1}")
+        # Remove the filehandler with the unique filename for this job
+        remove_logfile(f_handler, ql)
+        # Move the logfile to the output dir
+        logpath.rename(
+            output_dir / f"{name}-{startime.strftime('%Y-%m-%dT%H:%M:%S%z')}.log"
+        )
+        # TODO: move things to output_dir, tar it into the xfer_dir, then prune output_dir if empty
+        # tar output_dir and remove files `tar -czf ${xfer_dir}${tar_file_name} --remove-files -C ${out_dir} .`
     logger.info(f"Success: {success_count}, Fail: {fail_count}")
-    # TODO: move things to output_dir, tar it into the xfer_dir, then prune output_dir if empty
     # TODO: make a prom metrics file with same metrics that run_ingest.sh emits # TODO - use the prometheus client & the write_to_textfile writer
 
 
 def run_ingest() -> None:
     """entrypoint"""
     args = process_cli()
+
+    # Setup logging for the main process so we can use the "logger"
+    log_queue = Queue()
     runtime = datetime.now()
-    configure_logging(args.log_dir / f"{runtime.strftime('%Y-%m-%dT%H:%M:%S%z')}.log")
+    log_queue_listener = configure_logging(
+        log_queue,
+        args.log_dir / f"all_logs-{runtime.strftime('%Y-%m-%dT%H:%M:%S%z')}.log",
+    )
+
+    logger.info("Getting credentials")
     creds = get_credentials(args.credentials_file)
 
-    dirs = [args.metrics_dir, args.output_dir, args.log_dir, args.transfer_dir]
     logger.info("Creating required directories")
+    dirs = [args.metrics_dir, args.output_dir, args.log_dir, args.transfer_dir]
     create_dirs(dirs)
 
+    logger.info("Connecting to Couchbase")
     try:
-        logger.info("Connecting to Couchbase")
         cluster = connect_cb(creds)
     except (TimeoutException, CouchbaseException) as e:
         logger.fatal(f"Error connecting to Couchbase: {e}")
@@ -417,8 +533,14 @@ def run_ingest() -> None:
     logger.debug(f"Job docs to process: {docs}")
 
     logger.info("Processing job docs")
-    process_jobs(docs, args)
+    process_jobs(
+        docs, runtime, args, worker_log_configurer, log_queue, log_queue_listener
+    )
     logger.info("Done processing job docs")
+
+    # Tell the logging thread to finish up, too
+    log_queue_listener.stop()
+    logger.info("Done")
 
 
 if __name__ == "__main__":

@@ -1,10 +1,16 @@
-**/__pycache__
+# Python
 **/.pytest_cache
-.dockerignore
-.dockerignore.swp
+**/__pycache__/
+.venv/
+venv/
+
+# Env
+**/.env
+
+# VIM swap files
+**/*.swp
+
+# Git & IDEs
 .git
-.github
-.gitignore
 .history
-.pytest_cache
 .vscode

@@ -483,7 +483,7 @@ def run_ingest() -> None:
 
     # Write prometheus metrics
     duration = endtime - runtime
-    logger.info(f"Runtime was {duration.total_seconds()}")
+    logger.info(f"Runtime was {duration.total_seconds()} seconds")
     prom_duration.set(duration.total_seconds())
     prom_file = (
         args.metrics_dir / "run_ingest_metrics.prom"

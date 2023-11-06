@@ -3,10 +3,10 @@
 
 import argparse
 import logging
-import logging.config
-import logging.handlers
 import os
+import shutil
 import sys
+import tarfile
 from datetime import datetime, timedelta
 from multiprocessing import Queue
 from pathlib import Path
@@ -24,6 +24,7 @@ from couchbase.options import (  # type: ignore
 
 import ctc_to_cb.run_ingest_threads
 import grib2_to_cb.run_ingest_threads
+import log_config
 import netcdf_to_cb.run_ingest_threads
 
 # Get a logger with this module's name to help with debugging
@@ -138,115 +139,6 @@ def process_cli():
     # get the command line arguments
     args = parser.parse_args()
     return args
-
-
-def get_logformat() -> logging.Formatter:
-    """A function to get a common log formatter"""
-    # FIXME - Eventually, it would be good to move this to configure_logging and remove the log stuff from process_jobs
-    return logging.Formatter(
-        fmt="%(asctime)s [%(levelname)s] <%(processName)s> (%(name)s): %(message)s",
-        datefmt="%Y-%m-%dT%H:%M:%S%z",  # ISO 8601
-    )
-
-
-def get_loglevel():
-    """A function to get a common loglevel"""
-    # FIXME - Eventually, it would be good to move this to configure_logging and remove the log stuff from process_jobs
-    return logging.DEBUG if os.environ.get("DEBUG", False) else logging.INFO
-
-
-def add_logfile(
-    ql: logging.handlers.QueueListener, logpath: Path
-) -> logging.FileHandler:
-    """Adds a new logfile to the root logger, and updates the given QueueListener to log to it
-
-    returns a FileHandler so that it can be removed if desired"""
-    # Add a logging file handler with a unique name for just this job
-    root_logger = logging.getLogger()
-    # Set log format & log level
-    log_format = get_logformat()
-    level = get_loglevel()
-    f_handler = logging.FileHandler(logpath)
-    f_handler.setLevel(level)
-    f_handler.setFormatter(log_format)
-    root_logger.addHandler(f_handler)
-    ql.handlers = ql.handlers + (f_handler,)
-    return f_handler
-
-
-def remove_logfile(
-    filehandler: logging.FileHandler, ql: logging.handlers.QueueListener
-) -> None:
-    """Removes the given logging.FileHandler from the root logger and queue listener"""
-    root_logger = logging.getLogger()
-    root_logger.removeHandler(filehandler)
-    queue_handlers = list(ql.handlers)
-    queue_handlers.remove(filehandler)
-    ql.handlers = tuple(queue_handlers)
-    filehandler.close()
-
-
-def configure_logging(
-    queue, logpath: Optional[Path] = None
-) -> logging.handlers.QueueListener:
-    """Configure the root logger so all subsequent loggers inherit this config
-
-    By default, log INFO level messages. However, log DEBUG messages if DEBUG is set in
-    the environment. This configuration creates a default handler to log messages to
-    stderr. If given a filepath, it will also log messages to the given file.
-
-    Logging can be done in other modules by calling:
-      `logger = logging.getLogger(__name__)`
-    and then logging with logger.info(), etc...
-
-    Returns a QueueListener so that the caller can call QueueListener.stop()
-    """
-    # Set log format & log level
-    log_format = get_logformat()
-    level = get_loglevel()
-
-    # Get the root logger and set the global log level - handlers can only accept levels that are higher than the root
-    root_logger = logging.getLogger()
-    root_logger.setLevel(level)
-
-    # Create the handler for stderr with the same log level
-    c_handler = logging.StreamHandler()
-    c_handler.setLevel(level)
-    c_handler.setFormatter(log_format)
-    # Add handlers to the logger
-    root_logger.addHandler(c_handler)
-
-    # Create a file logger if we have a logpath
-    f_handler = None
-    if logpath:
-        f_handler = logging.FileHandler(logpath)
-        f_handler.setLevel(level)
-        f_handler.setFormatter(log_format)
-        root_logger.addHandler(f_handler)
-
-    if f_handler:
-        ql = logging.handlers.QueueListener(
-            queue, c_handler, f_handler, respect_handler_level=True
-        )
-    else:
-        ql = logging.handlers.QueueListener(
-            queue, c_handler, respect_handler_level=True
-        )
-    ql.start()
-
-    return ql
-
-
-def worker_log_configurer(queue):
-    """Configures logging for multiprocess workers
-
-    Needs to be called at the start of the worker's Process.Run() method"""
-    h = logging.handlers.QueueHandler(queue)  # Just the one handler needed
-    root = logging.getLogger()
-    root.addHandler(h)
-    root.setLevel(
-        logging.DEBUG
-    )  # Send everything to the log queue and let the root logger filter
 
 
 def create_dirs(paths: list[Path]) -> None:
@@ -400,7 +292,7 @@ def process_jobs(
         logpath = (
             args.log_dir / f"{name}-{startime.strftime('%Y-%m-%dT%H:%M:%S%z')}.log"
         )
-        f_handler = add_logfile(ql, logpath)
+        f_handler = log_config.add_logfile(ql, logpath)
 
         hostname = os.uname().nodename.split(".")[0]
         metric_name = f"{name}_{hostname}"
@@ -487,7 +379,7 @@ def process_jobs(
         logger.info(f"Done processing job: {job}")
         logger.info(f"exit_code:{0 if job_succeeded else 1}")
         # Remove the filehandler with the unique filename for this job
-        remove_logfile(f_handler, ql)
+        log_config.remove_logfile(f_handler, ql)
         # Move the logfile to the output dir
         logpath.rename(
             output_dir / f"{name}-{startime.strftime('%Y-%m-%dT%H:%M:%S%z')}.log"
@@ -505,7 +397,7 @@ def run_ingest() -> None:
     # Setup logging for the main process so we can use the "logger"
     log_queue = Queue()
     runtime = datetime.now()
-    log_queue_listener = configure_logging(
+    log_queue_listener = log_config.configure_logging(
         log_queue,
         args.log_dir / f"all_logs-{runtime.strftime('%Y-%m-%dT%H:%M:%S%z')}.log",
     )
@@ -534,7 +426,7 @@ def run_ingest() -> None:
 
     logger.info("Processing job docs")
     process_jobs(
-        docs, runtime, args, worker_log_configurer, log_queue, log_queue_listener
+        docs, runtime, args, log_config.worker_log_configurer, log_queue, log_queue_listener
     )
     logger.info("Done processing job docs")
 

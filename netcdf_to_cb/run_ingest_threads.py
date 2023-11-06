@@ -67,14 +67,15 @@ Colorado, NOAA/OAR/ESRL/GSL
 import argparse
 import logging
 import os
-from pathlib import Path
 import sys
 import time
 from datetime import datetime, timedelta
 from multiprocessing import JoinableQueue, Queue
+from pathlib import Path
 from typing import Callable
+
 from builder_common.vx_ingest import CommonVxIngest
-from main import configure_logging, worker_log_configurer
+from log_config import configure_logging, worker_log_configurer
 from netcdf_to_cb.vx_ingest_manager import VxIngestManager
 
 # Get a logger with this module's name to help with debugging

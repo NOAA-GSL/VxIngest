@@ -384,10 +384,20 @@ def process_jobs(
         logpath.rename(
             output_dir / f"{name}-{startime.strftime('%Y-%m-%dT%H:%M:%S%z')}.log"
         )
-        # TODO: move things to output_dir, tar it into the xfer_dir, then prune output_dir if empty
-        # tar output_dir and remove files `tar -czf ${xfer_dir}${tar_file_name} --remove-files -C ${out_dir} .`
+        # Create a tarfile and delete the output directory contents
+        tar_filename = f"{metric_name}_{startime.strftime('%s')}.tar.gz"
+        make_tarfile(args.transfer_dir / tar_filename, output_dir)
+        logger.info(f"Created tarfile at: {args.transfer_dir / tar_filename}")
+        logger.info(f"Removing: {output_dir}")
+        shutil.rmtree(output_dir)
     logger.info(f"Success: {success_count}, Fail: {fail_count}")
     # TODO: make a prom metrics file with same metrics that run_ingest.sh emits # TODO - use the prometheus client & the write_to_textfile writer
+
+
+def make_tarfile(output_filename: Path, source_dir: Path):
+    """Create a tarfile, with the source_dir as the root of the tarfile contents"""
+    with tarfile.open(output_filename, "w:gz") as tar:
+        tar.add(source_dir, arcname=Path(source_dir).name)
 
 
 def run_ingest() -> None:
@@ -426,7 +436,12 @@ def run_ingest() -> None:
 
     logger.info("Processing job docs")
     process_jobs(
-        docs, runtime, args, log_config.worker_log_configurer, log_queue, log_queue_listener
+        docs,
+        runtime,
+        args,
+        log_config.worker_log_configurer,
+        log_queue,
+        log_queue_listener,
     )
     logger.info("Done processing job docs")
 

@@ -21,6 +21,7 @@ from couchbase.options import (  # type: ignore
     ClusterTimeoutOptions,
     QueryOptions,
 )
+from prometheus_client import CollectorRegistry, Gauge, Counter, write_to_textfile
 
 import ctc_to_cb.run_ingest_threads
 import grib2_to_cb.run_ingest_threads
@@ -29,6 +30,35 @@ import netcdf_to_cb.run_ingest_threads
 
 # Get a logger with this module's name to help with debugging
 logger = logging.getLogger(__name__)
+
+# Configure prometheus metrics
+# Note - we may need to import prometheus's multiprocessing libraries
+
+# Create a registry we can write to a file
+prom_registry = CollectorRegistry()
+
+# Use a gauge because we're doing 1 file per job run, a histogram could be more appropriate.
+# Note - if we used a historgram or summary, we could apply a decorator directly to the function we're interested in
+prom_duration = Gauge(
+    "run_ingest_duration",
+    "The duration of an ingest run, in seconds",
+    registry=prom_registry,
+)
+prom_successes = Counter(
+    "run_ingest_success_count",
+    "The number of successful ingest jobs",
+    registry=prom_registry,
+)
+prom_failures = Counter(
+    "run_ingest_failure_count",
+    "The number of failed ingest jobs",
+    registry=prom_registry,
+)
+prom_last_success = Gauge(
+    "job_last_success_unixtime",
+    "Last time a batch job successfully finished",
+    registry=prom_registry,
+)
 
 
 def get_credentials(path: Path) -> dict[str, str]:
@@ -374,8 +404,13 @@ def process_jobs(
                 job_succeeded = False
         if job_succeeded:
             success_count += 1
+            # Update prometheus metrics
+            prom_successes.inc()
+            prom_last_success.set_to_current_time()
         else:
             fail_count += 1
+            # Update prometheus metrics
+            prom_failures.inc()
         logger.info(f"Done processing job: {job}")
         logger.info(f"exit_code:{0 if job_succeeded else 1}")
         # Remove the filehandler with the unique filename for this job
@@ -394,9 +429,9 @@ def process_jobs(
     # TODO: make a prom metrics file with same metrics that run_ingest.sh emits # TODO - use the prometheus client & the write_to_textfile writer
 
 
-def make_tarfile(output_filename: Path, source_dir: Path):
+def make_tarfile(output_tarfile: Path, source_dir: Path):
     """Create a tarfile, with the source_dir as the root of the tarfile contents"""
-    with tarfile.open(output_filename, "w:gz") as tar:
+    with tarfile.open(output_tarfile, "w:gz") as tar:
         tar.add(source_dir, arcname=Path(source_dir).name)
 
 
@@ -443,7 +478,18 @@ def run_ingest() -> None:
         log_queue,
         log_queue_listener,
     )
+    endtime = datetime.now()
     logger.info("Done processing job docs")
+
+    # Write prometheus metrics
+    duration = endtime - runtime
+    logger.info(f"Runtime was {duration.total_seconds()}")
+    prom_duration.set(duration.total_seconds())
+    prom_file = (
+        args.metrics_dir / "run_ingest_metrics.prom"
+    )  # FIXME - should this be part of the tarball?
+    logger.info(f"Writing Prometheus metrics to: {prom_file}")
+    write_to_textfile(prom_file, prom_registry)
 
     # Tell the logging thread to finish up, too
     log_queue_listener.stop()

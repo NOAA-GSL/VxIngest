@@ -8,7 +8,6 @@ from multiprocessing import Queue
 
 def get_logformat() -> logging.Formatter:
     """A function to get a common log formatter"""
-    # FIXME - Eventually, it would be good to move this to configure_logging and remove the log stuff from process_jobs
     return logging.Formatter(
         fmt="%(asctime)s [%(levelname)s] <%(processName)s> (%(name)s): %(message)s",
         datefmt="%Y-%m-%dT%H:%M:%S%z",  # ISO 8601
@@ -17,7 +16,6 @@ def get_logformat() -> logging.Formatter:
 
 def get_loglevel():
     """A function to get a common loglevel"""
-    # FIXME - Eventually, it would be good to move this to configure_logging and remove the log stuff from process_jobs
     return logging.DEBUG if os.environ.get("DEBUG", False) else logging.INFO
 
 

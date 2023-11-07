@@ -279,6 +279,25 @@ def connect_cb(creds: dict[str, str]) -> Cluster:
     return cluster
 
 
+def determine_num_processes() -> int:
+    """Calculate the number of processes to use
+
+    If we can determine the number of cores available to us, allow
+    numCores - 2 processes. Otherwise, only allow one new process.
+    """
+    num_cpus = os.cpu_count()
+    if num_cpus:
+        # Leave 2 processes available for the OS & main program
+        cpus = num_cpus - 2 if num_cpus > 2 else 1
+        logger.info(f"Machine has {num_cpus} CPUs available, using {cpus} of them")
+    else:  # Unable to determine number of cpus
+        logger.warning(
+            "Unable to determine number of CPUs, only spinning up 1 extra process"
+        )
+        cpus = 1
+    return cpus
+
+
 def process_jobs(
     job_docs: list[JobDoc],
     startime: datetime,
@@ -337,11 +356,13 @@ def process_jobs(
         )
         create_dirs([output_dir])
 
+        num_processes = determine_num_processes()
+
         config = {
             "job_id": job["id"],
             "credentials_file": str(args.credentials_file),
             "output_dir": str(output_dir),
-            "threads": 8,
+            "threads": num_processes,
         }
         job_succeeded = False
         match job["sub_type"]:
@@ -381,7 +402,7 @@ def process_jobs(
                     "job_id": job["id"],
                     "credentials_file": str(args.credentials_file),
                     "output_dir": str(output_dir),
-                    "threads": 8,
+                    "threads": num_processes,
                     "first_epoch": args.start_epoch,  # TODO - this arg is only supported by CTCs at the moment
                     "last_epoch": args.end_epoch,  # TODO - this arg is only supported by CTCs  at the moment
                 }

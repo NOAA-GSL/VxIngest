@@ -191,7 +191,7 @@ def test_ps_builder_surface_hrrr_ops_all_hrrr():  # pylint: disable=too-many-loc
     try:
         credentials_file = os.environ["CREDENTIALS"]
         job_id = "JOB-TEST:V01:METAR:SUMS:SURFACE:MODEL:OPS"
-        outdir = "/opt/data/ctc_to_cb/hrrr_ops/sums/output"
+        outdir = "/opt/data/test/partial_sums_to_cb/hrrr_ops/sums/output"
         if not os.path.exists(outdir):
             # Create a new directory because it does not exist
             os.makedirs(outdir)

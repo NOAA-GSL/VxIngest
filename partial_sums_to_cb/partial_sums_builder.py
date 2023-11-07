@@ -809,28 +809,31 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
             model_vals = []
             diff_vals = []
             diff_vals_squared = []
+            abs_diff_vals = []
             for name in self.domain_stations:
                 if name in self.obs_data and name in self.model_data["data"]:
                     obs_elem = self.obs_data[name]
                     model_elem = self.model_data["data"][name]
                     if variable == "RH":
-                        if "RH" not in obs_elem:
-                            obs_elem["RH"] = relative_humidity_from_dewpoint(obs_elem["Temperature"] * units.degF, obs_elem["DewPoint"] * units.degF).magnitude
-                        if "RH" not in model_elem:
-                            model_elem["RH"] = relative_humidity_from_dewpoint(model_elem["Temperature"] * units.degF, model_elem["DewPoint"] * units.degF).magnitude
+                        if "RH" not in obs_elem and obs_elem["DewPoint"] is not None and obs_elem["Temperature"] is not None:
+                            obs_elem["RH"] = (relative_humidity_from_dewpoint(obs_elem["Temperature"] * units.degF, obs_elem["DewPoint"] * units.degF).magnitude) * 100
+                        if "RH" not in model_elem and model_elem["DewPoint"] is not None and model_elem["Temperature"] is not None:
+                            model_elem["RH"] = (relative_humidity_from_dewpoint(model_elem["Temperature"] * units.degF, model_elem["DewPoint"] * units.degF).magnitude) * 100
                     if variable in obs_elem and variable in model_elem:
                         if obs_elem[variable] is not None and model_elem[variable] is not  None:
                             obs_vals.append(obs_elem[variable])
                             model_vals.append(model_elem[variable])
-                            _diff = obs_elem[variable] - model_elem[variable]
+                            _diff = model_elem[variable] - obs_elem[variable]
                             diff_vals.append(_diff)
                             diff_vals_squared.append(_diff * _diff)
+                            abs_diff_vals.append(abs(_diff))
             sum_elem = {
                 "num_recs": len(obs_vals),
                 "sum_obs": sum(obs_vals),
                 "sum_model": sum(model_vals),
                 "sum_diff": sum(diff_vals),
                 "sum2_diff": sum(diff_vals_squared),
+                "sum_abs": sum(abs_diff_vals)
             }
             return sum_elem
         except Exception as _e:  # pylint:disable=broad-except

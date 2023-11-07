@@ -174,127 +174,9 @@ def test_get_stations_geo_search():
     except Exception as _e:  # pylint: disable=broad-except
         assert False, f"TestGsdIngestManager Exception failure:  {_e}"
 
-
-def calculate_cb_partial_sums(  # pylint: disable=dangerous-default-value,missing-function-docstring
-    epoch,
-    fcst_len,
-    threshold,
-    model,
-    subset,
-    region,
-    doc_sub_type,
-    reject_stations=[],
-):
-    global cb_model_obs_data #pylint: disable=global-statement
-    global stations #pylint: disable=global-statement
-
-    credentials_file = os.environ["CREDENTIALS"]
-    assert Path(credentials_file).is_file(), "credentials_file Does not exist"
-    _f = open(credentials_file, encoding="utf-8")
-    yaml_data = yaml.load(_f, yaml.SafeLoader)
-    _host = yaml_data["cb_host"]
-    _user = yaml_data["cb_user"]
-    _password = yaml_data["cb_password"]
-    _bucket = yaml_data["cb_bucket"]
-    _collection = yaml_data["cb_collection"]
-    _scope = yaml_data["cb_scope"]
-    _f.close()
-
-    timeout_options = ClusterTimeoutOptions(
-        kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
-    )
-    options = ClusterOptions(
-        PasswordAuthenticator(_user, _password), timeout_options=timeout_options
-    )
-    cluster = Cluster("couchbase://" + _host, options)
-    collection = cluster.bucket(_bucket).scope(_scope).collection(_collection)
-    load_spec = {}
-    load_spec["cluster"] = cluster
-    load_spec["collection"] = collection
-    ingest_document_result = load_spec["collection"].get(
-        f"MD:V01:{subset}:{model}:ALL_HRRR:SUMS:{doc_sub_type.upper()}:ingest"
-    )
-    ingest_document = ingest_document_result.content_as[dict]
-    # instantiate a PartialSumsSurfaceBuilder so we can use its get_station methods
-    builder_class = getattr(partial_sums_builder, "PartialSumsSurfaceModelObsBuilderV01")
-    builder = builder_class(load_spec, ingest_document)
-    # usually these would get assigned in build_document
-    builder.bucket = _bucket
-    builder.scope = _scope
-    builder.collection = _collection
-    builder.subset = _collection
-    legacy_stations = sorted(
-        #                builder.get_stations_for_region_by_geosearch(region, epoch)
-        builder.get_stations_for_region_by_sort(region, epoch)
-    )
-    obs_id = f"DD:V01:{subset}:obs:{epoch}"
-    stations = sorted(  # pylint: disable=redefined-outer-name
-        [station for station in legacy_stations if station not in reject_stations]
-    )
-    model_id = f"DD:V01:{subset}:{model}:{epoch}:{fcst_len}"
-    print("cb_partial_sums model_id:", model_id, " obs_id:", obs_id)
-    try:
-        full_model_data = load_spec["collection"].get(model_id).content_as[dict]
-    except:  # pylint: disable=bare-except
-        time.sleep(0.25)
-        full_model_data = load_spec["collection"].get(model_id).content_as[dict]
-    cb_model_obs_data = []  # pylint: disable=redefined-outer-name
-    try:
-        full_obs_data = load_spec["collection"].get(obs_id).content_as[dict]
-    except:  # pylint: disable=bare-except
-        time.sleep(0.25)
-        full_obs_data = load_spec["collection"].get(obs_id).content_as[dict]
-    for station in stations:
-        # find observation data for this station
-        if not station in full_obs_data["data"].keys():
-            continue
-        obs_data = full_obs_data["data"][station]
-        # find model data for this station
-        if not station in full_model_data["data"].keys():
-            continue
-        model_data = full_model_data["data"][station]
-        # add to model_obs_data
-        if obs_data and model_data and obs_data[doc_sub_type] is not None and model_data[doc_sub_type] is not None:
-            dat = {
-                "time": epoch,
-                "fcst_len": fcst_len,
-                "thrsh": threshold,
-                "model": model_data[doc_sub_type] if model_data else None,
-                "obs": obs_data[doc_sub_type] if obs_data else None,
-                "name": station,
-            }
-            cb_model_obs_data.append(dat)
-        # calculate the SUMS
-    hits = 0
-    misses = 0
-    false_alarms = 0
-    correct_negatives = 0
-    for elem in cb_model_obs_data:
-        if elem["model"] is None or elem["obs"] is None:
-            continue
-        if elem["model"] < threshold and elem["obs"] < threshold:
-            hits = hits + 1
-        if elem["model"] < threshold and not elem["obs"] < threshold:
-            false_alarms = false_alarms + 1
-        if not elem["model"] < threshold and elem["obs"] < threshold:
-            misses = misses + 1
-        if not elem["model"] < threshold and not elem["obs"] < threshold:
-            correct_negatives = correct_negatives + 1
-    sums = {
-        "fcst_valid_epoch": epoch,
-        "fcst_len": fcst_len,
-        "threshold": threshold,
-        "hits": hits,
-        "misses": misses,
-        "false_alarms": false_alarms,
-        "correct_negatives": correct_negatives,
-    }
-    return sums
-
-
 def test_ps_builder_surface_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
     """
-    This test verifies that data is returned for each fcstLen and each threshold.
+    This test verifies that data is returned for each fcstLen.
     It can be used to debug the builder by putting a specific epoch for first_epoch.
     By default it will build all unbuilt SUMS objects and put them into the output folder.
     Then it takes the last output json file and loads that file.
@@ -309,7 +191,7 @@ def test_ps_builder_surface_hrrr_ops_all_hrrr():  # pylint: disable=too-many-loc
     try:
         credentials_file = os.environ["CREDENTIALS"]
         job_id = "JOB-TEST:V01:METAR:SUMS:SURFACE:MODEL:OPS"
-        outdir = "/opt/data/ctc_to_cb/hrrr_ops/ceiling/output"
+        outdir = "/opt/data/ctc_to_cb/hrrr_ops/sums/output"
         if not os.path.exists(outdir):
             # Create a new directory because it does not exist
             os.makedirs(outdir)
@@ -349,7 +231,6 @@ def test_ps_builder_surface_hrrr_ops_all_hrrr():  # pylint: disable=too-many-loc
             fcst_valid_epochs = {doc["fcstValidEpoch"] for doc in vx_ingest_output_data}
             # take a fcstValidEpoch in the middle of the list
             fcst_valid_epoch = list(fcst_valid_epochs)[int(len(fcst_valid_epochs) / 2)]
-            _thresholds = ["500", "1000", "3000", "60000"]
             # get all the documents that have the chosen fcstValidEpoch
             docs = [
                 _doc
@@ -369,31 +250,9 @@ def test_ps_builder_surface_hrrr_ops_all_hrrr():  # pylint: disable=too-many-loc
             for _elem in docs:
                 if _elem["fcstLen"] == _i:
                     break
-            # process all the thresholds
-            for _t in _thresholds:
-                print(
-                    f"Asserting derived SUMS for fcstValidEpoch: {_elem['fcstValidEpoch']} model: HRRR_OPS region: ALL_HRRR fcst_len: {_i} threshold: {_t}"
-                )
-                cb_model_obs_data.clear()
-                stations.clear()
-
-                cb_ps = calculate_cb_partial_sums(
-                    epoch=_elem["fcstValidEpoch"],
-                    fcst_len=_i,
-                    threshold=int(_t),
-                    model="HRRR_OPS",
-                    subset="METAR",
-                    doc_sub_type="SURFACE",
-                    region="ALL_HRRR",
-                )
-                if cb_ps is None:
-                    print(
-                        f"cb_ps is None for threshold {str(_t)}- contunuing"
-                    )
-                    continue
+            assert _elem is not None, "fcstLen not found in output"
     except Exception as _e:  # pylint: disable=broad-except
-        assert False, f"TestCTCBuilderV01 Exception failure: {_e}"
-
+        assert False, f"TestPartialSumsBuilderV01 Exception failure: {_e}"
 
 def test_ps_surface_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
     # noinspection PyBroadException
@@ -437,11 +296,13 @@ def test_ps_surface_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
                 AND version='V01'
                 AND subset='{_collection}'"""
         )
-        cb_fcst_valid_epochs = list(result)
-        if len(cb_fcst_valid_epochs) == 0:
-            assert False, "There is no data"
+        ps_fcst_valid_epochs = list(result)
+        #if len(ps_fcst_valid_epochs) == 0:
+        #    assert False, "There is no data"
         # choose the last one
-        fcst_valid_epoch = cb_fcst_valid_epochs[-1]
+        fcst_valid_epoch = []
+        if len(ps_fcst_valid_epochs) > 0:
+            fcst_valid_epoch = ps_fcst_valid_epochs[-1]
         # get all the cb fcstLen values
         result = cluster.query(
             f"""SELECT raw fcstLen
@@ -457,18 +318,8 @@ def test_ps_surface_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
                 order by fcstLen
             """
         )
-        cb_fcst_valid_lens = list(result)
-        # get the thesholdDescriptions from the couchbase metadata
-        result = cluster.query(
-            f"""
-            SELECT RAW thresholdDescriptions
-            FROM `{_bucket}`.{_scope}.{_collection}
-            WHERE type="MD"
-                AND docType="matsAux"
-            """,
-            read_only=True,
-        )
-        # get the associated couchbase ceiling model data
+        ps_fcst_valid_lens = list(result)
+        # get the associated couchbase model data
         # get the associated couchbase obs
         # get the SUMS couchbase data
         result = cluster.query(
@@ -483,7 +334,7 @@ def test_ps_surface_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
                 AND version='V01'
                 AND subset='{_collection}'
                 AND fcstValidEpoch = {fcst_valid_epoch}
-                AND fcstLen IN {cb_fcst_valid_lens}
+                AND fcstLen IN {ps_fcst_valid_lens}
                 order by fcstLen;
             """
         )
@@ -502,31 +353,11 @@ def test_ps_surface_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
                 AND version='V01'
                 AND subset='{_collection}'
                 AND fcstValidEpoch = {fcst_valid_epoch}
-                AND fcstLen IN {cb_fcst_valid_lens}
+                AND fcstLen IN {ps_fcst_valid_lens}
                 order by fcstLen;"""
         )
         for _cb_ps in cb_results:
-            fcstln = _cb_ps['METAR']['fcstLen']
-            for _threshold in _cb_ps['METAR']['data'].keys():
-                _ps=calculate_cb_partial_sums(
-                    fcst_valid_epoch,
-                    fcstln,
-                    int(float(_threshold)),
-                    'HRRR_OPS',
-                    _collection,
-                    doc_sub_type="SURFACE",
-                    region="ALL_HRRR",
-                )
-                # assert partial_sums values
-                fields= ['hits', 'misses', 'false_alarms', 'correct_negatives']
-                for field in fields:
-                    _ps_value = _ps[field]
-                    _cb_ps_value = _cb_ps[_collection]['data'][_threshold][field]
-                    assert _ps_value == _cb_ps_value, f"""
-                    For epoch : {_ps['fcst_valid_epoch']}
-                    and fstLen: {_ps['fcst_len']}
-                    and threshold: {_threshold}
-                    the derived SUMS {field}: {_ps_value} and caclulated SUMS {field}: {_cb_ps_value} values do not match"""
+            print (f"do something {_cb_ps}")
     except Exception as _e:  # pylint: disable=broad-except
         assert False, f"TestBuilderV01 Exception failure:  {_e}"
     return

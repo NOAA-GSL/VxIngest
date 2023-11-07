@@ -13,7 +13,8 @@ import datetime as dt
 import re
 import time
 from pstats import Stats
-
+from metpy.calc import relative_humidity_from_dewpoint
+from metpy.units import units
 from couchbase.exceptions import DocumentNotFoundException, TimeoutException
 from couchbase.search import GeoBoundingBoxQuery, SearchOptions
 from builder_common.builder_utilities import convert_to_iso
@@ -812,6 +813,11 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
                 if name in self.obs_data and name in self.model_data["data"]:
                     obs_elem = self.obs_data[name]
                     model_elem = self.model_data["data"][name]
+                    if variable == "RH":
+                        if "RH" not in obs_elem:
+                            obs_elem["RH"] = relative_humidity_from_dewpoint(obs_elem["Temperature"] * units.degF, obs_elem["DewPoint"] * units.degF).magnitude
+                        if "RH" not in model_elem:
+                            model_elem["RH"] = relative_humidity_from_dewpoint(model_elem["Temperature"] * units.degF, model_elem["DewPoint"] * units.degF).magnitude
                     if variable in obs_elem and variable in model_elem:
                         if obs_elem[variable] is not None and model_elem[variable] is not  None:
                             obs_vals.append(obs_elem[variable])

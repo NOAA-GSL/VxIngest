@@ -12,7 +12,7 @@ a defaults file (for credentials), an input file path, an optional output direct
 The job document id is the id of a job document in the couchbase database.
 The job document might look like this...
 {
-  "id": "JOB:V01:METAR:PARTIALSUMS:SURFACE:MODEL:HRRR_OPS",
+  "id": "JOB:V01:METAR:SUMS:SURFACE:MODEL:HRRR_OPS",
   "status": "active",
   "type": "JOB",
   "version": "V01",
@@ -24,16 +24,16 @@ The job document might look like this...
   "schedule": "0 * * * *",
   "offset_minutes": 15,
   "ingest_document_ids": [
-    "MD:V01:METAR:HRRR_OPS:E_US:PARTIALSUMS:SURFACE:ingest",
-    "MD:V01:METAR:HRRR_OPS:ALL_HRRR:PARTIALSUMS:SURFACE:ingest",
-    "MD:V01:METAR:HRRR_OPS:E_HRRR:PARTIALSUMS:SURFACE:ingest",
-    "MD:V01:METAR:HRRR_OPS:W_HRRR:PARTIALSUMS:SURFACE:ingest",
-    "MD:V01:METAR:HRRR_OPS:GtLk:PARTIALSUMS:SURFACE:ingest",
-    "MD:V01:METAR:RAP_OPS_130:E_US:PARTIALSUMS:SURFACE:ingest",
-    "MD:V01:METAR:RAP_OPS_130:ALL_HRRR:PARTIALSUMS:SURFACE:ingest",
-    "MD:V01:METAR:RAP_OPS_130:E_HRRR:PARTIALSUMS:SURFACE:ingest",
-    "MD:V01:METAR:RAP_OPS_130:W_HRRR:PARTIALSUMS:SURFACE:ingest",
-    "MD:V01:METAR:RAP_OPS_130:GtLk:PARTIALSUMS:SURFACE:ingest"
+    "MD:V01:METAR:HRRR_OPS:E_US:SUMS:SURFACE:ingest",
+    "MD:V01:METAR:HRRR_OPS:ALL_HRRR:SUMS:SURFACE:ingest",
+    "MD:V01:METAR:HRRR_OPS:E_HRRR:SUMS:SURFACE:ingest",
+    "MD:V01:METAR:HRRR_OPS:W_HRRR:SUMS:SURFACE:ingest",
+    "MD:V01:METAR:HRRR_OPS:GtLk:SUMS:SURFACE:ingest",
+    "MD:V01:METAR:RAP_OPS_130:E_US:SUMS:SURFACE:ingest",
+    "MD:V01:METAR:RAP_OPS_130:ALL_HRRR:SUMS:SURFACE:ingest",
+    "MD:V01:METAR:RAP_OPS_130:E_HRRR:SUMS:SURFACE:ingest",
+    "MD:V01:METAR:RAP_OPS_130:W_HRRR:SUMS:SURFACE:ingest",
+    "MD:V01:METAR:RAP_OPS_130:GtLk:SUMS:SURFACE:ingest"
   ]
 }
 The important run time field is "ingest_document_ids".

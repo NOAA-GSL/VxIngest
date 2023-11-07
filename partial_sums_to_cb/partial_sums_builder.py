@@ -268,10 +268,10 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
         _named_function_def ([string]): this can be either a template key or a template value.
         The _named_function_def looks like "&named_function|*field1,*field2,*field3..."
         where named_function is the literal function name of a defined function.
-        The name of the function and the function parameters are seperated by a ":" and
+        The name of the function and the function parameters are seperated by a "|" and
         the parameters are seperated by a ','.
         It is expected that field1, field2, and field3 etc are all valid variable names.
-        Each field will be translated from the netcdf file into value1, value2 etc.
+        Each field will be translated from the data into value1, value2 etc.
         The method "named_function" will be called like...
         named_function({field1:value1, field2:value2, ... fieldn:valuen}) and the return value from named_function
         will be substituted into the document.
@@ -291,7 +291,10 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
                 # be sure to slice the * off of the front of the param
                 # translate_template_item returns an array of tuples - value,interp_value, one for each station
                 # ordered by domain_stations.
-                dict_params[_p[1:]] = self.translate_template_item(_p)
+                if _p[0] == "&" or _p[0] == "*":
+                    dict_params[_p[1:]] = self.translate_template_item(_p)
+                else:
+                    dict_params[_p] = self.translate_template_item(_p)
             # call the named function using getattr
             replace_with = getattr(self, func)(dict_params)
         except Exception as _e:  # pylint:disable=broad-except
@@ -407,12 +410,15 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
     def build_document(self, queue_element):
         """
         This is the entry point for the partialsumsBuilders from the ingestManager.
-        These documents are id'd by fcstValidEpoch and fcstLen. The data section is an array
-        each element of which contains a map keyed by thresholds. The values are the
-        hits, misses, false_alarms, adn correct_negatives for the stations in the region
-        that is specified in the ingest_document.
-        To process this file we need to itterate the list of valid fcstValidEpochs
-        and process the region station list for each fcstValidEpoch and fcstLen.
+        These documents are id'd by model, region, fcstValidEpoch and fcstLen. The data section is a map
+        each element of which contains a sum value keyed by a variable name. The values are the
+        {
+	        “num_recs”: # matched pairs,
+ 	        “sum_obs”: sum of all the observation values for each matched pair,
+            “sum_model”: sum of all the model values for each matched pair,
+            “sum_diff”: sum of all variables differences, obs-model,
+            “sum2_diff”: sum of all variable differences squared, obs-model,
+        }
 
         1) get stations from couchbase and filter them so that we retain only the ones for this models region
         2) get the latest fcstValidEpoch for the partialsums's for this model and region.
@@ -792,105 +798,65 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
         return self.document_map
 
     # named functions
+
+    def handle_sum(self, params_dict):
+        """ calculate sums for a given data set - i.e. model, region, fcstValidEpoch, fcstLen"""
+        keys = list(params_dict.keys())
+        variable = keys[0]
+        obs_vals = []
+        model_vals = []
+        diff_vals = []
+        diff_vals_squared = []
+        for name in self.domain_stations:
+            if name in self.obs_data and name in self.model_data["data"]:
+                obs_elem = self.obs_data[name]
+                model_elem = self.model_data["data"][name]
+                if variable in obs_elem and variable in model_elem:
+                    obs_vals.append(obs_elem[variable])
+                    model_vals.append(model_elem[variable])
+                    diff = obs_elem[variable] - model_elem[variable]
+                    diff_vals.append(diff)
+                    diff_vals_squared.append(diff * diff)
+        sum_elem = {
+            "num_recs": len(obs_vals),
+ 	        "sum_obs": sum(obs_vals),
+            "sum_model": sum(model_vals),
+            "sum_diff": sum(diff_vals),
+            "sum2_diff": diff_vals_squared,
+        }
+        return sum_elem
+
     def handle_data(self, **kwargs):  # pylint:disable=too-many-branches
         """
-        This routine processes the partialsums data element. The data elements are all the same and always have the
-        same keys which are thresholds, therefore this class does not implement handlers.
-        :return: The modified document_map
+        This routine processes the partialsums data element. The data elements are
+        variables for which we will derive a set of sums. The sums are
+        derived from the model and observation data for the specific time, model, fcstLen
+        and region. A region might be a vegitation type, or a lat/lon bounding box.
+        :return: The modified document_map data section that looks like ...
+         "data": {
+            Temperature: "
+            {
+	            “num_recs”: # matched pairs,
+ 	            “sum_obs”: sum of all the observation values for each matched pair,
+                “sum_model”: sum of all the model values for each matched pair,
+                “sum_diff”: sum of all variables differences, obs-model,
+                “sum2_diff”: sum of all variable differences squared, obs-model,
+            },
+            WindSpeed: {...},
+            WindU: {...},
+            WindV: {...},
+            DewPoint: {...},
+            RelativeHumidity: {...},
+            SurfacePressure: {...}
+        }
         """
         try:  # pylint: disable=too-many-nested-blocks
             doc = kwargs["doc"]
+            template_data = self.template["data"]
             data_elem = {}
-            # get the thresholds
-            if self.thresholds is None:
-                result = self.load_spec["cluster"].query(
-                    f"""
-                    SELECT RAW METAR.thresholdDescriptions
-                    FROM `{self.bucket}`.{self.scope}.{self.collection}
-                    WHERE type="MD"
-                        AND docType="matsAux"
-                """,
-                    read_only=True,
-                )
-                self.thresholds = list(
-                    map(float, list((list(result)[0])[self.variable].keys()))
-                )
-            for threshold in self.thresholds:
-                hits = 0
-                misses = 0
-                false_alarms = 0
-                correct_negatives = 0
-                none_count = 0
-                for key in self.model_data["data"].keys():
-                    try:
-                        model_station_name = key
-                        model_station = self.model_data["data"][key]
-                        # only count the ones that are in our region
-                        if model_station_name not in self.domain_stations:
-                            continue
-                        if model_station_name not in self.obs_station_names:
-                            self.not_found_station_count = (
-                                self.not_found_station_count + 1
-                            )
-                            if model_station_name not in self.not_found_stations:
-                                logging.debug(
-                                    "%s handle_data: model station %s was not found in the available observations.",
-                                    self.__class__.__name__,
-                                    model_station_name,
-                                )
-                                self.not_found_stations.add(model_station_name)
-                            continue
-                        if (
-                            model_station[self.variable.capitalize()] is None
-                            or self.obs_data[model_station_name][
-                                self.variable.capitalize()
-                            ]
-                            is None
-                        ):
-                            none_count = none_count + 1
-                            continue
-                        if (
-                            model_station[self.variable.capitalize()] < threshold
-                            and self.obs_data[model_station_name][
-                                self.variable.capitalize()
-                            ]
-                            < threshold
-                        ):
-                            hits = hits + 1
-                        if (
-                            model_station[self.variable.capitalize()] < threshold
-                            and not self.obs_data[model_station_name][
-                                self.variable.capitalize()
-                            ]
-                            < threshold
-                        ):
-                            false_alarms = false_alarms + 1
-                        if (
-                            not model_station[self.variable.capitalize()] < threshold
-                            and self.obs_data[model_station_name][
-                                self.variable.capitalize()
-                            ]
-                            < threshold
-                        ):
-                            misses = misses + 1
-                        if (
-                            not model_station[self.variable.capitalize()] < threshold
-                            and not self.obs_data[model_station_name][
-                                self.variable.capitalize()
-                            ]
-                            < threshold
-                        ):
-                            correct_negatives = correct_negatives + 1
-                    except Exception as _e:  # pylint: disable=broad-except
-                        logging.exception("unexpected exception:%s", str(_e))
-                data_elem[threshold] = (
-                    data_elem[threshold] if threshold in data_elem else {}
-                )
-                data_elem[threshold]["hits"] = hits
-                data_elem[threshold]["false_alarms"] = false_alarms
-                data_elem[threshold]["misses"] = misses
-                data_elem[threshold]["correct_negatives"] = correct_negatives
-                data_elem[threshold]["none_count"] = none_count
+            # it is expected that the template data section be comprised of named functions
+            for variable in template_data.keys():
+                data_elem[variable] = self.handle_named_function(template_data[variable])
             doc["data"] = data_elem
             return doc
         except Exception as _e:  # pylint: disable=broad-except

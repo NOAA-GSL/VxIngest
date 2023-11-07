@@ -1,6 +1,6 @@
 # pylint: disable=too-many-lines
 """
-test for VxIngest PartialSums builders
+_test for VxIngest PartialSums builders
 """
 import glob
 import json
@@ -11,15 +11,16 @@ from datetime import timedelta
 from pathlib import Path
 
 import yaml
-from couchbase.cluster import Cluster, ClusterOptions, ClusterTimeoutOptions
+from couchbase.cluster import Cluster
 from couchbase.auth import PasswordAuthenticator
-
+from couchbase.options import ClusterOptions, ClusterTimeoutOptions
 from partial_sums_to_cb import partial_sums_builder
 from partial_sums_to_cb.run_ingest_threads import VXIngest
 
 
-# This test expects to find obs data and model data for hrrr_ops.
-# This test expects to write to the local output directory /opt/data/partial_sums_to_cb/output
+# This test expects to find obs data and model data
+# in the local directory /opt/data/partial_sums_to_cb/input
+# This test expects to write to the local output directory /opt/data/ctc_to_cb/output
 # so that directory should exist.
 
 # /public/data/grib/hrrr_wrfsfc/7/0/83/0_1905141_30/2125112000000
@@ -37,7 +38,7 @@ def test_check_fcst_valid_epoch_fcst_valid_iso():
     integration test to check fcst_valid_epoch is derived correctly
     """
     try:
-        credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
+        credentials_file = os.environ["CREDENTIALS"]
         assert Path(credentials_file).is_file(), "credentials_file Does not exist"
         _f = open(credentials_file, encoding="utf-8")
         yaml_data = yaml.load(_f, yaml.SafeLoader)
@@ -49,11 +50,13 @@ def test_check_fcst_valid_epoch_fcst_valid_iso():
         _scope = yaml_data["cb_scope"]
         _f.close()
 
-        timeout_options=ClusterTimeoutOptions(kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120))
-        options=ClusterOptions(PasswordAuthenticator(_user, _password), timeout_options=timeout_options)
-        cluster = Cluster(
-            "couchbase://" + _host, options
+        timeout_options = ClusterTimeoutOptions(
+            kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
         )
+        options = ClusterOptions(
+            PasswordAuthenticator(_user, _password), timeout_options=timeout_options
+        )
+        cluster = Cluster("couchbase://" + _host, options)
         options = ClusterOptions(PasswordAuthenticator(_user, _password))
         cluster = Cluster("couchbase://" + _host, options)
         stmnt = f"""SELECT m0.fcstValidEpoch fve, fcstValidISO fvi
@@ -87,7 +90,7 @@ def test_get_stations_geo_search():
     stations list. This test does show those differences. The assertion is commented out.
     """
     try:
-        credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
+        credentials_file = os.environ["CREDENTIALS"]
         assert Path(credentials_file).is_file(), "credentials_file Does not exist"
         _f = open(credentials_file, encoding="utf-8")
         yaml_data = yaml.load(_f, yaml.SafeLoader)
@@ -99,23 +102,29 @@ def test_get_stations_geo_search():
         _scope = yaml_data["cb_scope"]
         _f.close()
 
-        timeout_options=ClusterTimeoutOptions(kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120))
-        options=ClusterOptions(PasswordAuthenticator(_user, _password), timeout_options=timeout_options)
-        cluster = Cluster(
-            "couchbase://" + _host, options
+        timeout_options = ClusterTimeoutOptions(
+            kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
         )
-        collection=cluster.bucket(_bucket).scope(_scope).collection(_collection)
+        options = ClusterOptions(
+            PasswordAuthenticator(_user, _password), timeout_options=timeout_options
+        )
+        cluster = Cluster("couchbase://" + _host, options)
+        collection = cluster.bucket(_bucket).scope(_scope).collection(_collection)
         load_spec = {}
         load_spec["cluster"] = cluster
         load_spec["collection"] = collection
-        load_spec['ingest_document_ids'] = [f"MD:V01:{_collection}:HRRR_OPS:ALL_HRRR:PARTIALSUMS:SURFACE:ingest"]
+        load_spec["ingest_document_ids"] = [
+            f"MD:V01:{_collection}:HRRR_OPS:ALL_HRRR:SUMS:SURFACE:ingest"
+        ]
         # get the ingest document id.
-        ingest_document_result = collection.get(f"MD-TEST:V01:{_collection}:HRRR_OPS:ALL_HRRR:PARTIALSUMS:SURFACE:ingest")
+        ingest_document_result = collection.get(
+            f"MD-TEST:V01:{_collection}:HRRR_OPS:ALL_HRRR:SUMS:SURFACE:ingest"
+        )
         ingest_document = ingest_document_result.content_as[dict]
         # instantiate a partialsumsBuilder so we can use its get_station methods
-        builder_class = getattr(partial_sums_builder, "PARTIALSUMSModelObsBuilderV01")
+        builder_class = getattr(partial_sums_builder, "PartialSumsSurfaceModelObsBuilderV01")
         builder = builder_class(load_spec, ingest_document)
-            # usually these would get assigned in build_document
+        # usually these would get assigned in build_document
         builder.bucket = _bucket
         builder.scope = _scope
         builder.collection = _collection
@@ -165,6 +174,7 @@ def test_get_stations_geo_search():
     except Exception as _e:  # pylint: disable=broad-except
         assert False, f"TestGsdIngestManager Exception failure:  {_e}"
 
+
 def calculate_cb_partial_sums(  # pylint: disable=dangerous-default-value,missing-function-docstring
     epoch,
     fcst_len,
@@ -172,10 +182,13 @@ def calculate_cb_partial_sums(  # pylint: disable=dangerous-default-value,missin
     model,
     subset,
     region,
+    doc_sub_type,
     reject_stations=[],
 ):
+    global cb_model_obs_data #pylint: disable=global-statement
+    global stations #pylint: disable=global-statement
 
-    credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
+    credentials_file = os.environ["CREDENTIALS"]
     assert Path(credentials_file).is_file(), "credentials_file Does not exist"
     _f = open(credentials_file, encoding="utf-8")
     yaml_data = yaml.load(_f, yaml.SafeLoader)
@@ -187,17 +200,19 @@ def calculate_cb_partial_sums(  # pylint: disable=dangerous-default-value,missin
     _scope = yaml_data["cb_scope"]
     _f.close()
 
-    timeout_options=ClusterTimeoutOptions(kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120))
-    options=ClusterOptions(PasswordAuthenticator(_user, _password), timeout_options=timeout_options)
-    cluster = Cluster(
-        "couchbase://" + _host, options
+    timeout_options = ClusterTimeoutOptions(
+        kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
     )
-    collection=cluster.bucket(_bucket).scope(_scope).collection(_collection)
+    options = ClusterOptions(
+        PasswordAuthenticator(_user, _password), timeout_options=timeout_options
+    )
+    cluster = Cluster("couchbase://" + _host, options)
+    collection = cluster.bucket(_bucket).scope(_scope).collection(_collection)
     load_spec = {}
     load_spec["cluster"] = cluster
     load_spec["collection"] = collection
     ingest_document_result = load_spec["collection"].get(
-        f"MD:V01:{subset}:{model}:ALL_HRRR:PARTIALSUMS:SURFACE:ingest"
+        f"MD:V01:{subset}:{model}:ALL_HRRR:PARTIALSUMS:{doc_sub_type.upper()}:ingest"
     )
     ingest_document = ingest_document_result.content_as[dict]
     # instantiate a PartialSumsSurfaceBuilder so we can use its get_station methods
@@ -212,19 +227,12 @@ def calculate_cb_partial_sums(  # pylint: disable=dangerous-default-value,missin
         #                builder.get_stations_for_region_by_geosearch(region, epoch)
         builder.get_stations_for_region_by_sort(region, epoch)
     )
-    obs_id = "DD:V01:{subset}:obs:{fcst_valid_epoch}".format(
-        subset=subset, fcst_valid_epoch=epoch
-    )
+    obs_id = f"DD:V01:{subset}:obs:{epoch}"
     stations = sorted(  # pylint: disable=redefined-outer-name
         [station for station in legacy_stations if station not in reject_stations]
     )
-    model_id = "DD:V01:{subset}:{model}:{fcst_valid_epoch}:{fcst_len}".format(
-        subset=subset,
-        model=model,
-        fcst_valid_epoch=epoch,
-        fcst_len=fcst_len,
-    )
-    print("cb_ps model_id:", model_id, " obs_id:", obs_id)
+    model_id = f"DD:V01:{subset}:{model}:{epoch}:{fcst_len}"
+    print("cb_partial_sums model_id:", model_id, " obs_id:", obs_id)
     try:
         full_model_data = load_spec["collection"].get(model_id).content_as[dict]
     except:  # pylint: disable=bare-except
@@ -246,13 +254,13 @@ def calculate_cb_partial_sums(  # pylint: disable=dangerous-default-value,missin
             continue
         model_data = full_model_data["data"][station]
         # add to model_obs_data
-        if obs_data and model_data and obs_data["Ceiling"] and model_data["Ceiling"]:
+        if obs_data and model_data and obs_data[doc_sub_type] is not None and model_data[doc_sub_type] is not None:
             dat = {
                 "time": epoch,
                 "fcst_len": fcst_len,
                 "thrsh": threshold,
-                "model": model_data["Ceiling"] if model_data else None,
-                "obs": obs_data["Ceiling"] if obs_data else None,
+                "model": model_data[doc_sub_type] if model_data else None,
+                "obs": obs_data[doc_sub_type] if obs_data else None,
                 "name": station,
             }
             cb_model_obs_data.append(dat)
@@ -284,7 +292,7 @@ def calculate_cb_partial_sums(  # pylint: disable=dangerous-default-value,missin
     return sums
 
 
-def test_ps_builder_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
+def test_ps_builder_surface_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
     """
     This test verifies that data is returned for each fcstLen and each threshold.
     It can be used to debug the builder by putting a specific epoch for first_epoch.
@@ -295,11 +303,16 @@ def test_ps_builder_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
     Then the couchbase PartialSums fcstValidEpochs are compared and asserted against the derived PartialSums.
     """
     # noinspection PyBroadException
+    global cb_model_obs_data #pylint: disable=global-variable-not-assigned
+    global stations #pylint: disable=global-variable-not-assigned
 
     try:
-        credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
-        job_id="JOB:V01:METAR:PARTIALSUMS:SURFACE:MODEL:HRRR_OPS"
-        outdir = "/opt/data/partial_sums_to_cb/hrrr_ops/output"
+        credentials_file = os.environ["CREDENTIALS"]
+        job_id = "JOB-TEST:V01:METAR:SUMS:SURFACE:MODEL:OPS"
+        outdir = "/opt/data/ctc_to_cb/hrrr_ops/ceiling/output"
+        if not os.path.exists(outdir):
+            # Create a new directory because it does not exist
+            os.makedirs(outdir)
         filepaths = outdir + "/*.json"
         files = glob.glob(filepaths)
         for _f in files:
@@ -308,6 +321,7 @@ def test_ps_builder_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
             except OSError as _e:
                 assert False, f"Error:  {_e}"
         vx_ingest = VXIngest()
+        # These SUM's might already have been ingested in which case this won't do anything.
         vx_ingest.runit(
             {
                 "job_id": job_id,
@@ -315,18 +329,22 @@ def test_ps_builder_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
                 "output_dir": outdir,
                 "threads": 1,
                 "first_epoch": 1638489600,
-                "last_epoch": 1638496800
+                "last_epoch": 1638496800,
             }
         )
 
-        list_of_output_files = glob.glob("/opt/data/partial_sums_to_cb/output/*")
+        list_of_output_files = glob.glob(outdir + "/*")
         # latest_output_file = max(list_of_output_files, key=os.path.getctime)
         latest_output_file = min(list_of_output_files, key=os.path.getctime)
         try:
             # Opening JSON file
-            output_file = open(latest_output_file, encoding="utf-8")
+            output_file = open(latest_output_file, encoding="utf8")
             # returns JSON object as a dictionary
             vx_ingest_output_data = json.load(output_file)
+            # if this is an LJ document then the PARTIALSUMS's were already ingested
+            # and the test should stop here
+            if vx_ingest_output_data[0]['type'] == "LJ":
+                return
             # get the last fcstValidEpochs
             fcst_valid_epochs = {doc["fcstValidEpoch"] for doc in vx_ingest_output_data}
             # take a fcstValidEpoch in the middle of the list
@@ -354,9 +372,7 @@ def test_ps_builder_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
             # process all the thresholds
             for _t in _thresholds:
                 print(
-                    "Asserting derived PartialSums for fcstValidEpoch: {epoch} model: HRRR_OPS region: ALL_HRRR fcst_len: {fcst_len} threshold: {thrsh}".format(
-                        epoch=_elem["fcstValidEpoch"], thrsh=_t, fcst_len=_i
-                    )
+                    f"Asserting derived PartialSums for fcstValidEpoch: {_elem['fcstValidEpoch']} model: HRRR_OPS region: ALL_HRRR fcst_len: {_i} threshold: {_t}"
                 )
                 cb_model_obs_data.clear()
                 stations.clear()
@@ -367,19 +383,19 @@ def test_ps_builder_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
                     threshold=int(_t),
                     model="HRRR_OPS",
                     subset="METAR",
+                    doc_sub_type="SURFACE",
                     region="ALL_HRRR",
                 )
                 if cb_ps is None:
                     print(
-                        "cb_ps is None for threshold {thrsh}- contunuing".format(
-                            thrsh=str(_t)
-                        )
+                        f"cb_ps is None for threshold {str(_t)}- contunuing"
                     )
                     continue
     except Exception as _e:  # pylint: disable=broad-except
-        assert False, f"TestPartialSumsBuilderV01 Exception failure: {_e}"
+        assert False, f"TestCTCBuilderV01 Exception failure: {_e}"
 
-def test_ps_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
+
+def test_ps_surface_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
     # noinspection PyBroadException
     """
     This test is a comprehensive test of the partialSumsBuilder data. It will retrieve PartialSums documents
@@ -389,9 +405,9 @@ def test_ps_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
     corrctly.
     """
 
-    credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
+    credentials_file = os.environ["CREDENTIALS"]
     assert Path(credentials_file).is_file(), "credentials_file Does not exist"
-    _f = open(credentials_file, encoding="utf-8")
+    _f = open(credentials_file, encoding="utf8")
     yaml_data = yaml.load(_f, yaml.SafeLoader)
     _host = yaml_data["cb_host"]
     _user = yaml_data["cb_user"]
@@ -401,12 +417,14 @@ def test_ps_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
     _scope = yaml_data["cb_scope"]
     _f.close()
 
-    timeout_options=ClusterTimeoutOptions(kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120))
-    options=ClusterOptions(PasswordAuthenticator(_user, _password), timeout_options=timeout_options)
-    cluster = Cluster(
-        "couchbase://" + _host, options
+    timeout_options = ClusterTimeoutOptions(
+        kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
     )
-        # get available fcstValidEpochs for couchbase
+    options = ClusterOptions(
+        PasswordAuthenticator(_user, _password), timeout_options=timeout_options
+    )
+    cluster = Cluster("couchbase://" + _host, options)
+    # get available fcstValidEpochs for couchbase
     try:
         result = cluster.query(
             f"""SELECT RAW fcstValidEpoch
@@ -496,7 +514,8 @@ def test_ps_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
                     int(float(_threshold)),
                     'HRRR_OPS',
                     _collection,
-                    'ALL_HRRR'
+                    doc_sub_type="SURFACE",
+                    region="ALL_HRRR",
                 )
                 # assert partial_sums values
                 fields= ['hits', 'misses', 'false_alarms', 'correct_negatives']

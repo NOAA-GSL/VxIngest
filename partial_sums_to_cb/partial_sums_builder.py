@@ -816,15 +816,15 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
                         if obs_elem[variable] is not None and model_elem[variable] is not  None:
                             obs_vals.append(obs_elem[variable])
                             model_vals.append(model_elem[variable])
-                            diff = obs_elem[variable] - model_elem[variable]
-                            diff_vals.append(diff)
-                            diff_vals_squared.append(diff * diff)
+                            _diff = obs_elem[variable] - model_elem[variable]
+                            diff_vals.append(_diff)
+                            diff_vals_squared.append(_diff * _diff)
             sum_elem = {
                 "num_recs": len(obs_vals),
                 "sum_obs": sum(obs_vals),
                 "sum_model": sum(model_vals),
                 "sum_diff": sum(diff_vals),
-                "sum2_diff": diff_vals_squared,
+                "sum2_diff": sum(diff_vals_squared),
             }
             return sum_elem
         except Exception as _e:  # pylint:disable=broad-except

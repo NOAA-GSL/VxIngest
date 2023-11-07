@@ -1,6 +1,6 @@
 # pylint: disable=too-many-lines
 """
-_test for VxIngest PartialSums builders
+_test for VxIngest SUMS builders
 """
 import glob
 import json
@@ -212,7 +212,7 @@ def calculate_cb_partial_sums(  # pylint: disable=dangerous-default-value,missin
     load_spec["cluster"] = cluster
     load_spec["collection"] = collection
     ingest_document_result = load_spec["collection"].get(
-        f"MD:V01:{subset}:{model}:ALL_HRRR:PARTIALSUMS:{doc_sub_type.upper()}:ingest"
+        f"MD:V01:{subset}:{model}:ALL_HRRR:SUMS:{doc_sub_type.upper()}:ingest"
     )
     ingest_document = ingest_document_result.content_as[dict]
     # instantiate a PartialSumsSurfaceBuilder so we can use its get_station methods
@@ -296,11 +296,11 @@ def test_ps_builder_surface_hrrr_ops_all_hrrr():  # pylint: disable=too-many-loc
     """
     This test verifies that data is returned for each fcstLen and each threshold.
     It can be used to debug the builder by putting a specific epoch for first_epoch.
-    By default it will build all unbuilt PartialSums objects and put them into the output folder.
+    By default it will build all unbuilt SUMS objects and put them into the output folder.
     Then it takes the last output json file and loads that file.
-    Then the test derives the same PartialSums.
+    Then the test derives the same SUMS.
     It calculates the Partial using couchbase data for input.
-    Then the couchbase PartialSums fcstValidEpochs are compared and asserted against the derived PartialSums.
+    Then the couchbase SUMS fcstValidEpochs are compared and asserted against the derived SUMS.
     """
     # noinspection PyBroadException
     global cb_model_obs_data #pylint: disable=global-variable-not-assigned
@@ -341,7 +341,7 @@ def test_ps_builder_surface_hrrr_ops_all_hrrr():  # pylint: disable=too-many-loc
             output_file = open(latest_output_file, encoding="utf8")
             # returns JSON object as a dictionary
             vx_ingest_output_data = json.load(output_file)
-            # if this is an LJ document then the PARTIALSUMS's were already ingested
+            # if this is an LJ document then the SUMS's were already ingested
             # and the test should stop here
             if vx_ingest_output_data[0]['type'] == "LJ":
                 return
@@ -372,7 +372,7 @@ def test_ps_builder_surface_hrrr_ops_all_hrrr():  # pylint: disable=too-many-loc
             # process all the thresholds
             for _t in _thresholds:
                 print(
-                    f"Asserting derived PartialSums for fcstValidEpoch: {_elem['fcstValidEpoch']} model: HRRR_OPS region: ALL_HRRR fcst_len: {_i} threshold: {_t}"
+                    f"Asserting derived SUMS for fcstValidEpoch: {_elem['fcstValidEpoch']} model: HRRR_OPS region: ALL_HRRR fcst_len: {_i} threshold: {_t}"
                 )
                 cb_model_obs_data.clear()
                 stations.clear()
@@ -398,7 +398,7 @@ def test_ps_builder_surface_hrrr_ops_all_hrrr():  # pylint: disable=too-many-loc
 def test_ps_surface_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
     # noinspection PyBroadException
     """
-    This test is a comprehensive test of the partialSumsBuilder data. It will retrieve PartialSums documents
+    This test is a comprehensive test of the partialSumsBuilder data. It will retrieve SUMS documents
     for a specific fcstValidEpoch from couchbase and calculate the SUM's for the same fcstValidEpoch.
     It then compares the data with assertions. The intent is to
     demonstrate that the data transformation from input model obs pairs is being done
@@ -430,7 +430,7 @@ def test_ps_surface_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
             f"""SELECT RAW fcstValidEpoch
             FROM `{_bucket}`.{_scope}.{_collection}
             WHERE type="DD"
-                AND docType="PARTIALSUMS"
+                AND docType="SUMS"
                 AND subDocType = "SURFACE"
                 AND model='HRRR_OPS'
                 AND region='ALL_HRRR'
@@ -447,7 +447,7 @@ def test_ps_surface_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
             f"""SELECT raw fcstLen
             FROM `{_bucket}`.{_scope}.{_collection}
             WHERE type='DD'
-                AND docType = "PARTIALSUMS"
+                AND docType = "SUMS"
                 AND subDocType = "SURFACE"
                 AND model='HRRR_OPS'
                 AND region='ALL_HRRR'
@@ -470,13 +470,13 @@ def test_ps_surface_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
         )
         # get the associated couchbase ceiling model data
         # get the associated couchbase obs
-        # get the partialSums couchbase data
+        # get the SUMS couchbase data
         result = cluster.query(
             f"""
             SELECT *
             FROM `{_bucket}`.{_scope}.{_collection}
             WHERE type='DD'
-                AND docType = "PARTIALSUMS"
+                AND docType = "SUMS"
                 AND subDocType = "SURFACE"
                 AND model='HRRR_OPS'
                 AND region='ALL_HRRR'
@@ -495,7 +495,7 @@ def test_ps_surface_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
             SELECT *
             FROM `{_bucket}`.{_scope}.{_collection}
             WHERE type='DD'
-                AND docType = "PARTIALSUMS"
+                AND docType = "SUMS"
                 AND subDocType = "SURFACE"
                 AND model='HRRR_OPS'
                 AND region='ALL_HRRR'
@@ -526,7 +526,7 @@ def test_ps_surface_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
                     For epoch : {_ps['fcst_valid_epoch']}
                     and fstLen: {_ps['fcst_len']}
                     and threshold: {_threshold}
-                    the derived PartialSums {field}: {_ps_value} and caclulated PartialSums {field}: {_cb_ps_value} values do not match"""
+                    the derived SUMS {field}: {_ps_value} and caclulated SUMS {field}: {_cb_ps_value} values do not match"""
     except Exception as _e:  # pylint: disable=broad-except
         assert False, f"TestBuilderV01 Exception failure:  {_e}"
     return

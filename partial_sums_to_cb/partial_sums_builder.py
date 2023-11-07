@@ -801,30 +801,39 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
 
     def handle_sum(self, params_dict):
         """ calculate sums for a given data set - i.e. model, region, fcstValidEpoch, fcstLen"""
-        keys = list(params_dict.keys())
-        variable = keys[0]
-        obs_vals = []
-        model_vals = []
-        diff_vals = []
-        diff_vals_squared = []
-        for name in self.domain_stations:
-            if name in self.obs_data and name in self.model_data["data"]:
-                obs_elem = self.obs_data[name]
-                model_elem = self.model_data["data"][name]
-                if variable in obs_elem and variable in model_elem:
-                    obs_vals.append(obs_elem[variable])
-                    model_vals.append(model_elem[variable])
-                    diff = obs_elem[variable] - model_elem[variable]
-                    diff_vals.append(diff)
-                    diff_vals_squared.append(diff * diff)
-        sum_elem = {
-            "num_recs": len(obs_vals),
- 	        "sum_obs": sum(obs_vals),
-            "sum_model": sum(model_vals),
-            "sum_diff": sum(diff_vals),
-            "sum2_diff": diff_vals_squared,
-        }
-        return sum_elem
+        try:
+            keys = list(params_dict.keys())
+            variable = keys[0]
+            obs_vals = []
+            model_vals = []
+            diff_vals = []
+            diff_vals_squared = []
+            for name in self.domain_stations:
+                if name in self.obs_data and name in self.model_data["data"]:
+                    obs_elem = self.obs_data[name]
+                    model_elem = self.model_data["data"][name]
+                    if variable in obs_elem and variable in model_elem:
+                        if obs_elem[variable] is not None and model_elem[variable] is not  None:
+                            obs_vals.append(obs_elem[variable])
+                            model_vals.append(model_elem[variable])
+                            diff = obs_elem[variable] - model_elem[variable]
+                            diff_vals.append(diff)
+                            diff_vals_squared.append(diff * diff)
+            sum_elem = {
+                "num_recs": len(obs_vals),
+                "sum_obs": sum(obs_vals),
+                "sum_model": sum(model_vals),
+                "sum_diff": sum(diff_vals),
+                "sum2_diff": diff_vals_squared,
+            }
+            return sum_elem
+        except Exception as _e:  # pylint:disable=broad-except
+            logging.error(
+                "%s handle_sum: Exception :  error: %s",
+                self.__class__.__name__,
+                str(_e),
+            )
+            return None
 
     def handle_data(self, **kwargs):  # pylint:disable=too-many-branches
         """

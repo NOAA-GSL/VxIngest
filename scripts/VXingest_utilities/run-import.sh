@@ -175,6 +175,11 @@ echo "*************************************"
 
 if [[ "${success_import_count}" -ne "0" ]]; then
 	LOCKDIR="/data/import_lock"
+  #if LOCKDIR is > 48 * 3600 seconds old, remove it
+  if (( $(date "+%s") - $(date -r ${LOCKDIR} "+%s") > $(( 48 * 3600 )) )); then
+    echo "removing old lock file"
+    rm -rf ${LOCKDIR}
+  fi
 	if mkdir -- "$LOCKDIR"; then
 	    echo "update ceiling metadata"
 	    ${clonedir}/mats_metadata_and_indexes/metadata_files/update_ctc_ceiling_mats_metadata.sh ${credentials_file}

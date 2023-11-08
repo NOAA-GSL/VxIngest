@@ -21,8 +21,12 @@
           "Temperature": "&kelvin_to_farenheight|*2 metre temperature",
           "Visibility": "&handle_visibility|*Visibility",
           "RH": "&handle_RH|*2 metre relative humidity",
+          "SPFH": "&handle_SPFH|*Specific humidity",
           "WD": "&handle_wind_direction",
+          "U": "10 metre U wind component",
+          "V": "10 metre V wind component",
           "WS": "&handle_wind_speed|*10 metre U wind component,*10 metre V wind component",
+          "VGTYP": "VGTYPE",
           "name": "&getName"
         }
       },
@@ -34,7 +38,9 @@
         "Visibility": "miles",
         "RH": "percent",
         "WD": "degrees",
-        "WS": "mph"
+        "WS": "mph",
+        "U": "mph",
+        "V": "mph"
       },
       "dataSourceId": "NCO",
       "docType": "model",
@@ -73,6 +79,7 @@
           "RH": "&handle_RH|*2 metre relative humidity",
           "WD": "&handle_wind_direction",
           "WS": "&handle_wind_speed|*10 metre U wind component,*10 metre V wind component",
+          "VGTYP": "VGTYPE",
           "name": "&getName"
         }
       },

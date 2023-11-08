@@ -61,7 +61,6 @@ def test_cb_connect_disconnect():
     finally:
         vx_ingest.close_cb()
 
-
 def test_write_load_job_to_files():
     """test write the load job"""
     try:

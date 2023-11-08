@@ -16,9 +16,8 @@
 # and this scripts run duration in seconds.
 
 function usage {
-  echo "Usage $0 -c credentials-file -d VxIngest directory -l log directory -o output directory -m metrics directory -x transfer directory [-j job_id -f file_pattern]"
+  echo "Usage $0 -c credentials-file -l log directory -o output directory -m metrics directory -x transfer directory [-j job_id -f file_pattern]"
   echo "The credentials-file specifies cb_host, cb_user, and cb_password."
-  echo "The VxIngest directory specifies the directory where The VxIngest repo has been cloned."
   echo "The log directory is where the program will put its log files."
   echo "The output directory is where the ingest will write its result documents."
   echo "The transfer directory is where this script will put a tarball of the output data for importing."

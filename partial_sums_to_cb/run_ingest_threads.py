@@ -70,24 +70,24 @@ import os
 import sys
 import time
 from datetime import datetime, timedelta
-from multiprocessing import JoinableQueue
+from multiprocessing import JoinableQueue, Queue
+from pathlib import Path
+from typing import Callable
+
 from builder_common.vx_ingest import CommonVxIngest
+from log_config import configure_logging, worker_log_configurer
 from partial_sums_to_cb.vx_ingest_manager import VxIngestManager
 
+# Get a logger with this module's name to help with debugging
+logger = logging.getLogger(__name__)
 
 def parse_args(args):
     """
     Parse command line arguments
     """
     begin_time = str(datetime.now())
-    root=logging.getLogger()
-    root.setLevel(logging.INFO)
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setLevel(logging.INFO)
-    root.addHandler(handler)
-
-    logging.info("--- *** --- Start --- *** ---")
-    logging.info("Begin a_time: %s", begin_time)
+    logger.info("--- *** --- Start --- *** ---")
+    logger.info("Begin a_time: %s", begin_time)
     # a_time execution
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -161,14 +161,8 @@ class VXIngest(CommonVxIngest):
         self.ingest_document_id = None
         self.ingest_document = None
         super().__init__()
-        root=logging.getLogger()
-        root.setLevel(logging.INFO)
-        handler = logging.StreamHandler(sys.stdout)
-        handler.setLevel(logging.INFO)
-        root.addHandler(handler)
 
-
-    def runit(self, args):  # pylint:disable=too-many-locals
+    def runit(self, args, log_queue: Queue, log_configurer: Callable[[Queue], None]):  # pylint:disable=too-many-locals
         """
         This is the entry point for run_ingest_threads.py
         """
@@ -188,7 +182,7 @@ class VXIngest(CommonVxIngest):
             self.first_last_params["last_epoch"] = sys.maxsize
         # stash the first_last_params into the load spec
         self.load_spec["first_last_params"] = self.first_last_params
-        logging.info(
+        logger.info(
                 "*** Using first_last_params: %s ***",
                 str(self.load_spec["first_last_params"])
             )
@@ -212,7 +206,7 @@ class VXIngest(CommonVxIngest):
             #stash the load_job in the load_spec
             self.load_spec["load_job_doc"] = self.build_load_job_doc("partial_sums_surface")
         except (RuntimeError, TypeError, NameError, KeyError):
-            logging.error(
+            logger.error(
                 "*** Error occurred in Main reading load_spec: %s ***",
                 str(sys.exc_info()),
             )
@@ -228,42 +222,58 @@ class VXIngest(CommonVxIngest):
         # thread that uses builders to process a file
         # Make the Pool of data_type_managers
         ingest_manager_list = []
+        logger.info(f"The ingest documents in the queue are: {self.load_spec['ingest_document_ids']}")
+        logger.info(f"Starting {self.thread_count} processes")
         for thread_count in range(int(self.thread_count)):
             # noinspection PyBroadException
             try:
                 ingest_manager_thread = VxIngestManager(
-                    "VxIngestManager-" + str(thread_count),
+                    f"VxIngestManager-{thread_count+1}", # Processes are 1 indexed in the logger
                     self.load_spec,
                     _q,
                     self.output_dir,
+                    log_queue, # Queue to pass logging messages back to the main process on
+                    log_configurer, # Config function to set up the logger in the multiprocess Process
                 )
                 ingest_manager_list.append(ingest_manager_thread)
                 ingest_manager_thread.start()
+                logger.info(f"Started thread: VxIngestManager-{thread_count+1}")
             except Exception as _e:  # pylint:disable=broad-except
-                logging.error("*** Error in VXIngest %s***", str(_e))
+                logger.error("*** Error in VXIngest %s***", str(_e))
         # be sure to join all the threads to wait on them
         finished = [proc.join() for proc in ingest_manager_list]
+        logger.info("Finished processes")
         self.write_load_job_to_files()
-        logging.info("finished starting threads")
+        logger.info("Finished writing files")
         load_time_end = time.perf_counter()
         load_time = timedelta(seconds=load_time_end - self.load_time_start)
-        logging.info(" finished %s", str(finished))
-        logging.info("    >>> Total load a_time: %s", str(load_time))
-        logging.info("End a_time: %s", str(datetime.now()))
-        logging.info("--- *** --- End  --- *** ---")
+        logger.info(" finished %s", str(finished))
+        logger.info("    >>> Total load a_time: %s", str(load_time))
+        logger.info("End a_time: %s", str(datetime.now()))
+        logger.info("--- *** --- End  --- *** ---")
 
     def main(self):
         """
         This is the entry for run_ingest_threads
         """
+        # Setup logging for the main process so we can use the "logger"
+        log_queue = Queue()
+        runtime = datetime.now()
+        log_queue_listener = configure_logging(
+            log_queue, Path(f"all_logs-{runtime.strftime('%Y-%m-%dT%H:%M:%S%z')}.log")
+        )
         try:
-            logging.info("PYTHONPATH: %s", os.environ["PYTHONPATH"])
+            logger.info("PYTHONPATH: %s", os.environ["PYTHONPATH"])
             args = parse_args(sys.argv[1:])
-            self.runit(vars(args))
-            logging.info("*** FINISHED ***")
+            self.runit(vars(args), log_queue, worker_log_configurer)
+            logger.info("*** FINISHED ***")
+            # Tell the logging thread to finish up, too
+            log_queue_listener.stop()
             sys.exit(0)
         except Exception as _e: # pylint:disable=broad-except
-            logging.info("*** FINISHED with exception %s***", str(_e))
+            logger.info("*** FINISHED with exception %s***", str(_e))
+            # Tell the logging thread to finish up, too
+            log_queue_listener.stop()
 
 
 if __name__ == "__main__":

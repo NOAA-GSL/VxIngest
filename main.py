@@ -21,12 +21,13 @@ from couchbase.options import (  # type: ignore
     ClusterTimeoutOptions,
     QueryOptions,
 )
-from prometheus_client import CollectorRegistry, Gauge, Counter, write_to_textfile
+from prometheus_client import CollectorRegistry, Counter, Gauge, write_to_textfile
 
 import ctc_to_cb.run_ingest_threads
 import grib2_to_cb.run_ingest_threads
 import log_config
 import netcdf_to_cb.run_ingest_threads
+import partial_sums_to_cb.run_ingest_threads
 
 # Get a logger with this module's name to help with debugging
 logger = logging.getLogger(__name__)
@@ -403,13 +404,37 @@ def process_jobs(
                     "credentials_file": str(args.credentials_file),
                     "output_dir": str(output_dir),
                     "threads": num_processes,
-                    "first_epoch": args.start_epoch,  # TODO - this arg is only supported by CTCs at the moment
-                    "last_epoch": args.end_epoch,  # TODO - this arg is only supported by CTCs  at the moment
+                    "first_epoch": args.start_epoch,  # TODO - this arg isn't supported in grib & netcdf builders
+                    "last_epoch": args.end_epoch,  # TODO - this arg isn't supported in grib & netcdf builders
                 }
                 # FIXME: Update calling code to raise instead of calling sys.exit
                 try:
                     ctc_ingest = ctc_to_cb.run_ingest_threads.VXIngest()
                     ctc_ingest.runit(
+                        config,
+                        log_queue,
+                        log_configurer,
+                    )
+                except SystemExit as e:
+                    if e.code == 0:
+                        # Job succeeded
+                        job_succeeded = True
+                else:
+                    job_succeeded = True
+            case "partial_sums":
+                # FIXME: We need to override the config as CTCs currently take extra values
+                config = {
+                    "job_id": job["id"],
+                    "credentials_file": str(args.credentials_file),
+                    "output_dir": str(output_dir),
+                    "threads": num_processes,
+                    "first_epoch": args.start_epoch,  # TODO - this arg isn't supported in grib & netcdf builders
+                    "last_epoch": args.end_epoch,  # TODO - this arg isn't supported in grib & netcdf builders
+                }
+                # FIXME: Update calling code to raise instead of calling sys.exit
+                try:
+                    partial_sums_ingest = partial_sums_to_cb.run_ingest_threads.VXIngest()
+                    partial_sums_ingest.runit(
                         config,
                         log_queue,
                         log_configurer,

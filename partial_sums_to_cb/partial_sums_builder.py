@@ -23,6 +23,8 @@ from builder_common.builder_utilities import get_geo_index
 from builder_common.builder_utilities import initialize_data_array
 from builder_common.builder import Builder
 
+# Get a logger with this module's name to help with debugging
+logger = logging.getLogger(__name__)
 
 class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attributes
     """
@@ -146,7 +148,7 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
             new_id = ":".join(new_parts)
             return new_id
         except Exception as _e:  # pylint:disable=broad-except
-            logging.exception("PARTIALSUMSBuilder.derive_id")
+            logger.exception("PARTIALSUMSBuilder.derive_id")
             return None
 
     def translate_template_item(self, variable):
@@ -176,7 +178,7 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
                         value = variable.replace("*" + _ri, str(value))
             return value
         except Exception as _e:  # pylint: disable=broad-except
-            logging.error(
+            logger.error(
                 "PartialSumsBuilder.translate_template_item: Exception  error: %s", str(_e)
             )
             return None
@@ -206,18 +208,18 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
                 new_document = self.handle_key(new_document, key)
             # put document into document map
             if new_document["id"]:
-                logging.info(
+                logger.info(
                     "PARTIALSUMSBuilder.handle_document - adding document %s",
                     new_document["id"],
                 )
                 self.document_map[new_document["id"]] = new_document
             else:
-                logging.info(
+                logger.info(
                     "PartialSumsBuilder.handle_document - cannot add document with key %s",
                     str(new_document["id"]),
                 )
         except Exception as _e:  # pylint: disable=broad-except
-            logging.error(
+            logger.error(
                 "%s PartialSumsBuilder.handle_document: Exception instantiating builder:  error %s",
                 self.__class__.__name__,
                 str(_e),
@@ -257,7 +259,7 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
                 doc[key] = self.translate_template_item(doc[key])
             return doc
         except Exception as _e:  # pylint:disable=broad-except
-            logging.exception(
+            logger.exception(
                 "%s PartialSumsBuilder.handle_key: Exception in builder",
                 self.__class__.__name__,
             )
@@ -300,7 +302,7 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
             # call the named function using getattr
             replace_with = getattr(self, func)(dict_params)
         except Exception as _e:  # pylint:disable=broad-except
-            logging.exception(
+            logger.exception(
                 "%s handle_named_function: %s params %s: Exception instantiating builder:",
                 self.__class__.__name__,
                 func,
@@ -327,7 +329,7 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
                         )
                         self.domain_stations = full_station_name_list
                     except Exception as _e:  # pylint: disable=broad-except
-                        logging.error(
+                        logger.error(
                             "%s: Exception with builder build_document: error: %s",
                             self.__class__.__name__,
                             str(_e),
@@ -338,31 +340,31 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
                     obs_id = re.sub(":" + str(fve["fcstLen"]) + "$", "", fve["id"])
                     # substitute the model part for obs
                     obs_id = re.sub(self.model, "obs", obs_id)
-                    logging.info("Looking up model document: %s", fve["id"])
+                    logger.info("Looking up model document: %s", fve["id"])
                     try:
                         _model_doc = self.load_spec["collection"].get(fve["id"])
                         self.model_data = _model_doc.content_as[dict]
                         if not self.model_data["data"]:
-                            logging.info(
+                            logger.info(
                                 "%s handle_fcstValidEpochs: model document %s has no data! ",
                                 self.__class__.__name__,
                                 fve["id"],
                             )
                             continue
                     except DocumentNotFoundException:
-                        logging.info(
+                        logger.info(
                             "%s handle_fcstValidEpochs: model document %s was not found! ",
                             self.__class__.__name__,
                             fve["id"],
                         )
                     except Exception as _e:  # pylint: disable=broad-except
-                        logging.error(
+                        logger.error(
                             "%s Error getting model document: %s",
                             self.__class__.__name__,
                             str(_e),
                         )
 
-                    logging.info("Looking up observation document: %s", obs_id)
+                    logger.info("Looking up observation document: %s", obs_id)
                     try:
                         # I don't really know how I can get here with _obs_data AND
                         # _obs_data['id'] != obs_id and still no self.obs_data
@@ -378,7 +380,7 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
                             _obs_doc = self.load_spec["collection"].get(obs_id)
                             _obs_data = _obs_doc.content_as[dict]
                             if not _obs_data["data"]:
-                                logging.info(
+                                logger.info(
                                     "%s handle_fcstValidEpochs: obs document %s has no data! ",
                                     self.__class__.__name__,
                                     obs_id,
@@ -390,20 +392,20 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
                             self.obs_station_names.sort()
                         self.handle_document()
                     except DocumentNotFoundException:
-                        logging.info(
+                        logger.info(
                             "%s handle_fcstValidEpochs: obs document %s was not found! ",
                             self.__class__.__name__,
                             fve["id"],
                         )
                 except Exception as _e:  # pylint: disable=broad-except
-                    logging.exception(
+                    logger.exception(
                         "%s problem getting obs document: %s",
                         self.__class__.__name__,
                         str(_e),
                     )
 
         except Exception as _e:  # pylint: disable=broad-except
-            logging.error(
+            logger.error(
                 "%s handle_fcstValidEpochs: Exception instantiating builder:  error: %s",
                 self.__class__.__name__,
                 str(_e),
@@ -434,12 +436,6 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
         """
         # noinspection PyBroadException
         try:
-            root=logging.getLogger()
-            root.setLevel(logging.INFO)
-            handler = logging.StreamHandler(sys.stdout)
-            handler.setLevel(logging.INFO)
-            root.addHandler(handler)
-
             # reset the builders document_map for a new file
             self.initialize_document_map()
             self.not_found_station_count = 0
@@ -458,7 +454,7 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
             self.bucket = self.load_spec["cb_connection"]["bucket"]
             self.scope = self.load_spec["cb_connection"]["scope"]
             self.collection = self.load_spec["cb_connection"]["collection"]
-            logging.info(
+            logger.info(
                 "%s.build_document queue_element:%s model:%s region:%s variable:%s subset:%s",
                 self.__class__.__name__,
                 queue_element,
@@ -483,12 +479,12 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
                             AND region='{self.region}'
                             AND version='V01'
                             AND subset='{self.subset}'"""
-                    # logging.info("build_document start query %s", stmnt)
+                    # logger.info("build_document start query %s", stmnt)
                     result = self.load_spec["cluster"].query(stmnt, read_only=True)
                     success = True
-                    # logging.info("build_document finished query %s", stmnt)
+                    # logger.info("build_document finished query %s", stmnt)
                 except TimeoutException:
-                    logging.info(
+                    logger.info(
                         "%s.build_document TimeoutException retrying %s: %s",
                         self.__class__.__name__,
                         error_count,
@@ -524,12 +520,12 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
                                 AND fve.fcstValidEpoch >= {max_partialsums_fcst_valid_epochs}
                                 AND fve.fcstValidEpoch <= {self.load_spec["first_last_params"]["last_epoch"]}
                             ORDER BY fve.fcstValidEpoch, fve.fcstLen"""
-                    # logging.info("build_document start query %s", stmnt)
+                    # logger.info("build_document start query %s", stmnt)
                     result = self.load_spec["cluster"].query(stmnt,read_only=True)
                     success = True
-                    # logging.info("build_document finished query %s", stmnt)
+                    # logger.info("build_document finished query %s", stmnt)
                 except TimeoutException:
-                    logging.info(
+                    logger.info(
                         "%s.build_document TimeoutException retrying %s: %s",
                         self.__class__.__name__,
                         error_count,
@@ -555,12 +551,12 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
                                     AND obs.fcstValidEpoch >= {max_partialsums_fcst_valid_epochs}
                                     AND obs.fcstValidEpoch <= {self.load_spec["first_last_params"]["last_epoch"]}
                             ORDER BY obs.fcstValidEpoch"""
-                    # logging.info("build_document start query %s", stmnt)
+                    # logger.info("build_document start query %s", stmnt)
                     result1 = self.load_spec["cluster"].query(stmnt, read_only=True)
                     success = True
-                    # logging.info("build_document finished query %s", stmnt)
+                    # logger.info("build_document finished query %s", stmnt)
                 except TimeoutException:
-                    logging.info(
+                    logger.info(
                         "%s.build_document TimeoutException retrying %s: %s",
                         self.__class__.__name__,
                         error_count,
@@ -594,13 +590,13 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
                 # process the fcstValidEpochs without profiling
                 self.handle_fcstValidEpochs()
             # pylint: disable=assignment-from-no-return
-            logging.info(
+            logger.info(
                 "There were %s stations not found", self.not_found_station_count
             )
             document_map = self.get_document_map()
             return document_map
         except Exception as _e:  # pylint: disable=broad-except
-            logging.error(
+            logger.error(
                 "%s: Exception with builder build_document: error: %s for element %s",
                 self.__class__.__name__,
                 str(_e),
@@ -648,7 +644,7 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
             _domain_stations.sort()
             return _domain_stations
         except Exception as _e:  # pylint: disable=broad-except
-            logging.error(
+            logger.error(
                 "%s: Exception with builder: error: %s",
                 self.__class__.__name__,
                 str(_e),
@@ -670,7 +666,7 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
             classic_stations.sort()
             return classic_stations
         except Exception as _e:  # pylint: disable=broad-except
-            logging.error(
+            logger.error(
                 "%s: Exception with builder: error: %s",
                 self.__class__.__name__,
                 str(_e),
@@ -741,7 +737,7 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
             _domain_stations.sort()
             return _domain_stations
         except Exception as _e:  # pylint: disable=broad-except
-            logging.error(
+            logger.error(
                 "%s: Exception with builder: error: %s",
                 self.__class__.__name__,
                 str(_e),
@@ -853,7 +849,7 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
             }
             return sum_elem
         except Exception as _e:  # pylint:disable=broad-except
-            logging.error(
+            logger.error(
                 "%s handle_sum: Exception :  error: %s",
                 self.__class__.__name__,
                 str(_e),
@@ -894,7 +890,7 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
             doc["data"] = data_elem
             return doc
         except Exception as _e:  # pylint: disable=broad-except
-            logging.error(
+            logger.error(
                 "%s handle_data: Exception :  error: %s",
                 self.__class__.__name__,
                 str(_e),

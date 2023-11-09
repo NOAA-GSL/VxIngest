@@ -13,7 +13,7 @@ import datetime as dt
 import re
 import time
 from pstats import Stats
-from metpy.calc import relative_humidity_from_dewpoint
+from metpy.calc import relative_humidity_from_dewpoint, wind_components
 from metpy.units import units
 from couchbase.exceptions import DocumentNotFoundException, TimeoutException
 from couchbase.search import GeoBoundingBoxQuery, SearchOptions
@@ -819,6 +819,16 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
                             obs_elem["RH"] = (relative_humidity_from_dewpoint(obs_elem["Temperature"] * units.degF, obs_elem["DewPoint"] * units.degF).magnitude) * 100
                         if "RH" not in model_elem and model_elem["DewPoint"] is not None and model_elem["Temperature"] is not None:
                             model_elem["RH"] = (relative_humidity_from_dewpoint(model_elem["Temperature"] * units.degF, model_elem["DewPoint"] * units.degF).magnitude) * 100
+                    if variable == "UW" or variable == "VW":
+                        # wind direction in the data is from 0 to 360 and we need it from -180 to 180
+                        if ("UW" not in obs_elem or "VW" not in obs_elem) and obs_elem["WS"] is not None and obs_elem["WD"] is not None:
+                            wind_components_t = wind_components( obs_elem["WS"] * units.mph, (obs_elem["WD"] - 180) * units.deg)
+                            obs_elem["UW"] = wind_components_t[0].magnitude
+                            obs_elem["VW"] = wind_components_t[1].magnitude
+                        if ("UW" not in model_elem or "VW" not in model_elem) and model_elem["WS"] is not None and model_elem["WD"] is not None:
+                            wind_components_t = wind_components( model_elem["WS"] * units.mph, (model_elem["WD"] - 180) * units.deg)
+                            model_elem["UW"] = wind_components_t[0].magnitude
+                            model_elem["VW"] = wind_components_t[1].magnitude
                     if variable in obs_elem and variable in model_elem:
                         if obs_elem[variable] is not None and model_elem[variable] is not  None:
                             obs_vals.append(obs_elem[variable])

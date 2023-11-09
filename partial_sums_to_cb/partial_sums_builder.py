@@ -820,6 +820,7 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
                         if "RH" not in model_elem and model_elem["DewPoint"] is not None and model_elem["Temperature"] is not None:
                             model_elem["RH"] = (relative_humidity_from_dewpoint(model_elem["Temperature"] * units.degF, model_elem["DewPoint"] * units.degF).magnitude) * 100
                     if variable == "UW" or variable == "VW":
+                        # wind direction in the data is from 0 to 360 and we need it from -180 to 180
                         if ("UW" not in obs_elem or "VW" not in obs_elem) and obs_elem["WS"] is not None and obs_elem["WD"] is not None:
                             wind_components_t = wind_components( obs_elem["WS"] * units.mph, (obs_elem["WD"] - 180) * units.deg)
                             obs_elem["UW"] = wind_components_t[0].magnitude

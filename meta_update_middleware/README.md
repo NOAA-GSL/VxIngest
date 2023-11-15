@@ -11,5 +11,6 @@ settings.json
 Set the couchbase cluster, bucket, scope, collection and credentials in this file
 
 ## updating the metadata
-go run meta-update.go
+## cd VxIngest/meta_update_middleware
+go run .
 

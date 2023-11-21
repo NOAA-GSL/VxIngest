@@ -114,7 +114,7 @@ The ingest service will run all of the jobs that are currently scheduled (in the
 
 ### Running an ingest job service
 
-To run a single ingest job there are a few extra parameters in addition to the /data directory. This is a typical invocation.
+To run a single ingest job there are a few extra parameters in addition to the /data directory. directories should be under the /opt/data mountpoint (where the data path is mounted). This is a typical invocation.
 
 ```bash
  data=/data-ingest/data public=/public docker compose run ingest ./scripts/VXingest_utilities/run-ingest.sh -c /run/secrets/CREDENTIALS_FILE -o /opt/data/test/outdir -j JOB:V01:METAR:GRIB2:MODEL:HRRR -l /opt/data/test/logs -m /opt/data/test/metrics -x /opt/data/test/xfer -f 20329817000006"
@@ -124,9 +124,10 @@ Where -c is the internal credentials file passed as a secret. Don't change that 
 
 ### Running an import job service
 
-data=/data-ingest/data docker compose run import ./scripts/VXingest_utilities/run-import.sh -c credentials-file -l load directory -t temp_dir -m metrics_directory
+data=/data-ingest/data docker compose run import ./scripts/VXingest_utilities/run-import.sh -c /run/secrets/CREDENTIALS_FILE -l load directory -t temp_dir -m metrics_directory
 
 The parameters are very similar to the ingest service.
+These directory parameters should be within the supplied data mountpoint relative to the /opt/data mountpoint.
 
 - The credentials-file specifies cb_host, cb_user, and cb_password.
 - The load directory is where the program will look for the tar files
@@ -136,7 +137,7 @@ The parameters are very similar to the ingest service.
 for example:
 
 ```bash
- data=/data-ingest/data docker compose run import ./scripts/VXingest_utilities/run-import.sh -c credentials-file  -l load directory -t temp_dir -m metrics_directory
+data=/data-ingest/data public=/public docker compose run import ./scripts/VXingest_utilities/run-import.sh -c /run/secrets/CREDENTIALS_FILE -l /opt/data/xfer -t /opt/data/temp_tar -m /opt/data/common/job_metrics
 ```
 
 ## data model

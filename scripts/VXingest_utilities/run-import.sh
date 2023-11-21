@@ -159,8 +159,8 @@ ls -1 ${load_dir}/*.gz | while read f; do
   import_metric_name="import_${metric_name}"
   echo "import metric name will be ${import_metric_name}"
   echo "metric_name ${import_metric_name}" > ${import_log_file}
-  echo "RUNNING - scripts/VXingest_utilities/import_docs.sh -c ${credentials_file} -p ${t_dir} -n 8 -l logs >> ${import_log_file}"
-  scripts/VXingest_utilities/import_docs.sh -c ${credentials_file} -p ${t_dir} -n 6 -l logs >> ${import_log_file} 2>&1
+  echo "RUNNING - scripts/VXingest_utilities/import_docs.sh -c ${credentials_file} -p ${t_dir} -n 6 -l logs >> ${import_log_file}"
+  scripts/VXingest_utilities/import_docs.sh -c ${credentials_file} -p ${t_dir} -n $(nproc) -l logs 2>&1
   exit_code=$?
   wait
   echo "exit_code:${exit_code}" >> ${import_log_file}

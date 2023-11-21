@@ -89,10 +89,10 @@ if [[ -z ${credentials_file} ]] || [[ -z ${load_dir} ]] || [[ -z ${metrics_dir} 
 fi
 
 pid=$$
-#if [ "$(whoami)" != "amb-verif" ]; then
-#        echo "Script must be run as user: amb-verif"
-#        usage
-#fi
+if [ "$(whoami)" != "amb-verif" ]; then
+    echo "Script must be run as user: amb-verif"
+    usage
+fi
 
 # Check the load directory for new tar balls.
 # This script is expected to run in two minute intervals
@@ -191,10 +191,9 @@ ls -1 ${load_dir}/*.gz | while read f; do
   # save the import log file
   cp ${import_log_file} logs
   echo "--------"
-  # now clean up the files
   # remove the data files ($t_dir)
   echo "removing data directory - ${t_dir}"
-  #rm -rf ${t_dir}
+  rm -rf ${t_dir}
 done
 
 echo "*************************************"

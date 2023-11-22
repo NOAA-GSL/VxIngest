@@ -128,7 +128,11 @@ ls -1 ${load_dir}/*.gz | while read f; do
     echo "moving tar file ${f} to ${archive_dir}/failed-extract-${base_f}"
     echo " - exiting"
     failed_import_count=$((failed_import_count+1))
-    mv $f "${archive_dir}/failed-extract-${base_f}"
+    # doing cp then rm because of an issue with docker mounts on MAC
+    echo cp $f "${archive_dir}/failed-extract-${base_f}"
+    cp $f "${archive_dir}/failed-extract-${base_f}"
+    echo rm -rf $f
+    rm -rf $f
     echo "removing temp_dir ${t_dir}"
     rm -rf ${t_dir}
     usage
@@ -141,7 +145,11 @@ ls -1 ${load_dir}/*.gz | while read f; do
     echo "moving tar file ${f} to ${archive_dir}/failred-too-many-log-files-${base_f}"
     echo " - exiting"
     failed_import_count=$((failed_import_count+1))
-    mv $f "${archive_dir}/failed-too-many-log-files-${base_f}"
+    # doing cp then rm because of an issue with docker mounts on MAC
+    echo cp $f "${archive_dir}/failed-too-many-log-files-${base_f}"
+    cp $f "${archive_dir}/failed-too-many-log-files-${base_f}"
+    echo rm -rf $f
+    rm -rf $f
     echo "removing temp_dir ${t_dir}"
     rm -rf ${t_dir}
     usage
@@ -165,18 +173,33 @@ ls -1 ${load_dir}/*.gz | while read f; do
   wait
   echo "exit_code:${exit_code}" >> ${import_log_file}
   if [[ "${exit_code}" -ne "0" ]]; then
+    echo "import failed for $f exit_code:${exit_code}"
     failed_import_count=$((failed_import_count+1))
     echo "import failed for $f"
     base_f=$(basename $f)
+    # doing cp then rm because of an issue with docker mounts on MAC
     echo "moving tar file ${f} to ${archive_dir}/failed-import-${base_f}"
-    mv $f "${archive_dir}/failed-import-${base_f}"
+    echo cp $f "${archive_dir}/failed-import-${base_f}"
+    cp $f "${archive_dir}/failed-import-${base_f}"
+    echo rm -rf $f
+    rm -rf $f
     # don't exit - let the scraper record the error
   else
     success_import_count=$((success_import_count+1))
+    echo "import succeeded for $f success_import_count: ${success_import_count}"
     # save the tar file
     base_f=$(basename $f)
     echo "moving tar file ${f} to ${archive_dir}/success-${base_f}"
-    mv $f "${archive_dir}/success-${base_f}"
+    # doing cp then rm because of an issue with docker mounts on MAC
+    echo cp $f "${archive_dir}/success-${base_f}"
+    cp $f "${archive_dir}/success-${base_f}"
+    echo rm -rf $f
+    rm -rf $f
+    if [[ $? != 0 ]]; then
+      echo "ERROR: failed to move tar file ${f} to ${archive_dir}/success-${base_f}"
+      failed_import_count=$((failed_import_count+1))
+      # not going to exit - let the scraper record the error
+    fi
   fi
   # run the scraper
   sleep 2  # eventually consistent data - give it a little time
@@ -188,8 +211,24 @@ ls -1 ${load_dir}/*.gz | while read f; do
   else
     success_scrape_count=$((success_scrape_count+1))
   fi
-  # save the import log file
-  cp ${import_log_file} logs
+  # archive the log_file
+  # note that the log_file is in a subdirectory of the temp_dir
+  dirname_log_file=$(dirname $(dirname ${log_file}))
+  ls -l ${log_file}
+  echo mv ${log_file} ${dirname_log_file}/archive
+  mv ${log_file} ${dirname_log_file}/archive
+  ret=$?
+  if [[ ${ret} != 0 ]]; then
+    echo "ERROR: failed to move log file ${log_file} to ${dirname_log_file}/archive ret: ${ret}"
+  fi
+  # archive the import log_file
+  ls -l ${import_log_file}
+  echo mv ${import_log_file} ${dirname_log_file}/archive
+  mv ${import_log_file} ${dirname_log_file}/archive
+  ret=$?
+  if [[ ${ret} != 0 ]]; then
+    echo "ERROR: failed to move import log file ${import_log_file} to ${dirname_log_file}/archive ret: ${ret}"
+  fi
   echo "--------"
   # remove the data files ($t_dir)
   echo "removing data directory - ${t_dir}"
@@ -197,8 +236,8 @@ ls -1 ${load_dir}/*.gz | while read f; do
 done
 
 echo "*************************************"
-
 if [[ "${success_import_count}" -ne "0" ]]; then
+  echo "update metadata import success count: ${success_import_count}"
 	LOCKDIR="/data/import_lock"
   #if LOCKDIR is > 48 * 3600 seconds old, remove it
   if (( $(date "+%s") - $(date -r ${LOCKDIR} "+%s") > $(( 48 * 3600 )) )); then
@@ -232,8 +271,10 @@ if [[ "${success_import_count}" -ne "0" ]]; then
 		echo "IMPORT ERROR: Could not remove import lock dir" >&2
 	    fi
 	fi
+else
+  echo "no new data to import - import success count: ${success_import_count}"
 fi
-echo "FINISHED"
+echo "capture metrics"
 end=$(date +%s)
 m_file=$(mktemp)
 echo "run_import_duration $((end-start))" > ${m_file}
@@ -243,4 +284,5 @@ echo "run_scrape_success_count ${success_scrape_count}" >> ${m_file}
 echo "run_scrape_failure_count ${failed_scrape_count}" >> ${m_file}
 cp ${m_file} "${metrics_dir}/run_import_metrics.prom"
 rm ${m_file}
+echo "FINISHED"
 exit 0

@@ -508,6 +508,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
 
             # translate the projection from the grib file
             logging.getLogger().setLevel(logging.INFO)
+            logging.StreamHandler(sys.stdout)
             # The projection is the same for all the variables in the grib file,
             # so we only need to get it once and from one variable - we'll use heightAboveGround
             # for 2 meters.

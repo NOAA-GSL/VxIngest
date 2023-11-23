@@ -206,7 +206,7 @@ for i in "${!ids[@]}"; do
 
   # run the ingest job
   metric_name="${name}_${hname}"
-  echo "metric_name ${metric_name}" >${log_file}
+  echo "metric_name ${metric_name}" > ${log_file}
   # have to have a PYTHONPATH that includes the clonedir
   export PYTHONPATH=$(pwd)
   if [[ -z ${jobid} ]]; then # no jobid specified so got all the currently scheduled jobs use 6 threads
@@ -214,15 +214,15 @@ for i in "${!ids[@]}"; do
   else
     threads=""
   fi
-  echo "RUNNING - python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ${credentials_file} -o $out_dir ${threads} ${file_pattern}" >>${log_file}
-  python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ${credentials_file} -o $out_dir ${threads} ${file_pattern} >>${log_file}
+  echo "RUNNING - python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ${credentials_file} -o $out_dir ${threads} ${file_pattern}" >> ${log_file}
+  python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ${credentials_file} -o $out_dir ${threads} ${file_pattern} 2>&1 >> ${log_file}
   exit_code=$?
   if [[ "${exit_code}" -ne "0" ]]; then
     failed_job_count=$((failed_job_count + 1))
   else
     success_job_count=$((success_job_count + 1))
   fi
-  echo "exit_code:${exit_code}" >>${log_file}
+  echo "exit_code:${exit_code}" >> ${log_file}
   tar_file_name="${metric_name}_$(date +%s).tar.gz"
 
   # mv the log_file to the output dir

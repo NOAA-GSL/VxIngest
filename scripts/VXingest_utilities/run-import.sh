@@ -168,7 +168,7 @@ ls -1 ${load_dir}/*.gz | while read f; do
   echo "import metric name will be ${import_metric_name}"
   echo "metric_name ${import_metric_name}" > ${import_log_file}
   echo "RUNNING - scripts/VXingest_utilities/import_docs.sh -c ${credentials_file} -p ${t_dir} -n 6 -l logs >> ${import_log_file}"
-  scripts/VXingest_utilities/import_docs.sh -c ${credentials_file} -p ${t_dir} -n $(nproc) -l logs 2>&1
+  scripts/VXingest_utilities/import_docs.sh -c ${credentials_file} -p ${t_dir} -n $(nproc) -l logs 2>&1 >> ${import_log_file}
   exit_code=$?
   wait
   echo "exit_code:${exit_code}" >> ${import_log_file}
@@ -215,6 +215,10 @@ ls -1 ${load_dir}/*.gz | while read f; do
   # note that the log_file is in a subdirectory of the temp_dir
   dirname_log_file=$(dirname $(dirname ${log_file}))
   ls -l ${log_file}
+  if [[ ! -d ${dirname_log_file}/archive]]; then
+    mkdir -p ${dirname_log_file}/archive
+    chmod 777 ${dirname_log_file}/archive
+  fi
   echo mv ${log_file} ${dirname_log_file}/archive
   mv ${log_file} ${dirname_log_file}/archive
   ret=$?

@@ -81,6 +81,7 @@ def parse_args(args):
     """
     begin_time = str(datetime.now())
     logging.getLogger().setLevel(logging.INFO)
+    logging.StreamHandler(sys.stdout)
     logging.info("--- *** --- Start --- *** ---")
     logging.info("Begin a_time: %s", begin_time)
     # a_time execution
@@ -149,6 +150,7 @@ class VXIngest(CommonVxIngest):
         self.ingest_document = None
         super().__init__()
         logging.getLogger().setLevel(logging.INFO)
+        logging.StreamHandler(sys.stdout)
 
     def runit(self, args):  # pylint:disable=too-many-locals
         """

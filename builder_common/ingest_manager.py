@@ -131,6 +131,7 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
         try:
             self.cb_credentials = self.load_spec['cb_connection']
             logging.getLogger().setLevel(logging.INFO)
+            logging.StreamHandler(sys.stdout)
             # get a connection
             self.connect_cb()
             # infinite loop terminates when the file_name_queue is empty

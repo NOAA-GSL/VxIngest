@@ -200,8 +200,6 @@ ls -1 ${load_dir}/*.gz | while read f; do
       # not going to exit - let the scraper record the error
     fi
   fi
-  echo "removing temp_dir files ${t_dir}/*"
-  rm -rf ${t_dir}/*
   # run the scraper
   sleep 2  # eventually consistent data - give it a little time
   echo "RUNNING - scripts/VXingest_utilities/scrape_metrics.sh -c ${credentials_file} -l ${log_file} -d ${metrics_dir}"

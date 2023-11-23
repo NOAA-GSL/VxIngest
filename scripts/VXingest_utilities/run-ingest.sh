@@ -212,7 +212,8 @@ for i in "${!ids[@]}"; do
   if [[ -z ${jobid} ]]; then # no jobid specified so got all the currently scheduled jobs use 6 threads
     threads=" -t6"
   else
-    threads=""
+    # for now use 6 threads - might change this later
+    threads="-t6"
   fi
   echo "RUNNING - python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ${credentials_file} -o $out_dir ${threads} ${file_pattern}" >> ${log_file}
   python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ${credentials_file} -o $out_dir ${threads} ${file_pattern} 2>&1 >> ${log_file}

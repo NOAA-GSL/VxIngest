@@ -215,7 +215,7 @@ ls -1 ${load_dir}/*.gz | while read f; do
   # note that the log_file is in a subdirectory of the temp_dir
   dirname_log_file=$(dirname $(dirname ${log_file}))
   ls -l ${log_file}
-  if [[ ! -d ${dirname_log_file}/archive]]; then
+  if [[ ! -d ${dirname_log_file}/archive ]]; then
     mkdir -p ${dirname_log_file}/archive
     chmod 777 ${dirname_log_file}/archive
   fi

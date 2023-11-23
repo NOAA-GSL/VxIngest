@@ -126,7 +126,6 @@ ls -1 ${load_dir}/*.gz | while read f; do
     echo "ERROR: tarball ${f} failed to extract"
     base_f=$(basename $f)
     echo "moving tar file ${f} to ${archive_dir}/failed-extract-${base_f}"
-    echo " - exiting"
     failed_import_count=$((failed_import_count+1))
     # doing cp then rm because of an issue with docker mounts on MAC
     echo cp $f "${archive_dir}/failed-extract-${base_f}"
@@ -135,7 +134,7 @@ ls -1 ${load_dir}/*.gz | while read f; do
     rm -rf $f
     echo "removing temp_dir ${t_dir}"
     rm -rf ${t_dir}
-    usage
+    continue  # go to the next tar file
   fi
   echo "finished extracting tarball ${f}"
   log_file_count=`ls -1 ${t_dir}/*.log | wc -l`

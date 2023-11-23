@@ -132,9 +132,8 @@ ls -1 ${load_dir}/*.gz | while read f; do
     cp $f "${archive_dir}/failed-extract-${base_f}"
     echo rm -rf $f
     rm -rf $f
-    echo "removing temp_dir ${t_dir}"
-    rm -rf ${t_dir}
-    sleep 2 # let the file system catch up
+    echo "removing temp_dir files ${t_dir}/*"
+    rm -rf ${t_dir}/*
     continue  # go to the next tar file
   fi
   echo "finished extracting tarball ${f}"
@@ -201,6 +200,8 @@ ls -1 ${load_dir}/*.gz | while read f; do
       # not going to exit - let the scraper record the error
     fi
   fi
+  echo "removing temp_dir files ${t_dir}/*"
+  rm -rf ${t_dir}/*
   # run the scraper
   sleep 2  # eventually consistent data - give it a little time
   echo "RUNNING - scripts/VXingest_utilities/scrape_metrics.sh -c ${credentials_file} -l ${log_file} -d ${metrics_dir}"
@@ -233,11 +234,13 @@ ls -1 ${load_dir}/*.gz | while read f; do
   if [[ ${ret} != 0 ]]; then
     echo "ERROR: failed to move import log file ${import_log_file} to ${dirname_log_file}/archive ret: ${ret}"
   fi
+  echo "removing temp_dir files ${t_dir}/*"
+  rm -rf ${t_dir}/*
   echo "--------"
-  # remove the data files ($t_dir)
-  echo "removing data directory - ${t_dir}"
-  rm -rf ${t_dir}
 done
+# remove the data dir ($t_dir)
+echo "removing data directory - ${t_dir}"
+rm -rf ${t_dir}
 
 echo "*************************************"
 if [[ "${success_import_count}" -ne "0" ]]; then

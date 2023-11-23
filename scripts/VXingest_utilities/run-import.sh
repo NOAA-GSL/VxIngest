@@ -134,6 +134,7 @@ ls -1 ${load_dir}/*.gz | while read f; do
     rm -rf $f
     echo "removing temp_dir ${t_dir}"
     rm -rf ${t_dir}
+    sleep 2 # let the file system catch up
     continue  # go to the next tar file
   fi
   echo "finished extracting tarball ${f}"

@@ -15,7 +15,7 @@ function usage {
   echo "Usage $0 -c credentials-file -l load directory -t temp_dir -m metrics_directory"
   echo "The credentials-file specifies cb_host, cb_user, and cb_password."
   echo "The load directory is where the program will look for the tar files"
-  echo "The tar_dir directory is where the program will unbundle the tar files (in uniq temporary subdirs)"
+  echo "The temp_dir directory is where the program will unbundle the tar files (in uniq temporary subdirs)"
   echo "The metrics directory is where the scraper will place the metrics"
   echo "This script expects to execute inside the VxIngest directory"
   echo "This script expects to be run as user amb-verif"
@@ -59,9 +59,9 @@ while getopts 'c:l:t:m:' param; do
     ;;
   t)
     # remove the last '/' if it is there
-    export tar_dir=$(echo "${OPTARG}" | sed 's|/$||')
-    if [[ ! -d "${tar_dir}" ]]; then
-      echo "ERROR: tar file directory ${tar_dir} does not exist"
+    export temp_dir=$(echo "${OPTARG}" | sed 's|/$||')
+    if [[ ! -d "${temp_dir}" ]]; then
+      echo "ERROR: tar file directory ${temp_dir} does not exist"
       usage
     fi
     ;;
@@ -79,19 +79,19 @@ while getopts 'c:l:t:m:' param; do
     ;;
   esac
 done
-if [[ -z ${credentials_file} ]] || [[ -z ${load_dir} ]] || [[ -z ${metrics_dir} ]] || [[ -z ${tar_dir} ]]; then
+if [[ -z ${credentials_file} ]] || [[ -z ${load_dir} ]] || [[ -z ${metrics_dir} ]] || [[ -z ${temp_dir} ]]; then
   echo "*missing parameter*"
   echo "provided credentials_file is ${credentials_file}"
   echo "provided load_dir is ${load_dir}"
   echo "provided metrics_dir is ${metrics_dir}"
-  echo "provided tar_dir is ${tar_dir}"
+  echo "provided temp_dir is ${temp_dir}"
   usage
 fi
 
 pid=$$
 if [ "$(whoami)" != "amb-verif" ]; then
-        echo "Script must be run as user: amb-verif"
-        usage
+    echo "Script must be run as user: amb-verif"
+    usage
 fi
 
 # Check the load directory for new tar balls.
@@ -100,23 +100,55 @@ fi
 # create an archive dir (might already exist)
 # The load_dir is where the program will look for the tar files
 # the t_dir is where the tarball will be untar'd
-archive_dir="${tar_dir}/archive"
+archive_dir="${load_dir}/archive"
 mkdir -p "${archive_dir}"
+if [[ ! -d "${archive_dir}" ]]; then
+  echo "ERROR: VxIngest archive directory ${archive_dir} does not exist"
+  usage
+fi
+if [ ! -w "${archive_dir}" ]; then
+  echo "archive directory ${archive_dir} IS NOT WRITABLE";
+  usage
+fi
 runtime=`date +\%Y-\%m-\%d:\%H:\%M:\%S`
-ls -1 ${load_dir} | while read f; do
+t_dir="${temp_dir}/${pid}"
+mkdir -p "${t_dir}"
+if [[ ! -d "${t_dir}" ]]; then
+  echo "ERROR: Failed to create VxIngest temp directory ${t_dir}"
+  usage
+fi
+ls -1 ${load_dir}/*.gz | while read f; do
   echo "processing the tar file ${f}"
-  t_dir=$(mktemp -d -p ${tar_dir})
   echo "extracting tarball ${f} to temp_dir ${t_dir}"
   echo "tar -xzf ${f} -C ${t_dir}"
-  tar -xzf "${load_dir}/${f}" -C ${t_dir}
+  tar -xzf "${f}" -C "${t_dir}"
+  if [[ $? != 0 ]]; then
+    echo "ERROR: tarball ${f} failed to extract"
+    base_f=$(basename $f)
+    echo "moving tar file ${f} to ${archive_dir}/failed-extract-${base_f}"
+    failed_import_count=$((failed_import_count+1))
+    # doing cp then rm because of an issue with docker mounts on MAC
+    echo cp $f "${archive_dir}/failed-extract-${base_f}"
+    cp $f "${archive_dir}/failed-extract-${base_f}"
+    echo rm -rf $f
+    rm -rf $f
+    echo "removing temp_dir files ${t_dir}/*"
+    rm -rf ${t_dir}/*
+    continue  # go to the next tar file
+  fi
   echo "finished extracting tarball ${f}"
   log_file_count=`ls -1 ${t_dir}/*.log | wc -l`
   if [[ ${log_file_count} -ne 1 ]]; then
     echo "There is not just one log_file in ${t_dir} - extracted from ${f} - there are ${log_file_count}"
-    echo "moving tar file ${f} to ${archive_dir}"
+    base_f=$(basename $f)
+    echo "moving tar file ${f} to ${archive_dir}/failred-too-many-log-files-${base_f}"
     echo " - exiting"
     failed_import_count=$((failed_import_count+1))
-    mv $f $archive_dir
+    # doing cp then rm because of an issue with docker mounts on MAC
+    echo cp $f "${archive_dir}/failed-too-many-log-files-${base_f}"
+    cp $f "${archive_dir}/failed-too-many-log-files-${base_f}"
+    echo rm -rf $f
+    rm -rf $f
     echo "removing temp_dir ${t_dir}"
     rm -rf ${t_dir}
     usage
@@ -134,46 +166,83 @@ ls -1 ${load_dir} | while read f; do
   import_metric_name="import_${metric_name}"
   echo "import metric name will be ${import_metric_name}"
   echo "metric_name ${import_metric_name}" > ${import_log_file}
-  echo "RUNNING - ${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ${credentials_file} -p ${t_dir} -n 8 -l ${clonedir}/logs >> ${import_log_file}"
-  ${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ${credentials_file} -p ${t_dir} -n 8 -l ${clonedir}/logs >> ${import_log_file} 2>&1
+  echo "RUNNING - scripts/VXingest_utilities/import_docs.sh -c ${credentials_file} -p ${t_dir} -n 6 -l logs >> ${import_log_file}"
+  scripts/VXingest_utilities/import_docs.sh -c ${credentials_file} -p ${t_dir} -n $(nproc) -l logs 2>&1 >> ${import_log_file}
   exit_code=$?
   wait
   echo "exit_code:${exit_code}" >> ${import_log_file}
   if [[ "${exit_code}" -ne "0" ]]; then
+    echo "import failed for $f exit_code:${exit_code}"
     failed_import_count=$((failed_import_count+1))
     echo "import failed for $f"
-    echo "moving tar file ${f} to ${archive_dir}"
-    mv $f $archive_dir
+    base_f=$(basename $f)
+    # doing cp then rm because of an issue with docker mounts on MAC
+    echo "moving tar file ${f} to ${archive_dir}/failed-import-${base_f}"
+    echo cp $f "${archive_dir}/failed-import-${base_f}"
+    cp $f "${archive_dir}/failed-import-${base_f}"
+    echo rm -rf $f
+    rm -rf $f
     # don't exit - let the scraper record the error
   else
     success_import_count=$((success_import_count+1))
+    echo "import succeeded for $f success_import_count: ${success_import_count}"
+    # save the tar file
+    base_f=$(basename $f)
+    echo "moving tar file ${f} to ${archive_dir}/success-${base_f}"
+    # doing cp then rm because of an issue with docker mounts on MAC
+    echo cp $f "${archive_dir}/success-${base_f}"
+    cp $f "${archive_dir}/success-${base_f}"
+    echo rm -rf $f
+    rm -rf $f
+    if [[ $? != 0 ]]; then
+      echo "ERROR: failed to move tar file ${f} to ${archive_dir}/success-${base_f}"
+      failed_import_count=$((failed_import_count+1))
+      # not going to exit - let the scraper record the error
+    fi
   fi
-
   # run the scraper
   sleep 2  # eventually consistent data - give it a little time
-  echo "RUNNING - ${clonedir}/scripts/VXingest_utilities/scrape_metrics.sh -c ${credentials_file} -l ${log_file} -d ${metrics_dir}"
-  ${clonedir}/scripts/VXingest_utilities/scrape_metrics.sh -c ${credentials_file} -l ${log_file} -d ${metrics_dir}
+  echo "RUNNING - scripts/VXingest_utilities/scrape_metrics.sh -c ${credentials_file} -l ${log_file} -d ${metrics_dir}"
+  scripts/VXingest_utilities/scrape_metrics.sh -c ${credentials_file} -l ${log_file} -d ${metrics_dir}
   exit_code=$?
   if [[ "${exit_code}" -ne "0" ]]; then
     failed_scrape_count=$((failed_scrape_count+1))
   else
     success_scrape_count=$((success_scrape_count+1))
   fi
-  # save the import log file
-  cp ${import_log_file} ${clonedir}/logs
+  # archive the log_file
+  # note that the log_file is in a subdirectory of the temp_dir
+  dirname_log_file=$(dirname $(dirname ${log_file}))
+  ls -l ${log_file}
+  if [[ ! -d ${dirname_log_file}/archive ]]; then
+    mkdir -p ${dirname_log_file}/archive
+    chmod 777 ${dirname_log_file}/archive
+  fi
+  echo mv ${log_file} ${dirname_log_file}/archive
+  mv ${log_file} ${dirname_log_file}/archive
+  ret=$?
+  if [[ ${ret} != 0 ]]; then
+    echo "ERROR: failed to move log file ${log_file} to ${dirname_log_file}/archive ret: ${ret}"
+  fi
+  # archive the import log_file
+  ls -l ${import_log_file}
+  echo mv ${import_log_file} ${dirname_log_file}/archive
+  mv ${import_log_file} ${dirname_log_file}/archive
+  ret=$?
+  if [[ ${ret} != 0 ]]; then
+    echo "ERROR: failed to move import log file ${import_log_file} to ${dirname_log_file}/archive ret: ${ret}"
+  fi
+  echo "removing temp_dir files ${t_dir}/*"
+  rm -rf ${t_dir}/*
   echo "--------"
-  # now clean up the files
-  # remove the tar file (if it failed it should have been archived)
-  echo "removing tar file - $f"
-  rm ${load_dir}/${f}
-  # remove the data files ($t_dir)
-  echo "removing data directory - ${t_dir}"
-  rm -rf ${t_dir}
 done
+# remove the data dir ($t_dir)
+echo "removing data directory - ${t_dir}"
+rm -rf ${t_dir}
 
 echo "*************************************"
-
 if [[ "${success_import_count}" -ne "0" ]]; then
+  echo "update metadata import success count: ${success_import_count}"
 	LOCKDIR="/data/import_lock"
   #if LOCKDIR is > 48 * 3600 seconds old, remove it
   if (( $(date "+%s") - $(date -r ${LOCKDIR} "+%s") > $(( 48 * 3600 )) )); then
@@ -182,24 +251,24 @@ if [[ "${success_import_count}" -ne "0" ]]; then
   fi
 	if mkdir -- "$LOCKDIR"; then
 	    echo "update ceiling metadata"
-	    ${clonedir}/mats_metadata_and_indexes/metadata_files/update_ctc_ceiling_mats_metadata.sh ${credentials_file}
-            ret=$?
-            if [[ "${ret}" -ne "0" ]]; then
-               echo "ceiling metadata update failed with exit code ${ret}"
-            fi
-            echo "update ceiling metadata"
-	    ${clonedir}/mats_metadata_and_indexes/metadata_files/update_ctc_visibility_mats_metadata.sh ${credentials_file}
-            ret=$?
-            if [[ "${ret}" -ne "0" ]]; then
-               echo "visibility import failed with exit code ${ret}"
-            fi
-            echo "update visibility metadata"
-	    ${clonedir}/mats_metadata_and_indexes/metadata_files/update_sums_surface_mats_metadata.sh ${credentials_file}
-            ret=$?
-            if [[ "${ret}" -ne "0" ]]; then
-               echo "surface import failed with exit code ${ret}"
-            fi
-            echo "update surface metadata"
+	    mats_metadata_and_indexes/metadata_files/update_ctc_ceiling_mats_metadata.sh ${credentials_file}
+      ret=$?
+      if [[ "${ret}" -ne "0" ]]; then
+          echo "ceiling metadata update failed with exit code ${ret}"
+      fi
+      echo "update ceiling metadata"
+	    mats_metadata_and_indexes/metadata_files/update_ctc_visibility_mats_metadata.sh ${credentials_file}
+      ret=$?
+      if [[ "${ret}" -ne "0" ]]; then
+          echo "visibility import failed with exit code ${ret}"
+      fi
+      echo "update visibility metadata"
+	    mats_metadata_and_indexes/metadata_files/update_sums_surface_mats_metadata.sh ${credentials_file}
+      ret=$?
+      if [[ "${ret}" -ne "0" ]]; then
+          echo "surface import failed with exit code ${ret}"
+      fi
+      echo "update surface metadata"
 	    if rmdir -- "$LOCKDIR"
 	    then
 		echo "import finished"
@@ -207,8 +276,10 @@ if [[ "${success_import_count}" -ne "0" ]]; then
 		echo "IMPORT ERROR: Could not remove import lock dir" >&2
 	    fi
 	fi
+else
+  echo "no new data to import - import success count: ${success_import_count}"
 fi
-echo "FINISHED"
+echo "capture metrics"
 end=$(date +%s)
 m_file=$(mktemp)
 echo "run_import_duration $((end-start))" > ${m_file}
@@ -218,6 +289,5 @@ echo "run_scrape_success_count ${success_scrape_count}" >> ${m_file}
 echo "run_scrape_failure_count ${failed_scrape_count}" >> ${m_file}
 cp ${m_file} "${metrics_dir}/run_import_metrics.prom"
 rm ${m_file}
-# purge the old files
-rm -rf $(for d in $(find /data -type d -name "*purge"); do find $d -type f -mtime +3 -print; done)
+echo "FINISHED"
 exit 0

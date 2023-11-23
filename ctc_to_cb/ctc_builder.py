@@ -6,6 +6,7 @@ Copyright 2019 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of
 Colorado, NOAA/OAR/ESRL/GSL
 """
 
+import sys
 import copy
 import cProfile
 import logging
@@ -428,6 +429,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
         # noinspection PyBroadException
         try:
             logging.getLogger().setLevel(logging.INFO)
+            logging.StreamHandler(sys.stdout)
             # reset the builders document_map for a new file
             self.initialize_document_map()
             self.not_found_station_count = 0

@@ -1,0 +1,1680 @@
+'\" t
+.\"     Title: cbbackupmgr-restore
+.\"    Author: Couchbase
+.\" Generator: Asciidoctor 2.0.16
+.\"      Date: 2023-09-20
+.\"    Manual: Couchbase Server Manual
+.\"    Source: Couchbase Server 7.2.2-6401
+.\"  Language: English
+.\"
+.TH "CBBACKUPMGR\-RESTORE" "1" "2023-09-20" "Couchbase Server 7.2.2\-6401" "Couchbase Server Manual"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+cbbackupmgr-restore \- Restores data from the backup archive to a Couchbase cluster
+.SH "SYNOPSIS"
+.sp
+.nf
+cbbackupmgr restore [\-\-archive <archive_dir>] [\-\-repo <repo_name>]
+                    [\-\-cluster <host>] [\-\-username <username>]
+                    [\-\-password <password>] [\-\-client\-cert <path>]
+                    [\-\-client\-cert\-password <password>] [\-\-client\-key <path>]
+                    [\-\-client\-key\-password <password>] [\-\-start <start>]
+                    [\-\-end <end>] [\-\-include\-data <collection_string_list>]
+                    [\-\-exclude\-data <collection_string_list>]
+                    [\-\-map\-data <collection_string_mappings>]
+                    [\-\-disable\-cluster\-analytics] [\-\-disable\-analytics]
+                    [\-\-disable\-views] [\-\-disable\-gsi\-indexes]
+                    [\-\-disable\-ft\-indexes] [\-\-disable\-ft\-alias]
+                    [\-\-disable\-data] [\-\-disable\-eventing]
+                    [\-\-disable\-bucket\-query] [\-\-disable\-cluster\-query]
+                    [\-\-replace\-ttl <type>]
+                    [\-\-replace\-ttl\-with <timestamp>] [\-\-force\-updates]
+                    [\-\-threads <integer>] [\-\-vbucket\-filter <integer_list>]
+                    [\-\-no\-progress\-bar] [\-\-auto\-create\-buckets]
+                    [\-\-autoremove\-collections] [\-\-continue\-on\-cs\-failure]
+                    [\-\-restore\-partial\-backups] [\-\-obj\-access\-key\-id <access_key_id>]
+                    [\-\-obj\-cacert <cert_path>] [\-\-obj\-endpoint <endpoint>]
+                    [\-\-obj\-read\-only\-mode] [\-\-obj\-no\-ssl\-verify]
+                    [\-\-obj\-region <region>] [\-\-obj\-staging\-dir <staging_dir>]
+                    [\-\-obj\-secret\-access\-key <secret_access_key>]
+                    [\-\-s3\-force\-path\-style] [\-\-s3\-log\-level <level>]
+                    [\-\-point\-in\-time <time>]
+                    [\-\-filter\-keys <regexp>] [\-\-filter\-values <regexp>]
+                    [\-\-passphrase <passphrase>] [\-\-km\-key\-url <url>]
+                    [\-\-km\-endpoint <endpoint>] [\-\-km\-region <region>]
+                    [\-\-km\-access\-key\-id <id>] [\-\-km\-secret\-access\-key <key>]
+                    [\-\-km\-auth\-file <path>] [\-\-purge] [\-\-resume]
+.fi
+.br
+.SH "DESCRIPTION"
+.sp
+Restores data from the backup archive to a target Couchbase cluster. By default
+all data, index definitions, view definitions and full\-text index definitions
+are restored to the cluster unless specified otherwise in the repos backup
+config or through command line parameters when running the restore command.
+.sp
+The restore command is capable of restoring a single backup or a range of
+backups. When restoring a single backup, all data from that backup is restored.
+If a range of backups is restored, then cbbackupmgr will take into account
+any failovers that may have occurred in between the time that the backups were
+originally taken. If a failover did occur in between the backups, and the backup
+archive contains data that no longer exists in the cluster, then the data that
+no longer exists will be skipped during the restore. If no failovers occurred in
+between backups then restoring a range of backups will restore all data from
+each backup. If all data must be restored regardless of whether a failover
+occurred in between the original backups, then data should be restored one
+backup at a time.
+.sp
+The restore command is guaranteed to work during rebalances and failovers. If a
+rebalance is taking place, cbbackupmgr will track the movement of vbuckets
+around a Couchbase cluster and ensure that data is restored to the appropriate
+node. If a failover occurs during the restore then the client will wait 180
+seconds for the failed node to be removed from the cluster. If the failed node
+is not removed in 180 seconds then the restore will fail, but if the failed node
+is removed before the timeout then data will continue to be restored.
+.sp
+Note that if you are restoring indexes then it is highly likely that you will
+need to take some manual steps in order to properly restore them. This is
+because by default indexes will only be built if they are restored to the exact
+same index node that they were backed up from. If the index node they were
+backed up from does not exist then the indexes will be restored in round\-robin
+fashion among the current indexer nodes. These indexes will be created, but not
+built and will required the administrator to manually build them. We do this
+because we cannot know the optimal index topology ahead of time. By not building
+the indexes the administrator can move each index between nodes and build them
+when they deem that the index topology is optimal.
+.SH "OPTIONS"
+.sp
+Below is a list of required and optional parameters for the restore command.
+.SS "Required"
+.sp
+\-a,\-\-archive <archive_dir>
+.RS 4
+The directory containing the backup repository to restore data from. When
+restoring from an archive stored in S3 prefix the archive path with
+\f(CRs3://${BUCKET_NAME}/\fP.
+.RE
+.sp
+\-r,\-\-repo <repo_name>
+.RS 4
+The name of the backup repository to restore data from.
+.RE
+.sp
+\-c,\-\-cluster <hostname>
+.RS 4
+The hostname of one of the nodes in the cluster to restore data to. See the
+Host Formats section below for hostname specification details.
+.RE
+.sp
+\-u,\-\-username <username>
+.RS 4
+The username for cluster authentication. The user must have the appropriate
+privileges to take a backup.
+.RE
+.sp
+\-p,\-\-password <password>
+.RS 4
+The password for cluster authentication. The user must have the appropriate
+privileges to take a backup. If not password is supplied to this option then
+you will be prompted to enter your password.
+.RE
+.sp
+\-\-client\-cert <path>
+.RS 4
+The path to a client certificate used to authenticate when connecting to a
+cluster. May be supplied with \f(CR\-\-client\-key\fP as an alternative to the
+\f(CR\-\-username\fP and \f(CR\-\-password\fP flags.  See the CERTIFICATE AUTHENTICATION
+section for more information.
+.RE
+.sp
+\-\-client\-cert\-password <password>
+.RS 4
+The password for the certificate provided to the \f(CR\-\-client\-cert\fP flag, when
+using this flag, the certificate/key pair is expected to be in the PKCS#12
+format. See the CERTIFICATE AUTHENTICATION section for more information.
+.RE
+.sp
+\-\-client\-key <path>
+.RS 4
+The path to the client private key whose public key is contained in the
+certificate provided to the \f(CR\-\-client\-cert\fP flag. May be supplied with
+\f(CR\-\-client\-cert\fP as an alternative to the \f(CR\-\-username\fP and \f(CR\-\-password\fP
+flags. See the CERTIFICATE AUTHENTICATION section for more information.
+.RE
+.sp
+\-\-client\-key\-password <password>
+.RS 4
+The password for the key provided to the \f(CR\-\-client\-key\fP flag, when using this
+flag, the key is expected to be in the PKCS#8 format.  See the CERTIFICATE
+AUTHENTICATION section for more information.
+.RE
+.SS "Optional"
+.sp
+\-\-start <start>
+.RS 4
+The first backup to restore. See START AND END for information on what values
+are accepted.
+.RE
+.sp
+\-\-end <end>
+.RS 4
+The final backup to restore. See START AND END for information on what values
+are accepted.
+.RE
+.sp
+\-\-include\-data <collection_string_list>
+.RS 4
+Overrides the repository configuration to restore only the data specified in
+the <collection_string_list>. This flag takes a comma separated list of
+collection strings and can\(cqt be specified at the same time as
+\f(CR\-\-exclude\-data\fP. Note that including data at the scope/collection level is
+an Enterprise Edition feature.
+.RE
+.sp
+\-\-exclude\-data <collection_string_list>
+.RS 4
+Overrides the repository configuration to skip restoring the data specified
+in the <collection_string_list>. This flag takes a comma separated list of
+collection strings and can\(cqt be specified at the same time as
+\f(CR\-\-include\-data\fP. Note that excluding data at the scope/collection level is
+an Enterprise Edition feature.
+.RE
+.sp
+\-\-filter\-keys
+.RS 4
+Only restore data where the key matches a particular regular expression.
+The regular expressions provided must follow
+.URL "https://github.com/google/re2/wiki/Syntax" "RE2 syntax" "."
+.RE
+.sp
+\-\-filter\-values
+.RS 4
+Only restore data where the value matches a particular regular expression.
+The regular expressions provided must follow
+.URL "https://github.com/google/re2/wiki/Syntax" "RE2 syntax" "."
+.RE
+.sp
+\-\-enable\-bucket\-config
+.RS 4
+Enables restoring the bucket configuration.
+.RE
+.sp
+\-\-disable\-views
+.RS 4
+Skips restoring view definitions for all buckets.
+.RE
+.sp
+\-\-disable\-gsi\-indexes
+.RS 4
+Skips restoring gsi index definitions for all buckets.
+.RE
+.sp
+\-\-disable\-ft\-indexes
+.RS 4
+Skips restoring full\-text index definitions for all buckets.
+.RE
+.sp
+\-\-disable\-ft\-alias
+.RS 4
+Skips restoring full\-text alias definitions.
+.RE
+.sp
+\-\-disable\-data
+.RS 4
+Skips restoring all key\-value data for all buckets.
+.RE
+.sp
+\-\-disable\-cluster\-analytics
+.RS 4
+Skips restoring analytics cluster level analytics metadata e.g. Synonyms.
+.RE
+.sp
+\-\-disable\-analytics
+.RS 4
+Skips restoring bucket level analytics metadata.
+.RE
+.sp
+\-\-disable\-eventing
+.RS 4
+Skips restoring the eventing service metadata.
+.RE
+.sp
+\-\-disable\-bucket\-query
+.RS 4
+Skips restoring bucket level Query Service metadata.
+.RE
+.sp
+\-\-disable\-cluster\-query
+.RS 4
+Skips restoring cluster level Query Service metadata.
+.RE
+.sp
+\-\-force\-updates
+.RS 4
+Forces data in the Couchbase cluster to be overwritten even if the data in
+the cluster is newer. By default updates are not forced and all updates use
+Couchbase\(cqs conflict resolution mechanism to ensure that if newer data
+exists on the cluster that is not overwritten by older restore data.
+.RE
+.sp
+\-\-map\-data <collection_string_mappings>
+.RS 4
+Specified when you want to restore source data into a different location. For
+example this argument may be used to remap buckets/scopes/collections with
+the restriction that they must be remapped at the same level. For example a
+bucket may only be remapped to a bucket, a scope to a scope and a collection
+to a collection. The argument expects a comma separated list of collection
+string mappings e.g.
+\f(CRbucket1=bucket2,bucket3.scope1=bucket3.scope2,bucket4.scope.collection1=bucket4.scope.collection2\fP
+If used to remap a bucket into a collection then it will only restore data
+for the data service and will skip data for all the other services.
+.RE
+.sp
+\-\-replace\-ttl <type>
+.RS 4
+Sets a new expiration (time\-to\-live) value for the specified keys. This
+parameter can either be set to "none", "all" or "expired" and should be used
+along with the \-\-replace\-ttl\-with flag. If "none" is supplied then the TTL
+values are not changed. If "all" is specified then the TTL values for all
+keys are replaced with the value of the \-\-replace\-ttl\-with flag.  If
+"expired" is set then only keys which have already expired will have the
+TTL\(cqs replaced. For more information about the behavior of \f(CR\-\-replace\-ttl\fP
+see the REPLACE TTL.
+.RE
+.sp
+\-\-replace\-ttl\-with <timestamp>
+.RS 4
+Updates the expiration for the keys specified by the \-\-replace\-ttl parameter.
+The parameter has to be set when \-\-replace\-ttl is set to "all". There are two
+options, RFC3339 time stamp format (2006\-01\-02T15:04:05\-07:00) or "0". When
+"0" is specified the expiration will be removed. Please note that the RFC3339
+value is converted to a Unix time stamp on the cbbackupmgr client. It is
+important that the time on both the client and the Couchbase Server are the
+same to ensure expiry happens correctly. For more information about the
+behavior of \f(CR\-\-replace\-ttl\-with\fP see the REPLACE TTL.
+.RE
+.sp
+\-\-vbucket\-filter <list>
+.RS 4
+Specifies a list of VBuckets that should be restored. VBuckets are specified
+as a comma separated list of integers. If this parameter is not set then all
+vBuckets which were backed up are restored.
+.RE
+.sp
+\-\-no\-ssl\-verify
+.RS 4
+Skips the SSL verification phase. Specifying this flag will allow a
+connection using SSL encryption, but will not verify the identity of the
+server you connect to. You are vulnerable to a man\-in\-the\-middle attack if
+you use this flag. Either this flag or the \-\-cacert flag must be specified
+when using an SSL encrypted connection.
+.RE
+.sp
+\-\-cacert <cert_path>
+.RS 4
+Specifies a CA certificate that will be used to verify the identity of the
+server being connecting to. Either this flag or the \-\-no\-ssl\-verify flag
+must be specified when using an SSL encrypted connection.
+.RE
+.sp
+\-t,\-\-threads <num>
+.RS 4
+Specifies the number of concurrent clients to use when restoring data. Fewer
+clients means restores will take longer, but there will be less cluster
+resources used to complete the restore. More clients means faster restores,
+but at the cost of more cluster resource usage. This parameter defaults to 1
+if it is not specified and it is recommended that this parameter is not set
+to be higher than the number of CPUs on the machine where the restore is
+taking place.
+.RE
+.sp
+\-\-no\-progress\-bar
+.RS 4
+By default, a progress bar is printed to stdout so that the user can see how
+long the restore is expected to take, the amount of data that is being
+transferred per second, and the amount of data that has been restored.
+Specifying this flag disables the progress bar and is useful when running
+automated jobs.
+.RE
+.sp
+\-\-auto\-create\-buckets
+.RS 4
+It will create the destination buckets if not present in the server.
+.RE
+.sp
+\-\-autoremove\-collections
+.RS 4
+Automatically delete scopes/collections which are known to be deleted in the
+backup. See SCOPE_COLLECTION_DELETION for more details.
+.RE
+.sp
+\-\-continue\-on\-cs\-failure
+.RS 4
+It\(cqs possible that during a restore, a checksum validation will fail; in this
+case the restore will fail fast. Supplying this flag will mean that the restore
+will attempt to continue upon receiving a checksum failure. See CHECKSUM FAILURE
+for more information.
+.RE
+.sp
+\-\-restore\-partial\-backups
+.RS 4
+Allow a restore to continue when the final backup in the restore range is
+incomplete. This flag is incompatible with the \f(CR\-\-obj\-read\-only\fP flag.
+.RE
+.sp
+\-\-point\-in\-time <time>
+.RS 4
+(Beta) Specifies the point in time to restore to. The value accepted is ISO8601 date
+time format (YYYY\-MM\-DDTHH:MM:SS). This feature is currently in Beta and is not
+supported, this should only be used in test environments.
+.RE
+.sp
+\-\-purge
+.RS 4
+If the last restore failed before it finished, then remove it\(cqs progress
+(which is persisted to disk) then restart from zero. Note that only the
+restore progress is purge, no backup data will be removed.
+.RE
+.sp
+\-\-resume
+.RS 4
+If the last restore failed before it finished, then try to continue from
+where it left off.
+.RE
+.SS "Cloud integration"
+.sp
+Native cloud integration is an Enterprise Edition feature which was introduced
+in Couchbase Server 6.6.0.
+.sp
+Multiple cloud providers are supported, see the list below for more information.
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 1." 4.2
+.\}
+Supported
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+AWS S3 (\f(CRs3://\fP)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+GCP Google Storage (\f(CRgs://\fP)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+Azure Blob Storage in 7.1.2+ (\f(CRaz://\fP)
+.RE
+.RE
+.SS "Required"
+.sp
+\-\-obj\-staging\-dir <staging_dir>
+.RS 4
+When performing an operation on an archive which is located in the cloud such
+as AWS, the staging directory is used to store local meta data files. This
+directory can be temporary (it\(cqs not treated as a persistent store) and is
+only used during the backup. NOTE: Do not use \f(CR/tmp\fP as the \f(CRobj\-staging\-dir\fP.
+See \f(CRDisk requirements\fP in \fBcbbackupmgr\-cloud\fP(7) for more information.
+.RE
+.SS "Optional"
+.sp
+\-\-obj\-access\-key\-id <access_key_id>
+.RS 4
+The access key id which has access to your chosen object store. This option
+can be omitted when using the shared config functionality provided by your
+chosen object store. Can alternatively be provided using the
+\f(CRCB_OBJSTORE_ACCESS_KEY_ID\fP environment variable.
+.sp
+When using AWS, this option expects an access key id. See
+\c
+.URL "https://docs.aws.amazon.com/general/latest/gr/aws\-sec\-cred\-types.html#access\-keys\-and\-secret\-access\-keys" ""
+for more information.
+.sp
+When using Azure, this option expects an account name. See
+\c
+.URL "https://docs.microsoft.com/en\-us/azure/storage/common/storage\-account\-overview#storage\-account\-endpoints" ""
+for more information.
+.sp
+When using GCP, this option expects a client id. See
+.URL "https://cloud.google.com/storage/docs/authentication" "" ""
+for more information.
+.RE
+.sp
+\-\-obj\-cacert <cert_path>
+.RS 4
+Specifies a CA certificate that will be used to verify the identity of the
+object store being connected to.
+.RE
+.sp
+\-\-obj\-endpoint <endpoint>
+.RS 4
+The host/address of your object store.
+.RE
+.sp
+\-\-obj\-read\-only
+.RS 4
+Enable read only mode. When interacting with a cloud archive modifications
+will be made e.g. a lockfile will be created, log rotation will take place
+and the modified logs will be uploaded upon completion of the subcommand.
+This flag disables these features should you wish to interact with an archive
+in a container where you lack write permissions. This flag should be used
+with caution and you should be aware that your logs will not be uploaded to
+the cloud. This means that it\(cqs important that if you encounter an error you
+don\(cqt remove you staging directory (since logs will still be created in there
+and collected by the \f(CRcollect\-logs\fP subcommand).
+.RE
+.sp
+\-\-obj\-no\-ssl\-verify
+.RS 4
+Skips the SSL verification phase when connecting to the object store.
+Specifying this flag will allow a connection using SSL encryption, but you
+are vulnerable to a man\-in\-the\-middle attack.
+.RE
+.sp
+\-\-obj\-region <region>
+.RS 4
+The region in which your bucket/container resides. For AWS this option may be
+omitted when using the shared config functionality. See the AWS section of
+the cloud documentation for more information.
+.RE
+.sp
+\-\-obj\-secret\-access\-key <secret_access_key>
+.RS 4
+The secret access key which has access to you chosen object store. This
+option can be omitted when using the shared config functionality provided by
+your chosen object store. Can alternatively be provided using the
+\f(CRCB_OBJSTORE_SECRET_ACCESS_KEY\fP environment variable.
+.sp
+When using AWS, this option expects a secret access key. See
+\c
+.URL "https://docs.aws.amazon.com/general/latest/gr/aws\-sec\-cred\-types.html#access\-keys\-and\-secret\-access\-keys" ""
+for more information.
+.sp
+When using Azure, this option expects an account key. See
+\c
+.URL "https://docs.microsoft.com/en\-us/azure/storage/common/storage\-account\-keys\-manage?tabs=azure\-portal" ""
+for more information.
+.sp
+When using GCP, this option expects a client secret. See
+.URL "https://cloud.google.com/storage/docs/authentication" "" ""
+for more information.
+.RE
+.sp
+\-\-obj\-log\-level <level>
+.RS 4
+Set the log level for the cloud providers SDK. By default logging will be
+disabled. Valid options are cloud provider specific and are listed below.
+.sp
+The valid options for the AWS SDK are \f(CRdebug\fP, \f(CRdebug\-with\-signing\fP,
+\f(CRdebug\-with\-body\fP, \f(CRdebug\-with\-request\-retries\fP, \f(CRdebug\-with\-request\-errors\fP,
+and \f(CRdebug\-with\-event\-stream\-body\fP.
+.sp
+The valid options for the Azure SDK are \f(CRinfo\fP, \f(CRdebug\fP, \f(CRdebug\-with\-request\-retries\fP and
+\f(CRdebug\-with\-request\-retries\-and\-lro\fP.
+.sp
+The Google Storage SDK does not expose advanced logging configuration meaning
+this option is explicitly ignored, however, this behavior may change in the
+future.
+.RE
+.sp
+\-\-obj\-auth\-by\-instance\-metadata
+.RS 4
+Depending on the cloud provider, using instance metadata for authentication
+is disabled by default. Supplying this flag will allow the fetching
+credentials/auth tokens from (VM) internal instance metadata endpoints.
+.sp
+By default, this option is disabled for AWS.
+.sp
+By default, this option is enabled for Azure.
+.sp
+By default, this option is enabled for GCP.
+.RE
+.sp
+\-\-obj\-auth\-file
+.RS 4
+GCP offers the ability to use a file which contains credentials which will be
+used to perform authentication. The \f(CR\-\-obj\-auth\-file\fP flag accepts a path to
+an authentication file. This flag is unsupported for the AWS/Azure cloud
+providers.
+.RE
+.sp
+\-\-obj\-refresh\-token
+.RS 4
+GCP requires a refresh token when using static credentials, this will be used
+to refresh oauth2 tokens when accessing remote storage.
+.RE
+.SS "AWS S3 Options"
+.SS "Optional"
+.sp
+\-\-s3\-force\-path\-style
+.RS 4
+By default the updated virtual style paths will be used when interfacing with
+AWS S3. This option will force the AWS SDK to use the alternative path style
+URLs which are often required by S3 compatible object stores.
+.RE
+.SS "Encryption (Developer Preview)"
+.sp
+\-\-passphrase <passphrase>
+.RS 4
+Passphrase can be used instead of an external key manager. This is not
+supported on production and should only be used in development or testing.
+.RE
+.sp
+\-\-km\-key\-url <url>
+.RS 4
+Provides the Key Identifier in the external Key Management system. Currently
+supported KMSs are AWS KMS, GCP KMS, Azure KeyVault, HashiCorp Vault Transit
+secrets engine. The option can also be provided using the environmental
+variable \f(CRCB_KM_KEY_URL\fP. For more on how to authenticate using the different
+providers see \fBcbbackupmgr\-encryption\fP(7).
+.sp
+For AWS the expected key format is \f(CRawskms://<KEY\-ID|KEY\-ALIAS>\fP, for example
+\f(CRawskms://alias\(rskeyAlias\fP.
+.sp
+For GCP the expected key format is \f(CRgcpkms://<KEY\-RESOURCE\-ID>\fP, for example
+\f(CRgcpkms://projects/project\-id/locations/location/keyRings/keyring/cryptoKeys/key\fP.
+.sp
+For Azure key vault the expected key format is \f(CRazurekeyvault://<KEY\-IDENTIFIER>\fP
+for example:
+\f(CRazurekeyvault://vault\-name.vault.azure.net/object\-type/object\-name/object\-version\fP.
+.sp
+For HashiCorp Vault the expected format is \f(CRhashivaults://<HOST>/<KEY\-NAME>\fP
+for example:
+\f(CRhashivaults://127.0.0.1:8200/keyName\fP.
+.RE
+.sp
+\-\-km\-region <region>
+.RS 4
+Required when using AWS KMS, it allows you to set the key region.
+.RE
+.sp
+\-\-km\-endpoint <endpoint>
+.RS 4
+The host or address to use as your KMS. It will override the default SDK one.
+.RE
+.sp
+\-\-km\-access\-key\-id <id>
+.RS 4
+The user ID used to connect to the key management service. It can also be
+provided via \f(CRCB_KM_ACCESS_KEY_ID\fP environmental variable. Please refer
+to \fBcbbackupmgr\-encryption\fP(7) for the required authentication for each
+provider.
+.RE
+.sp
+\-\-km\-secret\-access\-key <key>
+.RS 4
+The key used to connect to the key management service. It can also be
+provided via the \f(CRCB_KM_SECRET_ACCESS_KEY\fP environmental variable. Please
+refer to \fBcbbackupmgr\-encryption\fP(7) for the required authentication for
+each provider.
+.RE
+.sp
+\-\-km\-auth\-file <path>
+.RS 4
+The path to a file containing the authentication credentials for the key
+management service. It can also be provided via the \f(CRCB_KM_AUTH_FILE\fP
+environmental variable. Please refer to \fBcbbackupmgr\-encryption\fP(7) for the
+required authentication for each provider.
+.RE
+.SH "START AND END"
+.sp
+This sub\-command accepts a \f(CR\-\-start\fP and \f(CR\-\-end\fP flag. These flags accept
+multiple values to allow you to flexibly operate on a range of backups.
+.SS "Indexes"
+.sp
+Indexes may be supplied to operate on a range of backups, for example
+\f(CR\-\-start 1 \-\-end 2\fP will include start at the first backup and will finish with
+the second backup. Note that the first backup is 1 and not 0 and that the
+\f(CR\-\-end\fP flag is inclusive.
+.SS "Short Dates"
+.sp
+Short dates may be supplied in the format \f(CRday\-month\-year\fP. For example
+\f(CR\-\-start 01\-08\-2020 \-\-end 31\-08\-2020\fP will operate on all the backups which
+were taken during August of 2020. Note that the end date is inclusive.
+.sp
+When supplying short dates, you may supply \f(CRstart\fP or \f(CRoldest\fP as a placeholder
+for the date on which the first backup in this repository was taken. The
+keywords \f(CRend\fP or \f(CRlatest\fP may be used as a placeholder for the date last
+backup in the repository was taken.
+.SS "Backup Names"
+.sp
+Backup names may be supplied as they exist on disk. For example
+\f(CR\-\-start 2020\-08\-13T20_01_08.894226137+01_00 \-\-end 2020\-08\-13T20_01_12.348300092+01_00\fP
+will cause the sub\-command to operate on all the backups which inclusively fall
+between these two backups.
+.sp
+When supplying backup names, you may supply \f(CRstart\fP or \f(CRoldest\fP as a
+placeholder for the first backup in the repository. The keywords \f(CRend\fP or
+\f(CRlatest\fP may be used  as a placeholder for the final backup in the repository.
+.SH "HOST FORMATS"
+.sp
+When specifying a host/cluster for a command using the \f(CR\-c\fP/\f(CR\-\-cluster\fP flag, the following formats
+are accepted:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CR<addr>:<port>\fP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CRhttp://<addr>:<port>\fP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CRhttps://<addr>:<port>\fP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CRcouchbase://<addr>:<port>\fP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CRcouchbases://<addr>:<port>\fP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CRcouchbase://<srv>\fP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CRcouchbases://<srv>\fP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CR<addr>:<port>,<addr>:<port>\fP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CR<scheme>://<addr>:<port>,<addr>:<port>\fP
+.RE
+.sp
+The \f(CR<port>\fP portion of the host format may be omitted, in which case the default port will be used
+for the scheme provided. For example, \f(CRhttp://\fP and \f(CRcouchbase://\fP will both default to 8091 where
+\f(CRhttps://\fP and \f(CRcouchbases://\fP will default to 18091. When connecting to a host/cluster using a
+non\-default port, the \f(CR<port>\fP portion of the host format must be specified.
+.SS "Connection Strings (Multiple nodes)"
+.sp
+The \f(CR\-c\fP/\f(CR\-\-cluster\fP flag accepts multiple nodes in the format of a connection string; this is a
+comma separated list of \f(CR<addr>:<port>\fP strings where \f(CR<scheme>\fP only needs to be specified once.
+The main advantage of supplying multiple hosts is that in the event of a failure, the next host in
+the list will be used.
+.sp
+For example, all of the following are valid connection strings:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CRlocalhost,[::1]\fP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CR10.0.0.1,10.0.0.2\fP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CRhttp://10.0.0.1,10.0.0.2\fP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CRhttps://10.0.0.1:12345,10.0.0.2\fP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CRcouchbase://10.0.0.1,10.0.0.2\fP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CRcouchbases://10.0.0.1:12345,10.0.0.2:12345\fP
+.RE
+.SS "SRV Records"
+.sp
+The \f(CR\-c\fP/\f(CR\-\-cluster\fP flag accepts DNS SRV records in place of a host/cluster address where the SRV
+record will be resolved into a valid connection string. There are a couple of rules which must be
+followed when supplying an SRV record which are as follows:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+The \f(CR<scheme>\fP portion must be either \f(CRcouchbase://\fP or \f(CRcouchbases://\fP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+The \f(CR<srv>\fP portion should be a hostname with no port
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+The \f(CR<srv>\fP portion must not be a valid IP address
+.RE
+.sp
+For example, all of the following are valid connection string using an SRV record:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CRcouchbase://hostname\fP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CRcouchbases://hostname\fP
+.RE
+.SS "Alternate Addressing (CAO/K8S)"
+.sp
+Users of the CAO (Couchbase Autonomous Operator) or K8S may need to supply the
+\f(CRnetwork=external\fP query parameter to force connection via the defined
+alternate addressing.
+.sp
+For example, the following are valid connection strings:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CRhttps://10.0.0.1:12345,10.0.0.2?network=default\fP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CRhttps://10.0.0.1:12345,10.0.0.2?network=external\fP
+.RE
+.SH "CERTIFICATE AUTHENTICATION (MTLS AUTHENTICATION)"
+.sp
+This tool supports authenticating against a Couchbase Cluster by using certificate based authentication (mTLS
+authentication). To use certificate based authentication a certificate/key must be supplied, there a currently
+multiple ways this may be done.
+.SS "PEM ENCODED CERTIFICATE/KEY"
+.sp
+An unencrypted PEM encoded certificate/key may be supplied by using:
+\- \f(CR\-\-client\-cert <path>\fP
+\- \f(CR\-\-client\-key <path>\fP
+.sp
+The file passed to \f(CR\-\-client\-cert\fP must contain the client certificate, and an optional chain required to authenticate
+the client certificate.
+.sp
+The file passed to \f(CR\-\-client\-key\fP must contain at most one private key, the key can be in one of the following formats:
+\- PKCS#1
+\- PKCS#8
+\- EC
+.sp
+Currently, only the following key types are supported:
+\- RSA
+\- ECDSA
+\- ED25519
+.SS "PEM ENCODED CERTIFICATE/PEM OR DER ENCRYPTED PKCS#8 KEY"
+.sp
+An encrypted PKCS#8 formatted key may be provided using:
+\- \f(CR\-\-client\-cert <path>\fP
+\- \f(CR\-\-client\-key <path>\fP
+\- \f(CR\-\-client\-key\-password <password>\fP
+.sp
+The file passed to \f(CR\-\-client\-cert\fP must contain the client certificate, and an optional chain required to authenticate
+the client certificate.
+.sp
+Currently, only the following key types are supported:
+\- RSA
+\- ECDSA
+\- ED25519
+.SS "ENCRYPTED PKCS#12 CERTIFICATE/KEY"
+.sp
+An encrypted PKCS#12 certificate/key may be provided using:
+\- \f(CR\-\-client\-cert <path>\fP
+\- \f(CR\-\-client\-cert\-password <password>\fP
+.sp
+The file passed to \f(CR\-\-client\-cert\fP must contain the client certificate and exactly one private key. It may also contain
+the chain required to authenticate the client certificate.
+.sp
+Currently, only the following key types are supported:
+\- RSA
+\- ECDSA
+\- ED25519
+.SH "RBAC"
+.sp
+When performing a backup/restore with a user which is using RBAC, there are a
+couple of things that should be taken into consideration each of which is
+highlighted in this section.
+.SS "Bucket Level"
+.sp
+Bucket level data may be backed up/restored using the \f(CRdata_backup\fP (Data
+Backup & Restore) role.
+.sp
+The \f(CRdata_backup\fP role does not have access to cluster level data such as:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+Analytics Synonyms
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+Eventing Metadata
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+FTS Aliases
+.RE
+.sp
+Backing up/restoring cluster level data with the \f(CRdata_backup\fP role will cause
+permission errors like the one below.
+.sp
+.if n .RS 4
+.nf
+.fam C
+Error backing up cluster: {"message":"Forbidden. User needs one of the following permissions","permissions":["cluster.fts!read"]}
+.fam
+.fi
+.if n .RE
+.sp
+When presented with an error message such as the one above, there\(cqs two clear
+options.
+.sp
+The first option is to provide the user with the required credentials using
+either the cli, REST API or Couchbase Server WebUI. This can be done by editing
+the user and adding the required role. See \f(CRCluster Level\fP for more information
+about the required roles.
+.sp
+Secondly, backing up/restoring the specific service can be disabled. For
+backups this must be done when configuring the repository with the \f(CRconfig\fP
+command using the \f(CR\-\-disable\fP style flags. For restore, these flags may be used
+directly to disable one or more services. See the backup/restore documentation
+for more information.
+.SS "Cluster Level"
+.sp
+Backing up/restoring cluster level data requires additional RBAC roles, each of
+which is highlighted below:
+.sp
+Analytics Synonyms
+.RS 4
+\f(CRanalytics_admin\fP (Analytics Admin)
+.RE
+.sp
+Eventing Metadata
+.RS 4
+\f(CReventing_admin\fP (Eventing Full Admin)
+.RE
+.sp
+FTS Aliases
+.RS 4
+\f(CRfts_admin\fP (Search Admin)
+.RE
+.sp
+These additional roles are required since this is cluster level data which may
+encompass multiple buckets.
+.SH "SUPPORTED BACKUP VERSIONS"
+.sp
+The \f(CRrestore\fP sub\-command currently supports restoring backups created by all
+previous versions of \f(CRcbbackupmgr\fP, however, this won\(cqt always be the case.
+.sp
+The \f(CRForestDB\fP storage format (used by \f(CRcbbackupmgr\fP versions prior to, but not
+including 6.5.0) is now deprecated.
+.sp
+This means that future releases of \f(CRcbbackupmgr\fP will not be able to restore
+backups created by versions of \f(CRcbbackupmgr\fP prior to but not including 6.5.0.
+.sp
+These backups are still safe and usable, however, they must be restored/merged
+with a version of \f(CRcbbackupmgr\fP which supports interacting with 6.0.x archives
+e.g. 6.5.x, 6.6.x, 7.0.x and 7.1.x.
+.SS "Example"
+.sp
+Imagine you have a backup created by a 6.0.x version of \f(CRcbbackupmgr\fP, this
+will use the \f(CRForestDB\fP storage format. You\(cqd like to restore this backup,
+however, the latest version no longer supports interacting with this format.
+.sp
+In this case, you could either:
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 1." 4.2
+.\}
+Restore the backup using \f(CRcbbackupmgr\fP from 6.5.x, 6.6.x, 7.0.x or 7.1.x.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 2.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 2." 4.2
+.\}
+Merge two or more backups using \f(CRcbbackupmgr\fP from 6.5.x, 6.6.x, 7.0.x or 7.1.x then restore it using the latest version.
+.RE
+.sp
+Although in this case you were unable to directly restore the backup with the
+latest version of cbbackupmgr, the data is still indirectly accessible for
+restore.
+.SH "REPLACE TTL"
+.sp
+The behavior of the \-\-replace\-ttl/\-\-replace\-ttl\-with flags is well defined,
+however, there are some conditions where the behavior may seem surprising or
+unexpected due to conflict resolution.
+.sp
+Imagine the case where a backup contains one or more documents which have an
+expiry which has now elapsed. There are several possible scenarios which could
+take place when restoring these documents when using the \f(CR\-\-replace\-ttl\fP and
+\f(CR\-\-replace\-ttl\-with\fP flags. These scenarios are enumerated below.
+.SS "RESTORING TO A NEW CLUSTER/BUCKET"
+.sp
+When restoring to a new cluster it\(cqs expected that all the documents which match
+the all/expired condition will be restored with their new/updated ttl values.
+.SS "RESTORING TO THE SAME BUCKET"
+.sp
+The most interesting/unexpected cases occur when restoring the backup to the
+same bucket at some point in the future.
+.SS "EXPIRED DOCUMENTS HAVE NOT BEEN PURGED"
+.sp
+In the event that the restore takes place and the expired documents have not
+been purged yet, conflict resolution will take precedence and the documents will
+not be restored. This behavior will manifest itself as skipped mutations which
+will be displayed in restore sub\-command output.
+.sp
+.if n .RS 4
+.nf
+.fam C
+Restoring backup \*(Aq2021\-05\-17T11_00_15.843794944+01_00\*(Aq
+Copied all data in 1.773s (Avg. 21.03MiB/Sec)                                                                           31591 items / 21.03MiB
+[====================================================================================================================================] 100.00%
+
+| Transfer
+| \-\-\-\-\-\-\-\-
+| Status    | Avg Transfer Rate | Started At                        | Finished At                     | Duration |
+| Succeeded | 21.03MiB          | Mon, 17 May 2021 11:00:25 +0100/s | Mon, 17 May 2021 11:00:26 +0100 | 1.785s   |
+
+| Bucket
+| \-\-\-\-\-\-
+| Name          | Status    | Transferred | Avg Transfer Rate | Started At                      | Finished At                     | Duration |
+| travel\-sample | Succeeded | 21.03MiB    | 21.03MiB/s        | Mon, 17 May 2021 11:00:25 +0100 | Mon, 17 May 2021 11:00:26 +0100 | 1.713s   |
+|
+| Mutations                    | Deletions                    | Expirations                  |
+| \-\-\-\-\-\-\-\-\-                    | \-\-\-\-\-\-\-\-\-                    | \-\-\-\-\-\-\-\-\-\-\-                  |
+| Received | Errored | Skipped | Received | Errored | Skipped | Received | Errored | Skipped |
+| 0        | 0       | 31591   | 0        | 0       | 0       | 0        | 0       | 0       |
+
+Restore completed successfully
+.fam
+.fi
+.if n .RE
+.SS "EXPIRED DOCUMENTS HAVE BEEN PURGED"
+.sp
+If the restore is performed after the user\-defined purge interval where a
+compaction has taken place, the documents would be restored because the expired
+documents would no longer exist in the cluster.
+.SS "FORCING UPDATES"
+.sp
+The above behavior may be overridden by using the \f(CR\-\-force\-updates\fP flag which
+will bypass conflict resolution and result in the documents from the backup
+being restored.
+.sp
+The \f(CR\-\-force\-updates\fP flag will affect all the documents being restored and not
+just those which contain an expiry which is being replaced.  This may result in
+documents being overwritten with older versions from the backup; if the expired
+documents keys are known beforehand, a mixed use of \f(CR\-\-force\-updates\fP and
+\f(CR\-\-filter\-keys\fP may be more precise.
+.SH "EXAMPLES"
+.sp
+The restore command can be used to restore a single backup or range of backups
+in a backup repository. In the examples below, we will look a few different ways
+to restore data from a backup repository. All examples will assume that the
+backup archive is located at /data/backups and that all backups are located in
+the "example" backup repository.
+.sp
+The first thing to do when getting ready to restore data is to decide which
+backups to restore. The easiest way to do this is to use the info command to see
+which backups are available to restore.
+.sp
+.if n .RS 4
+.nf
+.fam C
+$ cbbackupmgr info \-\-archive /data/backups \-\-repo example \-\-all
+Name     | Size    | # Backups  |
+example  | 4.38MB  | 3          |
+
++  Backup                            | Size    | Type  | Source                 | Cluster UUID                      | Range  | Events  | Aliases  | Complete  |
++  2020\-06\-02T07_49_11.281004+01_00  | 1.69MB  | FULL  | http://localhost:8091  | c044f5eeb1dc16d0cd49dac29074b5f9  | N/A    | 0       | 1        | true      |
+
+\-    Bucket   | Size    | Items  | Mutations  | Tombstones  | Views  | FTS  | Indexes  | CBAS  |
+\-    example  | 1.69MB  | 4096   | 4096       | 0           | 0      | 0    | 0        | 0     |
+
++  Backup                            | Size    | Type  | Source                 | Cluster UUID                      | Range  | Events  | Aliases  | Complete  |
++  2020\-06\-03T07_49_52.577901+01_00  | 1.34MB  | INCR  | http://localhost:8091  | c044f5eeb1dc16d0cd49dac29074b5f9  | N/A    | 0       | 1        | true      |
+
+\-    Bucket   | Size    | Items  | Mutations  | Tombstones  | Views  | FTS  | Indexes  | CBAS  |
+\-    example  | 1.34MB  | 2048   | 2048       | 0           | 0      | 0    | 0        | 0     |
+
++  Backup                            | Size    | Type  | Source                 | Cluster UUID                      | Range  | Events  | Aliases  | Complete  |
++  2020\-06\-04T07_50_06.908787+01_00  | 1.34MB  | INCR  | http://localhost:8091  | c044f5eeb1dc16d0cd49dac29074b5f9  | N/A    | 0       | 1        | true      |
+
+\-    Bucket   | Size    | Items  | Mutations  | Tombstones  | Views  | FTS  | Indexes  | CBAS  |
+\-    example  | 1.34MB  | 2048   | 2048       | 0           | 0      | 0    | 0        | 0     |
+.fam
+.fi
+.if n .RE
+.sp
+From the information of the backup repository we can see we have three backups
+that we can restore in the "examples" backup repository. If we just want to
+restore one of them we set the \-\-start and \-\-end flags in the restore command
+to the same backup name and specify the cluster that we want to restore the data
+to. In the example below we will restore only the oldest backup.
+.sp
+.if n .RS 4
+.nf
+.fam C
+$ cbbackupmgr restore \-a /data/backups \-r example \(rs
+ \-c couchbase://127.0.0.1 \-u Administrator \-p password \(rs
+ \-\-start 2020\-06\-02T07_49_11.281004+01_00 \(rs
+ \-\-end 2020\-06\-02T07_49_11.281004+01_00
+.fam
+.fi
+.if n .RE
+.sp
+If we want to restore only the two most recent backups then we specify the
+\-\-start and \-\-end flags with different backup names in order to specify the
+range we want to restore.
+.sp
+.if n .RS 4
+.nf
+.fam C
+$ cbbackupmgr restore \-a /data/backups \-r example \(rs
+ \-c couchbase://127.0.0.1 \-u Administrator \-p password \(rs
+ \-\-start 2020\-06\-02T07_49_11.281004+01_00 \(rs
+ \-\-end 2020\-06\-03T07_49_52.577901+01_00
+.fam
+.fi
+.if n .RE
+.sp
+If we want to restore all of the backups in the "examples" directory then we can
+omit the \-\-start and \-\-end flags since their default values are the oldest and
+most recent backup in the backup repository.
+.sp
+.if n .RS 4
+.nf
+.fam C
+$ cbbackupmgr restore \-a /data/backups \-r example \(rs
+ \-c couchbase://127.0.0.1 \-u Administrator \-p password
+.fam
+.fi
+.if n .RE
+.sp
+Restore also allows filtering the data restored by document key and/or value by passing
+regular expressions to the flags \f(CR\-\-filter\-keys\fP and \f(CR\-\-filter\-values\fP respectively.
+Say we backup the sample bucket \*(Aqbeer\-sample\*(Aq if we only wanted to restore only the
+documents that have a key that starts with \*(Aq21st_amendment_brewery_cafe\*(Aq. This can be
+done using the flag \f(CR\-\-filter\-keys\fP as shown bellow.
+.sp
+.if n .RS 4
+.nf
+.fam C
+$ cbbackupmg restore \-c http://127.0.0.1:8091 \-u Administrator \-p password \(rs
+ \-a /data/backups \-r beer \-\-filter\-keys \*(Aq^21st_amendment_brewery_cafe.*\*(Aq
+.fam
+.fi
+.if n .RE
+.sp
+Restore also allows filtering by value. Let\(cqs say we only want to restore documents that
+contain the JSON field \f(CRaddress\fP. This could be done by passing the regular expression
+\f(CR{.*"address":.*}\fP to the \f(CR\-\-filter\-values\fP flag as illustrated below.
+.sp
+.if n .RS 4
+.nf
+.fam C
+$ cbbackupmgr \-c http://127.0.0.1:8091 \-u Administrator \-p password \(rs
+ \-a /data/backups \-r beer \-\-filter\-values \*(Aq{.*"address":.*}\*(Aq
+.fam
+.fi
+.if n .RE
+.sp
+Finally, we can combine both flags to filter by both key and value. Imagine you want to
+restore the values for beers that start with the key \*(Aq21st_amendment_brewery_cafe\*(Aq and
+have the JSON field \f(CR"category":"North American Ale"\fP. This can be done by using
+the command bellow.
+.sp
+.if n .RS 4
+.nf
+.fam C
+$ cbbackupmgr \-c http://127.0.0.1:8091 \-u Administrator \-p password \(rs
+ \-a /data/backups \-r beer \-\-filter\-values \*(Aq{.*"category":"North American Ale".*}\*(Aq \(rs
+ \-\-filter\-keys \*(Aq^21st_amendment_brewery_cafe.*\*(Aq
+.fam
+.fi
+.if n .RE
+.sp
+The regular expressions provided must follow \c
+.URL "https://github.com/google/re2/wiki/Syntax" "RE2 syntax" "."
+.SH "CHECKSUM FAILURE"
+.sp
+A checksum failure may occur during a restore and indicates that a document
+has changed since the creation of the backup. Depending on the type of corruption
+we may be able to restore by skipping only the corrupted documents. However, if the
+size of the data file has changed (e.g. not a bit flip or byte for byte modification)
+\fBall\fP documents after the corruption (for that vBucket) will be unusable.
+.SH "AUTOMATIC COLLECTION CREATION"
+.sp
+By design, users may not recreate the \f(CR_default\fP collection once it has been
+deleted. Therefore, this means that the \f(CR_default\fP collection can\(cqt (and won\(cqt)
+be recreated if it\(cqs missing. Before performing a transfer, a check will take
+place to see if the \f(CR_default\fP collection will be required when it\(cqs missing.
+If this is the case, the command will exit early and you will be required to
+remap the \f(CR_default\fP collection using the \f(CR\-\-map\-data\fP flag.
+.SH "AUTOMATIC COLLECTION DELETION"
+.sp
+During a backup cbbackupmgr will take note of which scopes/collections were
+create/deleted/modified up to the point that the backup began.  This behavior
+can be leveraged to automatically delete any scopes/collections which are
+marked as deleted in the backup. We will only delete scopes/collections which
+are identical to the ones which are stored in the backup; ones which match by
+both id and name.
+.SH "REMAPPING"
+.sp
+During a transfer, scopes/collections can be remapped from one location to
+another. There are several rules that are enforced when remapping
+scopes/collections, they are as follows:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+You must be running an Enterprise Edition version of Couchbase Server.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+You may not remap the \f(CR_default\fP scope (discussed in THE DEFAULT SCOPE).
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+You may only remap scopes/collections at the same level meaning scopes may
+be remapped to other scopes, and collections to other collections, however, a
+scope can\(cqt be remapped to a collection or vice versa.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+Scopes/collections may only be remapped within the same bucket. For example
+the mapping \f(CRbucket1.scope.collection=bucket2.scope.collection\fP is invalid.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+Scopes/collections may only be remapped once. For example the mapping
+\f(CRbucket1.scope1=bucket1.scope2,bucket1.scope1=bucket1.scope3\fP is invalid.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+Remapping may only take place at one level at once meaning that if a parent
+bucket/scope is already remapped, the child scopes/collections may not also
+be remapped. For example the mapping
+\f(CRbucket1.scope1=bucket1.scope2,bucket1.scope1.collection1=bucket1.scope3.collection9\fP
+is invalid.
+.RE
+.SS "REMAPPING A SCOPE/COLLECTION WITHOUT RENAMING"
+.sp
+During a transfer, it\(cqs possible for a scope/collection to encounter a conflict
+(for example, because it has been recreated). It may not be preferable to
+rename the scope/collection during the transfer.
+.sp
+For this reason, the \f(CR\-\-map\-data\fP flag, allows you to remap a scope/collection
+to itself; this indicates that the scope/collection that exists in the target
+(with a different id) should be treated as the same.
+.sp
+As an example, the following error message indicates that a collection has been
+recreated prior to a restore.
+.sp
+.if n .RS 4
+.nf
+.fam C
+Error restoring cluster: collection 8 with name \*(Aqcollection1\*(Aq in the scope \*(Aq_default\*(Aq exists with a different name/id on the cluster, a manual remap is required
+.fam
+.fi
+.if n .RE
+.sp
+Using the \f(CR\-\-map\-data\fP flag with the argument
+\f(CRbucket._default.collection1=bucket._default.collection1\fP would cause
+\f(CRcbbackupmgr\fP to treat \f(CRcollection1\fP (with id 8) as \f(CRcollection1\fP (with the id
+it exists with in the target).
+.SS "THE DEFAULT SCOPE"
+.sp
+As mentioned in AUTOMATIC COLLECTION CREATION, it\(cqs not possible to recreate
+the \f(CR_default\fP scope/collection. This means you can\(cqt remap the \f(CR_default\fP
+scope because the tool may be unable to create a destination scope/collection.
+This may be worked around by remapping each collection inside the \f(CR_default\fP
+scope.
+.SS "BUCKET TO COLLECTION REMAPPING"
+.sp
+As discussed in REMAPPING, it\(cqs not possible to remap data at different levels;
+buckets must be remapped to buckets, scopes to scopes and collections to
+collections. However, there is one supported edge case, which is remapping a
+bucket into a collection to allow migration from a collection unaware to
+collection aware datasets.
+.sp
+To remap a bucket into a collection using \f(CR\-\-map\-data\fP you may supply
+\f(CR\-\-map\-data bucket._default._default=bucket.scope.collection\fP. This
+functionality is compatible with cross bucket mapping, for example you may also
+supply \f(CR\-\-map\-data bucket1._default._default=bucket2.scope.collection\fP.
+.sp
+Note that once you\(cqve provided a mapping to remap a bucket into a collection
+you may not remap that bucket elsewhere. For example \f(CR\-\-map\-data
+bucket1._default._default=bucket2.scope.collection,bucket1=bucket3\fP is invalid.
+.SS "REMAPPING MULTIPLE DATA SOURCES INTO A SINGLE TARGET SOURCE"
+.sp
+As outlined in the rules discussed in REMAPPING, it\(cqs not possible to remap a
+bucket/scope/collection multiple times, however, it is possible to remap to a
+single destination multiple times. For example the mapping
+\f(CRbucket1=dest,bucket2=dest,bucket3=dest\fP is valid.
+.sp
+Although valid, this manor of remapping is dangerous and can result in data not
+being transferred due to conflicting key spaces. If this style of remapping is
+detected a warning will be printed before proceeding.
+:!supports_automatic_collection_deletion:
+.SH "RESTORING A COLLECTION AWARE BACKUP TO A COLLECTION UNAWARE CLUSTER"
+.sp
+The restore sub\-command supports restoring collection aware backups to
+collection unaware cluster. When restoring a collection aware backup to a
+cluster which doesn\(cqt support collections, \f(CRcbbackupmgr\fP will restore the
+\f(CR_default._default\fP collection into the target bucket; no data will be
+transferred for any other collections.
+.sp
+This allows you to utilize a collection aware cluster, without using the
+collections feature and still be able to restore your data to a cluster which
+is running a previous version of Couchbase which is collection unaware.
+.SH "DISCUSSION"
+.sp
+The restore command works by replaying the data recorded in backup files. During
+a restore each key\-value pair backed up by cbbackupmgr will be sent to the
+cluster as either a "set" or "delete" operation. The restore command replays
+data from each file in order of backup time to guarantee that older backup data
+does not overwrite newer backup data. The restore command uses Couchbase\(cqs
+conflict resolution mechanism by default to ensure this behavior. The conflict
+resolution mechanism can be disable by specifying the \-\-force\-updates flag when
+executing a restore.
+.sp
+Starting in Couchbase 4.6 each bucket can have different conflict resolution
+mechanisms. cbbackupmgr will backup all meta data used for conflict resolution,
+but since each conflict resolution mechanism is different cbbackupmgr will
+prevent restores to a bucket when the source and destination conflict resolution
+methods differ. This is done because by default cbbackupmgr will use the
+conflict resolution mechanism of the destination bucket to ensure an older value
+does not overwrite a newer value. If you want to restore a backup to a bucket
+with a different conflict resolution type you can do by using the
+\-\-force\-updates flag. This is allowed because forcing updates means that
+cbbackupmgr will skip doing conflict resolution on the destination bucket.
+.sp
+Also keep in mind that unlike backups, restores cannot be resumed if they fail.
+.SH "ENVIRONMENT AND CONFIGURATION VARIABLES"
+.sp
+CB_CLUSTER
+.RS 4
+Specifies the hostname of the Couchbase cluster to connect to. If the
+hostname is supplied as a command line argument then this value is
+overridden.
+.RE
+.sp
+CB_USERNAME
+.RS 4
+Specifies the username for authentication to a Couchbase cluster. If the
+username is supplied as a command line argument then this value is
+overridden.
+.RE
+.sp
+CB_PASSWORD
+.RS 4
+Specifies the password for authentication to a Couchbase cluster. If the
+password is supplied as a command line argument then this value is
+overridden.
+.RE
+.sp
+CB_CLIENT_CERT
+.RS 4
+The path to a client certificate used to authenticate when connecting to a
+cluster. May be supplied with \f(CRCB_CLIENT_KEY\fP as an alternative to the
+\f(CRCB_USERNAME\fP and \f(CRCB_PASSWORD\fP variables. See the CERTIFICATE AUTHENTICATION
+section for more information.
+.RE
+.sp
+CB_CLIENT_CERT_PASSWORD
+.RS 4
+The password for the certificate provided to the \f(CRCB_CLIENT_CERT\fP variable,
+when using this variable, the certificate/key pair is expected to be in the
+PKCS#12 format. See the CERTIFICATE AUTHENTICATION section for more
+information.
+.RE
+.sp
+CB_CLIENT_KEY
+.RS 4
+The path to the client private key whose public key is contained in the
+certificate provided to the \f(CRCB_CLIENT_CERT\fP variable. May be supplied with
+\f(CRCB_CLIENT_CERT\fP as an alternative to the \f(CRCB_USERNAME\fP and \f(CRCB_PASSWORD\fP
+variables. See the CERTIFICATE AUTHENTICATION section for more information.
+.RE
+.sp
+CB_CLIENT_KEY_PASSWORD
+.RS 4
+The password for the key provided to the \f(CRCB_CLIENT_KEY\fP variable, when using
+this variable, the key is expected to be in the PKCS#8 format.  See the
+CERTIFICATE AUTHENTICATION section for more information.
+.RE
+.sp
+CB_ARCHIVE_PATH
+.RS 4
+Specifies the path to the backup archive. If the archive path is supplied as
+a command line argument then this value is overridden.
+.RE
+.sp
+CB_OBJSTORE_STAGING_DIRECTORY
+.RS 4
+Specifies the path to the staging directory. If the \f(CR\-\-obj\-staging\-dir\fP
+argument is provided in the command line then this value is overridden.
+.RE
+.sp
+CB_OBJSTORE_REGION
+.RS 4
+Specifies the object store region. If the \f(CR\-\-obj\-region\fP argument is provided
+in the command line then this value is overridden.
+.RE
+.sp
+CB_OBJSTORE_ACCESS_KEY_ID
+.RS 4
+Specifies the object store access key id. If the \f(CR\-\-obj\-access\-key\-id\fP
+argument is provided in the command line this value is overridden.
+.RE
+.sp
+CB_OBJSTORE_SECRET_ACCESS_KEY
+.RS 4
+Specifies the object store secret access key. If the
+\f(CR\-\-obj\-secret\-access\-key\fP argument is provided in the command line this value
+is overridden.
+.RE
+.sp
+CB_OBJSTORE_REFRESH_TOKEN
+.RS 4
+Specifies the refresh token to use. If the \f(CR\-\-obj\-refresh\-token\fP argument is
+provided in the command line, this value is overridden.
+.RE
+.sp
+CB_AWS_ENABLE_EC2_METADATA
+.RS 4
+By default cbbackupmgr will disable fetching EC2 instance metadata. Setting
+this environment variable to true will allow the AWS SDK to fetch metadata
+from the EC2 instance endpoint.
+.RE
+.sp
+CB_ENCRYPTION_PASSPHRASE
+.RS 4
+Specifies the passphrase used for encryption.
+.RE
+.sp
+CB_KM_KEY_URL
+.RS 4
+Specifies the URL identifying the encryption key on the KMS. See
+\f(CR\-\-km\-key\-url\fP for the expected format and accepted KMSs.
+.RE
+.sp
+CB_KM_ACCESS_ID
+.RS 4
+Specifies the key/user ID used to connect to the KMS.
+.RE
+.sp
+CB_KM_SECRET_ACCESS_KEY
+.RS 4
+Specifies the secret key/token used to connect to the KMS.
+.RE
+.sp
+CB_KM_AUTH_FILE
+.RS 4
+Specifies a path to a file containing the required credentials to connect to
+the KMS.
+.RE
+.SH "SEE ALSO"
+.sp
+\fBcbbackupmgr\-backup\fP(1),
+\fBcbbackupmgr\-info\fP(1),
+\fBcbbackupmgr\-cloud\fP(7)
+\fBcbbackupmgr\-network\-filesystems\fP(7)
+.SH "CBBACKUPMGR"
+.sp
+Part of the \fBcbbackupmgr\fP(1) suite
+.SH "AUTHOR"
+.sp
+Couchbase

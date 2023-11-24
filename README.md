@@ -9,6 +9,7 @@ This repository is a scientific product and is not official communication of the
 The VXIngest project contains code for the purpose of ingesting meteorological data from various different sources into a document database. The data gnerated is in the form of JSON documents. These documents conform to the data model that is described in the model subdirectory.
 
 ## Build
+NOTE: the scripts/cbtools are included for use within the container. These tools are linux x86-64 oriented. Do not expect them to work on other platforms or achitectures. If you need a compatible copy of these tools see [https://docs.couchbase.com/cloud/reference/command-line-tools.html](https://docs.couchbase.com/cloud/reference/command-line-tools.html)
 
 NOTE: You can use ```docker system prune -af``` to clean up stopped, old or unused images from your machine. It recovers a lot of space.
 

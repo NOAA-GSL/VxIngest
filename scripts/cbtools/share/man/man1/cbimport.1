@@ -1,0 +1,176 @@
+'\" t
+.\"     Title: cbimport
+.\"    Author: Couchbase
+.\" Generator: Asciidoctor 2.0.16
+.\"      Date: 2023-09-20
+.\"    Manual: Couchbase Server Manual
+.\"    Source: Couchbase Server 7.2.2-6401
+.\"  Language: English
+.\"
+.TH "CBIMPORT" "1" "2023-09-20" "Couchbase Server 7.2.2\-6401" "Couchbase Server Manual"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+cbimport \- A utility for importing data into a Couchbase cluster
+.SH "SYNOPSIS"
+.sp
+.nf
+cbimport [\-\-version] [\-\-help] <command> [<args>]
+.fi
+.br
+.SH "DESCRIPTION"
+.sp
+cbimport is used to import data from various sources into Couchbase.
+.sp
+For more information on how specific commands work you can run
+"cbimport <command> \-\-help".
+.SH "OPTIONS"
+.sp
+\-\-version
+.RS 4
+Prints the cbimport suite version that the cbimport program came from.
+.RE
+.sp
+\-h,\-\-help
+.RS 4
+Prints the synopsis and a list of commands. If a cbimport command is named,
+this option will bring up the manual page for that command.
+.RE
+.SH "CBIMPORT COMMANDS"
+.sp
+\fBcbimport\-csv\fP(1)
+.RS 4
+Imports data into Couchbase from a CSV file.
+.RE
+.sp
+\fBcbimport\-json\fP(1)
+.RS 4
+Imports data into Couchbase from a JSON file.
+.RE
+.SH "ENVIRONMENT AND CONFIGURATION VARIABLES"
+.sp
+CB_CLUSTER
+.RS 4
+Specifies the hostname of the Couchbase cluster to connect to. If the
+hostname is supplied as a command line argument then this value is
+overridden.
+.RE
+.sp
+CB_USERNAME
+.RS 4
+Specifies the username for authentication to a Couchbase cluster. If the
+username is supplied as a command line argument then this value is
+overridden.
+.RE
+.sp
+CB_PASSWORD
+.RS 4
+Specifies the password for authentication to a Couchbase cluster. If the
+password is supplied as a command line argument then this value is
+overridden.
+.RE
+.sp
+CB_CLIENT_CERT
+.RS 4
+The path to a client certificate used to authenticate when connecting to a
+cluster. May be supplied with \f(CRCB_CLIENT_KEY\fP as an alternative to the
+\f(CRCB_USERNAME\fP and \f(CRCB_PASSWORD\fP variables. See the CERTIFICATE AUTHENTICATION
+section for more information.
+.RE
+.sp
+CB_CLIENT_CERT_PASSWORD
+.RS 4
+The password for the certificate provided to the \f(CRCB_CLIENT_CERT\fP variable,
+when using this variable, the certificate/key pair is expected to be in the
+PKCS#12 format. See the CERTIFICATE AUTHENTICATION section for more
+information.
+.RE
+.sp
+CB_CLIENT_KEY
+.RS 4
+The path to the client private key whose public key is contained in the
+certificate provided to the \f(CRCB_CLIENT_CERT\fP variable. May be supplied with
+\f(CRCB_CLIENT_CERT\fP as an alternative to the \f(CRCB_USERNAME\fP and \f(CRCB_PASSWORD\fP
+variables. See the CERTIFICATE AUTHENTICATION section for more information.
+.RE
+.sp
+CB_CLIENT_KEY_PASSWORD
+.RS 4
+The password for the key provided to the \f(CRCB_CLIENT_KEY\fP variable, when using
+this variable, the key is expected to be in the PKCS#8 format.  See the
+CERTIFICATE AUTHENTICATION section for more information.
+.RE
+.SH "DISCUSSION"
+.sp
+The cbimport command is used to import data from various sources into a
+Couchbase cluster. Each supported format is a subcommand of the cbimport
+utility.
+.SH "OPERATIONS DURING MAJOR CLUSTER CONFIGURATION CHANGES"
+.sp
+Operations (commands or sub\-commands) which connect to a cluster are not
+supported during major cluster configuration changes.
+.sp
+For example, performing an import/export, making a backup or performing a
+restore whilst changing the TLS configuration/security settings is unsupported.
+.sp
+These types of changes (e.g. changing the TLS mode to strict) are not expected
+to be time consuming so it\(cqs generally expected that operations should be
+started after completing the configuration change.
+.sp
+Please note that this does not include rebalances; operations may be performed
+during a rebalance. The reason for this distinction, is that major cluster
+configuration changes are generally quick, whilst rebalances for large data
+sets may be time consuming.
+.SH "JSON SPECIFICATION"
+.sp
+The cbimport utility translates data read from disk into JSON documents prior
+to importing them into the provided cluster. The converted documents must
+conform to the JSON specification defined in \f(CRRFC 8259\fP.
+.sp
+This means cbimport will skip importing documents that either:
+1) Are not valid JSON
+2) Are not valid UTF\-8 data, as defined in \f(CRRFC 8259\fP JSON transferred between
+systems MUST be encoded using UTF\-8.
+.sp
+Documents that are skipped during an import will be logged, along with the line
+number/index from which they originated. This information can be used to single
+out/fix invalid documents prior to re\-importing.
+.SH "FURTHER DOCUMENTATION"
+.sp
+A manual page is available for each of the supported sources listed above.
+.SH "AUTHORS"
+.sp
+cbimport is a Couchbase Source tool and was written by Couchbase.
+.SH "REPORTING BUGS"
+.sp
+Report urgent issues to the Couchbase Support Team at \c
+.MTO "support\(atcouchbase.com" "" "."
+Bugs can be reported to the Couchbase Jira Bug Tracker at
+.URL "http://www.couchbase.com/issues" "" "."
+.SH "SEE ALSO"
+.sp
+\fBcbimport\-csv\fP(1),
+\fBcbimport\-json\fP(1)
+.SH "CBIMPORT"
+.sp
+Part of the \fBcbimport\fP(1) suite
+.SH "AUTHOR"
+.sp
+Couchbase

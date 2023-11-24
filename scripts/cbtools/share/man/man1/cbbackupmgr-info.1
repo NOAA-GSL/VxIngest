@@ -1,0 +1,691 @@
+'\" t
+.\"     Title: cbbackupmgr-info
+.\"    Author: Couchbase
+.\" Generator: Asciidoctor 2.0.16
+.\"      Date: 2023-09-20
+.\"    Manual: Couchbase Server Manual
+.\"    Source: Couchbase Server 7.2.2-6401
+.\"  Language: English
+.\"
+.TH "CBBACKUPMGR\-INFO" "1" "2023-09-20" "Couchbase Server 7.2.2\-6401" "Couchbase Server Manual"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+cbbackupmgr-info \- Return information about the backup archive
+.SH "SYNOPSIS"
+.sp
+.nf
+cbbackupmgr info [\-\-archive <archive_dir>] [\-\-repo <repo_name>]
+                 [\-\-backup <bucket_list>]
+                 [\-\-collection\-string <collection_string>]
+                 [\-\-json] [\-\-all] [\-\-depth <depth>]
+                 [\-\-obj\-access\-key\-id <access_key_id>]
+                 [\-\-obj\-cacert <cert_path>] [\-\-obj\-endpoint <endpoint>]
+                 [\-\-obj\-no\-ssl\-verify] [\-\-obj\-region <region>]
+                 [\-\-obj\-staging\-dir <staging_dir>]
+                 [\-\-obj\-secret\-access\-key <secret_access_key>]
+                 [\-\-s3\-force\-path\-style] [\-\-s3\-log\-level <level>]
+.fi
+.br
+.SH "DESCRIPTION"
+.sp
+This command provides information about the given path, be it the whole
+archive, repository, backup or bucket. The information can be displayed in a
+tabular format or JSON. By default only two levels of the data hierarchy will
+be displayed in tabular format, to see it all use the \f(CR\-\-all\fP flag. For the
+exact format of the output please see the examples below. Unlike the list
+command this command will not list individual files.
+.SH "OPTIONS"
+.sp
+Below are the required and optional parameters for the info command.
+.SS "Required"
+.sp
+\-a,\-\-archive <archive_dir>
+.RS 4
+The location of the backup archive to display information about. When using
+info against an archive stored in S3 you must prefix the archive path with
+\f(CRs3://${BUCKET_NAME}/\fP.
+.RE
+.SS "Optional"
+.sp
+\-r,\-\-repo <repo_name>
+.RS 4
+If specified, the info command will only display information for this backup
+repository.
+.RE
+.sp
+\-\-backup <backup>
+.RS 4
+If specified, the info command will only display information for this backup.
+The \f(CR\-\-repo\fP flag must also be specified if this flag is used.
+.RE
+.sp
+\-\-collection\-string <collection_string>
+.RS 4
+A dot separated collection string representing the bucket/scope/collection to
+get info for. The \f(CR\-\-backup\fP flag must be provided if this flag is used.
+.RE
+.sp
+\-\-start <start>
+.RS 4
+Only backups which fall between the range specified by \f(CR\-\-start\fP and \f(CR\-\-end\fP
+will be included in the output. \f(CR\-\-start\fP and \f(CR\-\-end\fP must be supplied
+together and are only valid when getting info for a repository. See START AND
+END for information on what values are accepted.
+.RE
+.sp
+\-\-end <end>
+.RS 4
+Only backups which fall between the range specified by \f(CR\-\-start\fP and \f(CR\-\-end\fP
+will be included in the output. \f(CR\-\-start\fP and \f(CR\-\-end\fP must be supplied
+together and are only valid when getting info for a repository. See START AND
+END for information on what values are accepted.
+.RE
+.sp
+\-\-json
+.RS 4
+If specified the output will be a json object.
+.RE
+.sp
+\-\-all
+.RS 4
+Show all levels of the data hierarchy. Note that for json output all levels
+are always returned. This flag will override any value supplied to \f(CR\-\-depth\fP.
+.RE
+.sp
+\-\-depth <depth>
+.RS 4
+Show \f(CRdepth\fP layers of additional information when printing non json output
+to stdout. By default two layers of information will be displayed. Accepts
+any non\-zero positive integer.
+.RE
+.SS "Cloud integration"
+.sp
+Native cloud integration is an Enterprise Edition feature which was introduced
+in Couchbase Server 6.6.0.
+.sp
+Multiple cloud providers are supported, see the list below for more information.
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 1." 4.2
+.\}
+Supported
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+AWS S3 (\f(CRs3://\fP)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+GCP Google Storage (\f(CRgs://\fP)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+Azure Blob Storage in 7.1.2+ (\f(CRaz://\fP)
+.RE
+.RE
+.SS "Required"
+.sp
+\-\-obj\-staging\-dir <staging_dir>
+.RS 4
+When performing an operation on an archive which is located in the cloud such
+as AWS, the staging directory is used to store local meta data files. This
+directory can be temporary (it\(cqs not treated as a persistent store) and is
+only used during the backup. NOTE: Do not use \f(CR/tmp\fP as the \f(CRobj\-staging\-dir\fP.
+See \f(CRDisk requirements\fP in \fBcbbackupmgr\-cloud\fP(7) for more information.
+.RE
+.SS "Optional"
+.sp
+\-\-obj\-access\-key\-id <access_key_id>
+.RS 4
+The access key id which has access to your chosen object store. This option
+can be omitted when using the shared config functionality provided by your
+chosen object store. Can alternatively be provided using the
+\f(CRCB_OBJSTORE_ACCESS_KEY_ID\fP environment variable.
+.sp
+When using AWS, this option expects an access key id. See
+\c
+.URL "https://docs.aws.amazon.com/general/latest/gr/aws\-sec\-cred\-types.html#access\-keys\-and\-secret\-access\-keys" ""
+for more information.
+.sp
+When using Azure, this option expects an account name. See
+\c
+.URL "https://docs.microsoft.com/en\-us/azure/storage/common/storage\-account\-overview#storage\-account\-endpoints" ""
+for more information.
+.sp
+When using GCP, this option expects a client id. See
+.URL "https://cloud.google.com/storage/docs/authentication" "" ""
+for more information.
+.RE
+.sp
+\-\-obj\-cacert <cert_path>
+.RS 4
+Specifies a CA certificate that will be used to verify the identity of the
+object store being connected to.
+.RE
+.sp
+\-\-obj\-endpoint <endpoint>
+.RS 4
+The host/address of your object store.
+.RE
+.sp
+\-\-obj\-no\-ssl\-verify
+.RS 4
+Skips the SSL verification phase when connecting to the object store.
+Specifying this flag will allow a connection using SSL encryption, but you
+are vulnerable to a man\-in\-the\-middle attack.
+.RE
+.sp
+\-\-obj\-region <region>
+.RS 4
+The region in which your bucket/container resides. For AWS this option may be
+omitted when using the shared config functionality. See the AWS section of
+the cloud documentation for more information.
+.RE
+.sp
+\-\-obj\-secret\-access\-key <secret_access_key>
+.RS 4
+The secret access key which has access to you chosen object store. This
+option can be omitted when using the shared config functionality provided by
+your chosen object store. Can alternatively be provided using the
+\f(CRCB_OBJSTORE_SECRET_ACCESS_KEY\fP environment variable.
+.sp
+When using AWS, this option expects a secret access key. See
+\c
+.URL "https://docs.aws.amazon.com/general/latest/gr/aws\-sec\-cred\-types.html#access\-keys\-and\-secret\-access\-keys" ""
+for more information.
+.sp
+When using Azure, this option expects an account key. See
+\c
+.URL "https://docs.microsoft.com/en\-us/azure/storage/common/storage\-account\-keys\-manage?tabs=azure\-portal" ""
+for more information.
+.sp
+When using GCP, this option expects a client secret. See
+.URL "https://cloud.google.com/storage/docs/authentication" "" ""
+for more information.
+.RE
+.sp
+\-\-obj\-log\-level <level>
+.RS 4
+Set the log level for the cloud providers SDK. By default logging will be
+disabled. Valid options are cloud provider specific and are listed below.
+.sp
+The valid options for the AWS SDK are \f(CRdebug\fP, \f(CRdebug\-with\-signing\fP,
+\f(CRdebug\-with\-body\fP, \f(CRdebug\-with\-request\-retries\fP, \f(CRdebug\-with\-request\-errors\fP,
+and \f(CRdebug\-with\-event\-stream\-body\fP.
+.sp
+The valid options for the Azure SDK are \f(CRinfo\fP, \f(CRdebug\fP, \f(CRdebug\-with\-request\-retries\fP and
+\f(CRdebug\-with\-request\-retries\-and\-lro\fP.
+.sp
+The Google Storage SDK does not expose advanced logging configuration meaning
+this option is explicitly ignored, however, this behavior may change in the
+future.
+.RE
+.sp
+\-\-obj\-auth\-by\-instance\-metadata
+.RS 4
+Depending on the cloud provider, using instance metadata for authentication
+is disabled by default. Supplying this flag will allow the fetching
+credentials/auth tokens from (VM) internal instance metadata endpoints.
+.sp
+By default, this option is disabled for AWS.
+.sp
+By default, this option is enabled for Azure.
+.sp
+By default, this option is enabled for GCP.
+.RE
+.sp
+\-\-obj\-auth\-file
+.RS 4
+GCP offers the ability to use a file which contains credentials which will be
+used to perform authentication. The \f(CR\-\-obj\-auth\-file\fP flag accepts a path to
+an authentication file. This flag is unsupported for the AWS/Azure cloud
+providers.
+.RE
+.sp
+\-\-obj\-refresh\-token
+.RS 4
+GCP requires a refresh token when using static credentials, this will be used
+to refresh oauth2 tokens when accessing remote storage.
+.RE
+.SS "AWS S3 Options"
+.SS "Optional"
+.sp
+\-\-s3\-force\-path\-style
+.RS 4
+By default the updated virtual style paths will be used when interfacing with
+AWS S3. This option will force the AWS SDK to use the alternative path style
+URLs which are often required by S3 compatible object stores.
+.RE
+.SH "START AND END"
+.sp
+This sub\-command accepts a \f(CR\-\-start\fP and \f(CR\-\-end\fP flag. These flags accept
+multiple values to allow you to flexibly operate on a range of backups.
+.SS "Indexes"
+.sp
+Indexes may be supplied to operate on a range of backups, for example
+\f(CR\-\-start 1 \-\-end 2\fP will include start at the first backup and will finish with
+the second backup. Note that the first backup is 1 and not 0 and that the
+\f(CR\-\-end\fP flag is inclusive.
+.SS "Short Dates"
+.sp
+Short dates may be supplied in the format \f(CRday\-month\-year\fP. For example
+\f(CR\-\-start 01\-08\-2020 \-\-end 31\-08\-2020\fP will operate on all the backups which
+were taken during August of 2020. Note that the end date is inclusive.
+.sp
+When supplying short dates, you may supply \f(CRstart\fP or \f(CRoldest\fP as a placeholder
+for the date on which the first backup in this repository was taken. The
+keywords \f(CRend\fP or \f(CRlatest\fP may be used as a placeholder for the date last
+backup in the repository was taken.
+.SS "Backup Names"
+.sp
+Backup names may be supplied as they exist on disk. For example
+\f(CR\-\-start 2020\-08\-13T20_01_08.894226137+01_00 \-\-end 2020\-08\-13T20_01_12.348300092+01_00\fP
+will cause the sub\-command to operate on all the backups which inclusively fall
+between these two backups.
+.sp
+When supplying backup names, you may supply \f(CRstart\fP or \f(CRoldest\fP as a
+placeholder for the first backup in the repository. The keywords \f(CRend\fP or
+\f(CRlatest\fP may be used  as a placeholder for the final backup in the repository.
+.SH "EXAMPLES"
+.sp
+The info command will display information of the backup archive in a user
+friendly manner. Let\(cqs imagine we have a backup archive \f(CR/backup_archive\fP and we want
+to see information about it we would run the command:
+.sp
+.if n .RS 4
+.nf
+.fam C
+$ cbbackupmgr info \-a /backup_archive
+
+Name             | Size      | # Repos  |
+backup_archive   | 111.00MB  | 2        |
+
+*    Name        | Size     | # Backups  |
+*    Manchester  | 55.56MB  | 1          |
+*    London      | 55.44MB  | 2          |
+.fam
+.fi
+.if n .RE
+.sp
+This shows us that the archive \f(CRbackup_archive\fP has two repositories and has a
+total size of 110MB. It will also provide one level more into the hierarchy and
+show information of the two repositories \f(CRManchester\fP and \f(CRLondon\fP and we can
+see their respective sizes as well as the number of backups each contains.
+.sp
+If we wanted to get more in depth information of the repository we would
+provide the repository name as follows:
+.sp
+.if n .RS 4
+.nf
+.fam C
+$cbbackupmgr info \-a ~/backup_archive \-r London
+
+Name    | Size     | # Backups  |
+London  | 55.44MB  | 2          |
+
++  Backup                       | Size     | Type  | Source                 | Range  | Events  | Aliases  | Complete  |
++  2019\-03\-15T13_19_54.826458Z  | 3.02MB   | INCR  | http://localhost:8091  | N/A    | 0       | 1        | true      |
++  2019\-03\-15T12_18_00.514284Z  | 52.42MB  | FULL  | http://localhost:8091  | N/A    | 0       | 1        | true      |
+.fam
+.fi
+.if n .RE
+.sp
+This gives more in depth information about each backup such as the timestamp
+from when it was made, the size, the type which can be either a full backup
+(FULL), and incremental backup (INCR) or a merge (MERGE). We can also see
+the address of the cluster we backed up the data from. The range column is
+used by merges. If the backup is a merge the range has the start timestamp
+the end timestamp and the number of backups that where merge in the format
+\f(CRstart \- end : count\fP. Event and aliases are the number of events and full
+text search indexes aliases that where restored. Finally the complete field
+indicates if the backup finished successfully or not.
+.sp
+It is possible to get information for an individual backup as well by using
+the following command:
+.sp
+.if n .RS 4
+.nf
+.fam C
+$ cbbackupmgr info \-a ~/backup_archive \-r London \-\-backup 2019\-03\-15T12_18_00.514284Z
+
+Backup                       | Size     | Type  | Source                 | Range  | Events  | Aliases  | Complete  |
+2019\-03\-15T12_18_00.514284Z  | 52.42MB  | FULL  | http://localhost:8091  | N/A    | 0       | 1        | true      |
+
+ \-   Bucket          | Size     | Items  | Mutations | Tombstones | Views  | FTS  | Indexes  | CBAS  |
+ \-   beer\-sample     | 6.85MB   | 7303   | 7303      | 0          | 1      | 0    | 1        | 0     |
+ \-   gamesim\-sample  | 2.86MB   | 586    | 586       | 0          | 1      | 0    | 1        | 0     |
+ \-   travel\-sample   | 42.72MB  | 31591  | 31591     | 0          | 0      | 0    | 10       | 0     |
+.fam
+.fi
+.if n .RE
+.sp
+The command above provides information about all buckets in the specific
+backup. This includes the size of the data in each bucket, the number of
+items which includes mutations and tombstones, the number of mutations
+and the number of deletions. For backups made with \f(CRcbbackupmgr\fP older
+than 6.5 mutations and deletions will always be 0 as this is only
+supported by archives made with \f(CRcbbackupmgr 6.5+\fP. For the buckets it will
+also shows the number of view, full text  indexes, the number of GSIs and the
+number of analytics metadata records.
+.sp
+To see information for one bucket only we would use the \f(CR\-\-collection\-string\fP
+flag and give it the name of the bucket and this would return just the
+information for that bucket.
+.sp
+To see from one level to the last the \f(CR\-\-all\fP flag must be provided this will
+show the information from the provided level to the bucket level. An example
+can be seen below:
+.sp
+.if n .RS 4
+.nf
+.fam C
+$ cbbackupmgr info \-a ~/backup_archive \-\-all
+
+Name         | UUID                                 | Size     | # Repos  |
+backup_repo  | 32c97d5f\-821a\-4284\-840b\-9ee7cf8733a3 | 55.56MB  | 1        |
+
+*  Name        | Size     | # Backups  |
+*  Manchester  | 55.56MB  | 1          |
+
++    Backup                      | Size     | Type   | Source  | Cluster UUID                     | Range                                      | Events  | Aliases  | Complete  |
++    2019\-03\-15T13_52_27.18301Z  | 55.56MB  | MERGE  | MERGE   | c044f5eeb1dc16d0cd49dac29074b5f9 | 2019\-03\-15T13_51_44\-2019\-03\-15T13_51_58:3  | 0       | 1        | true      |
+
+\-      Bucket          | Size     | Items  | Mutations | Tombstones | Views  | FTS  | Indexes  | CBAS  |
+\-      beer\-sample     | 6.85MB   | 7303   | 7303      | 0          | 1      | 0    | 1        | 0     |
+\-      gamesim\-sample  | 2.86MB   | 586    | 586       | 0          | 1      | 0    | 1        | 0     |
+\-      travel\-sample   | 42.72MB  | 31591  | 31591     | 0          | 0      | 0    | 10       | 0     |
+.fam
+.fi
+.if n .RE
+.sp
+To display only a certain number of layers when displaying info in tabular
+format you may provide the \f(CR\-\-depth\fP flag with a non\-zero positive integer.
+This gives more fine grained control over what information is displayed that
+\f(CR\-\-all\fP. Using the \f(CR\-\-all\fP flag will implicitly override any value provided to
+\f(CR\-\-depth\fP.
+.sp
+.if n .RS 4
+.nf
+.fam C
+$ cbbackupmgr info \-a ~/backup_archive \-\-depth 1
+
+Name         | UUID                                 | Size     | # Repos  |
+backup_repo  | 32c97d5f\-821a\-4284\-840b\-9ee7cf8733a3 | 55.56MB  | 1        |
+.fam
+.fi
+.if n .RE
+.sp
+The info command also allows for JSON output which can be useful for
+automation or users that would rather get the information in json format.
+The output json will have the format seen below. Note that all sizes will be
+in bytes and that for non\-merge backups the range field will be empty.
+.sp
+.if n .RS 4
+.nf
+.fam C
+{
+  "name": NAME,
+  "archive_uuid": UUID,
+  "size": SIZE,
+  "repos": [
+    {
+      "name": NAME,
+      "size": SIZE,
+      "count": BACKUP_COUNT,
+      "backups": [
+        {
+          "date": DATE,
+          "complete: BOOL
+          "size": SIZE,
+          "type": ["incr"| "full" | "merge"],
+          "source": SOURCE,
+          "range":[all backups date involved in the merge],
+          "event": COUNT,
+          "fts_alias": COUNT,
+          "source_cluster_uuid": UUID,
+          "buckets": [
+            {
+              "name": BUCKET_NAME,
+              "size": SIZE,
+              "items": COUNT,
+              "mutations": COUNT,
+              "tombstones": COUNT,
+              "views_count": COUNT,
+              "fts_count": COUNT,
+              "analytics": COUNT
+            }
+          ]
+        }
+      ]
+    }
+  ]
+.fam
+.fi
+.if n .RE
+.sp
+The info command also supports getting information about an archive which
+is stored directly in AWS S3. This will  download a very minimal amount of
+data e.g. it won\(cqt download the whole archive.
+.sp
+.if n .RS 4
+.nf
+.fam C
+$ cbbackupmgr info \-a s3://bucket/backup_archive \-\-all \-\-obj\-staging\-dir ~/backup\-archive
+
+Name         | UUID                                 | Size     | # Repos  |
+backup_repo  | 32c97d5f\-821a\-4284\-840b\-9ee7cf8733a3 | 55.56MB  | 1        |
+
+*  Name        | Size     | # Backups  |
+*  Manchester  | 55.56MB  | 1          |
+
++    Backup                      | Size     | Type   | Source  | Cluster UUID                     | Range                                      | Events  | Aliases  | Complete  |
++    2019\-03\-15T13_52_27.18301Z  | 55.56MB  | MERGE  | MERGE   | c044f5eeb1dc16d0cd49dac29074b5f9 | 2019\-03\-15T13_51_44\-2019\-03\-15T13_51_58:3  | 0       | 1        | true      |
+
+\-      Bucket          | Size     | Items  | Mutations | Tombstones | Views  | FTS  | Indexes  | CBAS  |
+\-      beer\-sample     | 6.85MB   | 7303   | 7303      | 0          | 1      | 0    | 1        | 0     |
+\-      gamesim\-sample  | 2.86MB   | 586    | 586       | 0          | 1      | 0    | 1        | 0     |
+\-      travel\-sample   | 42.72MB  | 31591  | 31591     | 0          | 0      | 0    | 10       | 0     |
+.fam
+.fi
+.if n .RE
+.sp
+The info command allows you to limit the range of backups that are included in
+the output. This can be used to answer a few important questions before
+performing a merge/restore. "Is backup X included in a merge/restore with this
+range?" or "When I merge/restore with this range, will it include a full
+backup?".
+.sp
+Lets tackle the question "When I merge with this range, will it include a full
+backup?"
+.sp
+.if n .RS 4
+.nf
+.fam C
+$ cbbackupmgr info \-a /archive \-r repo
+Name | Size    | # Backups |
+repo | 88.11MB | 5         |
+
++  Backup                              | Size    | Type | Source                 | Cluster UUID                     | Range | Events | Aliases | Complete |
++  2020\-07\-18T18_19_54.057655243+01_00 | 17.62MB | FULL | http://172.20.1.1:8091 | 8527d470b07095084cf45e1a772a7ba9 | N/A   | 0      | 0       | true     |
++  2020\-08\-18T18_20_21.319063119+01_00 | 17.62MB | INCR | http://172.20.1.1:8091 | 8527d470b07095084cf45e1a772a7ba9 | N/A   | 0      | 0       | true     |
++  2020\-08\-18T18_20_26.250684761+01_00 | 17.62MB | INCR | http://172.20.1.1:8091 | 8527d470b07095084cf45e1a772a7ba9 | N/A   | 0      | 0       | true     |
++  2020\-08\-18T18_20_30.765048405+01_00 | 17.62MB | INCR | http://172.20.1.1:8091 | 8527d470b07095084cf45e1a772a7ba9 | N/A   | 0      | 0       | true     |
++  2020\-08\-18T18_20_41.39884127+01_00  | 17.62MB | INCR | http://172.20.1.1:8091 | 8527d470b07095084cf45e1a772a7ba9 | N/A   | 0      | 0       | true     |
+.fam
+.fi
+.if n .RE
+.sp
+The above repository contains five backups in total where only the first is a
+full backup. We would like to merge all the backups in August and want to
+ensure that we will be merging a full backup.
+.sp
+.if n .RS 4
+.nf
+.fam C
+$ cbbackupmgr info \-a /archive \-r repo \-\-start 01\-08\-2020 \-\-end 31\-08\-2020
+Name | Size    | # Backups |
+repo | 70.49MB | 4         |
+
++  Backup                              | Size    | Type | Source                 | Cluster UUID                     | Range | Events | Aliases | Complete |
++  2020\-08\-18T18_20_21.319063119+01_00 | 17.62MB | INCR | http://172.20.1.1:8091 | 8527d470b07095084cf45e1a772a7ba9 | N/A   | 0      | 0       | true     |
++  2020\-08\-18T18_20_26.250684761+01_00 | 17.62MB | INCR | http://172.20.1.1:8091 | 8527d470b07095084cf45e1a772a7ba9 | N/A   | 0      | 0       | true     |
++  2020\-08\-18T18_20_30.765048405+01_00 | 17.62MB | INCR | http://172.20.1.1:8091 | 8527d470b07095084cf45e1a772a7ba9 | N/A   | 0      | 0       | true     |
++  2020\-08\-18T18_20_41.39884127+01_00  | 17.62MB | INCR | http://172.20.1.1:8091 | 8527d470b07095084cf45e1a772a7ba9 | N/A   | 0      | 0       | true     |
+.fam
+.fi
+.if n .RE
+.sp
+Given the output above, it\(cqs clear that merging all the backups taken in August
+will not result in a merged full backup. To result in a merged full backup, we
+would also need to include backups taken in July.
+.sp
+.if n .RS 4
+.nf
+.fam C
+$ cbbackupmgr merge \-a /archive \-r repo \-\-start 01\-07\-2020 \-\-end 31\-08\-2020
+(1/5) Merging backup \*(Aq2020\-07\-18T18_19_54.057655243+01_00\*(Aq
+Copied all data in 1.342126932s (Avg. 2.98MB/Sec)                                                   50000 items / 2.98MB
+[==============================================================================================================] 100.00%
+Merge bucket \*(Aqdefault\*(Aq succeeded
+Mutations merged: 50000, Mutations failed to merged: 0
+Deletions merged: 0, Deletions failed to merged: 0
+
+(2/5) Merging backup \*(Aq2020\-08\-18T18_20_21.319063119+01_00\*(Aq
+Copied all data in 2.601879822s (Avg. 1.49MB/Sec)                                                   50000 items / 2.98MB
+[==============================================================================================================] 100.00%
+Merge bucket \*(Aqdefault\*(Aq succeeded
+Mutations merged: 50000, Mutations failed to merged: 0
+Deletions merged: 0, Deletions failed to merged: 0
+
+(3/5) Merging backup \*(Aq2020\-08\-18T18_20_26.250684761+01_00\*(Aq
+Copied all data in 3.85210489s (Avg. 1016.84KB/Sec)                                                 50000 items / 2.98MB
+[==============================================================================================================] 100.00%
+Merge bucket \*(Aqdefault\*(Aq succeeded
+Mutations merged: 50000, Mutations failed to merged: 0
+Deletions merged: 0, Deletions failed to merged: 0
+
+(4/5) Merging backup \*(Aq2020\-08\-18T18_20_30.765048405+01_00\*(Aq
+Copied all data in 5.057777071s (Avg. 610.10KB/Sec)                                                 50000 items / 2.98MB
+[==============================================================================================================] 100.00%
+Merge bucket \*(Aqdefault\*(Aq succeeded
+Mutations merged: 50000, Mutations failed to merged: 0
+Deletions merged: 0, Deletions failed to merged: 0
+
+(5/5) Merging backup \*(Aq2020\-08\-18T18_20_41.39884127+01_00\*(Aq
+Copied all data in 6.24708519s (Avg. 508.42KB/Sec)                                                  50000 items / 2.98MB
+[==============================================================================================================] 100.00%
+Merge bucket \*(Aqdefault\*(Aq succeeded
+Mutations merged: 50000, Mutations failed to merged: 0
+Deletions merged: 0, Deletions failed to merged: 0
+Merge completed successfully
+
+$ cbbackupmgr info \-a /archive \-r repo
+Name | Size    | # Backups |
+repo | 24.11MB | 1         |
+
++  Backup                             | Size    | Type         | Source | Cluster UUID                     | Range                                         | Events | Aliases | Complete |
++  2020\-08\-18T18_20_41.39884127+01_00 | 24.11MB | MERGE \- FULL | Merge  | 8527d470b07095084cf45e1a772a7ba9 | 2020\-07\-18T18_19_54 \- 2020\-08\-18T18_20_21 \- 5 | 0      | 0       | true     |
+.fam
+.fi
+.if n .RE
+.sp
+As we can clearly see, after we modified our backup range to include July, we
+correctly merged all five backups including the full backup. Which is indicated
+by the \f(CRMERGE \- FULL\fP type for the resulting backup.
+.SH "ENVIRONMENT AND CONFIGURATION VARIABLES"
+.sp
+CB_ARCHIVE_PATH
+.RS 4
+Specifies the path to the backup archive. If the archive path is supplied as
+a command line argument then this value is overridden.
+.RE
+.sp
+CB_OBJSTORE_STAGING_DIRECTORY
+.RS 4
+Specifies the path to the staging directory. If the \f(CR\-\-obj\-staging\-dir\fP
+argument is provided in the command line then this value is overridden.
+.RE
+.sp
+CB_OBJSTORE_REGION
+.RS 4
+Specifies the object store region. If the \f(CR\-\-obj\-region\fP argument is provided
+in the command line then this value is overridden.
+.RE
+.sp
+CB_OBJSTORE_ACCESS_KEY_ID
+.RS 4
+Specifies the object store access key id. If the \f(CR\-\-obj\-access\-key\-id\fP
+argument is provided in the command line this value is overridden.
+.RE
+.sp
+CB_OBJSTORE_SECRET_ACCESS_KEY
+.RS 4
+Specifies the object store secret access key. If the
+\f(CR\-\-obj\-secret\-access\-key\fP argument is provided in the command line this value
+is overridden.
+.RE
+.sp
+CB_OBJSTORE_REFRESH_TOKEN
+.RS 4
+Specifies the refresh token to use. If the \f(CR\-\-obj\-refresh\-token\fP argument is
+provided in the command line, this value is overridden.
+.RE
+.sp
+CB_AWS_ENABLE_EC2_METADATA
+.RS 4
+By default cbbackupmgr will disable fetching EC2 instance metadata. Setting
+this environment variable to true will allow the AWS SDK to fetch metadata
+from the EC2 instance endpoint.
+.RE
+.SH "SEE ALSO"
+.sp
+\fBcbbackupmgr\-cloud\fP(7)
+.SH "CBBACKUPMGR"
+.sp
+Part of the \fBcbbackupmgr\fP(1) suite
+.SH "AUTHOR"
+.sp
+Couchbase

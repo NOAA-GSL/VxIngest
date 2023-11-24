@@ -1,0 +1,570 @@
+'\" t
+.\"     Title: cbbackupmgr-encryption
+.\"    Author: Couchbase
+.\" Generator: Asciidoctor 2.0.16
+.\"      Date: 2023-09-20
+.\"    Manual: Couchbase Server Manual
+.\"    Source: Couchbase Server 7.2.2-6401
+.\"  Language: English
+.\"
+.TH "CBBACKUPMGR\-ENCRYPTION" "7" "2023-09-20" "Couchbase Server 7.2.2\-6401" "Couchbase Server Manual"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+cbbackupmgr-encryption \- Creating and managing encrypted backups (Developer Preview)
+.SH "DESCRIPTION"
+.sp
+A tutorial that explains how to use the encryption feature of cbbackupmgr
+Enterprise Edition.
+.SH "TUTORIAL"
+.sp
+In this tutorial we will cover how to create encrypted backup repositories as
+well as how to do backups, merges and restores in said repositories. To follow
+this tutorial you will need an Enterprise Edition version of cbbackupmgr and
+Couchbase Server. For later steps we will explain how to use external Key
+Management Solutions (KMS), so you may need access to one of those.
+.SS "Configuring a backup"
+.sp
+To start using encrypted backups you will need to create a new encrypted backup
+repository. This can be achieved with the \f(CRconfig\fP command, it is worth noting
+the are two separate modes of configuration:
+.SS "1. Passphrase mode (Development Only)"
+.sp
+In this mode the command takes a passphrase via the command line argument
+\f(CR\-\-passphrase\fP or via the \f(CRCB_ENCRYPTION_PASSPHRASE\fP environmental variable.
+.sp
+An example of how to use this new mode is shown below:
+.sp
+.if n .RS 4
+.nf
+.fam C
+$ cbbackupmgr config \-a /backups/encrypted \-r passphrase_repo \-\-encrypted \-\-passphrase couchbase
+Backup repository `passphrase` created successfully in archive `/backups/encrypted`
+.fam
+.fi
+.if n .RE
+.sp
+The passphrase mode uses the given passphrase to derive an encryption key using
+\f(CRARGONID\fP by default. The derivation algorithm can be changed using the
+\f(CR\-\-derivation\-algo\fP flag. The resulting key is then used to
+encrypt the auto\-generated repository key which is used to encrypt the backup
+data. Due to the inherent insecurity of human friendly passphrases using
+passphrase mode in production is \fBstrongly\fP discouraged.
+.SS "2. KMS mode"
+.sp
+In this mode the command will attempt to communicate with an external KMS to
+encrypt the repository key. Note that the external key will not directly
+encrypt the data but instead envelopes the encryption key used to encrypt the
+data. This minimizes the number of request done to the external KMS as well as
+the system latency.
+.sp
+The currently supported external KMS are:
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 1." 4.2
+.\}
+.URL "https://aws.amazon.com/kms/" "Amazon Web Services Key Management Service (AWS KMS)" ""
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 2.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 2." 4.2
+.\}
+.URL "https://cloud.google.com/security\-key\-management" "Google Cloud Key Management Service (GCP KMS)" ""
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 3.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 3." 4.2
+.\}
+.URL "https://azure.microsoft.com/en\-gb/services/key\-vault/" "Azure Key Vault" ""
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 4.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 4." 4.2
+.\}
+.URL "https://www.vaultproject.io/docs/secrets/transit" "HashiCorp Vault Transit Secret Engine" ""
+.RE
+.sp
+Depending on the KMS you choose the setup will look slightly different but
+vaguely all four options have the ability to pick up the needed credentials
+from the environment. In the next sections we will cover each KMS specifics and
+give examples of how to set up. For all the KMSs you will have to provide
+a URL to the key to use for encryption. This is done via the \f(CR\-\-km\-key\-url\fP
+or the \f(CRCB_KM_KEY_URL\fP environmental variable. The schema varies between
+provider but will be covered in the following sections.
+.sp
+By default, when configuring backups the encryption algorithm will be set to
+AES256GCM. It can be changed to AES256CBC by using the option
+\f(CR\-\-encryption\-algo AES256CBC\fP.
+.SS "AWS KMS"
+.sp
+To use AWS KMS you provide the URL to the
+\c
+.URL "https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#key\-id" "Key Identifier"
+and prefix it with \f(CRawskms://\fP, for AWS you must also provide the region
+via the \f(CR\-\-km\-region\fP environmental variable.
+.sp
+The supported authorization techniques are:
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 1." 4.2
+.\}
+When running in EC2, credentials may be obtained via the instance metadata
+service by setting/supplying:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CRCB_AWS_ENABLE_EC2_METADATA=true\fP
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 2.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 2." 4.2
+.\}
+Providing a set of environment variables including:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CRCB_KM_ACCESS_KEY_ID\fP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CRCB_KM_SECRET_ACCESS_KEY\fP
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 3.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 3." 4.2
+.\}
+Loading credentials from the shared config files located at:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CR$HOME/.aws/config\fP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CR$HOME/.aws/credentials\fP
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 4.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 4." 4.2
+.\}
+Providing static config/credentials using the cli flags:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CR\-\-km\-access\-key\-id\fP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CR\-\-km\-secret\-access\-key\fP
+.RE
+.RE
+.sp
+Below is an example of configuring an encrypted repository using AWS:
+.sp
+.if n .RS 4
+.nf
+.fam C
+$ cbbackupmgr config \-a /backups/encrypted \-r aws_repo \-\-encrypted \(rs
+  \-\-km\-key\-url \*(Aqawskms://alias/cbbackupmgrEncrypt\*(Aq \-\-km\-region \*(Aqus\-east\-1\*(Aq
+.fam
+.fi
+.if n .RE
+.sp
+Note that if you want to use a private cloud compatible with AWS KMS you
+can provide \f(CR\-\-km\-endpoint\fP to override the AWS endpoint.
+.SS "GCP KMS"
+.sp
+To use GCP KMS you have to provide the
+\c
+.URL "https://cloud.google.com/kms/docs/resource\-hierarchy#key" "Key Resource ID"
+prefixed with \f(CRgcpkms://\fP either via the environment, or the CLI flag
+.sp
+The supported authorization techniques are:
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 1." 4.2
+.\}
+When running in Google Compute Engine it can be retrieved from the
+environment automatically.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 2.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 2." 4.2
+.\}
+A service account can be pass via the \f(CRGOOGLE_APPLICATION_CREDENTIALS\fP
+environmental variable.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 3.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 3." 4.2
+.\}
+Explicitly passing the path to a service auth file using either:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CR\-\-km\-auth\-file\fP CLI argument
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CRCB_KM_AUTH_FILE\fP environmental variable
+.RE
+.RE
+.sp
+For more information refer to
+.URL "https://cloud.google.com/kms/docs/accessing\-the\-api" "GCPs documentation" "."
+.sp
+An example of configuring an encrypted repository using GCP can be seen below.
+.sp
+.if n .RS 4
+.nf
+.fam C
+$ cbbackupmgr config \-a /backups/encrypted \-r gcp_repo \-\-encrypted \(rs
+  \-\-km\-key\-url gcpkms://projects/project\-id/locations/location/keyRings/keyring/cryptoKeys/key
+.fam
+.fi
+.if n .RE
+.SS "Azure Key Vault"
+.sp
+To use Azure Key Vault you have to provide the URL to the
+\c
+.URL "https://docs.microsoft.com/en\-us/azure/key\-vault/general/about\-keys\-secrets\-certificates#objects\-identifiers\-and\-versioning" "Key ID"
+prefixed with \f(CRazurekeyvault://\fP via either the CLI or environmental variables.
+.sp
+The supported authorization techniques are:
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 1." 4.2
+.\}
+Via the Azure environmental variables as described by the
+.URL "https://docs.microsoft.com/en\-us/azure/developer/go/azure\-sdk\-authorization" "Azure documentation" "."
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 2.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 2." 4.2
+.\}
+Using the \f(CRAZURE_AUTH_LOCATION\fP environmental variable to point to an Azure
+auth setting file.
+.RE
+.sp
+An example of configuring an encrypted repository using Azure can be seen below.
+.sp
+.if n .RS 4
+.nf
+.fam C
+$ cbbackupmgr config \-a /backups/encrypted \-r azure_repo \-\-encrypted \(rs
+  \-\-km\-key\-url azurekeyvault://{vault\-name}.vault.azure.net/{object\-type}/{object\-name}/{object\-version}
+.fam
+.fi
+.if n .RE
+.SS "HashiCorp Vault Transit Engine"
+.sp
+To use HashiCorp Vault Transit engine you have to provide the URL to the
+key ID in the form \f(CR[hashivault|hashivaults]://{host}/{key name}\fP. If
+\f(CRhashivaults\fP used then HTTPS will be used to connect to the transit engine.
+.sp
+For HashiCorp vault the only accepted authorization method is TOKEN auth.
+This can be provided either via:
+* \f(CR\-\-km\-secret\-access\-key\fP CLI argument
+* \f(CRCB_KM_SECRET_ACCESS_KEY`\fP environmental variable
+.sp
+An example of configuring an encrypted repository using HashiCorp Vault Transit
+Engine can be seen below.
+.sp
+.if n .RS 4
+.nf
+.fam C
+$ cbbackupmgr config \-a /backups/encrypted \-r hashicorp_repo \-\-encrypted \(rs
+  \-\-km\-key\-url hashivault://127.0.0.1:8200/key \-\-km\-secret\-access\-key my_token
+.fam
+.fi
+.if n .RE
+.SS "Running encrypted backups"
+.sp
+For the examples below we will use \*(Aqpassphrase mode\*(Aq, but they will work the
+same with the \*(AqKMS mode\*(Aq if you replace the \f(CR\-\-passphrase\fP flag with the
+corresponding KMS flags.
+.sp
+To run an encrypted backup you have to first configure you repository as
+described in the previous section. Once your encrypted repository is configured
+you can run the backup as follows:
+.sp
+.if n .RS 4
+.nf
+.fam C
+$ cbbackupmgr backup \-c https://localhost:18091 \-u Administrator \-p asdasd \(rs
+  \-a /backups/encrypted \-r passphrase_repo \-\-passphrase couchbase
+Backing up to \*(Aq2021\-06\-17T16_35_45.08865997+01_00\*(Aq
+Copied all data in 16.746s (Avg. 2.84MiB/Sec)                                                                                                                                                                                           63288 items / 45.50MiB
+[====================================================================================================================================] 100.00%
+
+| Transfer
+| \-\-\-\-\-\-\-\-
+| Status    | Avg Transfer Rate | Started At                        | Finished At                     | Duration |
+| Succeeded | 2.84MiB           | Thu, 17 Jun 2021 16:35:45 +0100/s | Thu, 17 Jun 2021 16:36:01 +0100 | 16.788s  |
+
+| Bucket
+| \-\-\-\-\-\-
+| Name          | Status    | Transferred | Avg Transfer Rate | Started At                      | Finished At                     | Duration |
+| travel\-sample | Succeeded | 45.50MiB    | 2.84MiB/s         | Thu, 17 Jun 2021 16:35:45 +0100 | Thu, 17 Jun 2021 16:36:01 +0100 | 16.427s  |
+|
+| Mutations                    | Deletions                    | Expirations                  |
+| \-\-\-\-\-\-\-\-\-                    | \-\-\-\-\-\-\-\-\-                    | \-\-\-\-\-\-\-\-\-\-\-                  |
+| Received | Errored | Skipped | Received | Errored | Skipped | Received | Errored | Skipped |
+| 63288    | 0       | 0       | 0        | 0       | 0       | 0        | 0       | 0       |
+
+Backup completed successfully
+.fam
+.fi
+.if n .RE
+.sp
+When doing encrypted backups you will notice that it is slightly slower and
+uses slightly more space. This is due to the overhead caused by encrypting
+the data, and it is to be expected.
+.sp
+If the passphrase or the KMS details are missing when attempting to do a
+backup \f(CRcbbackupmgr\fP will fail and return an error asking for the correct
+credentials.
+.sp
+Note that when using encrypted backups you should always use \f(CRhttps\fP as
+encrypted backups work locally. Thus, if \f(CRhttp\fP is used the data will be
+transmitted over the network unencrypted and then encrypted once it reaches the
+backup client.
+.SS "Encrypted restores"
+.sp
+To restore an encrypted backup use the following command:
+.sp
+.if n .RS 4
+.nf
+.fam C
+$ cbbackupmgr restore \-c https://localhost:18091 \-u Administrator \-p asdasd \(rs
+  \-a /backups/encrypted \-r passphrase_repo \-\-passphrase couchbase
+(1/1) Restoring backup \*(Aq2021\-06\-17T16_35_45.08865997+01_00\*(Aq
+Copied all data in 2.03s (Avg. 20.75MiB/Sec)                                                                                                                                                                                            63288 items / 41.49MiB
+[===================================================================================================================================] 100.00%
+
+| Transfer
+| \-\-\-\-\-\-\-\-
+| Status    | Avg Transfer Rate | Started At                        | Finished At                     | Duration |
+| Succeeded | 20.75MiB          | Thu, 17 Jun 2021 16:54:32 +0100/s | Thu, 17 Jun 2021 16:54:34 +0100 | 2.061s   |
+
+| Bucket
+| \-\-\-\-\-\-
+| Name          | Status    | Transferred | Avg Transfer Rate | Started At                      | Finished At                     | Duration |
+| travel\-sample | Succeeded | 41.49MiB    | 41.49MiB/s        | Thu, 17 Jun 2021 16:54:32 +0100 | Thu, 17 Jun 2021 16:54:34 +0100 | 1.952s   |
+|
+| Mutations                    | Deletions                    | Expirations                  |
+| \-\-\-\-\-\-\-\-\-                    | \-\-\-\-\-\-\-\-\-                    | \-\-\-\-\-\-\-\-\-\-\-                  |
+| Received | Errored | Skipped | Received | Errored | Skipped | Received | Errored | Skipped |
+| 63288    | 0       | 0       | 0        | 0       | 0       | 0        | 0       | 0       |
+
+Restore completed successfully
+.fam
+.fi
+.if n .RE
+.sp
+Similar to the backup process, restore will also be slightly slower than its
+plain text counter\-part, and you should use the \f(CRhttps\fP endpoints to make sure
+that the process is encrypted end\-to\-end.
+.SS "Info for encrypted repositories"
+.sp
+The \f(CRinfo\fP command does not require any changes to work with encrypted backups.
+This is because \f(CRinfo\fP does not access any of the user data directly it only
+checks for size and count.
+.sp
+An \f(CRinfo\fP of an encrypted repository would look as follows:
+.sp
+.if n .RS 4
+.nf
+.fam C
+$ cbbackupmgr info \-a /backups/encrypted \-r passphrase_repo \-\-depth 4
+Name            | Size      | # Backups | Encrypted |
+passphrase_repo | 238.15MiB | 2         | true      |
+
++  Backup                             | Size      | Type | Source         | Cluster UUID                     | Range | Events | Aliases | Complete |
++  2021\-06\-17T16_35_45.08865997+01_00 | 238.15MiB | FULL | localhost:9000 | 03e85fa504cb5f50fc5ff1722f052754 | N/A   | 0      | 0       | true     |
+
+\-    Bucket        | Size      | Items | Mutations | Tombstones | Views | FTS | Indexes | CBAS |
+\-    travel\-sample | 238.15MiB | 63288 | 63288     | 0          | 0     | 0   | 0       | 0    |
+
+~      Scope           | Scope ID | Mutations | Tombstones |
+~      _default        | 0        | 31591     | 0          |
+~      tenant_agent_04 | 8        | 40        | 0          |
+~      tenant_agent_03 | 9        | 33        | 0          |
+~      tenant_agent_02 | 10       | 20        | 0          |
+~      tenant_agent_01 | 11       | 11        | 0          |
+~      tenant_agent_00 | 12       | 2         | 0          |
+~      inventory       | 13       | 31591     | 0          |
+.fam
+.fi
+.if n .RE
+.SH "DISCUSSION"
+.sp
+In this section we will briefly cover how the encryption model for \f(CRcbbackupmgr\fP works.
+Whenever an encrypted repository is created the tool will auto\-generate an encryption
+key that we then will encrypt and persist using the external KMS or passphrase provided
+by the user.
+.sp
+This means that when using an external KMS the tool will only use 1 API call per
+operation. The only exception is \f(CRinfo\fP which requires 0.
+.sp
+To avoid issues with repeated nonces we create derived keys per backup, bucket and
+vBucket, this means that whilst using AES_256_GCM we can safely encrypt up to 4.3e12
+(4.3 trillion) documents per bucket in each individual backup. After that the chances
+of repeated nonces increase which weakens the encryption.
+.SH "SEE ALSO"
+.sp
+\fBcbbackupmgr\-config\fP(1),
+\fBcbbackupmgr\-backup\fP(1),
+\fBcbbackupmgr\-restore\fP(1),
+\fBcbbackupmgr\-merge\fP(1),
+\fBcbbackupmgr\-examine\fP(1)
+\fBcbbackupmgr\-info\fP(1)
+.SH "CBBACKUPMGR"
+.sp
+Part of the \fBcbbackupmgr\fP(1) suite
+.SH "AUTHOR"
+.sp
+Couchbase

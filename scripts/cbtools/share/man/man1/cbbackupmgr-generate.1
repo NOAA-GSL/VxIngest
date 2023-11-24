@@ -1,0 +1,672 @@
+'\" t
+.\"     Title: cbbackupmgr-generate
+.\"    Author: Couchbase
+.\" Generator: Asciidoctor 2.0.16
+.\"      Date: 2023-09-20
+.\"    Manual: Couchbase Server Manual
+.\"    Source: Couchbase Server 7.2.2-6401
+.\"  Language: English
+.\"
+.TH "CBBACKUPMGR\-GENERATE" "1" "2023-09-20" "Couchbase Server 7.2.2\-6401" "Couchbase Server Manual"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+cbbackupmgr-generate \- Generate documents and send them to a \*(Aqsink\*(Aq, primarily for testing purposes.
+.SH "SYNOPSIS"
+.sp
+.nf
+cbbackupmgr generate [\-\-num\-documents <document_count>] [\-\-archive <archive_dir>]
+                     [\-\-cluster <cluster_hostname>] [\-\-username <username>]
+                     [\-\-password <password>] [\-\-client\-cert <path>]
+                     [\-\-client\-cert\-password <password>] [\-\-client\-key <path>]
+                     [\-\-client\-key\-password <password>] [\-\-bucket <bucket_name>]
+                     [\-\-cacert <certfile_path>] [\-\-no\-ssl\-verify] [\-\-repo <repository_name>]
+                     [\-\-sink <sink_name>] [\-\-prefix <prefix>] [\-\-size <size>] [\-\-json]
+                     [\-\-json\-fields <field_count>] [\-\-json\-field\-size <field_size>]
+                     [\-\-low\-compression] [\-\-xattrs] [\-\-xattr\-fields <field_count>]
+                     [\-\-xattr\-field\-size <field_size>] [\-\-compress]
+                     [\-\-threads <thread_count>] [\-\-purge] [\-\-resume]
+                     [\-\-storage <storage_type>] [\-\-no\-progress\-bar]
+.fi
+.br
+.SH "DESCRIPTION"
+.sp
+The generate command is primarily meant for testing the internal pipeline for
+backup/restore. It allows you to very quickly generate documents and send them
+to a desired \*(Aqsink\*(Aq.
+.SH "REQUIRED"
+.sp
+\-n,\-\-num\-documents <document_count>
+.RS 4
+The number of documents to generate.
+.RE
+.sp
+\-b,\-\-bucket <bucket_name>
+.RS 4
+The bucket to generate documents for.
+.RE
+.SH "OPTIONAL"
+.sp
+\-a,\-\-archive <archive_dir>
+.RS 4
+The archive in which to store generated documents (optionally used for logging when \*(Aqsink\*(Aq is Couchbase).
+.RE
+.sp
+\-c,\-\-cluster <cluster_hostname>
+.RS 4
+The hostname of the test cluster (only required when \*(Aqsink\*(Aq is couchbase).
+.RE
+.sp
+\-u,\-\-username <username>
+.RS 4
+The username for cluster authentication. The user must have the appropriate
+privileges to take a backup.
+.RE
+.sp
+\-p,\-\-password <password>
+.RS 4
+The password for cluster authentication. The user must have the appropriate
+privileges to take a backup. If not password is supplied to this option then
+you will be prompted to enter your password.
+.RE
+.sp
+\-\-client\-cert <path>
+.RS 4
+The path to a client certificate used to authenticate when connecting to a
+cluster. May be supplied with \f(CR\-\-client\-key\fP as an alternative to the
+\f(CR\-\-username\fP and \f(CR\-\-password\fP flags.  See the CERTIFICATE AUTHENTICATION
+section for more information.
+.RE
+.sp
+\-\-client\-cert\-password <password>
+.RS 4
+The password for the certificate provided to the \f(CR\-\-client\-cert\fP flag, when
+using this flag, the certificate/key pair is expected to be in the PKCS#12
+format. See the CERTIFICATE AUTHENTICATION section for more information.
+.RE
+.sp
+\-\-client\-key <path>
+.RS 4
+The path to the client private key whose public key is contained in the
+certificate provided to the \f(CR\-\-client\-cert\fP flag. May be supplied with
+\f(CR\-\-client\-cert\fP as an alternative to the \f(CR\-\-username\fP and \f(CR\-\-password\fP
+flags. See the CERTIFICATE AUTHENTICATION section for more information.
+.RE
+.sp
+\-\-client\-key\-password <password>
+.RS 4
+The password for the key provided to the \f(CR\-\-client\-key\fP flag, when using this
+flag, the key is expected to be in the PKCS#8 format.  See the CERTIFICATE
+AUTHENTICATION section for more information.
+.RE
+.sp
+\-\-no\-ssl\-verify
+.RS 4
+Skips the SSL verification phase.
+Specifying this flag will allow a connection using SSL encryption, but will not verify the identity of the server you connect to.
+You are vulnerable to a man\-in\-the\-middle attack if you use this flag.
+Either this flag or the \-\-cacert flag must be specified when using an SSL encrypted connection.
+.RE
+.sp
+\-\-cacert <cert_path>
+.RS 4
+Specifies a CA certificate that will be used to verify the identity of the server being connecting to.
+Either this flag or the \-\-no\-ssl\-verify flag must be specified when using an SSL encrypted connection.
+.RE
+.sp
+\-r,\-\-repo <repo>
+.RS 4
+The name of a backup repository in an archive (only required when \*(Aqsink\*(Aq is archive).
+.RE
+.sp
+\-s,\-\-sink <sink>
+.RS 4
+The sink to send generated documents to (valid options are \*(Aqarchive\*(Aq, \*(Aqblackhole\*(Aq and \*(Aqcouchbase\*(Aq)
+.RE
+.sp
+\-P,\-\-prefix <prefix>
+.RS 4
+An optional prefix that will be prepended to generated keys.
+.RE
+.sp
+\-s,\-\-size <size>
+.RS 4
+The size of generated binary documents in bytes.
+.RE
+.sp
+\-j,\-\-json
+.RS 4
+Generated JSON formatted documents instead of binary documents.
+.RE
+.sp
+\-\-json\-fields <num_fields>
+.RS 4
+The number of JSON fields to generate.
+.RE
+.sp
+\-\-json\-value\-size <value_size>
+.RS 4
+The size in bytes of the generated JSON values.
+.RE
+.sp
+\-\-low\-compression
+.RS 4
+Generate document values/xattr value which are difficult to compress.
+.RE
+.sp
+\-\-xattrs
+.RS 4
+Generate extended attributes.
+.RE
+.sp
+\-\-xattr\-fields <num_fields>
+.RS 4
+The number of fields to generate in the xattrs.
+.RE
+.sp
+\-\-xattr\-value\-size <value_size>
+.RS 4
+The size in bytes of the generated xattr values (hard coded limit of 2 bytes).
+.RE
+.sp
+\-\-compress
+.RS 4
+Force compression at the "gocbcore" level (default is uncompressed).
+.RE
+.sp
+\-t,\-\-threads <thread_count>
+.RS 4
+The amount of worker threads to created for document generation.
+.RE
+.sp
+\-\-resume
+.RS 4
+If you previously canceled a backup/generate test there will be a backup
+directory remaining; continue generating to the same backup.
+.RE
+.sp
+\-\-purge
+.RS 4
+If you previously canceled a backup/generate test there will be a backup
+directory remaining; remove it before continuing.
+.RE
+.sp
+\-\-shard\-count <shard_count>
+.RS 4
+The number of shards to create when generating to an archive. This option is
+silently ignored when generating to the \*(Aqcouchbase\*(Aq or \*(Aqblackhole\*(Aq sinks.
+.RE
+.sp
+\-\-no\-progress\-bar
+.RS 4
+By default, a progress bar is printed to stdout so that the user can see how
+long the generation is expected to take, the amount of data that is being
+transferred per second, and the amount of data that has been generated.
+Specifying this flag disables the progress bar and is useful when running
+automated jobs.
+.RE
+.SH "HOST FORMATS"
+.sp
+When specifying a host/cluster for a command using the \f(CR\-c\fP/\f(CR\-\-cluster\fP flag, the following formats
+are accepted:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CR<addr>:<port>\fP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CRhttp://<addr>:<port>\fP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CRhttps://<addr>:<port>\fP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CRcouchbase://<addr>:<port>\fP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CRcouchbases://<addr>:<port>\fP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CRcouchbase://<srv>\fP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CRcouchbases://<srv>\fP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CR<addr>:<port>,<addr>:<port>\fP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CR<scheme>://<addr>:<port>,<addr>:<port>\fP
+.RE
+.sp
+The \f(CR<port>\fP portion of the host format may be omitted, in which case the default port will be used
+for the scheme provided. For example, \f(CRhttp://\fP and \f(CRcouchbase://\fP will both default to 8091 where
+\f(CRhttps://\fP and \f(CRcouchbases://\fP will default to 18091. When connecting to a host/cluster using a
+non\-default port, the \f(CR<port>\fP portion of the host format must be specified.
+.SS "Connection Strings (Multiple nodes)"
+.sp
+The \f(CR\-c\fP/\f(CR\-\-cluster\fP flag accepts multiple nodes in the format of a connection string; this is a
+comma separated list of \f(CR<addr>:<port>\fP strings where \f(CR<scheme>\fP only needs to be specified once.
+The main advantage of supplying multiple hosts is that in the event of a failure, the next host in
+the list will be used.
+.sp
+For example, all of the following are valid connection strings:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CRlocalhost,[::1]\fP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CR10.0.0.1,10.0.0.2\fP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CRhttp://10.0.0.1,10.0.0.2\fP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CRhttps://10.0.0.1:12345,10.0.0.2\fP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CRcouchbase://10.0.0.1,10.0.0.2\fP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CRcouchbases://10.0.0.1:12345,10.0.0.2:12345\fP
+.RE
+.SS "SRV Records"
+.sp
+The \f(CR\-c\fP/\f(CR\-\-cluster\fP flag accepts DNS SRV records in place of a host/cluster address where the SRV
+record will be resolved into a valid connection string. There are a couple of rules which must be
+followed when supplying an SRV record which are as follows:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+The \f(CR<scheme>\fP portion must be either \f(CRcouchbase://\fP or \f(CRcouchbases://\fP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+The \f(CR<srv>\fP portion should be a hostname with no port
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+The \f(CR<srv>\fP portion must not be a valid IP address
+.RE
+.sp
+For example, all of the following are valid connection string using an SRV record:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CRcouchbase://hostname\fP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CRcouchbases://hostname\fP
+.RE
+.SS "Alternate Addressing (CAO/K8S)"
+.sp
+Users of the CAO (Couchbase Autonomous Operator) or K8S may need to supply the
+\f(CRnetwork=external\fP query parameter to force connection via the defined
+alternate addressing.
+.sp
+For example, the following are valid connection strings:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CRhttps://10.0.0.1:12345,10.0.0.2?network=default\fP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\f(CRhttps://10.0.0.1:12345,10.0.0.2?network=external\fP
+.RE
+.SH "CERTIFICATE AUTHENTICATION (MTLS AUTHENTICATION)"
+.sp
+This tool supports authenticating against a Couchbase Cluster by using certificate based authentication (mTLS
+authentication). To use certificate based authentication a certificate/key must be supplied, there a currently
+multiple ways this may be done.
+.SS "PEM ENCODED CERTIFICATE/KEY"
+.sp
+An unencrypted PEM encoded certificate/key may be supplied by using:
+\- \f(CR\-\-client\-cert <path>\fP
+\- \f(CR\-\-client\-key <path>\fP
+.sp
+The file passed to \f(CR\-\-client\-cert\fP must contain the client certificate, and an optional chain required to authenticate
+the client certificate.
+.sp
+The file passed to \f(CR\-\-client\-key\fP must contain at most one private key, the key can be in one of the following formats:
+\- PKCS#1
+\- PKCS#8
+\- EC
+.sp
+Currently, only the following key types are supported:
+\- RSA
+\- ECDSA
+\- ED25519
+.SS "PEM ENCODED CERTIFICATE/PEM OR DER ENCRYPTED PKCS#8 KEY"
+.sp
+An encrypted PKCS#8 formatted key may be provided using:
+\- \f(CR\-\-client\-cert <path>\fP
+\- \f(CR\-\-client\-key <path>\fP
+\- \f(CR\-\-client\-key\-password <password>\fP
+.sp
+The file passed to \f(CR\-\-client\-cert\fP must contain the client certificate, and an optional chain required to authenticate
+the client certificate.
+.sp
+Currently, only the following key types are supported:
+\- RSA
+\- ECDSA
+\- ED25519
+.SS "ENCRYPTED PKCS#12 CERTIFICATE/KEY"
+.sp
+An encrypted PKCS#12 certificate/key may be provided using:
+\- \f(CR\-\-client\-cert <path>\fP
+\- \f(CR\-\-client\-cert\-password <password>\fP
+.sp
+The file passed to \f(CR\-\-client\-cert\fP must contain the client certificate and exactly one private key. It may also contain
+the chain required to authenticate the client certificate.
+.sp
+Currently, only the following key types are supported:
+\- RSA
+\- ECDSA
+\- ED25519
+.SH "RBAC"
+.sp
+When performing a backup/restore with a user which is using RBAC, there are a
+couple of things that should be taken into consideration each of which is
+highlighted in this section.
+.SS "Bucket Level"
+.sp
+Bucket level data may be backed up/restored using the \f(CRdata_backup\fP (Data
+Backup & Restore) role.
+.sp
+The \f(CRdata_backup\fP role does not have access to cluster level data such as:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+Analytics Synonyms
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+Eventing Metadata
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+FTS Aliases
+.RE
+.sp
+Backing up/restoring cluster level data with the \f(CRdata_backup\fP role will cause
+permission errors like the one below.
+.sp
+.if n .RS 4
+.nf
+.fam C
+Error backing up cluster: {"message":"Forbidden. User needs one of the following permissions","permissions":["cluster.fts!read"]}
+.fam
+.fi
+.if n .RE
+.sp
+When presented with an error message such as the one above, there\(cqs two clear
+options.
+.sp
+The first option is to provide the user with the required credentials using
+either the cli, REST API or Couchbase Server WebUI. This can be done by editing
+the user and adding the required role. See \f(CRCluster Level\fP for more information
+about the required roles.
+.sp
+Secondly, backing up/restoring the specific service can be disabled. For
+backups this must be done when configuring the repository with the \f(CRconfig\fP
+command using the \f(CR\-\-disable\fP style flags. For restore, these flags may be used
+directly to disable one or more services. See the backup/restore documentation
+for more information.
+.SS "Cluster Level"
+.sp
+Backing up/restoring cluster level data requires additional RBAC roles, each of
+which is highlighted below:
+.sp
+Analytics Synonyms
+.RS 4
+\f(CRanalytics_admin\fP (Analytics Admin)
+.RE
+.sp
+Eventing Metadata
+.RS 4
+\f(CReventing_admin\fP (Eventing Full Admin)
+.RE
+.sp
+FTS Aliases
+.RS 4
+\f(CRfts_admin\fP (Search Admin)
+.RE
+.sp
+These additional roles are required since this is cluster level data which may
+encompass multiple buckets.
+.SH "EXAMPLES"
+.sp
+cbbackupmgr generate is used to generate documents and send them through the
+cbbackupmgr pipeline; this command is primarily intended for testing.
+.sp
+.if n .RS 4
+.nf
+.fam C
+$ cbbackupmgr generate \-a /data/backups \-c localhost \-u admin \-p password \-n 1000 \-s 1024
+1000/1000 \- 100% \- 999D/s \- 1.03MB/s
+Transfer completed in 1.000174463s
+.fam
+.fi
+.if n .RE
+.sp
+By supplying the optional \*(Aqsink\*(Aq argument you can choose which sink to send the
+generate documents to; to test the speed to the document generate itself, specify
+the sink as \*(Aqblackhole\*(Aq.
+.sp
+.if n .RS 4
+.nf
+.fam C
+$ cbbackupmgr generate \-a /data/backups \-n 100000 \-s 1048576 \-\-sink \*(Aqblackhole\*(Aq
+100000/100000 \- 100% \- 9084D/s \- 8.87GB/s
+Transfer completed in 11.007203014s
+.fam
+.fi
+.if n .RE
+.SH "CBBACKUPMGR"
+.sp
+Part of the \fBcbbackupmgr\fP(1) suite
+.SH "AUTHOR"
+.sp
+Couchbase

@@ -1,0 +1,629 @@
+'\" t
+.\"     Title: cbbackupmgr-config
+.\"    Author: Couchbase
+.\" Generator: Asciidoctor 2.0.16
+.\"      Date: 2023-09-20
+.\"    Manual: Couchbase Server Manual
+.\"    Source: Couchbase Server 7.2.2-6401
+.\"  Language: English
+.\"
+.TH "CBBACKUPMGR\-CONFIG" "1" "2023-09-20" "Couchbase Server 7.2.2\-6401" "Couchbase Server Manual"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+cbbackupmgr-config \- Creates and configures a new backup repository
+.SH "SYNOPSIS"
+.sp
+.nf
+cbbackupmgr config [\-\-archive <archive_dir>] [\-\-repo <repo_name>]
+                   [\-\-include\-data <collection_string_list>]
+                   [\-\-exclude\-data <collection_string_list>]
+                   [\-\-disable\-bucket\-config] [\-\-disable\-views] [\-\-disable\-eventing]
+                   [\-\-disable\-gsi\-indexes] [\-\-disable\-ft\-indexes]
+                   [\-\-disable\-data] [\-\-vbucket\-filter <integer_list>]
+                   [\-\-disable\-cluster\-analytics] [\-\-disable\-analytics] [\-\-disable\-ft\-alias]
+                   [\-\-disable\-bucket\-query] [\-\-disable\-cluster\-query]
+                   [\-\-obj\-access\-key\-id <access_key_id>] [\-\-obj\-cacert <cert_path>]
+                   [\-\-obj\-endpoint <endpoint>] [\-\-obj\-no\-ssl\-verify]
+                   [\-\-obj\-region <region>] [\-\-obj\-staging\-dir <staging_dir>]
+                   [\-\-obj\-secret\-access\-key <secret_access_key>]
+                   [\-\-s3\-force\-path\-style] [\-\-s3\-log\-level <level>]
+                   [\-\-readme\-author <name>] [\-\-point\-in\-time]
+                   [\-\-encrypted] [\-\-passphrase <passphrase>]
+                   [\-\-encryption\-algo <algo>] [\-\-derivation\-algo <algo>]
+                   [\-\-km\-key\-url <url>] [\-\-km\-endpoint <endpoint>]
+                   [\-\-km\-region <region>] [\-\-km\-access\-key\-id <id>]
+                   [\-\-km\-secret\-access\-key <key>] [\-\-km\-auth\-file <path>]
+.fi
+.br
+.SH "DESCRIPTION"
+.sp
+Creates a new backup repository with a new backup configuration. The
+configuration created is used for all backups in this backup repository.
+.sp
+By default a backup configuration is created that will backup all buckets in the
+cluster. Each bucket will have its bucket configuration, views definitions, gsi
+index definitions, full\-text index definitions, and data backed up. Specifying
+various flags, the config command can modify the configuration to backup a
+subset of the data.
+.sp
+Once a backup repository is created its configuration cannot be changed.
+.SH "OPTIONS"
+.sp
+Below are a list of required and optional parameters for the config command.
+.SS "Required"
+.sp
+\-a,\-\-archive <archive_dir>
+.RS 4
+The directory where the new backup repository will be created. If it does
+not already exist, an attempt will be made to create it. When configuring
+an archive in S3 you must prefix the archive path with \f(CRs3://${BUCKET_NAME}/\fP.
+.RE
+.sp
+\-r,\-\-repo <repo_name>
+.RS 4
+The name of the new backup repository.
+.RE
+.SS "Optional"
+.sp
+\-\-include\-data <collection_string_list>
+.RS 4
+Modifies the repository configuration to backup only the data specified in
+the <collection_string_list>. This flag takes a comma separated list of
+collection strings and can\(cqt be specified at the same time as
+\f(CR\-\-exclude\-data\fP. Note that including data at the scope/collection level is
+an Enterprise Edition feature.
+.RE
+.sp
+\-\-exclude\-data <collection_string_list>
+.RS 4
+Modifies the repository configuration to skip restoring the data specified in
+the <collection_string_list>. This flag takes a comma separated list of
+collection strings and can\(cqt be specified at the same time as
+\f(CR\-\-include\-data\fP. Note that excluding data at the scope/collection level is
+an Enterprise Edition feature.
+.RE
+.sp
+\-\-disable\-views
+.RS 4
+Modifies the repository configuration to disable backing up view definitions
+for all buckets.
+.RE
+.sp
+\-\-disable\-gsi\-indexes
+.RS 4
+Modifies the repository configuration to disable backing up gsi index
+definitions for all buckets.
+.RE
+.sp
+\-\-disable\-ft\-indexes
+.RS 4
+Modifies the repository configuration to disable backing up full\-text index
+definitions for all buckets.
+.RE
+.sp
+\-\-disable\-ft\-alias
+.RS 4
+Modifies the repository configuration to disable backing up full\-text alias
+definitions.
+.RE
+.sp
+\-\-disable\-data
+.RS 4
+Modifies the repository configuration to disable backing up all key\-value
+data for all buckets.
+.RE
+.sp
+\-\-disable\-cluster\-analytics
+.RS 4
+Modifies the repository configuration to disable backing up the cluster level
+analytics data. For example, the Synonyms are backed up at the cluster level.
+.RE
+.sp
+\-\-disable\-analytics
+.RS 4
+Modifies the repository configuration to disable backing up analytics data.
+.RE
+.sp
+\-\-disable\-eventing
+.RS 4
+Modifies the repository configuration to disable backing up the Eventing
+service metadata.
+.RE
+.sp
+\-\-disable\-bucket\-query
+.RS 4
+Modifies the repository configuration to disable backing up Query Service
+metadata for all buckets.
+.RE
+.sp
+\-\-disable\-cluster\-query
+.RS 4
+Modifies the repository configuration to disable backing up the cluster level
+Query Service metadata.
+.RE
+.sp
+\-\-vbucket\-filter <list>
+.RS 4
+Specifies a list of VBuckets that should be backed up in the repo being
+created. VBuckets are specified as a comma separated list of integers. If
+this parameter is not set then all vbuckets are backed up. The comma
+separated list can also take sequences denoted as e.g: 0\-5 this is equivalent
+to 0,1,2,3,4,5.
+.RE
+.sp
+\-\-readme\-author <name>
+.RS 4
+Specifies the name of the creator of the repository. This information
+will be recorded in a README file at the top\-level of the repository.
+.RE
+.sp
+\-\-point\-in\-time
+.RS 4
+(BETA) This enables Point in Time feature. Which is currently in Beta and
+is not supported, this should only be used in test environments. When it\(cqs
+enabled cbbackupmgr will get historical data from the cluster. This will
+allow restoring to a single point in time. This will increase the amount of
+space needed to store the backup. The cluster also has to have Point In
+Time configured to use this feature.
+.RE
+.SS "Cloud integration"
+.sp
+Native cloud integration is an Enterprise Edition feature which was introduced
+in Couchbase Server 6.6.0.
+.sp
+Multiple cloud providers are supported, see the list below for more information.
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 1." 4.2
+.\}
+Supported
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+AWS S3 (\f(CRs3://\fP)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+GCP Google Storage (\f(CRgs://\fP)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+Azure Blob Storage in 7.1.2+ (\f(CRaz://\fP)
+.RE
+.RE
+.SS "Required"
+.sp
+\-\-obj\-staging\-dir <staging_dir>
+.RS 4
+When performing an operation on an archive which is located in the cloud such
+as AWS, the staging directory is used to store local meta data files. This
+directory can be temporary (it\(cqs not treated as a persistent store) and is
+only used during the backup. NOTE: Do not use \f(CR/tmp\fP as the \f(CRobj\-staging\-dir\fP.
+See \f(CRDisk requirements\fP in \fBcbbackupmgr\-cloud\fP(7) for more information.
+.RE
+.SS "Optional"
+.sp
+\-\-obj\-access\-key\-id <access_key_id>
+.RS 4
+The access key id which has access to your chosen object store. This option
+can be omitted when using the shared config functionality provided by your
+chosen object store. Can alternatively be provided using the
+\f(CRCB_OBJSTORE_ACCESS_KEY_ID\fP environment variable.
+.sp
+When using AWS, this option expects an access key id. See
+\c
+.URL "https://docs.aws.amazon.com/general/latest/gr/aws\-sec\-cred\-types.html#access\-keys\-and\-secret\-access\-keys" ""
+for more information.
+.sp
+When using Azure, this option expects an account name. See
+\c
+.URL "https://docs.microsoft.com/en\-us/azure/storage/common/storage\-account\-overview#storage\-account\-endpoints" ""
+for more information.
+.sp
+When using GCP, this option expects a client id. See
+.URL "https://cloud.google.com/storage/docs/authentication" "" ""
+for more information.
+.RE
+.sp
+\-\-obj\-cacert <cert_path>
+.RS 4
+Specifies a CA certificate that will be used to verify the identity of the
+object store being connected to.
+.RE
+.sp
+\-\-obj\-endpoint <endpoint>
+.RS 4
+The host/address of your object store.
+.RE
+.sp
+\-\-obj\-no\-ssl\-verify
+.RS 4
+Skips the SSL verification phase when connecting to the object store.
+Specifying this flag will allow a connection using SSL encryption, but you
+are vulnerable to a man\-in\-the\-middle attack.
+.RE
+.sp
+\-\-obj\-region <region>
+.RS 4
+The region in which your bucket/container resides. For AWS this option may be
+omitted when using the shared config functionality. See the AWS section of
+the cloud documentation for more information.
+.RE
+.sp
+\-\-obj\-secret\-access\-key <secret_access_key>
+.RS 4
+The secret access key which has access to you chosen object store. This
+option can be omitted when using the shared config functionality provided by
+your chosen object store. Can alternatively be provided using the
+\f(CRCB_OBJSTORE_SECRET_ACCESS_KEY\fP environment variable.
+.sp
+When using AWS, this option expects a secret access key. See
+\c
+.URL "https://docs.aws.amazon.com/general/latest/gr/aws\-sec\-cred\-types.html#access\-keys\-and\-secret\-access\-keys" ""
+for more information.
+.sp
+When using Azure, this option expects an account key. See
+\c
+.URL "https://docs.microsoft.com/en\-us/azure/storage/common/storage\-account\-keys\-manage?tabs=azure\-portal" ""
+for more information.
+.sp
+When using GCP, this option expects a client secret. See
+.URL "https://cloud.google.com/storage/docs/authentication" "" ""
+for more information.
+.RE
+.sp
+\-\-obj\-log\-level <level>
+.RS 4
+Set the log level for the cloud providers SDK. By default logging will be
+disabled. Valid options are cloud provider specific and are listed below.
+.sp
+The valid options for the AWS SDK are \f(CRdebug\fP, \f(CRdebug\-with\-signing\fP,
+\f(CRdebug\-with\-body\fP, \f(CRdebug\-with\-request\-retries\fP, \f(CRdebug\-with\-request\-errors\fP,
+and \f(CRdebug\-with\-event\-stream\-body\fP.
+.sp
+The valid options for the Azure SDK are \f(CRinfo\fP, \f(CRdebug\fP, \f(CRdebug\-with\-request\-retries\fP and
+\f(CRdebug\-with\-request\-retries\-and\-lro\fP.
+.sp
+The Google Storage SDK does not expose advanced logging configuration meaning
+this option is explicitly ignored, however, this behavior may change in the
+future.
+.RE
+.sp
+\-\-obj\-auth\-by\-instance\-metadata
+.RS 4
+Depending on the cloud provider, using instance metadata for authentication
+is disabled by default. Supplying this flag will allow the fetching
+credentials/auth tokens from (VM) internal instance metadata endpoints.
+.sp
+By default, this option is disabled for AWS.
+.sp
+By default, this option is enabled for Azure.
+.sp
+By default, this option is enabled for GCP.
+.RE
+.sp
+\-\-obj\-auth\-file
+.RS 4
+GCP offers the ability to use a file which contains credentials which will be
+used to perform authentication. The \f(CR\-\-obj\-auth\-file\fP flag accepts a path to
+an authentication file. This flag is unsupported for the AWS/Azure cloud
+providers.
+.RE
+.sp
+\-\-obj\-refresh\-token
+.RS 4
+GCP requires a refresh token when using static credentials, this will be used
+to refresh oauth2 tokens when accessing remote storage.
+.RE
+.SS "AWS S3 Options"
+.SS "Optional"
+.sp
+\-\-s3\-force\-path\-style
+.RS 4
+By default the updated virtual style paths will be used when interfacing with
+AWS S3. This option will force the AWS SDK to use the alternative path style
+URLs which are often required by S3 compatible object stores.
+.RE
+.SS "Encryption (Developer Preview)"
+.sp
+\-\-encrypted
+.RS 4
+Enables configuring an encrypted repository.
+.RE
+.sp
+\-\-encryption\-algo <algo>
+.RS 4
+The encryption algorithm to use. Currently supported are
+[AES256CBC, AES256GCM]. Defaults to AES256GCM.
+.RE
+.sp
+\-\-derivation\-algo <algo>
+.RS 4
+The derivation algorithm used when running with passphrase that creates
+the repository encryption key. Currently supported [ARGON2ID, PBKDF2].
+Defaults to ARGON2ID.
+.RE
+.sp
+\-\-passphrase <passphrase>
+.RS 4
+Passphrase can be used instead of an external key manager. This is not
+supported on production and should only be used in development or testing.
+.RE
+.sp
+\-\-km\-key\-url <url>
+.RS 4
+Provides the Key Identifier in the external Key Management system. Currently
+supported KMSs are AWS KMS, GCP KMS, Azure KeyVault, HashiCorp Vault Transit
+secrets engine. The option can also be provided using the environmental
+variable \f(CRCB_KM_KEY_URL\fP. For more on how to authenticate using the different
+providers see \fBcbbackupmgr\-encryption\fP(7).
+.sp
+For AWS the expected key format is \f(CRawskms://<KEY\-ID|KEY\-ALIAS>\fP, for example
+\f(CRawskms://alias\(rskeyAlias\fP.
+.sp
+For GCP the expected key format is \f(CRgcpkms://<KEY\-RESOURCE\-ID>\fP, for example
+\f(CRgcpkms://projects/project\-id/locations/location/keyRings/keyring/cryptoKeys/key\fP.
+.sp
+For Azure key vault the expected key format is \f(CRazurekeyvault://<KEY\-IDENTIFIER>\fP
+for example:
+\f(CRazurekeyvault://vault\-name.vault.azure.net/object\-type/object\-name/object\-version\fP.
+.sp
+For HashiCorp Vault the expected format is \f(CRhashivaults://<HOST>/<KEY\-NAME>\fP
+for example:
+\f(CRhashivaults://127.0.0.1:8200/keyName\fP.
+.RE
+.sp
+\-\-km\-region <region>
+.RS 4
+Required when using AWS KMS, it allows you to set the key region.
+.RE
+.sp
+\-\-km\-endpoint <endpoint>
+.RS 4
+The host or address to use as your KMS. It will override the default SDK one.
+.RE
+.sp
+\-\-km\-access\-key\-id <id>
+.RS 4
+The user ID used to connect to the key management service. It can also be
+provided via \f(CRCB_KM_ACCESS_KEY_ID\fP environmental variable. Please refer
+to \fBcbbackupmgr\-encryption\fP(7) for the required authentication for each
+provider.
+.RE
+.sp
+\-\-km\-secret\-access\-key <key>
+.RS 4
+The key used to connect to the key management service. It can also be
+provided via the \f(CRCB_KM_SECRET_ACCESS_KEY\fP environmental variable. Please
+refer to \fBcbbackupmgr\-encryption\fP(7) for the required authentication for
+each provider.
+.RE
+.sp
+\-\-km\-auth\-file <path>
+.RS 4
+  The path to a file containing the authentication credentials for the key
+management service. It can also be provided via the \f(CRCB_KM_AUTH_FILE\fP
+environmental variable. Please refer to \fBcbbackupmgr\-encryption\fP(7) for the
+required authentication for each provider.
+:!config:
+.RE
+.SH "EXAMPLES"
+.sp
+The config command is used to create a backup repository and define the
+repositories backup configuration. In the examples below, the backup archive is
+located at /data/backups. Since this is the first backup repository we are
+creating in a new backup archive, we need to ensure that /data/backups is an
+empty directory. Archives are created automatically if an archive doesn\(cqt
+already exist at the archive path, but are only created if the directory at that
+path is empty. In order to create a backup repository called "example" with the
+default configuration use the following command:
+.sp
+.if n .RS 4
+.nf
+.fam C
+$ cbbackupmgr config \-a /data/backups \-r example
+.fam
+.fi
+.if n .RE
+.sp
+Upon creation of a new backup repository there will be a new directory in the
+backup archive containing a backup configuration. You can see this new directory
+using the cbbackupmgr\-info[1] command.
+.sp
+.if n .RS 4
+.nf
+.fam C
+$ cbbackupmgr info \-a ~/data/backups
+Name     | UUID                                  | Size  | # Repos  |
+backups  | 0db3337c\-96b0\-4b3a\-a7fb\-bbfd53790e5f  | 0B    | 1        |
+
+*  Name     | Size  | # Backups  |
+*  example  | 0B    | 0          |
+.fam
+.fi
+.if n .RE
+.sp
+Using the optional parameters of the create command, you can modify the backup
+configuration settings. To create a backup repository with a backup
+configuration that only backs up the buckets "airline_data" and "ticket_prices"
+and does not back up bucket configuration data, you can run the following:
+.sp
+.if n .RS 4
+.nf
+.fam C
+$ cbbackupmgr config \-a /data/backups \-r example \(rs
+ \-\-include\-data airline_data,ticket_prices \-\-disable\-bucket\-config
+.fam
+.fi
+.if n .RE
+.sp
+To create a backup repository with a backup configuration that backs up only
+data on all buckets, you can run the following command:
+.sp
+.if n .RS 4
+.nf
+.fam C
+$ cbbackupmgr config \-a /data/backups \-r example \-\-disable\-bucket\-config \(rs
+ \-\-disable\-views \-\-disable\-gsi\-indexes \-\-disable\-ft\-indexes
+.fam
+.fi
+.if n .RE
+.sp
+When creating an archive in an object store such as S3 due care must be taken
+to ensure that the provided directory is empty and can be managed by cbbackupmgr.
+.sp
+.if n .RS 4
+.nf
+.fam C
+$ cbbackupmgr config \-a s3://bucket/archive \-r repo \-\-obj\-staging\-dir /staging
+.fam
+.fi
+.if n .RE
+.SH "DISCUSSION"
+.sp
+Though not required, it is recommended that there is a single backup repository
+per cluster. Backup repositories are managed so that all backups can be taken
+incrementally and merged together as backup data ages. Backing up in this manner
+allows backups to transfer the least amount of data necessary which reduces back
+up time and cluster resource usage. For more details on backup strategies see
+cbbackupmgr\-strategies[7].
+.sp
+When a backup repository is created, it should only be modified by the
+cbbackupmgr utility. Any modifications done outside of this utility can cause
+corruption of backup files.
+.SH "ENVIRONMENT AND CONFIGURATION VARIABLES"
+.sp
+CB_ARCHIVE_PATH
+.RS 4
+Specifies the path to the backup archive. If the archive path is supplied as
+a command line argument then this value is overridden.
+.RE
+.sp
+CB_OBJSTORE_STAGING_DIRECTORY
+.RS 4
+Specifies the path to the staging directory. If the \f(CR\-\-obj\-staging\-dir\fP
+argument is provided in the command line then this value is overridden.
+.RE
+.sp
+CB_OBJSTORE_REGION
+.RS 4
+Specifies the object store region. If the \f(CR\-\-obj\-region\fP argument is provided
+in the command line then this value is overridden.
+.RE
+.sp
+CB_OBJSTORE_ACCESS_KEY_ID
+.RS 4
+Specifies the object store access key id. If the \f(CR\-\-obj\-access\-key\-id\fP
+argument is provided in the command line this value is overridden.
+.RE
+.sp
+CB_OBJSTORE_SECRET_ACCESS_KEY
+.RS 4
+Specifies the object store secret access key. If the
+\f(CR\-\-obj\-secret\-access\-key\fP argument is provided in the command line this value
+is overridden.
+.RE
+.sp
+CB_OBJSTORE_REFRESH_TOKEN
+.RS 4
+Specifies the refresh token to use. If the \f(CR\-\-obj\-refresh\-token\fP argument is
+provided in the command line, this value is overridden.
+.RE
+.sp
+CB_AWS_ENABLE_EC2_METADATA
+.RS 4
+By default cbbackupmgr will disable fetching EC2 instance metadata. Setting
+this environment variable to true will allow the AWS SDK to fetch metadata
+from the EC2 instance endpoint.
+.RE
+.sp
+CB_ENCRYPTION_PASSPHRASE
+.RS 4
+Specifies the passphrase used for encryption.
+.RE
+.sp
+CB_KM_KEY_URL
+.RS 4
+Specifies the URL identifying the encryption key on the KMS. See
+\f(CR\-\-km\-key\-url\fP for the expected format and accepted KMSs.
+.RE
+.sp
+CB_KM_ACCESS_ID
+.RS 4
+Specifies the key/user ID used to connect to the KMS.
+.RE
+.sp
+CB_KM_SECRET_ACCESS_KEY
+.RS 4
+Specifies the secret key/token used to connect to the KMS.
+.RE
+.sp
+CB_KM_AUTH_FILE
+.RS 4
+Specifies a path to a file containing the required credentials to connect to
+the KMS.
+.RE
+.SH "FILES"
+.sp
+backup\-meta.json
+.RS 4
+The config command creates a backup configuration file in the backup
+repository called backup\-meta.json. This file contains the backup
+configuration for all backups run in the backup repository it was created
+in. It should never be modified and treated as a read\-only file.
+.RE
+.SH "SEE ALSO"
+.sp
+\fBcbbackupmgr\-info\fP(1),
+\fBcbbackupmgr\-strategies\fP(1),
+\fBcbbackupmgr\-cloud\fP(7),
+\fBcbbackupmgr\-encryption\fP(7)
+.SH "CBBACKUPMGR"
+.sp
+Part of the \fBcbbackupmgr\fP(1) suite
+.SH "AUTHOR"
+.sp
+Couchbase

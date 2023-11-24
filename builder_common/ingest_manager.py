@@ -130,8 +130,12 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
         # noinspection PyBroadException
         try:
             self.cb_credentials = self.load_spec['cb_connection']
-            logging.getLogger().setLevel(logging.INFO)
-            logging.StreamHandler(sys.stdout)
+            root=logging.getLogger()
+            root.setLevel(logging.INFO)
+            handler = logging.StreamHandler(sys.stdout)
+            handler.setLevel(logging.INFO)
+            root.addHandler(handler)
+
             # get a connection
             self.connect_cb()
             # infinite loop terminates when the file_name_queue is empty

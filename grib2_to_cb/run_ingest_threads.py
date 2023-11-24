@@ -80,8 +80,16 @@ def parse_args(args):
     Parse command line arguments
     """
     begin_time = str(datetime.now())
-    logging.getLogger().setLevel(logging.INFO)
-    logging.StreamHandler(sys.stdout)
+    root=logging.getLogger()
+    root=logging.getLogger()
+    root.setLevel(logging.INFO)
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(logging.INFO)
+    root.addHandler(handler)
+
+    handler.setLevel(logging.INFO)
+    root.addHandler(handler)
+
     logging.info("--- *** --- Start --- *** ---")
     logging.info("Begin a_time: %s", begin_time)
     # a_time execution
@@ -158,9 +166,13 @@ class VXIngest(CommonVxIngest):
         self.ingest_document_id = None
         self.ingest_document = None
         super().__init__()
-        logging.getLogger().setLevel(logging.INFO)
-        logging.StreamHandler(sys.stdout)
-        logging.StreamHandler(sys.stdout)
+        root=logging.getLogger()
+        root.setLevel(logging.INFO)
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setLevel(logging.INFO)
+        root.addHandler(handler)
+
+
     def runit(self, args):  # pylint:disable=too-many-locals
         """
         This is the entry point for run_ingest_threads.py

@@ -434,8 +434,12 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
         """
         # noinspection PyBroadException
         try:
-            logging.getLogger().setLevel(logging.INFO)
-            logging.StreamHandler(sys.stdout)
+            root=logging.getLogger()
+            root.setLevel(logging.INFO)
+            handler = logging.StreamHandler(sys.stdout)
+            handler.setLevel(logging.INFO)
+            root.addHandler(handler)
+
             # reset the builders document_map for a new file
             self.initialize_document_map()
             self.not_found_station_count = 0

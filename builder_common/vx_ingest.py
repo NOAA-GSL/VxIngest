@@ -62,8 +62,12 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
         self.cluster = None
         self.ingest_document_id = None
         self.ingest_document = None
-        logging.getLogger().setLevel(logging.INFO)
-        logging.StreamHandler(sys.stdout)
+        root=logging.getLogger()
+        root.setLevel(logging.INFO)
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setLevel(logging.INFO)
+        root.addHandler(handler)
+
 
     def parse_args(self, args):  # pylint: disable=missing-function-docstring
         """This method is intended to be overriden"""

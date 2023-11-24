@@ -216,7 +216,7 @@ for i in "${!ids[@]}"; do
     threads="-t6"
   fi
   echo "RUNNING - python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ${credentials_file} -o $out_dir ${threads} ${file_pattern}" >> ${log_file}
-  python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ${credentials_file} -o $out_dir ${threads} ${file_pattern} 2>&1 >> ${log_file}
+  python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ${credentials_file} -o $out_dir ${threads} ${file_pattern} >> ${log_file}
   exit_code=$?
   if [[ "${exit_code}" -ne "0" ]]; then
     failed_job_count=$((failed_job_count + 1))

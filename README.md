@@ -9,6 +9,7 @@ This repository is a scientific product and is not official communication of the
 The VXIngest project contains code for the purpose of ingesting meteorological data from various different sources into a document database. The data gnerated is in the form of JSON documents. These documents conform to the data model that is described in the model subdirectory.
 
 ## Build
+
 NOTE: the scripts/cbtools are included for use within the container. These tools are linux x86-64 oriented. Do not expect them to work on other platforms or achitectures. If you need a compatible copy of these tools see [https://docs.couchbase.com/cloud/reference/command-line-tools.html](https://docs.couchbase.com/cloud/reference/command-line-tools.html)
 
 NOTE: You can use ```docker system prune -af``` to clean up stopped, old or unused images from your machine. It recovers a lot of space.
@@ -121,7 +122,9 @@ To run a single ingest job there are a few extra parameters in addition to the /
  data=/data-ingest/data public=/public docker compose run ingest ./scripts/VXingest_utilities/run-ingest.sh -c /run/secrets/CREDENTIALS_FILE -o /opt/data/test/outdir -j JOB:V01:METAR:GRIB2:MODEL:HRRR -l /opt/data/test/logs -m /opt/data/test/metrics -x /opt/data/test/xfer -f 20329817000006"
 ```
 
-Where -c is the internal credentials file passed as a secret. Don't change that path, but do be sure to have a "credentials" file in your 4{HOME}. The -l is where you want to store and archive log files, /data is the directory for temporarily storing output documents, -m is the directory where job metrics are stored to be collected, -j is a job document id, and -x is the directory where archived job results (documents and associated log files) are stored in expectation of being imported and scraped by an import process. Scraping is the process of gathering metrics from the log files. The arguments will be passed to the service through the environment. The ingest service will run all of the jobs that are currently scheduled (in the job documents) to run in the current fifteen minute interval i.e. quarter hour.
+Where -c is the internal credentials file passed as a secret. Don't change that path, but do be sure to have a "credentials" file in your ${HOME}. The -l is where you want to store and archive log files, -m is the directory where job metrics are stored to be collected, -j is a job document id, -f is an optional file pattern that can be used to qualify the input files (the job document will specify the input data path), and -x is the directory where archived job results (documents and associated log files) are stored in expectation of being imported and scraped by an import process. Scraping is the process of gathering metrics from the log files. The arguments will be passed to the service through the environment. The ingest service will run all of the jobs that are currently scheduled (in the job documents) to run in the current fifteen minute interval i.e. quarter hour.
+
+The -f flag in the example is specific to a GRIB2 JOB. A netcdf JOB would something like 20231124_1500. A CTC or a SUM job would have different parameters i.e. -f first_epoch and -l last_epoch. These optional parameters are passed through to the particular builder.
 
 ### Running an import job service
 

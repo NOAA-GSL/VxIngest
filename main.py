@@ -62,39 +62,6 @@ prom_last_success = Gauge(
 )
 
 
-def get_credentials(path: Path) -> dict[str, str]:
-    """
-    Loads a YAML config file from the given path.
-
-    Returns a dictionary of values from the file
-    """
-
-    # Check the file exists
-    if not path.is_file():
-        raise FileNotFoundError(f"Credentials file can not be found: {path}")
-
-    # Load the file
-    config: dict[str, str] = {}
-    with path.open() as file:
-        config = yaml.load(file, yaml.SafeLoader)
-
-    # Check that nothing's missing
-    required_keys = [
-        "cb_host",
-        "cb_user",
-        "cb_password",
-        "cb_bucket",
-        "cb_scope",
-        "cb_collection",
-    ]
-    for key in required_keys:
-        if key not in config:
-            logger.error(f"Missing required field {key} in config file {path}")
-            raise KeyError
-
-    return config
-
-
 def process_cli():
     """Processes the following flags
 
@@ -170,6 +137,39 @@ def process_cli():
     # get the command line arguments
     args = parser.parse_args()
     return args
+
+
+def get_credentials(path: Path) -> dict[str, str]:
+    """
+    Loads a YAML config file from the given path.
+
+    Returns a dictionary of values from the file
+    """
+
+    # Check the file exists
+    if not path.is_file():
+        raise FileNotFoundError(f"Credentials file can not be found: {path}")
+
+    # Load the file
+    config: dict[str, str] = {}
+    with path.open() as file:
+        config = yaml.load(file, yaml.SafeLoader)
+
+    # Check that nothing's missing
+    required_keys = [
+        "cb_host",
+        "cb_user",
+        "cb_password",
+        "cb_bucket",
+        "cb_scope",
+        "cb_collection",
+    ]
+    for key in required_keys:
+        if key not in config:
+            logger.error(f"Missing required field {key} in config file {path}")
+            raise KeyError
+
+    return config
 
 
 def create_dirs(paths: list[Path]) -> None:
@@ -297,6 +297,12 @@ def determine_num_processes() -> int:
         )
         cpus = 1
     return cpus
+
+
+def make_tarfile(output_tarfile: Path, source_dir: Path):
+    """Create a tarfile, with the source_dir as the root of the tarfile contents"""
+    with tarfile.open(output_tarfile, "w:gz") as tar:
+        tar.add(source_dir, arcname=Path(source_dir).name)
 
 
 def process_jobs(
@@ -433,7 +439,9 @@ def process_jobs(
                 }
                 # FIXME: Update calling code to raise instead of calling sys.exit
                 try:
-                    partial_sums_ingest = partial_sums_to_cb.run_ingest_threads.VXIngest()
+                    partial_sums_ingest = (
+                        partial_sums_to_cb.run_ingest_threads.VXIngest()
+                    )
                     partial_sums_ingest.runit(
                         config,
                         log_queue,
@@ -472,13 +480,6 @@ def process_jobs(
         logger.info(f"Removing: {output_dir}")
         shutil.rmtree(output_dir)
     logger.info(f"Success: {success_count}, Fail: {fail_count}")
-    # TODO: make a prom metrics file with same metrics that run_ingest.sh emits # TODO - use the prometheus client & the write_to_textfile writer
-
-
-def make_tarfile(output_tarfile: Path, source_dir: Path):
-    """Create a tarfile, with the source_dir as the root of the tarfile contents"""
-    with tarfile.open(output_tarfile, "w:gz") as tar:
-        tar.add(source_dir, arcname=Path(source_dir).name)
 
 
 def run_ingest() -> None:

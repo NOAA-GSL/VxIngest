@@ -210,10 +210,10 @@ for i in "${!ids[@]}"; do
   # have to have a PYTHONPATH that includes the clonedir
   export PYTHONPATH=$(pwd)
   if [[ -z ${jobid} ]]; then # no jobid specified so got all the currently scheduled jobs use 6 threads
-    threads=" -t6"
+    threads=" -t8"
   else
     # for now use 6 threads - might change this later
-    threads="-t6"
+    threads="-t8"
   fi
   echo "RUNNING - python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ${credentials_file} -o $out_dir ${threads} ${file_pattern}" >> ${log_file}
   python ${clonedir}/${sub_dir}/run_ingest_threads.py -j ${job_id} -c ${credentials_file} -o $out_dir ${threads} ${file_pattern} >> ${log_file}

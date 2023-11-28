@@ -199,3 +199,27 @@ def test_grib_builder_two_threads_file_pattern_hrrr_ops_conus(tmp_path):
         assert (
             False
         ), f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus Exception failure: {_e} "
+
+def test_grib_builder_two_threads_file_pattern_rap_ops_130_conus(tmp_path):
+    """test gribBuilder multi-threaded
+    Not going to qulify the data on this one, just make sure it runs two threads properly
+    """
+    try:
+        credentials_file = os.environ["CREDENTIALS"]
+        # remove output files
+        vx_ingest = VXIngest()
+        # NOTE: the input file path is defined by the job document
+        vx_ingest.runit(
+            {
+                "job_id": "JOB-TEST:V01:METAR:GRIB2:MODEL:RAP_OPS_130",
+                "credentials_file": credentials_file,
+                "file_name_mask": "%y%j%H%f",
+                "output_dir": f"{tmp_path}",
+                "threads": 2,
+                "file_pattern": "23332080000[0123456789]?",
+            }
+        )
+    except Exception as _e:  # pylint: disable=broad-except
+        assert (
+            False
+        ), f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus Exception failure: {_e} "

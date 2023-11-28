@@ -671,37 +671,48 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
             try:
                 self.ds_translate_item_variables_map = {
                     "2 metre temperature": ds_hgt_2_metre_temperature.variables[
-                        list(ds_hgt_2_metre_temperature.data_vars.keys())[0]
+                        list(ds_hgt_2_metre_temperature.data_vars.keys())[0] if len(list(ds_hgt_2_metre_temperature.data_vars.keys())) > 0
+                            else None
                     ],
                     "2 metre dewpoint temperature": ds_hgt_2_metre_dewpoint_temperature.variables[
-                        list(ds_hgt_2_metre_dewpoint_temperature.data_vars.keys())[0]
+                        list(ds_hgt_2_metre_dewpoint_temperature.data_vars.keys())[0] if len(list(ds_hgt_2_metre_dewpoint_temperature.data_vars.keys())) > 0
+                            else None
                     ],
                     "2 metre relative humidity": ds_hgt_2_metre_relative_humidity.variables[
-                        list(ds_hgt_2_metre_relative_humidity.data_vars.keys())[0]
+                        list(ds_hgt_2_metre_relative_humidity.data_vars.keys())[0] if len(list(ds_hgt_2_metre_relative_humidity.data_vars.keys())) > 0
+                            else None
                     ],
                     "2 metre specific humidity": ds_hgt_2_metre_specific_humidity.variables[
-                        list(ds_hgt_2_metre_specific_humidity.data_vars.keys())[0]
+                        list(ds_hgt_2_metre_specific_humidity.data_vars.keys())[0] if len(list(ds_hgt_2_metre_specific_humidity.data_vars.keys())) > 0
+                            else None
                     ],
                     "10 metre U wind component": ds_hgt_10_metre_u_component_of_wind.variables[
-                        list(ds_hgt_10_metre_u_component_of_wind.data_vars.keys())[0]
+                        list(ds_hgt_10_metre_u_component_of_wind.data_vars.keys())[0] if len(list(ds_hgt_10_metre_u_component_of_wind.data_vars.keys())) > 0
+                            else None
                     ],
                     "10 metre V wind component": ds_hgt_10_metre_v_component_of_wind.variables[
-                        list(ds_hgt_10_metre_v_component_of_wind.data_vars.keys())[0]
+                        list(ds_hgt_10_metre_v_component_of_wind.data_vars.keys())[0] if len(list(ds_hgt_10_metre_v_component_of_wind.data_vars.keys())) > 0
+                            else None
                     ],
                     "Surface pressure": ds_surface_pressure.variables[
-                        list(ds_surface_pressure.data_vars.keys())[0]
+                        list(ds_surface_pressure.data_vars.keys())[0] if len(list(ds_surface_pressure.data_vars.keys())) > 0
+                            else None
                     ],
                     "Visibility": ds_surface_visibility.variables[
-                        list(ds_surface_visibility.data_vars.keys())[0]
+                        list(ds_surface_visibility.data_vars.keys())[0] if len(list(ds_surface_visibility.data_vars.keys())) > 0
+                            else None
                     ],
                     "Orography": ds_surface_orog.variables[
-                        list(ds_surface_orog.data_vars.keys())[0]
+                        list(ds_surface_orog.data_vars.keys())[0] if len(list(ds_surface_orog.data_vars.keys())) > 0
+                            else None
                     ],
                     "Cloud ceiling": ds_cloud_ceiling.variables[
-                        list(ds_cloud_ceiling.data_vars.keys())[0]
+                        list(ds_cloud_ceiling.data_vars.keys())[0] if len(list(ds_cloud_ceiling.data_vars.keys())) > 0
+                            else None
                     ],
                     "Vegetation Type": ds_surface_vegetation_type.variables[
-                        list(ds_surface_vegetation_type.data_vars.keys())[0]
+                        list(ds_surface_vegetation_type.data_vars.keys())[0] if len(list(ds_surface_vegetation_type.data_vars.keys())) > 0
+                            else None
                     ],
                     "fcst_valid_epoch": ds_fcst_valid_epoch,
                     "fcst_len": ds_fcst_len,

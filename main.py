@@ -209,8 +209,7 @@ def get_job_docs(
                 "input_data_path as input_data_path "
             f"FROM {creds['cb_bucket']}.{creds['cb_scope']}.{creds['cb_collection']} "
             f"WHERE id='{job_id}' "
-                "AND type = 'JOB-TEST' " # FIXME: Should this be a JOB type like below?
-                # "AND type = 'JOB' "
+                "AND (type = 'JOB-TEST' or type = 'JOB') "
                 "AND version = 'V01' "
                 "AND CONTAINS(status, 'active') "
         )

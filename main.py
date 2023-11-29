@@ -65,14 +65,16 @@ prom_last_success = Gauge(
 def process_cli():
     """Processes the following flags
 
-    -c - credentials file path
+    -c - credentials file path (optional)
     -m - metrics directory path
     -o - output directory path
     -x - "transfer" directory path
     -l - log directory path
     -j - jobid (optional)
-    -s - start epoch (optional?)
-    -e - end epoch (optional?)
+    -s - start epoch (optional)
+    -e - end epoch (optional)
+    -f - file_pattern (optional)
+    -t - threads (optional)
     """
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -124,7 +126,7 @@ def process_cli():
         type=int,
         required=False,
         default=0,
-        help="The first epoch to process jobs for, inclusive",
+        help="The first epoch to process jobs for, inclusive. Only valid for CTC & SUM jobs",
     )
     parser.add_argument(
         "-e",
@@ -132,7 +134,23 @@ def process_cli():
         type=int,
         required=False,
         default=sys.maxsize,
-        help="The last epoch to process jobs for, exclusive",
+        help="The last epoch to process jobs for, exclusive. Only valid for CTC & SUM jobs",
+    )
+    parser.add_argument(
+        "-f",
+        "--file_pattern",
+        type=str,
+        required=False,
+        default="*",
+        help="The filename pattern to use when searching for files to process. Only valid for GRIB & NetCDF jobs",
+    )
+    parser.add_argument(
+        "-t",
+        "--threads",
+        type=int,
+        required=False,
+        default=determine_num_processes(),
+        help=f"The number of threads to use. Default is {determine_num_processes()}.",
     )
     # get the command line arguments
     args = parser.parse_args()
@@ -362,13 +380,14 @@ def process_jobs(
         )
         create_dirs([output_dir])
 
-        num_processes = determine_num_processes()
-
         config = {
             "job_id": job["id"],
             "credentials_file": str(args.credentials_file),
             "output_dir": str(output_dir),
-            "threads": num_processes,
+            "threads": args.threads,
+            "first_epoch": args.start_epoch,  # TODO - this arg is only supported in the CTC & SUM builders
+            "last_epoch": args.end_epoch,  # TODO - this arg is only supported in the CTC & SUM builders
+            "file_pattern": args.file_pattern,  # TODO - this arg is only supported in the grib & netcdf builders
         }
         job_succeeded = False
         match job["sub_type"]:
@@ -403,15 +422,6 @@ def process_jobs(
                 else:
                     job_succeeded = True
             case "ctc":
-                # FIXME: We need to override the config as CTCs currently take extra values
-                config = {
-                    "job_id": job["id"],
-                    "credentials_file": str(args.credentials_file),
-                    "output_dir": str(output_dir),
-                    "threads": num_processes,
-                    "first_epoch": args.start_epoch,  # TODO - this arg isn't supported in grib & netcdf builders
-                    "last_epoch": args.end_epoch,  # TODO - this arg isn't supported in grib & netcdf builders
-                }
                 # FIXME: Update calling code to raise instead of calling sys.exit
                 try:
                     ctc_ingest = ctc_to_cb.run_ingest_threads.VXIngest()
@@ -427,15 +437,6 @@ def process_jobs(
                 else:
                     job_succeeded = True
             case "partial_sums":
-                # FIXME: We need to override the config as CTCs currently take extra values
-                config = {
-                    "job_id": job["id"],
-                    "credentials_file": str(args.credentials_file),
-                    "output_dir": str(output_dir),
-                    "threads": num_processes,
-                    "first_epoch": args.start_epoch,  # TODO - this arg isn't supported in grib & netcdf builders
-                    "last_epoch": args.end_epoch,  # TODO - this arg isn't supported in grib & netcdf builders
-                }
                 # FIXME: Update calling code to raise instead of calling sys.exit
                 try:
                     partial_sums_ingest = (

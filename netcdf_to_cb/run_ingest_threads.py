@@ -70,9 +70,16 @@ import os
 import sys
 import time
 from datetime import datetime, timedelta
-from multiprocessing import JoinableQueue
+from multiprocessing import JoinableQueue, Queue
+from pathlib import Path
+from typing import Callable
+
 from builder_common.vx_ingest import CommonVxIngest
+from log_config import configure_logging, worker_log_configurer
 from netcdf_to_cb.vx_ingest_manager import VxIngestManager
+
+# Get a logger with this module's name to help with debugging
+logger = logging.getLogger(__name__)
 
 
 def parse_args(args):
@@ -80,14 +87,8 @@ def parse_args(args):
     Parse command line arguments
     """
     begin_time = str(datetime.now())
-    root=logging.getLogger()
-    root.setLevel(logging.INFO)
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setLevel(logging.INFO)
-    root.addHandler(handler)
-
-    logging.info("--- *** --- Start --- *** ---")
-    logging.info("Begin a_time: %s", begin_time)
+    logger.info("--- *** --- Start --- *** ---")
+    logger.info("Begin a_time: %s", begin_time)
     # a_time execution
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -153,14 +154,8 @@ class VXIngest(CommonVxIngest):
         self.ingest_document_id = None
         self.ingest_document = None
         super().__init__()
-        root=logging.getLogger()
-        root.setLevel(logging.INFO)
-        handler = logging.StreamHandler(sys.stdout)
-        handler.setLevel(logging.INFO)
-        root.addHandler(handler)
 
-
-    def runit(self, args):  # pylint:disable=too-many-locals
+    def runit(self, args, log_queue: Queue, log_configurer: Callable[[Queue], None]):  # pylint:disable=too-many-locals
         """
         This is the entry point for run_ingest_threads.py
         """
@@ -172,11 +167,11 @@ class VXIngest(CommonVxIngest):
             self.file_pattern = args["file_pattern"].strip()
         try:
             # put the real credentials into the load_spec
-            logging.info("getting cb_credentials")
+            logger.info("getting cb_credentials")
             self.cb_credentials = self.get_credentials(self.load_spec)
             # establish connections to cb, collection
             self.connect_cb()
-            logging.info("connected to cb")
+            logger.info("connected to cb")
             bucket = self.load_spec["cb_connection"]["bucket"]
             scope = self.load_spec["cb_connection"]["scope"]
             collection = self.load_spec["cb_connection"]["collection"]
@@ -203,7 +198,7 @@ class VXIngest(CommonVxIngest):
             # stash the load_job in the load_spec
             self.load_spec["load_job_doc"] = self.build_load_job_doc("madis")
         except (RuntimeError, TypeError, NameError, KeyError):
-            logging.error(
+            logger.error(
                 "*** Error occurred in Main reading load_spec: %s ***",
                 str(sys.exc_info()),
             )
@@ -246,30 +241,39 @@ class VXIngest(CommonVxIngest):
                     self.load_spec,
                     _q,
                     self.output_dir,
+                    log_queue, # Queue to pass logging messages back to the main process on
+                    log_configurer, # Config function to set up the logger in the multiprocess Process
                 )
                 ingest_manager_list.append(ingest_manager_thread)
                 ingest_manager_thread.start()
             except Exception as _e:  # pylint:disable=broad-except
-                logging.error("*** Error in VXIngest %s***", str(_e))
+                logger.error("*** Error in VXIngest %s***", str(_e))
         # be sure to join all the threads to wait on them
         finished = [proc.join() for proc in ingest_manager_list]
         self.write_load_job_to_files()
-        logging.info("finished starting threads")
+        logger.info("finished starting threads")
         load_time_end = time.perf_counter()
         load_time = timedelta(seconds=load_time_end - self.load_time_start)
-        logging.info(" finished %s", str(finished))
-        logging.info("    >>> Total load a_time: %s", str(load_time))
-        logging.info("End a_time: %s", str(datetime.now()))
-        logging.info("--- *** --- End  --- *** ---")
+        logger.info(" finished %s", str(finished))
+        logger.info("    >>> Total load a_time: %s", str(load_time))
+        logger.info("End a_time: %s", str(datetime.now()))
+        logger.info("--- *** --- End  --- *** ---")
 
     def main(self):
         """
         This is the entry for run_ingest_threads
         """
-        logging.info("PYTHONPATH: %s", os.environ["PYTHONPATH"])
+        # Setup logging for the main process so we can use the "logger"
+        log_queue = Queue()
+        runtime = datetime.now()
+        log_queue_listener = configure_logging(
+            log_queue, Path(f"all_logs-{runtime.strftime('%Y-%m-%dT%H:%M:%S%z')}.log")
+        )
+        logger.info("PYTHONPATH: %s", os.environ["PYTHONPATH"])
         args = parse_args(sys.argv[1:])
-        self.runit(vars(args))
-        logging.info("*** FINISHED ***")
+        self.runit(vars(args), log_queue, worker_log_configurer)
+        logger.info("*** FINISHED ***")
+        log_queue_listener.stop()
         sys.exit(0)
 
 

@@ -24,6 +24,10 @@ from builder_common.builder_utilities import initialize_data_array
 from builder_common.builder import Builder
 
 
+# Get a logger with this module's name to help with debugging
+logger = logging.getLogger(__name__)
+
+
 class GribBuilder(Builder):  # pylint: disable=too-many-arguments
     """parent class for grib builders. This class contains methods that are
     common to all the grib builders. The entry point for every builder is the build_document(self, queue_element)
@@ -185,7 +189,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
             new_id = ":".join(new_parts)
             return new_id
         except Exception as _e:  # pylint:disable=broad-except
-            logging.exception("GribBuilder.derive_id")
+            logger.exception("GribBuilder.derive_id")
             return None
 
     def translate_template_item(self, variable, single_return=False):
@@ -264,7 +268,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                 for i in range(len(self.domain_stations))
             ]
         except Exception as _e:  # pylint:disable=broad-except
-            logging.exception(
+            logger.exception(
                 "Builder.translate_template_item for variable %s: replacements: %s",
                 str(variable),
                 str(replacements),
@@ -306,18 +310,18 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                 new_document = self.handle_key(new_document, key)
             # put document into document map
             if new_document["id"]:
-                logging.info(
+                logger.info(
                     "GribBuilder.handle_document - adding document %s",
                     new_document["id"],
                 )
                 self.document_map[new_document["id"]] = new_document
             else:
-                logging.info(
+                logger.info(
                     "GribBuilder.handle_document - cannot add document with key %s",
                     str(new_document["id"]),
                 )
         except Exception as _e:  # pylint: disable=broad-except
-            logging.error(
+            logger.error(
                 "%s GribBuilder.handle_document: Exception instantiating builder: %s",
                 self.__class__.__name__,
                 str(_e),
@@ -357,7 +361,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                 doc[key], _interp_v = self.translate_template_item(doc[key], True)
             return doc
         except Exception as _e:  # pylint:disable=broad-except
-            logging.exception(
+            logger.exception(
                 "%s GribBuilder.handle_key: Exception in builder:",
                 self.__class__.__name__,
             )
@@ -396,7 +400,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
             # call the named function using getattr
             replace_with = getattr(self, func)(dict_params)
         except Exception as _e:  # pylint:disable=broad-except
-            logging.exception(
+            logger.exception(
                 "%s handle_named_function: %s params %s: Exception instantiating builder:",
                 self.__class__.__name__,
                 func,
@@ -428,7 +432,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                         value = self.translate_template_item(value)
                 except Exception as _e:  # pylint:disable=broad-except
                     value = [(None, None)]
-                    logging.warning(
+                    logger.warning(
                         "%s Builder.handle_data - value is (None,None)",
                         self.__class__.__name__,
                     )
@@ -439,14 +443,14 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                 # _ ignore the interp_value part of the returned tuple
                 data_key, _interp_ignore_value = self.translate_template_item(data_key)
             if data_key is None:
-                logging.warning(
+                logger.warning(
                     "%s Builder.handle_data - _data_key is None",
                     self.__class__.__name__,
                 )
             self.load_data(doc, data_key, data_elem)
             return doc
         except Exception as _e:  # pylint:disable=broad-except
-            logging.exception(
+            logger.exception(
                 "%s handle_data: Exception instantiating builder",
                 self.__class__.__name__,
             )
@@ -463,7 +467,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
             try:
                 os.remove(file_path)
             except OSError as _e:
-                logging.warning(
+                logger.warning(
                     "%s Builder.build_document Error - cannot delete idx file %s - %s",
                     self.__class__.__name__,
                     file_path,
@@ -507,12 +511,6 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
             collection = self.load_spec["cb_connection"]["collection"]
 
             # translate the projection from the grib file
-            root=logging.getLogger()
-            root.setLevel(logging.INFO)
-            handler = logging.StreamHandler(sys.stdout)
-            handler.setLevel(logging.INFO)
-            root.addHandler(handler)
-
             # The projection is the same for all the variables in the grib file,
             # so we only need to get it once and from one variable - we'll use heightAboveGround
             # for 2 meters.
@@ -719,7 +717,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                     "proj_params": proj_params_dict,
                 }
             except IndexError as _e:
-                logging.exception(
+                logger.exception(
                     "%s: Exception with builder build_document retrieving grib variables: error: %s",
                     self.__class__.__name__,
                     _e,
@@ -775,7 +773,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                         ):
                             continue
                     except Exception as _e:  # pylint: disable=broad-except
-                        logging.error(
+                        logger.error(
                             "%s: Exception with builder build_document processing station: error: %s",
                             self.__class__.__name__,
                             str(_e),
@@ -809,7 +807,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                 self.subset, "grib2", self.template["model"], queue_element
             )
             if data_file_id is None:
-                logging.error(
+                logger.error(
                     "%s: Failed to create DataFile ID:", self.__class__.__name__
                 )
             data_file_doc = self.build_datafile_doc(
@@ -821,7 +819,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
             self.delete_idx_file(queue_element)
             return document_map
         except Exception as _e:  # pylint:disable=broad-except
-            logging.exception(
+            logger.exception(
                 "%s: Exception with builder build_document: file_name: %s, exception %s",
                 self.__class__.__name__,
                 queue_element,

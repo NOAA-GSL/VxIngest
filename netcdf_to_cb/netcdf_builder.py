@@ -26,6 +26,9 @@ from builder_common.builder_utilities import truncate_round
 from builder_common.builder_utilities import initialize_data_array
 from builder_common.builder import Builder
 
+# Get a logger with this module's name to help with debugging
+logger = logging.getLogger(__name__)
+
 
 class NetcdfBuilder(Builder):  # pylint disable=too-many-instance-attributes
     """parent class for netcdf builders"""
@@ -73,7 +76,7 @@ class NetcdfBuilder(Builder):  # pylint disable=too-many-instance-attributes
             new_id = ":".join(new_parts)
             return new_id
         except Exception as _e:  # pylint:disable=broad-except
-            logging.exception("NetcdfBuilder.derive_id: Exception  error: %s")
+            logger.exception("NetcdfBuilder.derive_id: Exception  error: %s")
             return None
 
     def translate_template_item(self, variable, rec_num):
@@ -141,7 +144,7 @@ class NetcdfBuilder(Builder):  # pylint disable=too-many-instance-attributes
                             # it desn't need to be a string
                             return self.ncdf_data_set[variable][rec_num]
         except Exception as _e:  # pylint:disable=broad-except
-            logging.exception(
+            logger.exception(
                 "Builder.translate_template_item for variable %s: replacements: %s",
                 str(variable),
                 str(replacements),
@@ -175,18 +178,18 @@ class NetcdfBuilder(Builder):  # pylint disable=too-many-instance-attributes
                     new_document = self.handle_key(new_document, rec_num, key)
             # put document into document map
             if new_document["id"]:
-                logging.info(
+                logger.info(
                     "NetcdfBuilder.handle_document - adding document %s",
                     new_document["id"],
                 )
                 self.document_map[new_document["id"]] = new_document
             else:
-                logging.info(
+                logger.info(
                     "NetcdfBuilder.handle_document - cannot add document with key %s",
                     str(new_document["id"]),
                 )
         except Exception as _e:  # pylint:disable=broad-except
-            logging.error(
+            logger.error(
                 "NetcdfBuilder.handle_document: Exception instantiating builder: %s error: %s",
                 self.__class__.__name__,
                 str(_e),
@@ -228,7 +231,7 @@ class NetcdfBuilder(Builder):  # pylint disable=too-many-instance-attributes
                 doc[key] = self.translate_template_item(doc[key], _rec_num)
             return doc
         except Exception as _e:  # pylint:disable=broad-except
-            logging.exception(
+            logger.exception(
                 "%s NetcdfBuilder.handle_key: Exception in builder",
                 self.__class__.__name__,
             )
@@ -261,7 +264,7 @@ class NetcdfBuilder(Builder):  # pylint disable=too-many-instance-attributes
             # call the named function using getattr
             replace_with = getattr(self, func)(dict_params)
         except Exception as _e:  # pylint:disable=broad-except
-            logging.exception(
+            logger.exception(
                 "%s handle_named_function: %s params %s: Exception instantiating builder:",
                 self.__class__.__name__,
                 func,
@@ -294,7 +297,7 @@ class NetcdfBuilder(Builder):  # pylint disable=too-many-instance-attributes
                         value = self.translate_template_item(value, rec_num)
                 except Exception as _e:  # pylint:disable=broad-except
                     value = None
-                    logging.warning(
+                    logger.warning(
                         "%s Builder.handle_data - value is None",
                         self.__class__.__name__,
                     )
@@ -304,14 +307,14 @@ class NetcdfBuilder(Builder):  # pylint disable=too-many-instance-attributes
             else:
                 data_key = self.translate_template_item(data_key, rec_num)
             if data_key is None:
-                logging.warning(
+                logger.warning(
                     "%s Builder.handle_data - _data_key is None",
                     self.__class__.__name__,
                 )
             self.load_data(doc, data_key, data_elem)
             return doc
         except Exception as _e:  # pylint:disable=broad-except
-            logging.exception(
+            logger.exception(
                 "%s handle_data: Exception instantiating builder",
                 self.__class__.__name__,
             )
@@ -349,7 +352,7 @@ class NetcdfBuilder(Builder):  # pylint disable=too-many-instance-attributes
                 self.stations = list(result)
 
             self.initialize_document_map()
-            logging.info(
+            logger.info(
                 "%s building documents for file %s",
                 self.__class__.__name__,
                 queue_element,
@@ -376,7 +379,7 @@ class NetcdfBuilder(Builder):  # pylint disable=too-many-instance-attributes
             document_map[data_file_doc["id"]] = data_file_doc
             return document_map
         except Exception as _e:  # pylint:disable=broad-except
-            logging.exception(
+            logger.exception(
                 "%s: Exception with builder build_document: file_name: %s",
                 self.__class__.__name__,
                 queue_element,
@@ -459,7 +462,7 @@ class NetcdfMetarObsBuilderV01(
                 self.handle_document()
             return self.document_map
         except Exception as _e:  # pylint:disable=broad-except
-            logging.exception(
+            logger.exception(
                 "%s get_document_map: Exception in get_document_map: %s",
                 self.__class__.__name__,
                 str(_e),
@@ -507,7 +510,7 @@ class NetcdfMetarObsBuilderV01(
                 value = value * 2.237
             return value
         except Exception as _e:  # pylint:disable=broad-except
-            logging.error(
+            logger.error(
                 "%s handle_data: Exception in named function meterspersecond_to_milesperhour:  error: %s",
                 self.__class__.__name__,
                 str(_e),
@@ -573,17 +576,17 @@ class NetcdfMetarObsBuilderV01(
             #  masked and no ceiling value in skyCover_array
             return None
         except Exception as _e:  # pylint:disable=broad-except
-            logging.error(
+            logger.error(
                 "%s handle_data: Exception in named function ceiling_transform:  error: %s",
                 self.__class__.__name__,
                 str(_e),
             )
-            logging.error(
+            logger.error(
                 "ceiling_transform skyCover_array: %s skyLayerBase %s",
                 str(skyCover_array),
                 str(skyLayerBase),
             )
-            logging.error(
+            logger.error(
                 "ceiling_transform stacktrace %s", str(traceback.format_exc())
             )
             return None
@@ -601,7 +604,7 @@ class NetcdfMetarObsBuilderV01(
                 value = (float(value) - 273.15) * 1.8 + 32
             return value
         except Exception as _e:  # pylint:disable=broad-except
-            logging.error(
+            logger.error(
                 "%s handle_data: Exception in named function kelvin_to_farenheight:  error: %s",
                 self.__class__.__name__,
                 str(_e),
@@ -629,7 +632,7 @@ class NetcdfMetarObsBuilderV01(
             else:
                 return None
         except Exception as _e:  # pylint:disable=broad-except
-            logging.error(
+            logger.error(
                 "%s umask_value_transform: Exception in named function umask_value_transform for key %s:  error: %s",
                 self.__class__.__name__,
                 key,
@@ -693,7 +696,7 @@ class NetcdfMetarObsBuilderV01(
                 value = float(value) / 100
             return value
         except Exception as _e:  # pylint:disable=broad-except
-            logging.error(
+            logger.error(
                 "%s handle_pressure: Exception in named function:  error: %s",
                 self.__class__.__name__,
                 str(_e),
@@ -714,7 +717,7 @@ class NetcdfMetarObsBuilderV01(
                 value = float(value) / 1609.344
             return value
         except Exception as _e:  # pylint:disable=broad-except
-            logging.error(
+            logger.error(
                 "%s handle_visibility: Exception in named function:  error: %s",
                 self.__class__.__name__,
                 str(_e),
@@ -738,7 +741,7 @@ class NetcdfMetarObsBuilderV01(
             iso = convert_to_iso(epoch)
             return iso
         except Exception as _e:  # pylint:disable=broad-except
-            logging.error(
+            logger.error(
                 "%s : Exception in named function derive_valid_time_iso:  error: %s",
                 self.__class__.__name__,
                 str(_e),
@@ -761,7 +764,7 @@ class NetcdfMetarObsBuilderV01(
             epoch = (_file_utc_time - dt.datetime(1970, 1, 1)).total_seconds()
             return int(epoch)
         except Exception as _e:  # pylint:disable=broad-except
-            logging.error(
+            logger.error(
                 "%s : Exception in named function derive_valid_time_epoch:  error: %s",
                 self.__class__.__name__,
                 str(_e),
@@ -788,7 +791,7 @@ class NetcdfMetarObsBuilderV01(
             return calendar.timegm(_ret_time.timetuple())
 
         except Exception as _e:  # pylint:disable=broad-except
-            logging.error(
+            logger.error(
                 "%s handle_data: Exception in named function interpolate_time:  error: %s",
                 self.__class__.__name__,
                 str(_e),
@@ -808,7 +811,7 @@ class NetcdfMetarObsBuilderV01(
                 return None
             return str(_time.isoformat())
         except Exception as _e:  # pylint:disable=broad-except
-            logging.error(
+            logger.error(
                 "%s handle_data: Exception in named function interpolate_time_iso:  error: %s",
                 self.__class__.__name__,
                 str(_e),
@@ -947,7 +950,7 @@ class NetcdfMetarObsBuilderV01(
                 self.document_map[an_id] = self.stations[station_index]
             return params_dict["stationName"]
         except Exception as _e:  # pylint:disable=broad-except
-            logging.exception(
+            logger.exception(
                 "%s netcdfObsBuilderV01.handle_station: Exception finding or creating station to match station_name: params: %s",
                 self.__class__.__name__,
                 str(params_dict),

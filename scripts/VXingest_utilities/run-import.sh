@@ -161,7 +161,7 @@ ls -1 ${load_dir}/*.gz | while read f; do
   import_log_file="${log_dir}/import-${log_file_name}"
   echo "import log file will be: ${import_log_file}"
   # run the import job
-  metric_name=$(grep metric_name ${log_file} | awk '{print $2}')
+  metric_name=$(grep metric_name ${log_file} | awk '{print $6}') # Grab the desired column from the python log format
   echo "metric name will be ${metric_name}"
   import_metric_name="import_${metric_name}"
   echo "import metric name will be ${import_metric_name}"

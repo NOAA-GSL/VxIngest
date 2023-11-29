@@ -22,6 +22,11 @@ from couchbase.exceptions import TimeoutException
 from couchbase.cluster import Cluster
 from couchbase.auth import PasswordAuthenticator
 from couchbase.options import ClusterOptions, ClusterTimeoutOptions
+
+
+logger = logging.getLogger(__name__)
+
+
 class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attributes
     """
     IngestManager is a Process Thread that manages an object pool of
@@ -49,6 +54,8 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
         load_spec,
         element_queue,
         output_dir,
+        logging_queue,
+        logging_configurer,
     ):
         """constructor for VxIngestManager
         Args:
@@ -68,11 +75,14 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
         self.cluster = None
         self.collection = None
         self.output_dir = output_dir
+        self.logging_queue = logging_queue
+        self.logging_configurer = logging_configurer
+
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
         if not os.access(self.output_dir, os.W_OK):
             _re = RuntimeError("Output directory: %s is not writable!", self.output_dir)
-            logging.exception(_re)
+            logger.exception(_re)
             raise _re
 
     def process_queue_element(
@@ -94,7 +104,7 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
         create a couchbase connection and maintain the collection and cluster objects.
         See the note at the top of vx_ingest.py for an explanation of why this seems redundant.
         """
-        logging.info("data_type_manager - Connecting to couchbase")
+        logger.info("data_type_manager - Connecting to couchbase")
         # get a reference to our cluster
         # noinspection PyBroadException
         try:
@@ -111,9 +121,9 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
             # stash the database connection for the builders to reuse
             self.load_spec["cluster"] = self.cluster
             self.load_spec["collection"] = self.collection
-            logging.info("Couchbase connection success")
+            logger.info("Couchbase connection success")
         except Exception as _e:  # pylint:disable=broad-except
-            logging.exception("*** builder_common.CommonVxIngestManager in connect_cb ***")
+            logger.exception("*** builder_common.CommonVxIngestManager in connect_cb ***")
             sys.exit("*** builder_common.CommonVxIngestManager Error when connecting to cb database")
 
     # entry point of the thread. Is invoked automatically when the thread is
@@ -127,15 +137,13 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
         process_queue_element with the queue_element and the couchbase
         connection to process the file.
         """
+        # Configure this Process's logger
+        self.logging_configurer(self.logging_queue)
+        logger.info(f"Registered new process: {self.thread_name}")
+
         # noinspection PyBroadException
         try:
             self.cb_credentials = self.load_spec['cb_connection']
-            root=logging.getLogger()
-            root.setLevel(logging.INFO)
-            handler = logging.StreamHandler(sys.stdout)
-            handler.setLevel(logging.INFO)
-            root.addHandler(handler)
-
             # get a connection
             self.connect_cb()
             # infinite loop terminates when the file_name_queue is empty
@@ -143,7 +151,7 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
             while True:
                 try:
                     queue_element = self.queue.get_nowait()
-                    logging.info(
+                    logger.info(
                         self.thread_name
                         + ": IngestManager - processing "
                         + queue_element
@@ -152,7 +160,7 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
                         # it seems it is possible to have an empty queue_element
                         # but we cannot process one so skip it
                         self.process_queue_element(queue_element)
-                        logging.info(
+                        logger.info(
                             self.thread_name
                             + ": IngestManager - finished processing "
                             + queue_element
@@ -165,18 +173,18 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
                         time.sleep(1)
                         continue
                     else:
-                        logging.info(
+                        logger.info(
                             "%s: IngestManager - Queue empty - disconnecting couchbase",
                             self.thread_name,
                         )
                         break
         except Exception as _e:  # pylint:disable=broad-except
-            logging.exception(
+            logger.exception(
                 "%s: *** Error in IngestManager run ***", self.thread_name
             )
             raise _e
         finally:
-            logging.info("%s: IngestManager finished", self.thread_name)
+            logger.info("%s: IngestManager finished", self.thread_name)
 
     def write_document_to_cb(self, queue_element, document_map):
         """This method writes the current document directly to couchbase
@@ -190,7 +198,7 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
         # documents in the document_map into couchbase
         # noinspection PyBroadException
         try:
-            logging.info(
+            logger.info(
                 "process_element writing documents for queue_element :%s  with threadName: %s",
                 str(queue_element),
                 self.thread_name,
@@ -199,12 +207,12 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
             # the future.
             # if it does, please just fix it.
             upsert_start_time = int(time.time())
-            logging.info(
+            logger.info(
                 "process_element - executing upsert: stop time: %s",
                 str(upsert_start_time),
             )
             if not document_map:
-                logging.info(
+                logger.info(
                     "%s: process_element: would upsert documents but DOCUMENT_MAP IS EMPTY",
                     self.thread_name,
                 )
@@ -212,20 +220,20 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
                 try:
                     self.collection.upsert_multi(document_map)
                 except TimeoutException:
-                    logging.info(
+                    logger.info(
                         "process_element - trying upsert: Got TimeOutException -  Document may not be persisted."
                     )
             upsert_stop_time = int(time.time())
-            logging.info(
+            logger.info(
                 "process_element - executing upsert: stop time: %s",
                 str(upsert_stop_time),
             )
-            logging.info(
+            logger.info(
                 "process_element - executing upsert: elapsed time: %s",
                 str(upsert_stop_time - upsert_start_time),
             )
         except Exception as _e:  # pylint:disable=broad-except
-            logging.exception(
+            logger.exception(
                 "%s: *** Error writing to Couchbase: in process_element writing document ***",
                 self.thread_name,
             )
@@ -240,13 +248,13 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
             _e: generic exception
         """
         try:
-            logging.info(
+            logger.info(
                 "%s: write_document_to_files output %s:  ",
                 self.thread_name,
                 self.output_dir,
             )
             if not document_map:
-                logging.info(
+                logger.info(
                     "%s: write_document_to_files: would write documents but DOCUMENT_MAP IS EMPTY",
                     self.thread_name,
                 )
@@ -257,7 +265,7 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
                     complete_file_name = os.path.join(self.output_dir, file_name)
                     # how many documents are we writing? Log it for alert
                     num_documents = len(list(document_map.values()))
-                    logging.info(
+                    logger.info(
                         "%s: write_document_to_files writing %s documents into %s",
                         self.thread_name,
                         num_documents,
@@ -269,7 +277,7 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
                     _f.write(json_data)
                     _f.close()
                 except Exception as _e1:  # pylint:disable=broad-except
-                    logging.exception("write_document_to_files - trying write: Got Exception %s", str(_e1))
+                    logger.exception("write_document_to_files - trying write: Got Exception %s", str(_e1))
         except Exception as _e:  # pylint:disable=broad-except
-            logging.exception(": *** {self.thread_name} Error writing to files: in process_element writing document*** %s", str(_e))
+            logger.exception(": *** {self.thread_name} Error writing to files: in process_element writing document*** %s", str(_e))
             raise _e

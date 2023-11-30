@@ -13,6 +13,7 @@ from glob import glob
 from pathlib import Path
 from datetime import timedelta
 import yaml
+from multiprocessing import Queue
 
 
 from couchbase.cluster import Cluster
@@ -22,6 +23,9 @@ from grib2_to_cb.run_ingest_threads import VXIngest
 
 cb_connection = {}
 
+def stub_worker_log_configurer(queue: Queue):
+    """A stub to replace log_config.worker_log_configurer"""
+    pass
 
 def connect_cb():
     """
@@ -79,6 +83,7 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus(tmp_path):
         # first_epoch = 1634252400 - 10
         # last_epoch = 1634252400 + 10
         credentials_file = os.environ["CREDENTIALS"]
+        log_queue = Queue()
         vx_ingest = VXIngest()
         vx_ingest.runit(
             {
@@ -88,7 +93,7 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus(tmp_path):
                 "output_dir": f"{tmp_path}",
                 "threads": 1,
                 "file_pattern": "21287230000[0123456789]?",
-            }
+            }, log_queue, stub_worker_log_configurer
         )
         # check the output files to see if they match the documents that were
         # preveously created by the real ingest process
@@ -183,6 +188,7 @@ def test_grib_builder_two_threads_file_pattern_hrrr_ops_conus(tmp_path):
         # last_epoch = 1634252400 + 10
         credentials_file = os.environ["CREDENTIALS"]
         # remove output files
+        log_queue = Queue()
         vx_ingest = VXIngest()
         # NOTE: the input file path is defined by the job document
         vx_ingest.runit(
@@ -193,7 +199,7 @@ def test_grib_builder_two_threads_file_pattern_hrrr_ops_conus(tmp_path):
                 "output_dir": f"{tmp_path}",
                 "threads": 2,
                 "file_pattern": "21287230000[0123456789]?",
-            }
+            }, log_queue, stub_worker_log_configurer
         )
     except Exception as _e:  # pylint: disable=broad-except
         assert (
@@ -207,6 +213,7 @@ def test_grib_builder_two_threads_file_pattern_rap_ops_130_conus(tmp_path):
     try:
         credentials_file = os.environ["CREDENTIALS"]
         # remove output files
+        log_queue = Queue()
         vx_ingest = VXIngest()
         # NOTE: the input file path is defined by the job document
         vx_ingest.runit(
@@ -217,7 +224,7 @@ def test_grib_builder_two_threads_file_pattern_rap_ops_130_conus(tmp_path):
                 "output_dir": f"{tmp_path}",
                 "threads": 2,
                 "file_pattern": "23332080000[0123456789]?",
-            }
+            }, log_queue, stub_worker_log_configurer
         )
     except Exception as _e:  # pylint: disable=broad-except
         assert (

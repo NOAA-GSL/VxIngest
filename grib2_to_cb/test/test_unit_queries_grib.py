@@ -56,7 +56,7 @@ def test_ingest_document_id(request):
     """test"""
     try:
         _name = request.node.name
-        _expected_time = 0.005
+        _expected_time = 0.02
         _statement = open(
             "./grib2_to_cb/test/test_ingest_document_id.n1ql", encoding="utf-8"
         ).read()

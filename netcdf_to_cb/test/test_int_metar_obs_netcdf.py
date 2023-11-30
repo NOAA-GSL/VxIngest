@@ -33,7 +33,7 @@ def test_one_thread_specify_file_pattern(tmp_path):  # pylint:disable=missing-fu
                 "output_dir": f"{tmp_path}",
                 "threads": 1,
                 "file_pattern": "20211108_0000",
-            }
+            }, None, None
         )
         assert (
             len(

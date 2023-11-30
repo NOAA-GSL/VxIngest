@@ -22,6 +22,8 @@ def setup_ingest():
                 _id
             ).content_as[dict]
 
+        # Don't pass the log queue and configuration function to the VxIngestManager
+        # as they aren't needed as long as `.run()` isn't called.
         vx_ingest_manager = VxIngestManager(
             "test", _vx_ingest.load_spec, JoinableQueue(), "/tmp", None, None
         )

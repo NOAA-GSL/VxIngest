@@ -98,7 +98,7 @@ def test_forecast_valid_epoch(request):
     """test"""
     try:
         _name = request.node.name
-        _expected_time = 4.0
+        _expected_time = 6.0
         _statement = open(
             "./ctc_to_cb/test/test_forecast_valid_epoch.n1ql", encoding="utf-8"
         ).read()

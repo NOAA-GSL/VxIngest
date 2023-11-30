@@ -9,6 +9,7 @@ import time
 from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
+from multiprocessing import Queue
 
 import yaml
 from couchbase.cluster import Cluster
@@ -32,6 +33,9 @@ cb_model_obs_data = []
 mysql_model_obs_data = []
 stations = []
 
+def stub_worker_log_configurer(queue: Queue):
+    """A stub to replace log_config.worker_log_configurer"""
+    pass
 
 def test_check_fcst_valid_epoch_fcst_valid_iso():
     """
@@ -320,6 +324,7 @@ def test_ctc_builder_ceiling_hrrr_ops_all_hrrr():  # pylint: disable=too-many-lo
                 os.remove(_f)
             except OSError as _e:
                 assert False, f"Error:  {_e}"
+        log_queue = Queue()
         vx_ingest = VXIngest()
         # These CTC's might already have been ingested in which case this won't do anything.
         vx_ingest.runit(
@@ -330,7 +335,7 @@ def test_ctc_builder_ceiling_hrrr_ops_all_hrrr():  # pylint: disable=too-many-lo
                 "threads": 1,
                 "first_epoch": 1638489600,
                 "last_epoch": 1638496800,
-            }
+            }, log_queue, stub_worker_log_configurer
         )
 
         list_of_output_files = glob.glob(outdir + "/*")
@@ -419,6 +424,8 @@ def test_ctc_builder_visibility_hrrr_ops_all_hrrr():  # pylint: disable=too-many
                 os.remove(_f)
             except OSError as _e:
                 assert False, f"Error:  {_e}"
+        log_queue = Queue()
+
         vx_ingest = VXIngest()
         # These CTC's might already have been ingested in which case this won't do anything.
         vx_ingest.runit(
@@ -429,7 +436,7 @@ def test_ctc_builder_visibility_hrrr_ops_all_hrrr():  # pylint: disable=too-many
                 "threads": 1,
                 "first_epoch": 1638489600,
                 "last_epoch": 1638496800,
-            }
+            }, log_queue, stub_worker_log_configurer
         )
 
         list_of_output_files = glob.glob(outdir + "/*")

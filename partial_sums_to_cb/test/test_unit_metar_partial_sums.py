@@ -23,7 +23,7 @@ def setup_ingest():
             ).content_as[dict]
 
         vx_ingest_manager = VxIngestManager(
-            "test", _vx_ingest.load_spec, JoinableQueue(), "/tmp"
+            "test", _vx_ingest.load_spec, JoinableQueue(), "/tmp", None, None
         )
         assert (
             vx_ingest_manager is not None

@@ -1,10 +1,15 @@
 """"
     integration tests for netcdf
 """
+from multiprocessing import Queue
 import os
 from glob import glob
 from netcdf_to_cb.run_ingest_threads import VXIngest
 
+
+def stub_worker_log_configurer(queue: Queue):
+    """A stub to replace log_config.worker_log_configurer"""
+    pass
 
 def setup_connection():
     """test setup"""
@@ -24,6 +29,7 @@ def setup_connection():
 
 def test_one_thread_specify_file_pattern(tmp_path):  # pylint:disable=missing-function-docstring
     try:
+        log_queue = Queue()
         vx_ingest = VXIngest()
         vx_ingest.runit(
             {
@@ -33,7 +39,7 @@ def test_one_thread_specify_file_pattern(tmp_path):  # pylint:disable=missing-fu
                 "output_dir": f"{tmp_path}",
                 "threads": 1,
                 "file_pattern": "20211108_0000",
-            }
+            }, log_queue, stub_worker_log_configurer
         )
         assert (
             len(
@@ -66,6 +72,7 @@ def test_two_threads_spedicfy_file_pattern(tmp_path):
     integration test for testing multithreaded capability
     """
     try:
+        log_queue = Queue()
         vx_ingest = VXIngest()
         vx_ingest.runit(
             {
@@ -75,7 +82,7 @@ def test_two_threads_spedicfy_file_pattern(tmp_path):
                 "output_dir": f"{tmp_path}",
                 "threads": 2,
                 "file_pattern": "20211105*",
-            }
+            }, log_queue, stub_worker_log_configurer
         )
         assert (
             len(
@@ -110,6 +117,7 @@ def test_one_thread_default(tmp_path):
     you will need to run the scripts in the matsmetadata directory to load the local metadata.
    """
     try:
+        log_queue = Queue()
         vx_ingest = VXIngest()
         vx_ingest.runit(
             {
@@ -119,7 +127,7 @@ def test_one_thread_default(tmp_path):
                 "output_dir": f"{tmp_path}",
                 "file_pattern": "[0123456789]???????_[0123456789]???",
                 "threads": 1,
-            }
+            }, log_queue, stub_worker_log_configurer
         )
         assert (
             len(
@@ -161,6 +169,7 @@ def test_two_threads_default(tmp_path):
     you will need to run the scripts in the matsmetadata directory to load the local metadata.
     """
     try:
+        log_queue = Queue()
         vx_ingest = VXIngest()
         vx_ingest.runit(
             {
@@ -169,7 +178,7 @@ def test_two_threads_default(tmp_path):
                 "file_name_mask": "%Y%m%d_%H%M",
                 "output_dir": f"{tmp_path}",
                 "threads": 2,
-            }
+            }, log_queue, stub_worker_log_configurer
         )
         assert (
             len(

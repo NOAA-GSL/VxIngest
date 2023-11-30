@@ -155,6 +155,8 @@ class VXIngest(CommonVxIngest):
         self.ingest_document = None
         super().__init__()
 
+
+
     def runit(self, args, log_queue: Queue, log_configurer: Callable[[Queue], None]):  # pylint:disable=too-many-locals
         """
         This is the entry point for run_ingest_threads.py

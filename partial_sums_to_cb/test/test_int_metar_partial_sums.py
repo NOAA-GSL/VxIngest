@@ -4,6 +4,7 @@ _test for VxIngest SUMS builders
 """
 import glob
 import json
+from multiprocessing import Queue
 import os
 import time
 from datetime import datetime
@@ -32,6 +33,9 @@ cb_model_obs_data = []
 mysql_model_obs_data = []
 stations = []
 
+def stub_worker_log_configurer(queue: Queue):
+    """A stub to replace log_config.worker_log_configurer"""
+    pass
 
 def test_check_fcst_valid_epoch_fcst_valid_iso():
     """
@@ -202,6 +206,7 @@ def test_ps_builder_surface_hrrr_ops_all_hrrr():  # pylint: disable=too-many-loc
                 os.remove(_f)
             except OSError as _e:
                 assert False, f"Error:  {_e}"
+        log_queue = Queue()
         vx_ingest = VXIngest()
         # These SUM's might already have been ingested in which case this won't do anything.
         vx_ingest.runit(
@@ -212,7 +217,7 @@ def test_ps_builder_surface_hrrr_ops_all_hrrr():  # pylint: disable=too-many-loc
                 "threads": 1,
                 "first_epoch": 1638489600,
                 "last_epoch": 1638496800,
-            }
+            }, log_queue, stub_worker_log_configurer
         )
 
         list_of_output_files = glob.glob(outdir + "/*")

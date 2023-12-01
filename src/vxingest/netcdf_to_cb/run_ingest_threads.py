@@ -74,9 +74,9 @@ from multiprocessing import JoinableQueue, Queue, set_start_method
 from pathlib import Path
 from typing import Callable
 
-from builder_common.vx_ingest import CommonVxIngest
-from log_config import configure_logging, worker_log_configurer
-from netcdf_to_cb.vx_ingest_manager import VxIngestManager
+from vxingest.builder_common.vx_ingest import CommonVxIngest
+from vxingest.log_config import configure_logging, worker_log_configurer
+from vxingest.netcdf_to_cb.vx_ingest_manager import VxIngestManager
 
 # Get a logger with this module's name to help with debugging
 logger = logging.getLogger(__name__)

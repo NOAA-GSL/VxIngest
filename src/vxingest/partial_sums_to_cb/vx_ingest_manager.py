@@ -35,8 +35,8 @@ import logging
 import sys
 import time
 
-from builder_common.ingest_manager import CommonVxIngestManager
-from partial_sums_to_cb import partial_sums_builder as my_builder
+from vxingest.builder_common.ingest_manager import CommonVxIngestManager
+from vxingest.partial_sums_to_cb import partial_sums_builder as my_builder
 
 # Get a logger with this module's name to help with debugging
 logger = logging.getLogger(__name__)

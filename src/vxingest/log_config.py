@@ -80,9 +80,10 @@ def configure_logging(
     # Add handlers to the logger
     root_logger.addHandler(c_handler)
 
-    # Create a file logger if we have a logpath
+    # Create a file logger and required directory if we have a logpath
     f_handler = None
     if logpath:
+        logpath.parent.mkdir(parents=True, exist_ok=True)
         f_handler = logging.FileHandler(logpath)
         f_handler.setLevel(level)
         f_handler.setFormatter(log_format)

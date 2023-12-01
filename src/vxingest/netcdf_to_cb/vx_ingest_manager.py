@@ -37,8 +37,8 @@ import logging
 import sys
 import time
 
-from builder_common.ingest_manager import CommonVxIngestManager
-from netcdf_to_cb import netcdf_builder as my_builder
+from vxingest.builder_common.ingest_manager import CommonVxIngestManager
+from vxingest.netcdf_to_cb import netcdf_builder as my_builder
 
 # Get a logger with this module's name to help with debugging
 logger = logging.getLogger(__name__)

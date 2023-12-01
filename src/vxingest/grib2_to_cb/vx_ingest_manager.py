@@ -37,8 +37,8 @@ import logging
 import sys
 import time
 
-from builder_common.ingest_manager import CommonVxIngestManager
-from grib2_to_cb import grib_builder as my_builder
+from vxingest.builder_common.ingest_manager import CommonVxIngestManager
+from vxingest.grib2_to_cb import grib_builder as my_builder
 
 # Get a logger with this module's name to help with debugging
 logger = logging.getLogger(__name__)

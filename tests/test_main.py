@@ -6,7 +6,7 @@ import pytest
 import yaml
 from couchbase.cluster import Cluster
 
-from main import (
+from vxingest.main import (
     create_dirs,
     determine_num_processes,
     get_credentials,

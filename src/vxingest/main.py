@@ -23,11 +23,11 @@ from couchbase.options import (  # type: ignore
 )
 from prometheus_client import CollectorRegistry, Counter, Gauge, write_to_textfile
 
-import ctc_to_cb.run_ingest_threads
-import grib2_to_cb.run_ingest_threads
-import log_config
-import netcdf_to_cb.run_ingest_threads
-import partial_sums_to_cb.run_ingest_threads
+from vxingest.ctc_to_cb.run_ingest_threads import VXIngest as CTCIngest
+from vxingest.grib2_to_cb.run_ingest_threads import VXIngest as GRIBIngest
+from vxingest.log_config import configure_logging, worker_log_configurer, add_logfile, remove_logfile
+from vxingest.netcdf_to_cb.run_ingest_threads import VXIngest as NetCDFIngest
+from vxingest.partial_sums_to_cb.run_ingest_threads import VXIngest as PartialSumsIngest
 
 # Get a logger with this module's name to help with debugging
 logger = logging.getLogger(__name__)
@@ -365,7 +365,7 @@ def process_jobs(
         logpath = (
             args.log_dir / f"{name}-{startime.strftime('%Y-%m-%dT%H:%M:%S%z')}.log"
         )
-        f_handler = log_config.add_logfile(ql, logpath)
+        f_handler = add_logfile(ql, logpath)
 
         hostname = os.uname().nodename.split(".")[0]
         metric_name = f"{name}_{hostname}"
@@ -394,7 +394,7 @@ def process_jobs(
             case "grib2":
                 # FIXME: Update calling code to raise instead of calling sys.exit
                 try:
-                    grib_ingest = grib2_to_cb.run_ingest_threads.VXIngest()
+                    grib_ingest = GRIBIngest()
                     grib_ingest.runit(
                         config,
                         log_queue,
@@ -409,7 +409,7 @@ def process_jobs(
             case "netcdf":
                 # FIXME: Update calling code to raise instead of calling sys.exit
                 try:
-                    netcdf_ingest = netcdf_to_cb.run_ingest_threads.VXIngest()
+                    netcdf_ingest = NetCDFIngest()
                     netcdf_ingest.runit(
                         config,
                         log_queue,
@@ -424,7 +424,7 @@ def process_jobs(
             case "ctc":
                 # FIXME: Update calling code to raise instead of calling sys.exit
                 try:
-                    ctc_ingest = ctc_to_cb.run_ingest_threads.VXIngest()
+                    ctc_ingest = CTCIngest()
                     ctc_ingest.runit(
                         config,
                         log_queue,
@@ -439,9 +439,7 @@ def process_jobs(
             case "partial_sums":
                 # FIXME: Update calling code to raise instead of calling sys.exit
                 try:
-                    partial_sums_ingest = (
-                        partial_sums_to_cb.run_ingest_threads.VXIngest()
-                    )
+                    partial_sums_ingest = PartialSumsIngest()
                     partial_sums_ingest.runit(
                         config,
                         log_queue,
@@ -468,7 +466,7 @@ def process_jobs(
         logger.info(f"Done processing job: {job}")
         logger.info(f"exit_code:{0 if job_succeeded else 1}")
         # Remove the filehandler with the unique filename for this job
-        log_config.remove_logfile(f_handler, ql)
+        remove_logfile(f_handler, ql)
         # Move the logfile to the output dir
         logpath.rename(
             output_dir / f"{name}-{startime.strftime('%Y-%m-%dT%H:%M:%S%z')}.log"
@@ -493,7 +491,7 @@ def run_ingest() -> None:
     # Setup logging for the main process so we can use the "logger"
     log_queue = Queue()
     runtime = datetime.now()
-    log_queue_listener = log_config.configure_logging(
+    log_queue_listener = configure_logging(
         log_queue,
         args.log_dir / f"all_logs-{runtime.strftime('%Y-%m-%dT%H:%M:%S%z')}.log",
     )
@@ -525,7 +523,7 @@ def run_ingest() -> None:
         docs,
         runtime,
         args,
-        log_config.worker_log_configurer,
+        worker_log_configurer,
         log_queue,
         log_queue_listener,
     )

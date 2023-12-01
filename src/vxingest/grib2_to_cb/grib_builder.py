@@ -14,8 +14,8 @@ import logging
 import math
 import numpy as np
 
-from grib2_to_cb.grib_builder_parent import GribBuilder
-from builder_common.builder_utilities import get_geo_index
+from vxingest.grib2_to_cb.grib_builder_parent import GribBuilder
+from vxingest.builder_common.builder_utilities import get_geo_index
 
 # Get a logger with this module's name to help with debugging
 logger = logging.getLogger(__name__)

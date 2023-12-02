@@ -1,0 +1,33 @@
+[tool.poetry]
+name = "vxingest"
+version = "0.1.0"
+description = ""
+authors = [
+    "Ian McGinnis <ian.mcginnis@noaa.gov>",
+    "Randy Pierce <randy.pierce@noaa.gov>",
+]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pyyaml = "^6.0.1"
+xarray = "^2023.11.0"
+netcdf4 = "^1.6.5"
+cfgrib = "^0.9.10.4"
+couchbase = "^4.1.9"
+pyproj = "^3.6.1"
+numpy = "^1.26.2"
+metpy = "^1.5.1"
+prometheus-client = "^0.19.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.3"
+types-pyyaml = "^6.0.12.12"
+ruff = "^0.1.6"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+ingest = "vxingest.main:run_ingest"

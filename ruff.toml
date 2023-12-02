@@ -1,0 +1,6 @@
+select = ["E", "F", "UP", "I", "PTH", "PT", "B"]
+# select = ["ALL"]
+
+ignore = [
+    "E501" # Supress line-too-long warnings: trust black's judgement on this one.
+]

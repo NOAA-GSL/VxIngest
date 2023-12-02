@@ -215,7 +215,7 @@ class NetcdfBuilder(Builder):  # pylint disable=too-many-instance-attributes
                 an_id = self.derive_id(
                     template_id=self.template["id"], rec_num=_rec_num
                 )
-                if not an_id in doc:
+                if an_id not in doc:
                     doc["id"] = an_id
                 return doc
             if isinstance(doc[key], dict):
@@ -908,7 +908,7 @@ class NetcdfMetarObsBuilderV01(
                     "version": "V01",
                 }
                 # add the new station to the document map with the new id
-                if not an_id in self.document_map.keys():
+                if an_id not in self.document_map.keys():
                     self.document_map[an_id] = new_station
                 self.stations.append(new_station)
             else:

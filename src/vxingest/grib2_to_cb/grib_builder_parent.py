@@ -342,7 +342,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
         try:
             if key == "id":
                 an_id = self.derive_id(template_id=self.template["id"])
-                if not an_id in doc:
+                if an_id not in doc:
                     doc["id"] = an_id
                 return doc
             if isinstance(doc[key], dict):

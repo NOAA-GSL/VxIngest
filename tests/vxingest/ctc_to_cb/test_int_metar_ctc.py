@@ -124,7 +124,7 @@ def test_get_stations_geo_search():
         )
         ingest_document = ingest_document_result.content_as[dict]
         # instantiate a ctcBuilder so we can use its get_station methods
-        builder_class = getattr(ctc_builder, "CTCModelObsBuilderV01")
+        builder_class = ctc_builder.CTCModelObsBuilderV01
         builder = builder_class(load_spec, ingest_document)
         # usually these would get assigned in build_document
         builder.bucket = _bucket
@@ -218,7 +218,7 @@ def calculate_cb_ctc(  # pylint: disable=dangerous-default-value,missing-functio
     )
     ingest_document = ingest_document_result.content_as[dict]
     # instantiate a ctcBuilder so we can use its get_station methods
-    builder_class = getattr(ctc_builder, "CTCModelObsBuilderV01")
+    builder_class = ctc_builder.CTCModelObsBuilderV01
     builder = builder_class(load_spec, ingest_document)
     # usually these would get assigned in build_document
     builder.bucket = _bucket
@@ -248,11 +248,11 @@ def calculate_cb_ctc(  # pylint: disable=dangerous-default-value,missing-functio
         full_obs_data = load_spec["collection"].get(obs_id).content_as[dict]
     for station in stations:
         # find observation data for this station
-        if not station in full_obs_data["data"].keys():
+        if station not in full_obs_data["data"].keys():
             continue
         obs_data = full_obs_data["data"][station]
         # find model data for this station
-        if not station in full_model_data["data"].keys():
+        if station not in full_model_data["data"].keys():
             continue
         model_data = full_model_data["data"][station]
         # add to model_obs_data

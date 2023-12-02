@@ -124,7 +124,7 @@ def test_get_stations_geo_search():
         )
         ingest_document = ingest_document_result.content_as[dict]
         # instantiate a partialsumsBuilder so we can use its get_station methods
-        builder_class = getattr(partial_sums_builder, "PartialSumsSurfaceModelObsBuilderV01")
+        builder_class = partial_sums_builder.PartialSumsSurfaceModelObsBuilderV01
         builder = builder_class(load_spec, ingest_document)
         # usually these would get assigned in build_document
         builder.bucket = _bucket

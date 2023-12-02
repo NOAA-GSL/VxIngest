@@ -99,7 +99,7 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus(tmp_path):
         for _f in glob(f"{tmp_path}/*.json"):
             # read in the output file
             _json = None
-            with open(_f, "r", encoding="utf-8") as _f:
+            with open(_f, encoding="utf-8") as _f:
                 _json = json.load(_f)[0]
             _id = _json["id"]
             if _id.startswith("LJ"):

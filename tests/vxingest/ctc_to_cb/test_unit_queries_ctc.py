@@ -22,7 +22,7 @@ def connect_cb():
             assert (
                 Path(credentials_file).is_file() is True
             ), f"*** credentials_file file {credentials_file} can not be found!"
-            _f = open(credentials_file, "r", encoding="utf-8")
+            _f = open(credentials_file, encoding="utf-8")
             _yaml_data = yaml.load(_f, yaml.SafeLoader)
             cb_connection = {}
             cb_connection["host"] = _yaml_data["cb_host"]

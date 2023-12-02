@@ -41,7 +41,7 @@ class HistBuilder:
         try:
             datasets = {}
             unitset = {}
-            f = open(self.delta_file, "r")
+            f = open(self.delta_file)
             lines = f.readlines()
             for x in lines:
                 if x.startswith("var"):

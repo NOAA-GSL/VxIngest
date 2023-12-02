@@ -57,9 +57,9 @@ def test_epoch_fcstlen_model(request):
     try:
         _name = request.node.name
         _expected_time = 3.0
-        _statement = open(
-            "./partial_sums_to_cb/test/test_epoch_fcstLen_model.n1ql", encoding="utf-8"
-        ).read()
+        testdata = Path("tests/vxingest/partial_sums_to_cb/testdata/test_epoch_fcstLen_model.n1ql")
+        with testdata.open(mode="r", encoding="utf-8") as file:
+            _statement = file.read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
         # have to read the rows before we can get to the metadata as of couchbase 4.1
         _rows = list(result.rows())
@@ -78,9 +78,9 @@ def test_epoch_fcstlen_obs(request):
     try:
         _name = request.node.name
         _expected_time = 0.2
-        _statement = open(
-            "./partial_sums_to_cb/test/test_epoch_fcstLen_obs.n1ql", encoding="utf-8"
-        ).read()
+        testdata = Path("tests/vxingest/partial_sums_to_cb/testdata/test_epoch_fcstLen_obs.n1ql")
+        with testdata.open(mode="r", encoding="utf-8") as file:
+            _statement = file.read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
         # have to read the rows before we can get to the metadata as of couchbase 4.1
         _rows = list(result.rows())
@@ -99,10 +99,9 @@ def test_forecast_valid_epoch(request):
     try:
         _name = request.node.name
         _expected_time = 4.0
-        _statement = open(
-            "./partial_sums_to_cb/test/test_forecast_valid_epoch.n1ql", encoding="utf-8"
-        ).read()
-
+        testdata = Path("tests/vxingest/partial_sums_to_cb/testdata/test_forecast_valid_epoch.n1ql")
+        with testdata.open(mode="r", encoding="utf-8") as file:
+            _statement = file.read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
         # have to read the rows before we can get to the metadata as of couchbase 4.1
         _rows = list(result.rows())
@@ -121,9 +120,9 @@ def test_get_region_lat_lon(request):
     try:
         _name = request.node.name
         _expected_time = 0.01
-        _statement = open(
-            "./partial_sums_to_cb/test/test_get_region_lat_lon.n1ql", encoding="utf-8"
-        ).read()
+        testdata = Path("tests/vxingest/partial_sums_to_cb/testdata/test_get_region_lat_lon.n1ql")
+        with testdata.open(mode="r", encoding="utf-8") as file:
+            _statement = file.read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
         # have to read the rows before we can get to the metadata as of couchbase 4.1
         _rows = list(result.rows())
@@ -142,9 +141,9 @@ def test_get_stations(request):
     try:
         _name = request.node.name
         _expected_time = 3
-        _statement = open(
-            "./partial_sums_to_cb/test/test_get_stations.n1ql", encoding="utf-8"
-        ).read()
+        testdata = Path("tests/vxingest/partial_sums_to_cb/testdata/test_get_stations.n1ql")
+        with testdata.open(mode="r", encoding="utf-8") as file:
+            _statement = file.read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
         # have to read the rows before we can get to the metadata as of couchbase 4.1
         _rows = list(result.rows())
@@ -163,9 +162,9 @@ def test_get_threshold_descriptions(request):
     try:
         _name = request.node.name
         _expected_time = 0.01
-        _statement = open(
-            "./partial_sums_to_cb/test/test_get_threshold_descriptions.n1ql", encoding="utf-8"
-        ).read()
+        testdata = Path("tests/vxingest/partial_sums_to_cb/testdata/test_get_threshold_descriptions.n1ql")
+        with testdata.open(mode="r", encoding="utf-8") as file:
+            _statement = file.read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
         # have to read the rows before we can get to the metadata as of couchbase 4.1
         _rows = list(result.rows())

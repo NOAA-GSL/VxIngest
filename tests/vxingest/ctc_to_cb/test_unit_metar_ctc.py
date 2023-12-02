@@ -1,8 +1,8 @@
 # pylint: disable=missing-module-docstring
 import os
 from multiprocessing import JoinableQueue
-from ctc_to_cb.run_ingest_threads import VXIngest
-from ctc_to_cb.vx_ingest_manager import VxIngestManager
+from vxingest.ctc_to_cb.run_ingest_threads import VXIngest
+from vxingest.ctc_to_cb.vx_ingest_manager import VxIngestManager
 
 
 def setup_ingest():
@@ -94,7 +94,7 @@ def test_build_load_job_doc():
         vx_ingest.load_spec["load_job_doc"] = {"test": "a line of text"}
         ljd = vx_ingest.build_load_job_doc("ctc")
         assert ljd["id"].startswith(
-            "LJ:METAR:ctc_to_cb.run_ingest_threads:VXIngest"
+            "LJ:METAR:vxingest.ctc_to_cb.run_ingest_threads:VXIngest"
         ), f"load_job ID is wrong: {ljd['id']} does not start with 'LJ:METAR:ctc_to_cb.run_ingest_threads:VXIngest'"
     except Exception as _e:  # pylint:disable=broad-except
         assert False, f"test_build_load_job_doc Exception failure: {_e}"

@@ -19,7 +19,7 @@ from multiprocessing import Queue
 from couchbase.cluster import Cluster
 from couchbase.options import ClusterOptions, ClusterTimeoutOptions
 from couchbase.auth import PasswordAuthenticator
-from grib2_to_cb.run_ingest_threads import VXIngest
+from vxingest.grib2_to_cb.run_ingest_threads import VXIngest
 
 cb_connection = {}
 

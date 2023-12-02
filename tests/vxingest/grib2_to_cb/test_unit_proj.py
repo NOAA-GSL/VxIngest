@@ -2,7 +2,7 @@
 import os
 import xarray as xr
 import pyproj
-from grib2_to_cb.run_ingest_threads import VXIngest
+from vxingest.grib2_to_cb.run_ingest_threads import VXIngest
 
 def setup_connection():
     """test setup"""

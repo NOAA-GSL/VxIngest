@@ -15,8 +15,8 @@ import yaml
 from couchbase.cluster import Cluster
 from couchbase.auth import PasswordAuthenticator
 from couchbase.options import ClusterOptions, ClusterTimeoutOptions
-from partial_sums_to_cb import partial_sums_builder
-from partial_sums_to_cb.run_ingest_threads import VXIngest
+from vxingest.partial_sums_to_cb import partial_sums_builder
+from vxingest.partial_sums_to_cb.run_ingest_threads import VXIngest
 
 
 # This test expects to find obs data and model data

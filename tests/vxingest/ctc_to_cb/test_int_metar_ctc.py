@@ -15,8 +15,8 @@ import yaml
 from couchbase.cluster import Cluster
 from couchbase.auth import PasswordAuthenticator
 from couchbase.options import ClusterOptions, ClusterTimeoutOptions
-from ctc_to_cb import ctc_builder
-from ctc_to_cb.run_ingest_threads import VXIngest
+from vxingest.ctc_to_cb import ctc_builder
+from vxingest.ctc_to_cb.run_ingest_threads import VXIngest
 
 
 # This test expects to find obs data and model data

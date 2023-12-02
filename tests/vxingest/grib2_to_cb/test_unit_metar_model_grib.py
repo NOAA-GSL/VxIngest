@@ -2,7 +2,7 @@
 import os
 import shutil
 from pathlib import Path
-from grib2_to_cb.run_ingest_threads import VXIngest
+from vxingest.grib2_to_cb.run_ingest_threads import VXIngest
 
 
 def setup_connection_multiple_ingest_ids():
@@ -102,7 +102,7 @@ def test_build_load_job_doc():
         lineage = "CTC"
         ljd = vx_ingest.build_load_job_doc(lineage)
         assert True, ljd["id"].startswith(
-            "LJ:METAR:grib2_to_cb.run_ingest_threads:VXIngest"
+            "LJ:METAR:vxingest.grib2_to_cb.run_ingest_threads:VXIngest"
         )
     except Exception as _e:  # pylint:disable=broad-except
         assert False, f"test_build_load_job_doc Exception failure: {_e}"

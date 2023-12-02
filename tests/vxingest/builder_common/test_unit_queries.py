@@ -50,7 +50,9 @@ def test_stations_fcst_valid_epoch(request):
     try:
         _expected_time = 10
         _name = request.node.name
-        _statement = open("./builder_common/test/stations_fcst_valid_epoch.n1ql", encoding="utf-8").read()
+        testdata = Path("tests/vxingest/builder_common/testdata/stations_fcst_valid_epoch.n1ql")
+        with testdata.open(mode="r", encoding="utf-8") as file:
+            _statement = file.read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
         # have to read the rows before we can get to the metadata as of couchbase 4.1
         _rows = list(result.rows())
@@ -67,7 +69,9 @@ def test_stations_get_file_list_grib2(request):
     try:
         _expected_time = 10
         _name = request.node.name
-        _statement = open("./builder_common/test/get_file_list_grib2.n1ql", encoding="utf-8").read()
+        testdata = Path("tests/vxingest/builder_common/testdata/get_file_list_grib2.n1ql")
+        with testdata.open(mode="r", encoding="utf-8") as file:
+            _statement = file.read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
         # have to read the rows before we can get to the metadata as of couchbase 4.1
         _rows = list(result.rows())
@@ -83,7 +87,9 @@ def test_stations_get_file_list_netcdf(request):
     try:
         _expected_time = 5
         _name = request.node.name
-        _statement = open("./builder_common/test/get_file_list_netcdf.n1ql", encoding="utf-8").read()
+        testdata = Path("tests/vxingest/builder_common/testdata/get_file_list_netcdf.n1ql")
+        with testdata.open(mode="r", encoding="utf-8") as file:
+            _statement = file.read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
         # have to read the rows before we can get to the metadata as of couchbase 4.1
         _rows = list(result.rows())
@@ -99,7 +105,9 @@ def test_metar_count(request):
     try:
         _expected_time = 0.05
         _name = request.node.name
-        _statement = open("./builder_common/test/METAR_count.n1ql", encoding="utf-8").read()
+        testdata = Path("tests/vxingest/builder_common/testdata/METAR_count.n1ql")
+        with testdata.open(mode="r", encoding="utf-8") as file:
+            _statement = file.read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
         # have to read the rows before we can get to the metadata as of couchbase 4.1
         _rows = list(result.rows())

@@ -4,7 +4,7 @@
 from multiprocessing import Queue
 import os
 from glob import glob
-from netcdf_to_cb.run_ingest_threads import VXIngest
+from vxingest.netcdf_to_cb.run_ingest_threads import VXIngest
 
 
 def stub_worker_log_configurer(queue: Queue):
@@ -53,7 +53,7 @@ def test_one_thread_specify_file_pattern(tmp_path):  # pylint:disable=missing-fu
         assert (
             len(
                 glob(
-                    f"{tmp_path}/LJ:METAR:netcdf_to_cb.run_ingest_threads:VXIngest:*.json"
+                    f"{tmp_path}/LJ:METAR:vxingest.netcdf_to_cb.run_ingest_threads:VXIngest:*.json"
                 )
             )
             == 1
@@ -96,7 +96,7 @@ def test_two_threads_spedicfy_file_pattern(tmp_path):
         assert (
             len(
                 glob(
-                    f"{tmp_path}/LJ:METAR:netcdf_to_cb.run_ingest_threads:VXIngest:*.json"
+                    f"{tmp_path}/LJ:METAR:vxingest.netcdf_to_cb.run_ingest_threads:VXIngest:*.json"
                 )
             )
             == 1
@@ -141,7 +141,7 @@ def test_one_thread_default(tmp_path):
         assert (
             len(
                 glob(
-                    f"{tmp_path}/LJ:METAR:netcdf_to_cb.run_ingest_threads:VXIngest:*.json"
+                    f"{tmp_path}/LJ:METAR:vxingest.netcdf_to_cb.run_ingest_threads:VXIngest:*.json"
                 )
             )
             >= 1
@@ -192,7 +192,7 @@ def test_two_threads_default(tmp_path):
         assert (
             len(
                 glob(
-                    f"{tmp_path}/LJ:METAR:netcdf_to_cb.run_ingest_threads:VXIngest:*.json"
+                    f"{tmp_path}/LJ:METAR:vxingest.netcdf_to_cb.run_ingest_threads:VXIngest:*.json"
                 )
             )
             >= 1

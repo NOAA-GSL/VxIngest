@@ -57,9 +57,9 @@ def test_ingest_document_id(request):
     try:
         _name = request.node.name
         _expected_time = 0.02
-        _statement = open(
-            "./grib2_to_cb/test/test_ingest_document_id.n1ql", encoding="utf-8"
-        ).read()
+        testdata = Path("tests/vxingest/grib2_to_cb/testdata/test_ingest_document_id.n1ql")
+        with testdata.open(mode="r", encoding="utf-8") as file:
+            _statement = file.read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
         # have to read the rows before we can get to the metadata as of couchbase 4.1
         _rows = list(result.rows())
@@ -78,9 +78,9 @@ def test_ingest_document_fields(request):
     try:
         _name = request.node.name
         _expected_time = 0.01
-        _statement = open(
-            "./grib2_to_cb/test/test_ingest_document_fields.n1ql", encoding="utf-8"
-        ).read()
+        testdata = Path("tests/vxingest/grib2_to_cb/testdata/test_ingest_document_fields.n1ql")
+        with testdata.open(mode="r", encoding="utf-8") as file:
+            _statement = file.read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
         # have to read the rows before we can get to the metadata as of couchbase 4.1
         _rows = list(result.rows())
@@ -99,9 +99,9 @@ def test_get_df(request):
     try:
         _name = request.node.name
         _expected_time = 18
-        _statement = open(
-            "./grib2_to_cb/test/test_get_DF.n1ql", encoding="utf-8"
-        ).read()
+        testdata = Path("tests/vxingest/grib2_to_cb/testdata/test_get_DF.n1ql")
+        with testdata.open(mode="r", encoding="utf-8") as file:
+            _statement = file.read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
         # have to read the rows before we can get to the metadata as of couchbase 4.1
         _rows = list(result.rows())
@@ -120,9 +120,9 @@ def test_get_stations(request):
     try:
         _name = request.node.name
         _expected_time = 1
-        _statement = open(
-            "./grib2_to_cb/test/test_get_stations.n1ql", encoding="utf-8"
-        ).read()
+        testdata = Path("tests/vxingest/grib2_to_cb/testdata/test_get_stations.n1ql")
+        with testdata.open(mode="r", encoding="utf-8") as file:
+            _statement = file.read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
         # have to read the rows before we can get to the metadata as of couchbase 4.1
         _rows = list(result.rows())
@@ -141,9 +141,9 @@ def test_get_model_by_fcst_valid_epoch(request):
     try:
         _name = request.node.name
         _expected_time = 1.2
-        _statement = open(
-            "./grib2_to_cb/test/test_get_model_by_fcstValidEpoch.n1ql", encoding="utf-8"
-        ).read()
+        testdata = Path("tests/vxingest/grib2_to_cb/testdata/test_get_model_by_fcstValidEpoch.n1ql")
+        with testdata.open(mode="r", encoding="utf-8") as file:
+            _statement = file.read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
         # have to read the rows before we can get to the metadata as of couchbase 4.1
         _rows = list(result.rows())

@@ -12,13 +12,13 @@ from couchbase.n1ql import  QueryScanConsistency
 from couchbase.mutation_state import MutationState
 from couchbase.options import QueryOptions
 
-from netcdf_to_cb.netcdf_builder import NetcdfMetarObsBuilderV01
-from netcdf_to_cb.run_ingest_threads import VXIngest
+from vxingest.netcdf_to_cb.netcdf_builder import NetcdfMetarObsBuilderV01
+from vxingest.netcdf_to_cb.run_ingest_threads import VXIngest
 
 
 # various unit tests for the obs builder.
 # to run one of these from the command line....
-# python3 -m pytest -s -v  netcdf_to_cb/test/test_unit_metar_obs_netcdf.py::TestNetcdfObsBuilderV01Unit::test....
+# python3 -m pytest -s -v  tests/netcdf_to_cb/test_unit_metar_obs_netcdf.py::TestNetcdfObsBuilderV01Unit::test....
 
 
 def setup_connection():
@@ -85,7 +85,7 @@ def test_build_load_job_doc():
         vx_ingest.path = "/tmp"
         vx_ingest.load_spec["load_job_doc"] = {"test": "a line of text"}
         ljd = vx_ingest.build_load_job_doc(vx_ingest.path)
-        assert ljd["id"].startswith("LJ:METAR:netcdf_to_cb.run_ingest_threads:VXIngest")
+        assert ljd["id"].startswith("LJ:METAR:vxingest.netcdf_to_cb.run_ingest_threads:VXIngest")
     except Exception as _e:  # pylint:disable=broad-except
         assert False, f"test_build_load_job_doc Exception failure: {_e}"
     finally:

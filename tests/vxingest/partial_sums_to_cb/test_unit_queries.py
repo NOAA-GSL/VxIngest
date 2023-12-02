@@ -1,10 +1,11 @@
 # pylint: disable=missing-module-docstring
 import os
-from pathlib import Path
 from datetime import timedelta
+from pathlib import Path
+
 import yaml
-from couchbase.cluster import Cluster
 from couchbase.auth import PasswordAuthenticator
+from couchbase.cluster import Cluster
 from couchbase.options import ClusterOptions, ClusterTimeoutOptions, QueryOptions
 
 

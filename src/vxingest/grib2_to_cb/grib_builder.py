@@ -7,15 +7,15 @@ Copyright 2019 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of
 Colorado, NOAA/OAR/ESRL/GSL
 """
 
-import os
-import sys
 import datetime as dt
 import logging
 import math
-import numpy as np
+import os
+import sys
 
-from vxingest.grib2_to_cb.grib_builder_parent import GribBuilder
+import numpy as np
 from vxingest.builder_common.builder_utilities import get_geo_index
+from vxingest.grib2_to_cb.grib_builder_parent import GribBuilder
 
 # Get a logger with this module's name to help with debugging
 logger = logging.getLogger(__name__)

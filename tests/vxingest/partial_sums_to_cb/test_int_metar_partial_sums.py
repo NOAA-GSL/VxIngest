@@ -4,20 +4,18 @@ _test for VxIngest SUMS builders
 """
 import glob
 import json
-from multiprocessing import Queue
 import os
 import time
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta
+from multiprocessing import Queue
 from pathlib import Path
 
 import yaml
-from couchbase.cluster import Cluster
 from couchbase.auth import PasswordAuthenticator
+from couchbase.cluster import Cluster
 from couchbase.options import ClusterOptions, ClusterTimeoutOptions
 from vxingest.partial_sums_to_cb import partial_sums_builder
 from vxingest.partial_sums_to_cb.run_ingest_threads import VXIngest
-
 
 # This test expects to find obs data and model data
 # in the local directory /opt/data/partial_sums_to_cb/input

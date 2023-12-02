@@ -1,6 +1,7 @@
 # pylint: disable=missing-module-docstring
-import xarray as xr
 import pyproj
+import xarray as xr
+
 
 def test_proj_nocb():
     """test the proj"""

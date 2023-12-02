@@ -1,9 +1,9 @@
 import logging
 import logging.handlers
 import os
+from multiprocessing import Queue
 from pathlib import Path
 from typing import Optional
-from multiprocessing import Queue
 
 
 def get_logformat() -> logging.Formatter:

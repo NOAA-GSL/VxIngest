@@ -8,13 +8,11 @@ from pathlib import Path
 
 import netCDF4 as nc
 import numpy as np
-from couchbase.n1ql import  QueryScanConsistency
 from couchbase.mutation_state import MutationState
+from couchbase.n1ql import QueryScanConsistency
 from couchbase.options import QueryOptions
-
 from vxingest.netcdf_to_cb.netcdf_builder import NetcdfMetarObsBuilderV01
 from vxingest.netcdf_to_cb.run_ingest_threads import VXIngest
-
 
 # various unit tests for the obs builder.
 # to run one of these from the command line....

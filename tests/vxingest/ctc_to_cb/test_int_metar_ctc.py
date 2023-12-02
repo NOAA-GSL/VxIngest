@@ -6,18 +6,16 @@ import glob
 import json
 import os
 import time
-from datetime import datetime
-from datetime import timedelta
-from pathlib import Path
+from datetime import datetime, timedelta
 from multiprocessing import Queue
+from pathlib import Path
 
 import yaml
-from couchbase.cluster import Cluster
 from couchbase.auth import PasswordAuthenticator
+from couchbase.cluster import Cluster
 from couchbase.options import ClusterOptions, ClusterTimeoutOptions
 from vxingest.ctc_to_cb import ctc_builder
 from vxingest.ctc_to_cb.run_ingest_threads import VXIngest
-
 
 # This test expects to find obs data and model data
 # in the local directory /opt/data/ctc_to_cb/input

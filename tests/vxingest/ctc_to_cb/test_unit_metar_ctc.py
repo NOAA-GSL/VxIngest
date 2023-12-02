@@ -1,6 +1,7 @@
 # pylint: disable=missing-module-docstring
 import os
 from multiprocessing import JoinableQueue
+
 from vxingest.ctc_to_cb.run_ingest_threads import VXIngest
 from vxingest.ctc_to_cb.vx_ingest_manager import VxIngestManager
 

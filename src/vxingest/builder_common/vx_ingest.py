@@ -13,24 +13,25 @@ stored in the load_spec. It feels redundant and it is definitelty confusing but 
 threading model.
 """
 
-import logging
-import sys
-import os
-import time
 import json
+import logging
+import os
+import sys
+import time
+from datetime import timedelta
 from glob import glob
 from pathlib import Path
-from datetime import timedelta
-import yaml
+
 # This pyproj import has to remain here in order to enforce the
 # order of loading of the pyproj and cocuhbase libraries.  If ipyproj is loaded after
 # the couchbase library, it will cause a segmentation fault.
 # pyproj is used by the grib2_to_cb IngestManger and supporting
 # test code. The root cause of this is Couchbase. This incompatibility is supposed to be fixed
 # in the next release of Couchbase.
-import pyproj # pylint: disable=unused-import
-from couchbase.cluster import Cluster
+import pyproj  # noqa: F401
+import yaml
 from couchbase.auth import PasswordAuthenticator
+from couchbase.cluster import Cluster
 from couchbase.options import ClusterOptions, ClusterTimeoutOptions
 
 # Get a logger with this module's name to help with debugging

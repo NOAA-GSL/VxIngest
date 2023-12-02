@@ -2,27 +2,27 @@
 CommonVxIngestManager - Parent class for all VxIngestManager classes
 """
 
+import json
 import logging
-import sys
 import os
 import queue
-from multiprocessing import Process
+import sys
 import time
 from datetime import timedelta
-import json
+from multiprocessing import Process
 from pathlib import Path
+
 # This pyproj import has to remain here in order to enforce the
 # order of loading of the pyproj and cocuhbase libraries.  If ipyproj is loaded after
 # the couchbase library, it will cause a segmentation fault.
 # pyproj is used by the grib2_to_cb IngestManger and supporting
 # test code. The root cause of this is Couchbase. This incompatibility is supposed to be fixed
 # in the next release of Couchbase.
-import pyproj # pylint:disable=unused-import
-from couchbase.exceptions import TimeoutException
-from couchbase.cluster import Cluster
+import pyproj  # noqa: F401
 from couchbase.auth import PasswordAuthenticator
+from couchbase.cluster import Cluster
+from couchbase.exceptions import TimeoutException
 from couchbase.options import ClusterOptions, ClusterTimeoutOptions
-
 
 logger = logging.getLogger(__name__)
 

@@ -1,8 +1,11 @@
 # pylint: disable=missing-module-docstring
 import pytest
-from vxingest.builder_common.builder_utilities import convert_to_iso
-from vxingest.builder_common.builder_utilities import get_geo_index
-from vxingest.builder_common.builder_utilities import truncate_round
+from vxingest.builder_common.builder_utilities import (
+    convert_to_iso,
+    get_geo_index,
+    truncate_round,
+)
+
 
 def test_get_geo_index():
     """test get_geo_index boundaries"""

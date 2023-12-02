@@ -1,8 +1,10 @@
 # pylint: disable=missing-module-docstring
 import os
-import xarray as xr
+
 import pyproj
+import xarray as xr
 from vxingest.grib2_to_cb.run_ingest_threads import VXIngest
+
 
 def setup_connection():
     """test setup"""

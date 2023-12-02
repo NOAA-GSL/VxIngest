@@ -5,7 +5,6 @@ from unittest import mock
 import pytest
 import yaml
 from couchbase.cluster import Cluster
-
 from vxingest.main import (
     create_dirs,
     determine_num_processes,

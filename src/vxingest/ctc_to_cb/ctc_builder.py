@@ -6,21 +6,22 @@ Copyright 2019 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of
 Colorado, NOAA/OAR/ESRL/GSL
 """
 
-import sys
 import copy
 import cProfile
-import logging
 import datetime as dt
+import logging
 import re
 import time
 from pstats import Stats
 
 from couchbase.exceptions import DocumentNotFoundException, TimeoutException
 from couchbase.search import GeoBoundingBoxQuery, SearchOptions
-from vxingest.builder_common.builder_utilities import convert_to_iso
-from vxingest.builder_common.builder_utilities import get_geo_index
-from vxingest.builder_common.builder_utilities import initialize_data_array
 from vxingest.builder_common.builder import Builder
+from vxingest.builder_common.builder_utilities import (
+    convert_to_iso,
+    get_geo_index,
+    initialize_data_array,
+)
 
 # Get a logger with this module's name to help with debugging
 logger = logging.getLogger(__name__)

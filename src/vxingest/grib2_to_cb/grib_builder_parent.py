@@ -8,21 +8,21 @@ Colorado, NOAA/OAR/ESRL/GSL
 
 import copy
 import cProfile
+import glob
 import logging
 import math
-import sys
 import os
-import glob
-#import json
+import sys
 from pstats import Stats
-import xarray as xr
+
 import pyproj
-
-from vxingest.builder_common.builder_utilities import convert_to_iso
-from vxingest.builder_common.builder_utilities import get_geo_index
-from vxingest.builder_common.builder_utilities import initialize_data_array
+import xarray as xr
 from vxingest.builder_common.builder import Builder
-
+from vxingest.builder_common.builder_utilities import (
+    convert_to_iso,
+    get_geo_index,
+    initialize_data_array,
+)
 
 # Get a logger with this module's name to help with debugging
 logger = logging.getLogger(__name__)

@@ -6,19 +6,18 @@ This test expects to write to the local output directory /opt/data/grib_to_cb/ou
 these files are two digit year, day of year, hour, and forecast lead time (6 digit ??)
 """
 import glob
-import os
-import math
 import json
-from glob import glob
-from pathlib import Path
+import math
+import os
 from datetime import timedelta
-import yaml
+from glob import glob
 from multiprocessing import Queue
+from pathlib import Path
 
-
+import yaml
+from couchbase.auth import PasswordAuthenticator
 from couchbase.cluster import Cluster
 from couchbase.options import ClusterOptions, ClusterTimeoutOptions
-from couchbase.auth import PasswordAuthenticator
 from vxingest.grib2_to_cb.run_ingest_threads import VXIngest
 
 cb_connection = {}

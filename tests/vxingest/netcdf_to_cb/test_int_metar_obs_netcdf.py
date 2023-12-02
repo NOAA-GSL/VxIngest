@@ -1,9 +1,10 @@
 """"
     integration tests for netcdf
 """
-from multiprocessing import Queue
 import os
 from glob import glob
+from multiprocessing import Queue
+
 from vxingest.netcdf_to_cb.run_ingest_threads import VXIngest
 
 

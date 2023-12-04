@@ -5,12 +5,6 @@
 These programs are intended to import netcdf data into Couchbase taking advantage of the GSL Couchbase data schema
 that has been developed by the GSL AVID model verification team.
 
-## Environment
-
-These programs require python3, and couchbase sdk 3.0 minimum (see [couchbase sdk](https://docs.couchbase.com/python-sdk/current/hello-world/start-using-sdk.html) )
-
-In the test directory [README](test/README.md) you will find instructions for setting up the environment and for running the tests.
-
 ## Approach
 
 These programs use a load_spec YAML file to define which ingest templates are to be used, a credentials file to provide database authentication, command line parameters for run time options, and the associated ingest template documents from the database that are specified in the load_spec.yaml.
@@ -41,62 +35,6 @@ The builder is [NetcdfMetarObsBuilderV01](https://github.com/NOAA-GSL/VxIngest/b
 
 There is a base NetcdfBuilder which has the generic code for reading a netcdf file and a specialized NetcdfMetarObsBuilderV01 class which knows how to build from a madis netcdf file.
 
-## Credentials files
-
-This is an example credentials file, the user and password are fake.
-
-``` yaml
-  cb_host: adb-cb1.gsd.esrl.noaa.gov
-  cb_user: a_gsd_user
-  cb_password: A_gsd_user_password
-
-```
-
 ## ingest documents - metadata
 
 Refer to [ingest documents and metadata](https://github.com/NOAA-GSL/VxIngest/blob/77b73babf031a19ba9623a7fed60de3583c9475b/mats_metadata_and_indexes/metadata_files/README.md#L11)
-
-## Tests
-
-There are tests in the test directory. To run the test_vxingest_get_file_list test
-for example cd to the VXingest directory and use this invocation.
-This assumes that you have cloned this repo into your home directory.
-
-``` sh
-source ~/VXingest/test_venv/bin/activate
-export PYTHONPATH=~/VxIngest
-python3 -m pytest netcdf_to_cb/test/test_unit_metar_obs_netcdf.py::TestNetcdfObsBuilderV01Unit::test_vxingest_get_file_list
-```
-
-## Examples of running the ingest programs
-
-### run_cron.sh
-
-The current ingest invocations are contained in the [run_cron.sh](https://github.com/NOAA-GSL/VxIngest/blob/main/scripts/VXingest_utilities/run-cron.sh)
-
-
-``` sh
-outdir="/data/netcdf_to_cb/output/${pid}"
-mkdir $outdir
-python ${clonedir}/netcdf_to_cb/run_ingest_threads.py -s /data/netcdf_to_cb/load_specs/load_spec_netcdf_metar_obs_V01.yaml -c ~/adb-cb1-credentials -p /public/data/madis/point/metar/netcdf -m %Y%m%d_%H%M -o $outdir -t8
-${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p $outdir -n 8 -l ${clonedir}/logs
-```
-
-### ingest parameters
-
--s is the load_spec
--c credential file
--p input netcdf file directory (this directory is automaticallly populated and purged out of band)
--m is the input file mask
--o is the directory where the output file documents will be placed
--t is the number of threads that the process will use
-
-Each ingest process writes files to an output directory and then the generated document files are imported with the
-[import_docs.sh](../scripts/VXingest_utilities/import_docs.sh utility)
-
-### import parameters
-
--c credential file
--p the document directory (where the ingest process put its output fioes)
--n number of import processes to use
--l the log directory (each import process will create a temporary directory and then copy its logs to the log dir when it is finished importing)

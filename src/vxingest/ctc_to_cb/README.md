@@ -16,12 +16,6 @@ ARRAY_SUM(ARRAY CASE WHEN (NOT pair.modelValue < 300
 ARRAY_SUM(ARRAY CASE WHEN (NOT pair.modelValue < 300
         AND NOT pair.observationValue < 300) THEN 1 ELSE 0 END FOR pair IN pairs END) AS correct_negatives
 
-## Environment
-
-These programs require python3, and couchbase sdk 3.0 minimum (see [couchbase sdk](https://docs.couchbase.com/python-sdk/current/hello-world/start-using-sdk.html) )
-
-In the test directory [README](test/README.md) you will find instructions for setting up the environment and for running the tests.
-
 ## Approach
 
 These programs use a load_spec YAML file to define which ingest templates are to be used, a credentials file to provide database authentication, command line parameters for run time options, and the associated ingest template documents from the database that are specified in the load_spec.yaml.
@@ -52,66 +46,13 @@ the associated metadata documents.
 
 ## Builder class
 
-The builder is [CTCModelObsBuilderV01](https://github.com/NOAA-GSL/VxIngest/blob/d9486f6576f0358db65df03ba9ac3da05fe64db8/ctc_to_cb/ctc_builder.py)
+The builder is [CTCModelObsBuilderV01](ctc_builder.py)
 
 There is a base CTCBuilder which has the generic code for reading a pair of documents and generating model obs contingency pairs and then there is a specialized CTCModelObsBuilderV01 that inherits from the generic class. Specific information for these classes is available in the docstring for each class.
-
-## Credentials files
-
-This is an example credentials file, the user and password are fake.
-
-``` yaml
-  cb_host: adb-cb1.gsd.esrl.noaa.gov
-  cb_user: a_gsd_user
-  cb_password: A_gsd_user_password
-
-```
 
 ## ingest documents - metadata
 
 Refer to [ingest documents and metadata](https://github.com/NOAA-GSL/VxIngest/blob/77b73babf031a19ba9623a7fed60de3583c9475b/mats_metadata_and_indexes/metadata_files/README.md#L11)
-
-## Tests
-
-There are tests in the test directory. To run the test_write_load_job_to_files test
-for example cd to the VXingest directory and use this invocation.
-This assumes that you have cloned this repo into your home directory.
-
-``` sh
-source ~/VXingest/test_venv/bin/activate
-export PYTHONPATH=~/VxIngest
-python3 -m pytest ctc_to_cb/test/test_unit_metar_ctc.py::TestCTCBuilderV01Unit::tetest_write_load_job_to_files
-```
-
-## Examples of running the ingest programs
-
-### run_cron.sh
-
-The current ingest invocations are contained in the [run_cron.sh](https://github.com/NOAA-GSL/VxIngest/blob/main/scripts/VXingest_utilities/run-cron.sh)
-
-``` sh
-outdir="/data/ctc_to_cb/output/${pid}"
-mkdir $outdir
-python ${clonedir}/ctc_to_cb/run_ingest_threads.py -s /data/ctc_to_cb/load_specs/load_spec_metar_ctc_V01.yaml  -c ~/adb-cb1-credentials -o $outdir -t8
-${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p $outdir -n 8 -l ${clonedir}/logs
-```
-
-### ingest parameters
-
--s is the load_spec
--c credential file
--o is the directory where the output file documents will be placed
--t is the number of threads that the process will use
-
-Each ingest process writes files to an output directory and then the generated document files are imported with the
-[import_docs.sh](../scripts/VXingest_utilities/import_docs.sh utility)
-
-### import parameters
-
--c credential file
--p the document directory (where the ingest process put its output fioes)
--n number of import processes to use
--l the log directory (each import process will create a temporary directory and then copy its logs to the log dir when it is finished importing)
 
 ### metadata Example
 
@@ -224,7 +165,7 @@ builder code, and provide a script for importing the documents into couchbase.
 
 ### Example
 
-``` bash
+```bash
 ${HOME}/VXingest/scripts/VXingest_utilities/save_ingest_docs_to_csv.sh ${HOME}/VXingest/gsd_sql_to_cb/ingest_backup adb-cb1.gsd.esrl.noaa.gov
 ```
 
@@ -339,78 +280,6 @@ cbimport json --cluster couchbase://adb-cb4.gsd.esrl.noaa.gov --bucket mdata --u
 A strategy might be to seperate data into multiple files and run a different cbimport
 instance on each file.
 
-## Credentials files
-
-This is an example credentials file, the user and password are fake.
-
-```json
-  cb_host: adb-cb1.gsd.esrl.noaa.gov
-  cb_user: a_gsd_user
-  cb_password: A_gsd_user_password
-
-```
-
-You must have both of these files and you must supply them to
-the program as a parameter.
-
-## Example invocation
-
-This assumes that you have cloned this repo into your home directory.
-
-```bash
-cd ~/VXingest
-export PYTHONPATH=~/VXingest
-outdir="/data/ctc_to_cb/rap_ops_130/output/${pid}"
-nohup python ${clonedir}/ctc_to_cb/run_ingest_threads.py -s /data/ctc_to_cb/load_specs/load_spec_metar_ctc_rap_ops_130_V01.yaml  -c ~/adb-cb1-credentials -o $outdir -t8
-${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p $outdir -n 8 -l ${clonedir}/logs &
-```
-
-this will create or update a document with the id "MD:V01:METAR:HRRR_OPS:ingest:grib2"
-and this document will contain all of the surface, ceiling, and visibility data defined in the template.
-
-## Tests
-
-There are unit tests in the test directory. To run the unit tests
-switch to the VXingest directory and use this invocation.
-This assumes that you have cloned this repo into your home directory,
-and that you have installed any necessary python packages like numpy.
-
-```bash
-cd ~/VXingest
-export PYTHONPATH=~/VXingest
-python3 -m unittest ctc_to_cb/test/test_metar_model_grib.py
-```
-
-or
-
-```bash
-cd ~/VXingest
-export PYTHONPATH=~/VXingest
-python3 -m unittest ctc_to_cb/test/test_metar_grib_and_station_utils.py
-```
-
-## Examples of running the ingest programs
-
-clonedir=~/VXingest
-cd ~/VXingest
-export PYTHONPATH=~/VXingest
-outdir="/data/ctc_to_cb/rap_ops_130/output/${pid}"
-python ${clonedir}/ctc_to_cb/run_ingest_threads.py -s /data/ctc_to_cb/load_specs/load_spec_metar_ctc_rap_ops_130_V01.yaml  -c ~/adb-cb1-credentials -o $outdir -t8
-
-${clonedir}/scripts/VXingest_utilities/import_docs.sh -c ~/adb-cb1-credentials -p $outdir -n 8 -l ${clonedir}/logs &
-
-### parameters
-
--s this is the load spec
-
--c this is the credentials file
-
--o output directory - this is the directory for the program to write output json files.
-
--t threads this is how many threads the program will use (optional, default is 1)
-
-All of these examples assume that you have a proper python3 and that you have installed
-python packages.
 
 ### N1QL metadata queries
 
@@ -457,52 +326,6 @@ FROM (SELECT OBJECT_NAMES (mdata.data) AS thresholds
       WHERE  type="DD" AND docType="CTC" AND  subset="METAR" AND  version="V01" AND model='HRRR')  AS d
 UNNEST d.thresholds AS d_thresholds;
 ```
-
-## Useful curl queries
-
-Curl queries can be implemented on the command line or in the client SDK.
-This is an example of doing a regular expression query for the word "denver" (case insensitive because of the search index analyzer) at the front of any description. The results are piped into jq to make them pretty.
-The password is fake so replace it with the actual password.
-**change user and password**
-
-- This is the N1QL search mentioned above for returning the minimum fcstValidBeg
-for all the METAR obs in the mdata bucket, executed with the curl rest api.
-
-```bash
-curl -s -u 'avid:getapassword' http://adb-cb4.gsd.esrl.noaa.gov:8093/query/service  -d 'statement=select min(mdata.fcstValidEpoch) as min_fcstValidEpoch, max(mdata.fcstValidEpoch) as max_fcstValidEpoch from mdata WHERE type="DD" and docType = "obs" and subset = "METAR" and version is not missing' | jq -r '.results | .[] | .min_fcstValidEpoch'
-```
-
-This is the same but it returns the max fcstValidBeg
-
-```bash
-curl -s -u 'avid:getapassword' http://adb-cb4.gsd.esrl.noaa.gov:8093/query/service  -d 'statement=select min(mdata.fcstValidEpoch) as min_fcstValidEpoch, max(mdata.fcstValidEpoch) as max_fcstValidEpoch from mdata WHERE type="DD" and docType = "obs" and subset = "METAR" and version is not missing' | jq -r '.results | .[] | .max_fcstValidEpoch'
-```
-
-- This returns a hit list with one hit for DIA.
-
-```bash
-curl -XPOST -H "Content-Type: application/json" -u 'avid:fakepassword' http://adb-cb4.gsd.esrl.noaa.gov:8094/api/index/station_geo/query -d '{"fields": ["*"],"query": {"fields":["*"], "regexp": "^denver.*","field":"description"}}' | jq '.'
-```
-
-This is a curl command that searches by lat and lon for stations within 1 mile of 39.86, -104.67 and it finds DIA
-
-```bash
-curl -XPOST -H "Content-Type: application/json" -u 'avid:fakepassword' http://adb-cb4.gsd.esrl.noaa.gov:8094/api/index/station_geo/query -d '{"fields": ["*"],"query":{"location":{"lat":39.86,"lon":-104.67},"distance":"1mi","field":"geo"}}' | jq '.'
-```
-
-It completes in under 40 milliseconds.
-
-This command looks for all the stations within an arbitrary polygon that I drew on google maps,
-maybe about a third of the country somewhere in the west...
-
-```curl -XPOST -H "Content-Type: application/json" -u 'avid:fakepassword' http://adb-cb4.gsd.esrl.noaa.gov:8094/api/index/station_geo/query -d '{"fields": ["*"],"query":{"polygon_points":["47.69065526395918, -120.699049630136","44.97376705258397, -91.33055527950087","36.68188062186998, -92.26638359058016","37.13420293523954, -114.52912609347626"]},"field":"geo"}' | jq '.'```
-
-It returns 148 stations in under half a second.
-
-## Useful utilities
-
-There is a scripts directory, much of which came from Couchbase training.
-This directory contains many useful scripts for administration, monitoring, and accessing Couchbase statistics.
 
 ## Useful search predicates for retrieving documents
 
@@ -554,50 +377,4 @@ To retrieve the metadata document for cb-ceiling for all models
 
 ```bash
 select mdata.* from mdata where type="MD" and docType="mats_gui" and subType="app" and subset="COMMON" and version="V01" and app="cb-ceiling"
-```
-
-## Initial configuration recommendations
-
-For both the single server and the three node cluster it is most advisable to
-run the Query, Index, and Data services on all the nodes.
-With the single node server there are no replications possible, but for
-the cluster we should start with num_recs = 2 (one less than the number of nodes) which
-will result in three instances of each service.
-
-## Example ingest commands
-
-This is bounded by a time range -f 1437084000 -l 1437688800 data will not be retrieved from the sql tables outside this range.
-
-```bash
-python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-HRRR_GtLk_CTC-v01.yaml -c ${HOME}/adb-cb1-credentials -f 1437084000 -l 1437688800
-```
-
-These are unbounded by a time range - all data that the ingest statement can retrieve will be retrieved.
-
-```bash
-python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-HRRR_ALL_HRRR_CTC-v01.yaml -c ${HOME}/adb-cb1-credentials
-python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-HRRR_E_HRRR_CTC-v01.yaml -c ${HOME}/adb-cb1-credentials
-python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-HRRR_E_US_CTC-v01.yaml -c ${HOME}/adb-cb1-credentials
-python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-HRRR_GtLk_CTC-v01.yaml -c ${HOME}/adb-cb1-credentials
-python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-HRRR_OPS_ALL_HRRR_CTC-v01.yaml -c ${HOME}/adb-cb1-credentials
-python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-HRRR_OPS_E_HRRR_CTC-v01.yaml -c ${HOME}/adb-cb1-credentials
-python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-HRRR_OPS_E_US_CTC-v01.yaml -c ${HOME}/adb-cb1-credentials
-python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-HRRR_OPS_GtLk_CTC-v01.yaml -c ${HOME}/adb-cb1-credentials
-python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-hrrr_ops-v01.yaml -c ${HOME}/adb-cb1-credentials
-python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-HRRR_OPS_W_HRRR_CTC-v01.yaml -c ${HOME}/adb-cb1-credentials
-python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-HRRR_W_HRRR_CTC-v01.yaml -c ${HOME}/adb-cb1-credentials
-python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-metars-v01.yaml -c ${HOME}/adb-cb1-credentials
-python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-rrfs_dev1-v01.yaml -c ${HOME}/adb-cb1-credentials
-python3 run_gsd_ingest_threads.py  -s ${HOME}/VXingest/test/load_spec_gsd-stations-v01.yaml -c ${HOME}/adb-cb1-credentials
-```
-
-This script will consider all the above load_spec files and it will find the latest time for each that exists in the couchbase bucket
-and the latest time that exists in the sql table and use those values as a total time range.
-The total time range will be further divided into one week intervalse that will
-be used to bound the run_gsd_ingest_threads.py. This script uses nohup because it might take a long time to run.
-It also runs in the background and this example puts the output into a log file.
-
-```bash
-nohup ../scripts/VXingest_utilities/ingest.sh ~/adb-cb1-credentials > logs/ingest-20210326-10-15 2>&1 &
-
 ```

@@ -1,0 +1,43 @@
+Narrative progress summary 
+Until GSL dev Couchnbase instance is up, testing aganist Gopa Mac local Couchbase installation:
+    couchbase-server-enterprise_7.2.3
+Created bucket:vxdata, scope:_default, colection: METAR
+Uploaded 2,606,096 documents (from mdatatest split files xaa-xaz) using CbUpload nodejs script.
+Created primary index.
+
+Comparing performance:
+    GopaMac:
+        MEM: 16 GB
+        Cores: 4
+        Documents: 2.6 million
+    adb-cb1:
+        MEM: 256 GB
+        Cores: 16
+        Documents: 8.2 million
+    cluster: (adb-cb2, cb3, cb4)
+        MEM: 256 GB (each node)
+        Cores: 16   (each node)
+        Documents: 2.7 million (each node)
+
+SQL: meta_update_middleware/sqls/getModels.sql
+    Index advice - IA0: (created)
+    CREATE INDEX adv_subDocType_type_docType_version ON `default`:`vxdata`.`_default`.`METAR`(`subDocType`) WHERE `docType` = 'CTC' AND `version` = 'V01' AND `type` = 'DD'
+    
+    Performance:
+        Gopa Mac: 3.3s
+        adb_cb1: 23.0s
+        cluster: 
+            1m33s (before IA0)
+            20.1s (after IA0)
+
+
+SELECT COUNT(object_names_t)
+FROM vxdata._default.METAR AS object_names_t
+WHERE object_names_t.type = 'DD'
+    AND object_names_t.docType = 'CTC'
+    AND object_names_t.subDocType = 'CEILING'
+    AND object_names_t.version = 'V01'
+    AND object_names_t.model = "HRRR_OPS"
+
+1677244 - in 4 minutes
+

@@ -6,7 +6,7 @@
                 "status": "active",
                 "host": "adb-cb1.gsd.esrl.noaa.gov",
                 "host0": "adb-cb2.gsd.esrl.noaa.gov,adb-cb3.gsd.esrl.noaa.gov,adb-cb4.gsd.esrl.noaa.gov",
-                "bucket": "vxdata",
+                "bucket": "vxdatatest",
                 "scope": "_default",
                 "collection": "METAR",
                 "port": "8091",

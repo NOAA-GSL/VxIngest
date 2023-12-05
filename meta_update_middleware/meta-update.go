@@ -163,6 +163,8 @@ func main() {
 	tmplUpdateMetadataSQL := string(fileContent)
 	log.Println(tmplUpdateMetadataSQL)
 	for i := 0; i < len(models_requiring_metadata); i++ {
+		model := models_requiring_metadata[i]
+		log.Println(model)
 	}
 }
 

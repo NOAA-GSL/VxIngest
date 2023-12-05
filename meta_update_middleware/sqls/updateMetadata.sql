@@ -15,7 +15,7 @@ SET
                     AND object_names_t.docType = 'CTC'
                     AND object_names_t.subDocType = 'CEILING'
                     AND object_names_t.version = 'V01'
-                    AND object_names_t.model = '${model}'
+                    AND object_names_t.model = '{vxMODEL}'
             ) AS d UNNEST d.thresholds AS d_thresholds
     ),
     fcstLens =(
@@ -28,7 +28,7 @@ SET
             AND fl.docType = 'CTC'
             AND fl.subDocType = 'CEILING'
             AND fl.version = 'V01'
-            AND fl.model = '${model}'
+            AND fl.model = '{vxMODEL}'
         ORDER BY
             fl.fcstLen
     ),
@@ -42,7 +42,7 @@ SET
             AND rg.docType = 'CTC'
             AND rg.subDocType = 'CEILING'
             AND rg.version = 'V01'
-            AND rg.model = '${model}'
+            AND rg.model = '{vxMODEL}'
         ORDER BY
             r.METAR.region
     ),
@@ -50,8 +50,8 @@ SET
     displayText =(
         SELECT
             raw CASE
-                WHEN m.standardizedModelList.$ { model } IS NOT NULL THEN m.standardizedModelList.$ { model }
-                ELSE "${model}"
+                WHEN m.standardizedModelList.{vxMODEL} IS NOT NULL THEN m.standardizedModelList.{vxMODEL}
+                ELSE "{vxMODEL}"
             END
         FROM
             vxdata._default.METAR AS m USE KEYS "MD:matsAux:COMMON:V01"
@@ -60,7 +60,7 @@ SET
     displayCategory =(
         SELECT
             raw CASE
-                WHEN m.primaryModelOrders.$ { model } IS NOT NULL THEN 1
+                WHEN m.primaryModelOrders.{vxMODEL} IS NOT NULL THEN 1
                 ELSE 2
             END
         FROM
@@ -72,7 +72,7 @@ SET
     displayOrder =(
         WITH k AS (
             SELECT
-                RAW m.standardizedModelList.$ { model }
+                RAW m.standardizedModelList.{vxMODEL}
             FROM
                 vxdata._default.METAR AS m USE KEYS "MD:matsAux:COMMON:V01"
         )
@@ -94,7 +94,7 @@ SET
                         AND mt.docType = 'CTC'
                         AND mt.subDocType = 'CEILING'
                         AND mt.version = 'V01'
-                        AND mt.model = '${model}'
+                        AND mt.model = '{vxMODEL}'
                 ) [0],
                 maxdate =(
                     SELECT
@@ -106,7 +106,7 @@ SET
                         AND mat.docType = 'CTC'
                         AND mat.subDocType = 'CEILING'
                         AND mat.version = 'V01'
-                        AND mat.model = '${model}'
+                        AND mat.model = '{vxMODEL}'
                 ) [0],
                 numrecs =(
                     SELECT
@@ -118,7 +118,7 @@ SET
                         AND n.docType = 'CTC'
                         AND n.subDocType = 'CEILING'
                         AND n.version = 'V01'
-                        AND n.model = '${model}'
+                        AND n.model = '{vxMODEL}'
                 ) [0],
                 updated =(
                     SELECT
@@ -130,4 +130,4 @@ SET
                     AND subset = 'COMMON'
                     AND version = 'V01'
                     AND app = 'cb-ceiling'
-                    AND META().id = 'MD:matsGui:cb-ceiling:${model}:COMMON:V01'
+                    AND META().id = 'MD:matsGui:cb-ceiling:{vxMODEL}:COMMON:V01'

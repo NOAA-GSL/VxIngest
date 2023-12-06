@@ -14,5 +14,31 @@
                 "password": "pwd_av!d"
             }
         ]
-    }
+    },
+    "datasets": [
+        {
+            "name": "ceiling",
+            "docType": [
+                "CTC",
+                "SUMS"
+            ],
+            "subDocType": "CEILING"
+        },
+        {
+            "name": "visibility",
+            "docType": [
+                "CTC",
+                "SUMS"
+            ],
+            "subDocType": "VISIBILITY"
+        },
+        {
+            "name": "surface",
+            "docType": [
+                "CTC",
+                "SUMS"
+            ],
+            "subDocType": "SURFACE"
+        }
+    ]
 }

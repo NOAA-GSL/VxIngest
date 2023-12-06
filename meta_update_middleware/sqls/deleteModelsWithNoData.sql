@@ -6,4 +6,4 @@ WHERE
     AND subset = 'COMMON'
     AND version = 'V01'
     AND app = 'cb-ceiling'
-    AND META().id = 'MD:matsGui:cb-ceiling:{vxMODEL}:COMMON:V01'
+    AND META().id = 'MD:matsGui:cb-ceiling:{{vxMODEL}}:COMMON:V01'

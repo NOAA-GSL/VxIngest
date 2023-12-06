@@ -25,6 +25,11 @@ func queryWithSQLFile(scope *gocb.Scope, file string) (jsonOut []string) {
 	text := string(fileContent)
 	fmt.Println(text)
 
+	return queryWithSQLString(scope, text)
+}
+
+func queryWithSQLString(scope *gocb.Scope, text string) (jsonOut []string) {
+
 	queryResult, err := scope.Query(
 		fmt.Sprintf(text),
 		&gocb.QueryOptions{Adhoc: true},

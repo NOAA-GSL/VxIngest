@@ -12,6 +12,8 @@ import (
 	"github.com/couchbase/gocb/v2"
 )
 
+type StrArray []string
+
 type ConfigJSON struct {
 	Private struct {
 		Databases []struct {
@@ -26,6 +28,11 @@ type ConfigJSON struct {
 			Password   string `json:"password"`
 		} `json:"databases"`
 	} `json:"private"`
+	Datasets []struct {
+		Name       string   `json:"name"`
+		SubDocType string   `json:"subDocType"`
+		DocType    StrArray `json:"docType"`
+	} `json:"datasets"`
 }
 
 type CbConnection struct {
@@ -33,6 +40,7 @@ type CbConnection struct {
 	Bucket     *gocb.Bucket
 	Scope      *gocb.Scope
 	Collection *gocb.Collection
+	vxDBTARGET string
 }
 
 // init runs before main() is evaluated
@@ -60,6 +68,8 @@ func main() {
 	username := conf.Private.Databases[0].User
 	password := conf.Private.Databases[0].Password
 
+	// log.Println(conf.Datasets[0].Name)
+
 	options := gocb.ClusterOptions{
 		Authenticator: gocb.PasswordAuthenticator{
 			Username: username,
@@ -75,6 +85,9 @@ func main() {
 
 	conn.Cluster = cluster
 	conn.Bucket = conn.Cluster.Bucket(bucketName)
+	conn.vxDBTARGET = conf.Private.Databases[0].Bucket + "._default." + conf.Private.Databases[0].Collection
+
+	log.Println("vxDBTARGET:" + conn.vxDBTARGET)
 
 	err = conn.Bucket.WaitUntilReady(5*time.Second, nil)
 	if err != nil {
@@ -84,15 +97,37 @@ func main() {
 
 	conn.Scope = conn.Bucket.Scope(conf.Private.Databases[0].Scope)
 
+	for ds := 0; ds < len(conf.Datasets); ds++ {
+		for dt := 0; dt < len(conf.Datasets[ds].DocType); dt++ {
+			log.Println("Dataset:" + conf.Datasets[ds].Name + ",DocType:" + conf.Datasets[ds].DocType[dt])
+			updateMedataForDatasetDocType(conn, conf.Datasets[ds].Name, conf.Datasets[ds].DocType[dt], conf.Datasets[ds].SubDocType)
+		}
+	}
+
+}
+
+func updateMedataForDatasetDocType(conn CbConnection, dataset string, doctype string, subDocType string) {
+	log.Println("updateMedataForDatasetDocType(" + dataset + "," + doctype + ")")
+
 	// get needed models
-	models_requiring_metadata := queryWithSQLFile(conn.Scope, "sqls/getModels.sql")
+	fileContent, err := os.ReadFile("sqls/getModels.sql")
+	if err != nil {
+		log.Fatal(err)
+	}
+	tmplGetModelsSQL := string(fileContent)
+	tmplGetModelsSQL = strings.Replace(tmplGetModelsSQL, "{{vxDBTARGET}}", conn.vxDBTARGET, 1)
+	tmplGetModelsSQL = strings.Replace(tmplGetModelsSQL, "{{vxDOCTYPE}}", doctype, 1)
+	tmplGetModelsSQL = strings.Replace(tmplGetModelsSQL, "{{vxSUBDOCTYPE}}", subDocType, 1)
+	log.Println(tmplGetModelsSQL)
+
+	models_requiring_metadata := queryWithSQLString(conn.Scope, tmplGetModelsSQL)
 	log.Println("models_requiring_metadata:")
 	printStringArray(models_requiring_metadata)
 	for i := 0; i < len(models_requiring_metadata); i++ {
 		log.Println(fmt.Sprintf("%d\t%v", i, models_requiring_metadata[i]))
 	}
 
-	// remove metadata for models with no data
+	// get models with existing metadada
 	models_with_existing_metadata := queryWithSQLFile(conn.Scope, "sqls/getModelsWithMetadata.sql")
 	log.Println("models_with_existing_metadata:")
 	printStringArray(models_with_existing_metadata)
@@ -100,7 +135,7 @@ func main() {
 		log.Println(fmt.Sprintf("%d\t%v", i, models_with_existing_metadata[i]))
 	}
 
-	fileContent, err := os.ReadFile("sqls/deleteModelsWithNoData.sql")
+	fileContent, err = os.ReadFile("sqls/deleteModelsWithNoData.sql")
 	if err != nil {
 		log.Fatal(err)
 	}

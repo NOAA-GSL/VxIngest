@@ -473,7 +473,7 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
                     stmnt = f"""SELECT RAW MAX(METAR.fcstValidEpoch)
                             FROM `{self.bucket}`.{self.scope}.{self.collection}
                             WHERE type='DD'
-                            AND docType='PARTIALSUMS'
+                            AND docType='SUMS'
                             AND subDocType='{self.sub_doc_type}'
                             AND model='{self.model}'
                             AND region='{self.region}'

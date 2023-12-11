@@ -5,7 +5,10 @@ secrets:
 
 services:
   shell:
-    image : docker.io/vxingest/development:dev
+    build:
+      context: .
+      dockerfile: docker/ingest/Dockerfile
+      target: prod
     volumes:
       - ${data}:/opt/data
       - ${public}:/public
@@ -14,41 +17,45 @@ services:
     environment:
     - CREDENTIALS=/run/secrets/CREDENTIALS_FILE
     command: /bin/bash
-    user: amb-verif
-  unit_test:
-    image : docker.io/vxingest/development:dev
+  test:
+    build:
+      context: .
+      dockerfile: docker/ingest/Dockerfile
+      target: dev
     volumes:
       -  ${data}:/opt/data
     secrets:
       - CREDENTIALS_FILE
     environment:
     - CREDENTIALS=/run/secrets/CREDENTIALS_FILE
-    command: ./scripts/VXingest_utilities/run_unit_tests.sh
-    user: amb-verif
-  int_test:
-    image : docker.io/vxingest/development:dev
-    volumes:
-      -  ${data}:/opt/data
-    secrets:
-      - CREDENTIALS_FILE
-    environment:
-    - CREDENTIALS=/run/secrets/CREDENTIALS_FILE
-    command: ./scripts/VXingest_utilities/run_int_tests.sh
-    user: amb-verif
+    command: poetry run pytest tests
+  # FIXME - add a way to specify unit & integration tests
   ingest:
-    image : docker.io/vxingest/development:dev
+    build:
+      context: .
+      dockerfile: docker/ingest/Dockerfile
+      target: prod
     volumes:
       - ${data}:/opt/data
       - ${public}:/public
     secrets:
       - CREDENTIALS_FILE
-    command: ./scripts/VXingest_utilities/run-ingest.sh
-    user: amb-verif
+    command:
+      - "--credentials_file=/run/secrets/CREDENTIALS_FILE"
+      - "--output_dir=/opt/data/test/outdir"
+      - "--log_dir=/opt/data/test/logs"
+      - "--metrics_dir=/opt/data/test/metrics"
+      - "--transfer_dir=/opt/data/test/xfer"
   import:
-    image : docker.io/vxingest/development:dev
+    build:
+      context: .
+      dockerfile: docker/import/Dockerfile
     volumes:
       - ${data}:/opt/data
     secrets:
       - CREDENTIALS_FILE
-    command: ./scripts/VXingest_utilities/run-import.sh
-    user: amb-verif
+    command:
+      - "-c /run/secrets/CREDENTIALS_FILE"
+      - "-l /opt/data/xfer"
+      - "-t /opt/data/temp_tar"
+      - "-m /opt/data/common/job_metrics"

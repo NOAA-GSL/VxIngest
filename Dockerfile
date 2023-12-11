@@ -1,76 +1,118 @@
-# Specify the base image -- here we're using ne that bundles the OpenJDK version of Java 8 on top of a generic Debian Linux OS
 # syntax = docker/dockerfile:1.2
-FROM python:3.11-slim-bullseye AS prod
+
+# NOTE - avoid installing python packages via apt - they install an alternate version of Python
+
+# The eccodes image, used for building the eccodes library against the correct Python version
+FROM python:3.11-slim-bookworm AS eccodes
+
+ARG ECCODES_VER=2.32.1
+
+RUN apt-get update && \
+    apt-get install -y curl wget && \
+    apt-get install -y build-essential libssl-dev libnetcdff-dev libopenjp2-7-dev gfortran make unzip git cmake && \
+    mkdir /build && cd /build && \
+    wget https://confluence.ecmwf.int/download/attachments/45757960/eccodes-${ECCODES_VER}-Source.tar.gz && \
+    tar -xzf  eccodes-${ECCODES_VER}-Source.tar.gz && \
+    mkdir eccodes-build && cd eccodes-build && \
+    mkdir /eccodes && \
+    # Default install location is /usr/local/{bin,include,lib}, use the CMAKE prefix to change to /eccodes
+    # Note you'll need to set some bashrc variables (ECCODES_DEFINITION_PATH & ECCODES_DIR) in subsequent images
+    # cmake -DCMAKE_INSTALL_PREFIX=/eccodes -DBUILD_SHARED_LIBS=ON -DENABLE_JPG=ON ../eccodes-${ECCODES_VER}-Source && \
+    cmake -DCMAKE_INSTALL_PREFIX=/eccodes ../eccodes-${ECCODES_VER}-Source && \
+    # Use nproc to get the number of available cores - use all but 1 core for compilation
+    make -j$(( $(nproc)-1 )) && \
+    make install
+
+
+# The builder image, used for building the virtual environment
+FROM python:3.11-slim-bookworm AS builder
+
+COPY --from=eccodes /eccodes /usr/local
+
+# Make sure eccodes knows where to find its definitions
+ENV ECCODES_DEFINITION_PATH=/usr/local/share/eccodes/definitions/ \
+    ECCODES_DIR=/usr/local/
+
+RUN apt-get update && \
+    # Runtime deps for the native eccodes library
+    apt-get install -y libopenjp2-7 libaec0 && \
+    # cftime build deps
+    apt-get install -y build-essential && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* 
+
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+RUN pip install --no-cache-dir poetry
+
+ENV POETRY_NO_INTERACTION=1 \
+    POETRY_VIRTUALENVS_IN_PROJECT=1 \
+    POETRY_VIRTUALENVS_CREATE=1 \
+    POETRY_CACHE_DIR=/tmp/poetry_cache
+
+WORKDIR /app
+
+# Install just the runtime dependencies, no dev tooling
+COPY pyproject.toml poetry.lock ./
+RUN poetry install --without dev --no-root && rm -rf $POETRY_CACHE_DIR
+
+
+# The dev image, used for testing
+FROM builder AS dev
+
+# Use like the following:
+# docker build --target=dev -f Dockerfile -t vxingest:dev .
+# docker run --rm --mount type=bind,src=$(pwd)/tmp/test-data/opt/data,dst=/opt/data -it vxingest:dev bash
+# poetry run pytest tests
+
+# Install the app and dev dependencies so we can run tests & tooling
+COPY . /app
+RUN poetry install
+
+
+# The runtime image, used for running just the application with its dependencies
+FROM python:3.11-slim-bookworm AS prod
 
 ARG COMMITBRANCH=development
-ARG COMMITSHA
+ARG COMMITSHA=unspecified
 ARG BUILDVER=dev
 
 ENV BRANCH=${COMMITBRANCH}
 ENV COMMIT=${COMMITSHA}
 ENV VERSION=${BUILDVER}
 
-# Identify the maintainer of an image
-LABEL maintainer="randy.pierce@noaa.gov"
-
 LABEL version=${BUILDVER} code.branch=${COMMITBRANCH} code.commit=${COMMITSHA}
 
-# update and create an amb-verif user
-# need to install wget to get the libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb file
-RUN apt-get update && \
-        apt-get upgrade -y && \
-        useradd -d /home/amb-verif -m -s /bin/bash amb-verif && \
-        apt-get install -y jq && \
-        apt-get install -y curl && \
-        apt-get install -y wget && \
-        apt-get install python3-dev python3-pip python3-setuptools build-essential libssl-dev libnetcdff-dev libopenjp2-7-dev gfortran make unzip git cmake -y && \
-        cd && mkdir build && cd build && \
-        wget https://confluence.ecmwf.int/download/attachments/45757960/eccodes-2.32.1-Source.tar.gz && \
-        tar -xzf  eccodes-2.32.1-Source.tar.gz && \
-        mkdir build ; cd build && \
-        cmake -DCMAKE_INSTALL_PREFIX=/usr/src/eccodes ../eccodes-2.32.1-Source && \
-        make && \
-#        ctest && \
-        make install && \
-        cp -r /usr/src/eccodes/bin/* /usr/bin/ && \
-        cp /usr/src/eccodes/lib/libeccodes.so /usr/lib && \
-        cp /usr/src/eccodes/include/* /usr/include/ && \
-        echo 'export ECCODES_DIR=/usr/src/eccodes' >> ~/.bashrc && \
-        echo 'export ECCODES_DEFINITION_PATH=/usr/src/eccodes/share/eccodes/definitions' >> ~/.bashrc && \
-        pip install couchbase --no-binary couchbase && \
-        # cleanup
-        apt-get autoremove && apt-get clean && \
-        rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
-        apt-get remove -y wget && \
-        apt-get remove -y wget libssl-dev libnetcdff-dev libopenjp2-7-dev gfortran make unzip git cmake build-essential python3-dev python3-pip python3-setuptools && \
-        cd && rm -rf source_builds
+# Activate the virtual environment
+ENV VIRTUAL_ENV=/app/.venv \
+    PATH="/app/.venv/bin:$PATH"
 
-COPY . /home/amb-verif/VxIngest
+# Copy in dependencies
+COPY --from=builder ${VIRTUAL_ENV} ${VIRTUAL_ENV}
+COPY --from=eccodes /eccodes /usr/local
 
-#Set the working directory to be used when the docker gets run
-WORKDIR /home/amb-verif/VxIngest
-#RUN cd /home/amb-verif/VxIngest && pip install --upgrade pip setuptools wheel && python -m pip install couchbase==4.1.6 --no-binary couchbase && \
-RUN python -m pip install -r requirements.txt
+# Make sure eccodes knows where to find its definitions
+ENV ECCODES_DEFINITION_PATH=/usr/local/share/eccodes/definitions/ \
+    ECCODES_DIR=/usr/local/
 
-# clean up potentially checked in pytest cache
-RUN rm -rf /home/amb-verif/.pytest_cache && chown -R amb-verif /home/amb-verif/VxIngest
+WORKDIR /app
 
-USER amb-verif
+# Specify the UID/GID we want our user to have.
+# In this case, use the same uid/gid as the local amb-verif user.
+ENV ID=5002
 
-# create a dev target that has some utilities for debugging
-FROM python:3.11-slim-bullseye AS dev
-COPY --from=prod / /
-RUN apt-get update && \
-        apt-get upgrade -y && \
-        apt-get install -y procps && \
-        apt-get install -y vim && \
-        apt-get install -y iputils-ping && \
-        rm -rf /var/lib/apt/lists/*
+# Add a user with a known uid/gid
+# Create a home dir so we have a place for temporary cache dirs & etc...
+RUN groupadd --gid ${ID} python && \
+    useradd --shell /bin/bash --create-home --uid ${ID} --gid ${ID} python
 
-USER amb-verif
+# Run OS updates
+RUN apt-get update && apt-get upgrade -y && \
+    # Install runtime deps for the native eccodes library
+    apt-get install -y libopenjp2-7 libaec0 && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* 
 
-#Set the working directory to be used when the docker gets run
-WORKDIR /home/amb-verif/VxIngest
+# Copy just the vxingest app
+COPY ./src/ /app/
 
-# make the default the prod target
-FROM prod
+USER python
+
+ENTRYPOINT ["python", "-m", "vxingest.main"]

@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/couchbase/gocb/v2"
@@ -30,6 +29,7 @@ type ConfigJSON struct {
 	} `json:"private"`
 	Datasets []struct {
 		Name       string   `json:"name"`
+		App        string   `json:"app"`
 		SubDocType string   `json:"subDocType"`
 		DocType    StrArray `json:"docType"`
 	} `json:"datasets"`
@@ -100,107 +100,64 @@ func main() {
 	for ds := 0; ds < len(conf.Datasets); ds++ {
 		for dt := 0; dt < len(conf.Datasets[ds].DocType); dt++ {
 			log.Println("Dataset:" + conf.Datasets[ds].Name + ",DocType:" + conf.Datasets[ds].DocType[dt])
-			updateMedataForDatasetDocType(conn, conf.Datasets[ds].Name, conf.Datasets[ds].DocType[dt], conf.Datasets[ds].SubDocType)
+			updateMedataForDatasetDocType(conn, conf.Datasets[ds].Name, conf.Datasets[ds].App, conf.Datasets[ds].DocType[dt], conf.Datasets[ds].SubDocType)
+			// TODO - remove break for after testing
+			break
 		}
+		// TODO - remove break for after testing
+		break
 	}
 
 }
 
-func updateMedataForDatasetDocType(conn CbConnection, dataset string, doctype string, subDocType string) {
+func updateMedataForDatasetDocType(conn CbConnection, dataset string, app string, doctype string, subDocType string) {
 	log.Println("updateMedataForDatasetDocType(" + dataset + "," + doctype + ")")
 
 	// get needed models
-	fileContent, err := os.ReadFile("sqls/getModels.sql")
-	if err != nil {
-		log.Fatal(err)
-	}
-	tmplGetModelsSQL := string(fileContent)
-	tmplGetModelsSQL = strings.Replace(tmplGetModelsSQL, "{{vxDBTARGET}}", conn.vxDBTARGET, 1)
-	tmplGetModelsSQL = strings.Replace(tmplGetModelsSQL, "{{vxDOCTYPE}}", doctype, 1)
-	tmplGetModelsSQL = strings.Replace(tmplGetModelsSQL, "{{vxSUBDOCTYPE}}", subDocType, 1)
-	log.Println(tmplGetModelsSQL)
+	models := getModels(conn, dataset, app, doctype, subDocType)
+	log.Println("models:")
+	printStringArray(models)
 
-	models_requiring_metadata := queryWithSQLString(conn.Scope, tmplGetModelsSQL)
-	log.Println("models_requiring_metadata:")
-	printStringArray(models_requiring_metadata)
-	for i := 0; i < len(models_requiring_metadata); i++ {
-		log.Println(fmt.Sprintf("%d\t%v", i, models_requiring_metadata[i]))
-	}
+	// get models having metadata but no data (remove metadata for these)
+	// (note 'like %' is changed to 'like %25')
+	models_with_metatada_but_no_data := getModelsNoData(conn, dataset, app, doctype, subDocType)
+	log.Println("models_with_metatada_but_no_data:")
+	printStringArray(models_with_metatada_but_no_data)
+
+	//log.Println("Inserting fake model:RAP_OOPS_130 to test SQL ...")
+	// models_with_metatada_but_no_data = append(models_with_metatada_but_no_data, "RAP_OOPS_130")
+
+	// remove metadata for models with no data
+	removeMetadataForModelsWithNoData(conn, dataset, app, doctype, subDocType, models_with_metatada_but_no_data)
 
 	// get models with existing metadada
-	models_with_existing_metadata := queryWithSQLFile(conn.Scope, "sqls/getModelsWithMetadata.sql")
+	models_with_existing_metadata := getModelsWithExistingMetadata(conn, dataset, app, doctype, subDocType)
 	log.Println("models_with_existing_metadata:")
 	printStringArray(models_with_existing_metadata)
-	for i := 0; i < len(models_with_existing_metadata); i++ {
-		log.Println(fmt.Sprintf("%d\t%v", i, models_with_existing_metadata[i]))
-	}
-
-	fileContent, err = os.ReadFile("sqls/deleteModelsWithNoData.sql")
-	if err != nil {
-		log.Fatal(err)
-	}
-	tmplDeleteModelsSQL := string(fileContent)
-	log.Println(tmplDeleteModelsSQL)
-
-	remove_metadata_for_models := queryWithSQLFile(conn.Scope, "sqls/getModelsNoData.sql")
-	log.Println("Inserting fake model:RAP_OOPS_130 to test SQL ...")
-	remove_metadata_for_models = append(remove_metadata_for_models, "RAP_OOPS_130")
-	log.Println("remove_metadata_for_models:")
-	printStringArray(remove_metadata_for_models)
-	for i := 0; i < len(remove_metadata_for_models); i++ {
-		delModelSQL := strings.Replace(tmplDeleteModelsSQL, "{vxMODEL}", remove_metadata_for_models[i], 1)
-		log.Println(fmt.Sprintf("%d\t%v", i, remove_metadata_for_models[i]))
-		log.Println("delModelSQL:\n" + delModelSQL)
-		queryResult, err := conn.Scope.Query(
-			delModelSQL,
-			&gocb.QueryOptions{Adhoc: true},
-		)
-		if err != nil {
-			log.Fatal(err)
-		} else {
-			printQueryResult(queryResult)
-		}
-	}
 
 	// initialize the metadata for the models for which the metadata does not exist
-	fileContent, err = os.ReadFile("sqls/initializeMetadata.sql")
-	if err != nil {
-		log.Fatal(err)
-	}
-	tmplInitializeMetadataSQL := string(fileContent)
-	log.Println(tmplDeleteModelsSQL)
-	for i := 0; i < len(models_requiring_metadata); i++ {
-		contains := slices.Contains(models_with_existing_metadata, models_requiring_metadata[i])
+	for i := 0; i < len(models); i++ {
+		contains := slices.Contains(models_with_existing_metadata, models[i])
 		log.Println(fmt.Printf("contains:%t\n", contains))
 		if !contains {
-			initializeMetadataSQL := strings.Replace(tmplInitializeMetadataSQL, "{vxMODEL}", models_requiring_metadata[i], -1)
-			log.Println("initializeMetadataSQL:\n" + initializeMetadataSQL)
+			initializeMetadataForModel(conn, dataset, app, doctype, subDocType, models[i])
 		}
-		/*
-			queryResult, err := conn.Scope.Query(
-				initializeMetadataSQL,
-				&gocb.QueryOptions{Adhoc: true},
-			)
-			if err != nil {
-				log.Fatal(err)
-			} else {
-				printQueryResult(queryResult)
-			}
-		*/
 	}
 
-	// get a sorted list of all the models_requiring_metadata
-	// now update all the metdata for all the models that require it
-	fileContent, err = os.ReadFile("sqls/updateMetadata.sql")
-	if err != nil {
-		log.Fatal(err)
-	}
-	tmplUpdateMetadataSQL := string(fileContent)
-	log.Println(tmplUpdateMetadataSQL)
-	for i := 0; i < len(models_requiring_metadata); i++ {
-		model := models_requiring_metadata[i]
-		log.Println(model)
-	}
+	/*
+		// get a sorted list of all the models
+		// now update all the metdata for all the models that require it
+		fileContent, err = os.ReadFile("sqls/updateMetadata.sql")
+		if err != nil {
+			log.Fatal(err)
+		}
+		tmplUpdateMetadataSQL := string(fileContent)
+		log.Println(tmplUpdateMetadataSQL)
+		for i := 0; i < len(models); i++ {
+			model := models[i]
+			log.Println(model)
+		}
+	*/
 }
 
 func parseConfig(file string) (ConfigJSON, error) {

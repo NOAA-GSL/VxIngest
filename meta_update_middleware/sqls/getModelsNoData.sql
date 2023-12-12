@@ -5,9 +5,9 @@ FROM
         SELECT
             RAW SPLIT(meta().id, ":") [3] AS model
         FROM
-            vxdata._default.METAR
+            {{vxDBTARGET}}
         WHERE
-            meta().id LIKE "MD:matsGui:cb-ceiling:%25:COMMON:V01"
+            meta().id LIKE "MD:matsGui:{{vxAPP}}:%25:COMMON:V01"
             AND type = "MD"
             AND docType = "matsGui"
             AND version = "V01"
@@ -22,8 +22,8 @@ WHERE
             vxdata._default.METAR
         where
             type = "DD"
-            and docType = "CTC"
-            and subDocType = "CEILING"
+            and docType = "{{vxDOCTYPE}}"
+            and subDocType = "{{vxSUBDOCTYPE}}"
             and version = "V01"
         order by
             model

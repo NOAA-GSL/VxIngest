@@ -1,11 +1,11 @@
 select
     raw SPLIT(meta().id, ":") [3]
 FROM
-    vxdata._default.METAR
+    {{vxDBTARGET}}
 WHERE
     type = "MD"
     AND docType = "matsGui"
     AND subset = "COMMON"
     AND version = "V01"
-    AND app = "cb-ceiling"
-    AND META().id LIKE "MD:matsGui:cb-ceiling:%25:COMMON:V01"
+    AND app = "{{vxAPP}}"
+    AND META().id LIKE "MD:matsGui:{{vxAPP}}:%25:COMMON:V01"

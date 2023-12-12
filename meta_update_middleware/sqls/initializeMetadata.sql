@@ -1,16 +1,16 @@
 INSERT INTO
-    vxdata._default.METAR (KEY, VALUE)
+    {{vxDBTARGET}} (KEY, VALUE)
 VALUES
     (
-        "MD:matsGui:cb-ceiling:{vxMODEL}:COMMON:V01",
-        { "id": "MD:matsGui:cb-ceiling:{vxMODEL}:COMMON:V01",
+        "MD:matsGui:{{vxAPP}}:{{vxMODEL}}:COMMON:V01",
+        { "id": "MD:matsGui:{{vxAPP}}:{{vxMODEL}}:COMMON:V01",
         "type": "MD",
         "docType": "matsGui",
-        "app": "cb-ceiling",
-        "model": "{vxMODEL}",
+        "app": "{{vxAPP}}",
+        "model": "{{vxMODEL}}",
         "subset": "COMMON",
         "version": "V01",
-        "displayText": "{vxMODEL}",
+        "displayText": "{{vxMODEL}}",
         "displayCategory": 1,
         "displayOrder": 1,
         "mindate": "1",

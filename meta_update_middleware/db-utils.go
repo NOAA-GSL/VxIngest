@@ -89,7 +89,7 @@ func printQueryResult(queryResult *gocb.QueryResult) {
 
 func printStringArray(in []string) {
 	for i := 0; i < len(in); i++ {
-		fmt.Println(in[i])
+		log.Println(fmt.Sprintf("%d\t%v", i, in[i]))
 	}
 }
 

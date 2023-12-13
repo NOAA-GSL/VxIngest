@@ -127,17 +127,3 @@ func getDistinctThresholds(conn CbConnection, dataset string, app string, doctyp
 	result := queryWithSQLString(conn.Scope, tmplSQL)
 	return result
 }
-
-func testGetCTCCount(conn CbConnection) {
-	log.Println("testGetCTCCount()")
-
-	fileContent, err := os.ReadFile("sqls/getCTCCount.sql")
-	if err != nil {
-		log.Fatal(err)
-	}
-	tmplSQL := string(fileContent)
-	tmplSQL = strings.Replace(tmplSQL, "{{vxDBTARGET}}", conn.vxDBTARGET, -1)
-	log.Println(tmplSQL)
-
-	queryWithSQLStringTest(conn.Scope, tmplSQL)
-}

@@ -97,7 +97,8 @@ func main() {
 
 	conn.Scope = conn.Bucket.Scope(conf.Private.Databases[0].Scope)
 
-	testGetCTCCount(conn)
+	testGetSingleCTC(conn)
+	// testGetCTCCount(conn)
 
 	/*
 		for ds := 0; ds < len(conf.Datasets); ds++ {

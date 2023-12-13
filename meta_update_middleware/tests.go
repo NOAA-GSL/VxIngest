@@ -43,6 +43,7 @@ func testGetSingleCTC(conn CbConnection) {
 }
 
 func queryWithSQLStringTest(scope *gocb.Scope, text string) {
+	log.Println("queryWithSQLStringTest()")
 
 	queryResult, err := scope.Query(
 		fmt.Sprintf(text),

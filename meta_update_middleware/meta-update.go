@@ -97,21 +97,19 @@ func main() {
 
 	conn.Scope = conn.Bucket.Scope(conf.Private.Databases[0].Scope)
 
-	testGetSingleCTC(conn)
+	// testGetSingleCTC(conn)
 	// testGetCTCCount(conn)
 
-	/*
-		for ds := 0; ds < len(conf.Datasets); ds++ {
-			for dt := 0; dt < len(conf.Datasets[ds].DocType); dt++ {
-				log.Println("Dataset:" + conf.Datasets[ds].Name + ",DocType:" + conf.Datasets[ds].DocType[dt])
-				updateMedataForDatasetDocType(conn, conf.Datasets[ds].Name, conf.Datasets[ds].App, conf.Datasets[ds].DocType[dt], conf.Datasets[ds].SubDocType)
-				// TODO - remove break for after testing
-				break
-			}
+	for ds := 0; ds < len(conf.Datasets); ds++ {
+		for dt := 0; dt < len(conf.Datasets[ds].DocType); dt++ {
+			log.Println("Dataset:" + conf.Datasets[ds].Name + ",DocType:" + conf.Datasets[ds].DocType[dt])
+			updateMedataForDatasetDocType(conn, conf.Datasets[ds].Name, conf.Datasets[ds].App, conf.Datasets[ds].DocType[dt], conf.Datasets[ds].SubDocType)
 			// TODO - remove break for after testing
 			break
 		}
-	*/
+		// TODO - remove break for after testing
+		break
+	}
 }
 
 func updateMedataForDatasetDocType(conn CbConnection, dataset string, app string, doctype string, subDocType string) {
@@ -132,7 +130,7 @@ func updateMedataForDatasetDocType(conn CbConnection, dataset string, app string
 	// models_with_metatada_but_no_data = append(models_with_metatada_but_no_data, "RAP_OOPS_130")
 
 	// remove metadata for models with no data
-	// removeMetadataForModelsWithNoData(conn, dataset, app, doctype, subDocType, models_with_metatada_but_no_data)
+	removeMetadataForModelsWithNoData(conn, dataset, app, doctype, subDocType, models_with_metatada_but_no_data)
 
 	// get models with existing metadada
 	models_with_existing_metadata := getModelsWithExistingMetadata(conn, dataset, app, doctype, subDocType)
@@ -144,16 +142,14 @@ func updateMedataForDatasetDocType(conn CbConnection, dataset string, app string
 		contains := slices.Contains(models_with_existing_metadata, models[i])
 		log.Println(fmt.Printf("contains:%t\n", contains))
 		if !contains {
-			// initializeMetadataForModel(conn, dataset, app, doctype, subDocType, models[i])
+			initializeMetadataForModel(conn, dataset, app, doctype, subDocType, models[i])
 		}
 	}
 
-	/*
-		for i := 0; i < len(models); i++ {
-			thresholds := getDistinctThresholds(conn, dataset, app, doctype, subDocType, models[i])
-			log.Println(thresholds)
-		}
-	*/
+	for i := 0; i < len(models); i++ {
+		thresholds := getDistinctThresholds(conn, dataset, app, doctype, subDocType, models[i])
+		log.Println(thresholds)
+	}
 
 	/*
 		// get a sorted list of all the models

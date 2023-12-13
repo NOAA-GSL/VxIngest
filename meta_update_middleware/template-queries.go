@@ -109,3 +109,35 @@ func initializeMetadataForModel(conn CbConnection, dataset string, app string, d
 		printQueryResult(queryResult)
 	}
 }
+
+func getDistinctThresholds(conn CbConnection, dataset string, app string, doctype string, subDocType string, model string) (jsonOut []string) {
+	log.Println("getDistinctThresholds(" + dataset + "," + app + "," + doctype + "," + subDocType + "," + model + ")")
+
+	fileContent, err := os.ReadFile("sqls/getDistinctThresholds.sql")
+	if err != nil {
+		log.Fatal(err)
+	}
+	tmplSQL := string(fileContent)
+	tmplSQL = strings.Replace(tmplSQL, "{{vxDBTARGET}}", conn.vxDBTARGET, -1)
+	tmplSQL = strings.Replace(tmplSQL, "{{vxDOCTYPE}}", doctype, -1)
+	tmplSQL = strings.Replace(tmplSQL, "{{vxSUBDOCTYPE}}", subDocType, -1)
+	tmplSQL = strings.Replace(tmplSQL, "{{vxMODEL}}", model, -1)
+	log.Println(tmplSQL)
+
+	result := queryWithSQLString(conn.Scope, tmplSQL)
+	return result
+}
+
+func testGetCTCCount(conn CbConnection) {
+	log.Println("testGetCTCCount()")
+
+	fileContent, err := os.ReadFile("sqls/getCTCCount.sql")
+	if err != nil {
+		log.Fatal(err)
+	}
+	tmplSQL := string(fileContent)
+	tmplSQL = strings.Replace(tmplSQL, "{{vxDBTARGET}}", conn.vxDBTARGET, -1)
+	log.Println(tmplSQL)
+
+	queryWithSQLStringTest(conn.Scope, tmplSQL)
+}

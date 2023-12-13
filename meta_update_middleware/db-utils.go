@@ -28,6 +28,57 @@ func queryWithSQLFile(scope *gocb.Scope, file string) (jsonOut []string) {
 	return queryWithSQLString(scope, text)
 }
 
+func queryWithSQLStringTest(scope *gocb.Scope, text string) {
+
+	queryResult, err := scope.Query(
+		fmt.Sprintf(text),
+		&gocb.QueryOptions{Adhoc: true},
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Interfaces for handling streaming return values
+	rows := make([]interface{}, 0)
+
+	for queryResult.Next() {
+		var row interface{}
+		err := queryResult.Row(&row)
+		if err != nil {
+			log.Fatal(err)
+		}
+		m := row.(map[string]interface{})
+		rows = append(rows, m)
+		fmt.Println(rows)
+	}
+	for i := 0; i < len(rows); i++ {
+		m := rows[i].(map[string]interface{})
+		walkJsonMap(m)
+	}
+}
+
+func walkJsonMap(val map[string]interface{}) {
+	for k, v := range val {
+		switch vv := v.(type) {
+		case string:
+			fmt.Println(k, "is string", vv)
+		case float64:
+			fmt.Println(k, "is float64", vv)
+		case []interface{}:
+			fmt.Println(k, "is an array:")
+			for i, u := range vv {
+				fmt.Println(i, u)
+			}
+		case map[string]interface{}:
+			fmt.Println(k, "is of a type map")
+			m := v.(map[string]interface{})
+			walkJsonMap(m)
+		default:
+			fmt.Println(k, "is of a type I don't know how to handle")
+		}
+	}
+}
+
 func queryWithSQLString(scope *gocb.Scope, text string) (jsonOut []string) {
 
 	queryResult, err := scope.Query(
@@ -89,7 +140,7 @@ func printQueryResult(queryResult *gocb.QueryResult) {
 
 func printStringArray(in []string) {
 	for i := 0; i < len(in); i++ {
-		log.Println(fmt.Sprintf("%d\t%v", i, in[i]))
+		fmt.Println(in[i])
 	}
 }
 

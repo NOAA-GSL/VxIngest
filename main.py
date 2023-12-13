@@ -8,7 +8,7 @@ import shutil
 import sys
 import tarfile
 from datetime import datetime, timedelta
-from multiprocessing import Queue
+from multiprocessing import Queue, set_start_method
 from pathlib import Path
 from typing import Callable, Optional, TypedDict
 
@@ -484,6 +484,10 @@ def process_jobs(
 
 def run_ingest() -> None:
     """entrypoint"""
+    # Force new processes to start with a clean environment
+    # "fork" is the default on Linux and can be unsafe
+    set_start_method("spawn")
+
     args = process_cli()
 
     # Setup logging for the main process so we can use the "logger"

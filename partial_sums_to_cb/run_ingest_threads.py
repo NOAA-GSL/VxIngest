@@ -70,7 +70,7 @@ import os
 import sys
 import time
 from datetime import datetime, timedelta
-from multiprocessing import JoinableQueue, Queue
+from multiprocessing import JoinableQueue, Queue, set_start_method
 from pathlib import Path
 from typing import Callable
 
@@ -256,6 +256,10 @@ class VXIngest(CommonVxIngest):
         """
         This is the entry for run_ingest_threads
         """
+        # Force new processes to start with a clean environment
+        # "fork" is the default on Linux and can be unsafe
+        set_start_method("spawn")
+
         # Setup logging for the main process so we can use the "logger"
         log_queue = Queue()
         runtime = datetime.now()

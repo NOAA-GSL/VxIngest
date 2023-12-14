@@ -24,12 +24,12 @@ VxIngest is containerized for deployment. If you are developing the application,
 You will first need to build the docker container with the following:
 
 ```bash
-$ docker build \
+docker build \
     --build-arg BUILDVER=dev \
     --build-arg COMMITBRANCH=$(git branch --show-current) \
     --build-arg COMMITSHA=$(git rev-parse HEAD) \
-    --target=prod \
-    -t vxingest/development/:dev \
+    -f ./docker/ingest/Dockerfile \
+    -t vxingest:dev \
     .
 ```
 
@@ -49,26 +49,16 @@ cb_collection: "METAR"
 Once that's in place, you can run the ingest with Docker Compose like the example below. Note the `public` and `data` env variables respectively point to where the input data resides and where you'd like the container to write out to. They are the only part of the command you would need to modify.
 
 ```bash
-$ data=/data-ingest/data \
+data=/data-ingest/data \
     public=/public \
-    docker compose run ingest python -m ingest \
-    -c /run/secrets/CREDENTIALS_FILE \
-    -o /opt/data/test/outdir \
-    -l /opt/data/test/logs \
-    -m /opt/data/test/metrics \
-    -x /opt/data/test/xfer"
+    docker compose run ingest
 ```
 
 You can run the "import" via Docker Compose like this example. You will need to use the same value for `data` as you used for the "ingest".
 
 ```bash
-$ data=/data-ingest/data \
-    docker compose run import python -m ingest \
-    -c /run/secrets/CREDENTIALS_FILE \
-    -o /opt/data/test/outdir \
-    -l /opt/data/test/logs \
-    -m /opt/data/test/metrics \
-    -x /opt/data/test/xfer"
+data=/data-ingest/data \
+    docker compose run import
 ```
 
 ## Diagrams

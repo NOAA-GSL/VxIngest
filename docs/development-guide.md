@@ -28,6 +28,7 @@ cb_collection: "METAR"
 ```
 
 To run locally:
+
 ```bash
 mkdir tmp/output
 poetry install
@@ -83,29 +84,89 @@ CREDENTIALS=config.yaml
 
 ### Container Build
 
+Be aware there are different Dockerfiles in this repo - one for each service. This lets us keep our container images small and targeted to just the application that needs to be run.
+
+#### Ingest
+
 You can build the docker container with the following:
 
 ```bash
-$ docker build \
+docker build \
     --build-arg BUILDVER=dev \
     --build-arg COMMITBRANCH=$(git branch --show-current) \
     --build-arg COMMITSHA=$(git rev-parse HEAD) \
-    --target=prod \
-    -t vxingest/development/:dev \
+    -f ./docker/ingest/Dockerfile \
+    -t vxingest/ingest:dev \
     .
 ```
 
-And run it like the below. Note the `data` and `public` env variables point to where the input data resides and where you'd like the container to write out to. These are currently (12/2023) mounted to `/opt/data` inside the container.
+And run it via Docker Compose with the below. Note the `data` and `public` env variables point to where the input data resides and where you'd like the container to write out to. These are currently (12/2023) mounted to `/opt/data` inside the container.
 
 ```bash
-$ data=/data-ingest/data \
+data=/data-ingest/data \
     public=/public \
-    docker compose run ingest python -m ingest \
-    -c /run/secrets/CREDENTIALS_FILE \
-    -o /opt/data/test/outdir \
-    -l /opt/data/test/logs \
-    -m /opt/data/test/metrics \
-    -x /opt/data/test/xfer"
+    docker compose run ingest 
+```
+
+Otherwise, note there are a number of targets in the Dockerfile. You can use the `--target=dev` flag to build a dev version. If you do so, and want to run tests, you'll need to update the `src` mount path below to where your test data is. If you're using Rancher Desktop, the data will need to be somewhere in your home directory in order to mount it in the container. You can run the container directly like so.
+
+```bash
+docker build \
+    --target=dev
+    -f ./docker/ingest/Dockerfile \
+    -t vxingest/ingest:test \
+    .
+docker run \
+    --rm \
+    --mount type=bind,src=$(pwd)/tmp/test-data/opt/data,dst=/opt/data \
+    -it \
+    vxingest/ingest:test \
+    bash
+CREDENTIALS=config.yaml poetry run pytest tests
+```
+
+Or to build & run the prod version of the image, you can do the following to build:
+
+```bash
+docker build \
+    -f ./docker/ingest/Dockerfile \
+    -t vxingest/ingest:prod \
+    .
+```
+
+And the following to run. Note that we're mounting the two things into the container - the directory we want to write output to (`$HOME/output`, mounted to `/opt/data`) and the credentials file we want to use `$(pwd)/config.yaml`. These both are relatively flexible. However, if you're running the NetCDF or the GRIB ingest you will also need to mount a directory containing those files on your local computer to the location specified in the import job doc in the database in the container. (Typically job docs specify `/public`)
+
+```bash
+docker run --rm \
+    --env DEBUG=true \
+    --mount type=bind,src=$HOME/output,dst=/opt/data \
+    --mount type=bind,src=$(pwd)/config.yaml,dst=/app/config.yaml,readonly \
+    vxingest:prod \
+    -m /opt/data/metrics \
+    -o /opt/data/out \
+    -x /opt/data/xfer \
+    -l /opt/data/log \
+    -c /app/config.yaml \
+    -j JOB-TEST:V01:METAR:CTC:CEILING:MODEL:OPS
+```
+
+#### Import
+
+```bash
+docker build \
+    -f docker/import/Dockerfile \
+    --build-arg BUILDVER=dev \
+    --build-arg COMMITBRANCH=$(git branch --show-current) \
+    --build-arg COMMITSHA=$(git rev-parse HEAD) \
+    -t vxingest/import:dev \
+    .
+```
+
+You can run the "import" via Docker Compose like this example. You will need to use the same value for `data` as you used for the "ingest".
+
+```bash
+data=/data-ingest/data \
+    docker compose run import
 ```
 
 ### Docker Compose
@@ -113,16 +174,14 @@ $ data=/data-ingest/data \
 There is currently a Docker Compose file with options to run unit tests and ingest from within the container. This may be a useful option for local development as well.
 
 * `shell`: expects /data and /public for mounting
-* `unit_test`: expects /opt/data for mounting
-* `int_test`: expects /opt/data for mounting
+* `test`: expects /opt/data for mounting
 * `ingest`: expects /data and /public for mounting
 * `import`: expects /data for mounting
 
 And can be run like:
 
 ```bash
-data=/opt/data docker compose run unit_test
-data=/opt/data docker compose run int_test
+data=/opt/data docker compose run test
 ```
 
 ## Notes

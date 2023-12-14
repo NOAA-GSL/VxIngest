@@ -1,11 +1,18 @@
 # Python
 **/.pytest_cache
 **/__pycache__/
+**/.mypy_cache/
+**/.ruff_cache
 .venv/
 venv/
+**/*.pyc
+dist/
 
 # Env
 **/.env
+
+# Project files
+tmp/
 
 # VIM swap files
 **/*.swp
@@ -14,3 +21,6 @@ venv/
 .git
 .history
 .vscode
+
+# Mac
+**/.DS_Store

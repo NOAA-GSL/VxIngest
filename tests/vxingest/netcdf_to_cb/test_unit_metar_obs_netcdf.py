@@ -59,6 +59,7 @@ def test_cb_connect_disconnect():
     finally:
         vx_ingest.close_cb()
 
+
 def test_write_load_job_to_files():
     """test write the load job"""
     try:
@@ -83,7 +84,9 @@ def test_build_load_job_doc():
         vx_ingest.path = "/tmp"
         vx_ingest.load_spec["load_job_doc"] = {"test": "a line of text"}
         ljd = vx_ingest.build_load_job_doc(vx_ingest.path)
-        assert ljd["id"].startswith("LJ:METAR:vxingest.netcdf_to_cb.run_ingest_threads:VXIngest")
+        assert ljd["id"].startswith(
+            "LJ:METAR:vxingest.netcdf_to_cb.run_ingest_threads:VXIngest"
+        )
     except Exception as _e:  # pylint:disable=broad-except
         assert False, f"test_build_load_job_doc Exception failure: {_e}"
     finally:
@@ -295,12 +298,14 @@ def test_interpolate_time_iso():
             t_interpolated = _builder.interpolate_time_iso({"timeObs": _t})
             if delta >= -1800 and delta <= 1799:
                 assert (
-                    datetime.utcfromtimestamp(1636390800).isoformat()
-                ) == t_interpolated, f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
+                    (datetime.utcfromtimestamp(1636390800).isoformat())
+                    == t_interpolated
+                ), f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
             if delta <= -1801:
                 assert (
-                    datetime.utcfromtimestamp(1636390800 - 3600).isoformat()
-                ) == t_interpolated, f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
+                    (datetime.utcfromtimestamp(1636390800 - 3600).isoformat())
+                    == t_interpolated
+                ), f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
             if delta >= 1800:
                 assert (
                     datetime.utcfromtimestamp(1636390800 + 3600).isoformat()
@@ -342,9 +347,7 @@ def test_handle_station():
         for i in range(rec_num_length):
             if (
                 str(
-                    nc.chartostring(
-                        _builder.ncdf_data_set["stationName"][i]
-                    )  # pylint: disable=no-member
+                    nc.chartostring(_builder.ncdf_data_set["stationName"][i])  # pylint: disable=no-member
                 )  # pylint: disable=no-member
                 == "ZBAA"
             ):  # pylint:disable=no-member

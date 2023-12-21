@@ -81,6 +81,7 @@ from vxingest.partial_sums_to_cb.vx_ingest_manager import VxIngestManager
 # Get a logger with this module's name to help with debugging
 logger = logging.getLogger(__name__)
 
+
 def parse_args(args):
     """
     Parse command line arguments
@@ -183,28 +184,34 @@ class VXIngest(CommonVxIngest):
         # stash the first_last_params into the load spec
         self.load_spec["first_last_params"] = self.first_last_params
         logger.info(
-                "*** Using first_last_params: %s ***",
-                str(self.load_spec["first_last_params"])
-            )
+            "*** Using first_last_params: %s ***",
+            str(self.load_spec["first_last_params"]),
+        )
         try:
             # put the real credentials into the load_spec
             self.cb_credentials = self.get_credentials(self.load_spec)
-            #establish connections to cb, collection
+            # establish connections to cb, collection
             self.connect_cb()
-            bucket = self.load_spec['cb_connection']['bucket']
-            scope = self.load_spec['cb_connection']['scope']
-            collection = self.load_spec['cb_connection']['collection']
+            bucket = self.load_spec["cb_connection"]["bucket"]
+            scope = self.load_spec["cb_connection"]["scope"]
+            collection = self.load_spec["cb_connection"]["collection"]
 
             # load the ingest document ids into the load_spec (this might be redundant)
-            stmnt=f"Select ingest_document_ids from `{bucket}`.{scope}.{collection} where meta().id = \"{self.job_document_id}\""
+            stmnt = f'Select ingest_document_ids from `{bucket}`.{scope}.{collection} where meta().id = "{self.job_document_id}"'
             result = self.cluster.query(stmnt)
-            self.load_spec['ingest_document_ids'] = list(result)[0]["ingest_document_ids"]
+            self.load_spec["ingest_document_ids"] = list(result)[0][
+                "ingest_document_ids"
+            ]
             # put all the ingest documents into the load_spec too
             self.load_spec["ingest_documents"] = {}
             for _id in self.load_spec["ingest_document_ids"]:
-                self.load_spec["ingest_documents"][_id]= self.collection.get(_id).content_as[dict]
-            #stash the load_job in the load_spec
-            self.load_spec["load_job_doc"] = self.build_load_job_doc("partial_sums_surface")
+                self.load_spec["ingest_documents"][_id] = self.collection.get(
+                    _id
+                ).content_as[dict]
+            # stash the load_job in the load_spec
+            self.load_spec["load_job_doc"] = self.build_load_job_doc(
+                "partial_sums_surface"
+            )
         except (RuntimeError, TypeError, NameError, KeyError):
             logger.error(
                 "*** Error occurred in Main reading load_spec: %s ***",
@@ -222,18 +229,20 @@ class VXIngest(CommonVxIngest):
         # thread that uses builders to process a file
         # Make the Pool of data_type_managers
         ingest_manager_list = []
-        logger.info(f"The ingest documents in the queue are: {self.load_spec['ingest_document_ids']}")
+        logger.info(
+            f"The ingest documents in the queue are: {self.load_spec['ingest_document_ids']}"
+        )
         logger.info(f"Starting {self.thread_count} processes")
         for thread_count in range(int(self.thread_count)):
             # noinspection PyBroadException
             try:
                 ingest_manager_thread = VxIngestManager(
-                    f"VxIngestManager-{thread_count+1}", # Processes are 1 indexed in the logger
+                    f"VxIngestManager-{thread_count+1}",  # Processes are 1 indexed in the logger
                     self.load_spec,
                     _q,
                     self.output_dir,
-                    log_queue, # Queue to pass logging messages back to the main process on
-                    log_configurer, # Config function to set up the logger in the multiprocess Process
+                    log_queue,  # Queue to pass logging messages back to the main process on
+                    log_configurer,  # Config function to set up the logger in the multiprocess Process
                 )
                 ingest_manager_list.append(ingest_manager_thread)
                 ingest_manager_thread.start()
@@ -274,7 +283,7 @@ class VXIngest(CommonVxIngest):
             # Tell the logging thread to finish up, too
             log_queue_listener.stop()
             sys.exit(0)
-        except Exception as _e: # pylint:disable=broad-except
+        except Exception as _e:  # pylint:disable=broad-except
             logger.info("*** FINISHED with exception %s***", str(_e))
             # Tell the logging thread to finish up, too
             log_queue_listener.stop()

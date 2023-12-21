@@ -37,6 +37,7 @@ from couchbase.options import ClusterOptions, ClusterTimeoutOptions
 # Get a logger with this module's name to help with debugging
 logger = logging.getLogger(__name__)
 
+
 class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-instance-attributes
     """
     Parent class for all VxIngest.
@@ -136,23 +137,31 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
         # get a reference to our cluster
         # noinspection PyBroadException
         try:
-
-            timeout_options=ClusterTimeoutOptions(kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120))
-            options=ClusterOptions(PasswordAuthenticator(self.cb_credentials["user"], self.cb_credentials["password"]), timeout_options=timeout_options)
+            timeout_options = ClusterTimeoutOptions(
+                kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
+            )
+            options = ClusterOptions(
+                PasswordAuthenticator(
+                    self.cb_credentials["user"], self.cb_credentials["password"]
+                ),
+                timeout_options=timeout_options,
+            )
             self.cluster = Cluster(
                 "couchbase://" + self.cb_credentials["host"], options
             )
-            self.collection = (
-                self.cluster
-                .bucket(self.cb_credentials["bucket"])
-                .collection(self.cb_credentials["collection"])
-            )
+            self.collection = self.cluster.bucket(
+                self.cb_credentials["bucket"]
+            ).collection(self.cb_credentials["collection"])
             # stash the credentials for the VxIngestManager - see NOTE at the top of this file.
             self.load_spec["cb_credentials"] = self.cb_credentials
             logger.info("%s: Couchbase connection success")
         except Exception as _e:  # pylint:disable=broad-except
-            logger.exception("*** builder_common.CommonVxIngest Error in connect_cb *** %s", str(_e))
-            sys.exit("*** builder_common.CommonVxIngest Error when connecting to cb database: ")
+            logger.exception(
+                "*** builder_common.CommonVxIngest Error in connect_cb *** %s", str(_e)
+            )
+            sys.exit(
+                "*** builder_common.CommonVxIngest Error when connecting to cb database: "
+            )
 
     def get_file_list(self, df_query, directory, file_pattern):
         """This method accepts a file path (directory), a query statement (df_query),

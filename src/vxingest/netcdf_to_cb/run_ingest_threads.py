@@ -155,8 +155,6 @@ class VXIngest(CommonVxIngest):
         self.ingest_document = None
         super().__init__()
 
-
-
     def runit(self, args, log_queue: Queue, log_configurer: Callable[[Queue], None]):  # pylint:disable=too-many-locals
         """
         This is the entry point for run_ingest_threads.py
@@ -243,8 +241,8 @@ class VXIngest(CommonVxIngest):
                     self.load_spec,
                     _q,
                     self.output_dir,
-                    log_queue, # Queue to pass logging messages back to the main process on
-                    log_configurer, # Config function to set up the logger in the multiprocess Process
+                    log_queue,  # Queue to pass logging messages back to the main process on
+                    log_configurer,  # Config function to set up the logger in the multiprocess Process
                 )
                 ingest_manager_list.append(ingest_manager_thread)
                 ingest_manager_thread.start()

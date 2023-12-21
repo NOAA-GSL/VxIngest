@@ -33,22 +33,16 @@ class Builder:  # pylint: disable=too-many-arguments disable=too-many-instance-a
     def derive_id(self, **kwargs):  # pylint: disable=missing-function-docstring
         pass
 
-    def load_data(
-        self, doc, key, element
-    ):  # pylint: disable=missing-function-docstring
+    def load_data(self, doc, key, element):  # pylint: disable=missing-function-docstring
         pass
 
     def handle_document(self):  # pylint: disable=missing-function-docstring
         pass
 
-    def build_document(
-        self, queue_element
-    ):  # pylint: disable=missing-function-docstring
+    def build_document(self, queue_element):  # pylint: disable=missing-function-docstring
         pass
 
-    def build_datafile_doc(
-        self, file_name, data_file_id, origin_type
-    ):  # pylint: disable=missing-function-docstring
+    def build_datafile_doc(self, file_name, data_file_id, origin_type):  # pylint: disable=missing-function-docstring
         pass
 
     def create_data_file_id(self, subset, file_type, origin_type, file_name):

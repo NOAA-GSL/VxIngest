@@ -42,9 +42,7 @@ from vxingest.ctc_to_cb import ctc_builder as my_builder
 logger = logging.getLogger(__name__)
 
 
-class VxIngestManager(
-    CommonVxIngestManager
-):  # pylint:disable=too-many-instance-attributes
+class VxIngestManager(CommonVxIngestManager):  # pylint:disable=too-many-instance-attributes
     """
     IngestManager is a Process Thread that manages an object pool of
     builders to ingest data from GSD couchbase documents, producing new documents

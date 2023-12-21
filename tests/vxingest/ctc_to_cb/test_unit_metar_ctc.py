@@ -94,7 +94,9 @@ def test_build_load_job_doc():
         vx_ingest.path = "/tmp"
         vx_ingest.load_spec["load_job_doc"] = {"test": "a line of text"}
         ljd = vx_ingest.build_load_job_doc("ctc")
-        assert ljd["id"].startswith(
+        assert ljd[
+            "id"
+        ].startswith(
             "LJ:METAR:vxingest.ctc_to_cb.run_ingest_threads:VXIngest"
         ), f"load_job ID is wrong: {ljd['id']} does not start with 'LJ:METAR:ctc_to_cb.run_ingest_threads:VXIngest'"
     except Exception as _e:  # pylint:disable=broad-except

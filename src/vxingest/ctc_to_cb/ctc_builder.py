@@ -108,12 +108,8 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
         self.sub_doc_type = None
         self.variable = None
         self.model_fcst_valid_epochs = []
-        self.model_data = (
-            {}
-        )  # used to stash each fcstValidEpoch model_data for the handlers
-        self.obs_data = (
-            {}
-        )  # used to stash each fcstValidEpoch obs_data for the handlers
+        self.model_data = {}  # used to stash each fcstValidEpoch model_data for the handlers
+        self.obs_data = {}  # used to stash each fcstValidEpoch obs_data for the handlers
         self.obs_station_names = []  # used to stash sorted obs names for the handlers
         self.thresholds = None
         self.not_found_stations = set()
@@ -491,10 +487,16 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                     time.sleep(2)  # don't hammer the server too hard
                     error_count = error_count + 1
             # initial value for the max epoch
-            max_ctc_fcst_valid_epochs = self.load_spec["first_last_params"]["first_epoch"]
+            max_ctc_fcst_valid_epochs = self.load_spec["first_last_params"][
+                "first_epoch"
+            ]
             max_ctc_fcst_valid_epochs_result = list(result)
             # if there are ctc's for this model and region then get the max epoch from the query
-            max_ctc_fcst_valid_epochs = max_ctc_fcst_valid_epochs_result[0] if max_ctc_fcst_valid_epochs_result[0] is not None  else 0
+            max_ctc_fcst_valid_epochs = (
+                max_ctc_fcst_valid_epochs_result[0]
+                if max_ctc_fcst_valid_epochs_result[0] is not None
+                else 0
+            )
 
             # Second get the intersection of the fcstValidEpochs that correspond for this
             # model and the obs for all fcstValidEpochs greater than the first_epoch ctc
@@ -600,9 +602,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
             )
             return {}
 
-    def get_stations_for_region_by_geosearch(
-        self, region_name, valid_epoch
-    ):  # pylint: disable=unused-argument
+    def get_stations_for_region_by_geosearch(self, region_name, valid_epoch):  # pylint: disable=unused-argument
         # NOTE: this is currently broken because we have to modify this query to
         # work woth the data model that has data elements as a MAP indexed by station name
         """Using a geosearh return all the stations within the defined region

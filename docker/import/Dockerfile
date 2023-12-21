@@ -31,8 +31,8 @@ RUN groupadd --gid ${ID} amb-verif && \
 WORKDIR /app
 
 # Copy the scripts and metadata dirs so the import script can run
-COPY ./scripts/ /app/
-COPY ./mats_metadata_and_indexes /app/
+COPY ./scripts /app/scripts
+COPY ./mats_metadata_and_indexes /app/mats_metadata_and_indexes
 
 # TODO - install the cbtools directly and remove from the git repo
 # See: https://docs.couchbase.com/cloud/reference/command-line-tools.html#download-and-install-the-couchbase-command-line-tools

@@ -80,8 +80,8 @@ class LoadBackupIngestDocs:
                 data[_id] = elem
             self.connect_cb()
             self.collection.upsert_multi(data)
-        except:
-            print(": *** %s Error in multi-upsert *** " + str(sys.exc_info()))
+        except Exception as e:
+            print(f" *** Error in multi-upsert *** {e}")
         finally:
             # close any mysql connections
             self.close_cb()
@@ -105,8 +105,8 @@ class LoadBackupIngestDocs:
                 "couchbase://" + self.cb_credentials["host"], options
             )
             self.collection = self.cluster.bucket("mdata").default_collection()
-        except:
-            print("*** %s in connect_cb ***" + str(sys.exc_info()))
+        except Exception as e:
+            print(f"*** Error in connect_cb *** {e}")
             sys.exit("*** Error when connecting to mysql database: ")
 
     def main(self):

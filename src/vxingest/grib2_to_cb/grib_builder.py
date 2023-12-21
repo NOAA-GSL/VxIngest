@@ -171,10 +171,9 @@ class GribModelBuilderV01(GribBuilder):
                 "Cloud ceiling"
             ].values
             ceil_msl_values = []
-            # print('fcst_valid_epoch',self.ds_translate_item_variables_map["fcst_valid_epoch"])
-            for station in (
-                self.domain_stations
-            ):  # get the initial surface values and ceil_msl values for each station
+
+            # get the initial surface values and ceil_msl values for each station
+            for station in self.domain_stations:
                 geo_index = get_geo_index(
                     self.ds_translate_item_variables_map["fcst_valid_epoch"],
                     station["geo"],
@@ -189,33 +188,23 @@ class GribModelBuilderV01(GribBuilder):
                     ceil_msl_values.append(60000)
                 else:
                     ceil_msl_values.append(ceil_var_values[y_gridpoint, x_gridpoint])
+
             ceil_agl = []
-            i = 0
-            for (
-                station
-            ) in self.domain_stations:  # determine the ceil_agl values for each station
-                if ceil_msl_values[i] == 60000:
+            # determine the ceil_agl values for each station
+            for i, _station in enumerate(self.domain_stations):
+                ceil_msl = ceil_msl_values[i]
+                surface = surface_values[i]
+
+                if ceil_msl == 60000 or ceil_msl < -1000 or ceil_msl > 1e10:
                     ceil_agl.append(60000)
+                elif ceil_msl is None or surface is None:
+                    ceil_agl.append(None)
+                # handle weird '-1's in the grib files??? (from legacy code)
+                elif ceil_msl < 0:
+                    ceil_agl.append(0)
                 else:
-                    if ceil_msl_values[i] is None or surface_values[i] is None:
-                        ceil_agl.append(None)
-                    else:
-                        if ceil_msl_values[i] < -1000 or ceil_msl_values[i] > 1e10:
-                            ceil_agl.append(60000)
-                        else:
-                            if ceil_msl_values[i] < 0:
-                                # weird '-1's in the grib files??? (from legacy code)
-                                ceil_agl.append(0)
-                            else:
-                                tmp_ceil = (
-                                    ceil_msl_values[i] - surface_values[i]
-                                ) * 3.281
-                                if tmp_ceil < 0:
-                                    ceil_agl.append(0)
-                                else:
-                                    ceil_agl.append(tmp_ceil)
-                # print (station["geo"][0]['x_gridpoint'],station["geo"][0]['y_gridpoint'],round(ceil_msl_values[i],3), round(surface_values[i],3), round(ceil_agl[i],3))
-                i = i + 1
+                    tmp_ceil = (ceil_msl - surface) * 3.281  # m -> ft
+                    ceil_agl.append(0 if tmp_ceil < 0 else tmp_ceil)
             return ceil_agl
         except Exception as _e:
             logger.error(

@@ -557,7 +557,7 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
                 ):
                     return 60000
             # nothing was unmasked - return 60000 if there is a ceiling value in skycover array
-            for index, sca_val in enumerate(skyCover_array):
+            for sca_val in skyCover_array:
                 if (
                     mCLR.match(sca_val)
                     or mSKC.match(sca_val)
@@ -869,10 +869,12 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
             lon = truncate_round(float(netcdf["longitude"]), 5)
             station = None
             station_index = None
-            for station_index, a_station in enumerate(self.stations):
+            for idx, a_station in enumerate(self.stations):
                 if a_station["name"] == station_name:
                     station = a_station
+                    station_index = idx
                     break
+
             if station is None:
                 # get the netcdf fields for comparing or adding new
                 an_id = "MD:V01:METAR:station:" + netcdf["name"]

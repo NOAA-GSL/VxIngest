@@ -344,12 +344,7 @@ def test_handle_station():
         rec_num_length = _builder.ncdf_data_set["stationName"].shape[0]
         # find the rec_num of the stationName ZBAA
         for i in range(rec_num_length):
-            if (
-                str(
-                    nc.chartostring(_builder.ncdf_data_set["stationName"][i])
-                )
-                == "ZBAA"
-            ):
+            if str(nc.chartostring(_builder.ncdf_data_set["stationName"][i])) == "ZBAA":
                 break
         _rec_num = i
         # use a station that is in the netcdf file but is not used in any of our domains.

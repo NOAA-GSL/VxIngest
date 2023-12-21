@@ -147,7 +147,7 @@ def test_get_stations_geo_search():
         )
         for row in result:
             # use the builder geosearch to get the station list - just use current epoch
-            stations = sorted( 
+            stations = sorted(
                 # builder.get_stations_for_region_by_geosearch(row["name"],round(time.time()))
                 builder.get_stations_for_region_by_sort(row["name"], round(time.time()))
             )
@@ -229,7 +229,7 @@ def calculate_cb_ctc(
         builder.get_stations_for_region_by_sort(region, epoch)
     )
     obs_id = f"DD:V01:{subset}:obs:{epoch}"
-    stations = sorted( 
+    stations = sorted(
         [station for station in legacy_stations if station not in reject_stations]
     )
     model_id = f"DD:V01:{subset}:{model}:{epoch}:{fcst_len}"
@@ -239,7 +239,7 @@ def calculate_cb_ctc(
     except:
         time.sleep(0.25)
         full_model_data = load_spec["collection"].get(model_id).content_as[dict]
-    cb_model_obs_data = [] 
+    cb_model_obs_data = []
     try:
         full_obs_data = load_spec["collection"].get(obs_id).content_as[dict]
     except:
@@ -308,7 +308,7 @@ def test_ctc_builder_ceiling_hrrr_ops_all_hrrr():
     It calculates the CTC using couchbase data for input.
     Then the couchbase CTC fcstValidEpochs are compared and asserted against the derived CTC.
     """
-    
+
     global cb_model_obs_data
     global stations
 
@@ -409,7 +409,7 @@ def test_ctc_builder_visibility_hrrr_ops_all_hrrr():
     It calculates the CTC using couchbase data for input.
     Then the couchbase CTC fcstValidEpochs are compared and asserted against the derived CTC.
     """
-    
+
     global cb_model_obs_data
     global stations
 
@@ -502,7 +502,6 @@ def test_ctc_builder_visibility_hrrr_ops_all_hrrr():
 
 
 def test_ctc_ceiling_data_hrrr_ops_all_hrrr():
-    
     """
     This test is a comprehensive test of the ctcBuilder data. It will retrieve CTC documents
     for a specific fcstValidEpoch from couchbase and calculate the CTC's for the same fcstValidEpoch.
@@ -640,7 +639,6 @@ def test_ctc_ceiling_data_hrrr_ops_all_hrrr():
 
 
 def test_ctc_visibiltiy_data_hrrr_ops_all_hrrr():
-    
     """
     This test is a comprehensive test of the ctcBuilder data. It will retrieve CTC documents
     for a specific fcstValidEpoch from couchbase and calculate the CTC's for the same fcstValidEpoch.

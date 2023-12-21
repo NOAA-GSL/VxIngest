@@ -147,7 +147,7 @@ def test_get_stations_geo_search():
         )
         for row in result:
             # use the builder geosearch to get the station list - just use current epoch
-            stations = sorted( 
+            stations = sorted(
                 # builder.get_stations_for_region_by_geosearch(row["name"],round(time.time()))
                 builder.get_stations_for_region_by_sort(row["name"], round(time.time()))
             )
@@ -186,7 +186,7 @@ def test_ps_builder_surface_hrrr_ops_all_hrrr():
     It calculates the Partial using couchbase data for input.
     Then the couchbase SUMS fcstValidEpochs are compared and asserted against the derived SUMS.
     """
-    
+
     global cb_model_obs_data
     global stations
 
@@ -263,7 +263,6 @@ def test_ps_builder_surface_hrrr_ops_all_hrrr():
 
 
 def test_ps_surface_data_hrrr_ops_all_hrrr():
-    
     """
     This test is a comprehensive test of the partialSumsBuilder data. It will retrieve SUMS documents
     for a specific fcstValidEpoch from couchbase and calculate the SUM's for the same fcstValidEpoch.

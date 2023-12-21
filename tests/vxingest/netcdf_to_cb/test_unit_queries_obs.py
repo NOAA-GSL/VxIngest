@@ -12,7 +12,7 @@ def connect_cb():
     """
     create a couchbase connection and maintain the collection and cluster objects.
     """
-    
+
     try:
         try:
             cb_connection

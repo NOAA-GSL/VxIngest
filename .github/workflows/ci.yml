@@ -25,7 +25,7 @@ jobs:
           poetry env use 3.11
           poetry install
       - name: Format with Ruff
-        run: poetry run ruff format --check .
+        run: poetry run ruff format --check src tests
   build-ingest:
     name: Build Ingest image
     runs-on: ubuntu-latest

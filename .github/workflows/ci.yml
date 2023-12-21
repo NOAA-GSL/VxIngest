@@ -26,6 +26,8 @@ jobs:
           poetry install
       - name: Format with Ruff
         run: poetry run ruff format --check src tests
+      - name: Lint with Ruff
+        run: poetry run ruff check --output-format=github src tests
   build-ingest:
     name: Build Ingest image
     runs-on: ubuntu-latest

@@ -3,7 +3,7 @@ Builder - Parent class for all Builders
 """
 
 import logging
-import os
+from pathlib import Path
 
 
 class Builder:
@@ -50,7 +50,7 @@ class Builder:
         This method creates a metar grib_to_cb datafile id from the parameters
         """
         try:
-            base_name = os.path.basename(file_name)
+            base_name = Path(file_name).name
             an_id = f"DF:{subset}:{file_type}:{origin_type}:{base_name}"
             return an_id
         except Exception as _e:

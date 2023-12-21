@@ -8,11 +8,10 @@ Colorado, NOAA/OAR/ESRL/GSL
 
 import copy
 import cProfile
-import glob
 import logging
 import math
-import os
 import sys
+from pathlib import Path
 from pstats import Stats
 
 import pyproj
@@ -455,17 +454,20 @@ class GribBuilder(Builder):
         """
         cfgrib leaves .idx files in the directory - delete the .idx file
         """
-        idx_pattern = queue_element.replace(".grib2", "") + ".*.idx"
-        file_list = glob.glob(idx_pattern)
+        queue_element = Path(queue_element)
+        basepath = queue_element.parent
+        idx_pattern = queue_element.name.replace(".grib2", "") + ".*.idx"
+        file_list = basepath.glob(idx_pattern)
+
         # Iterate over the list of filepaths & remove each file.
-        for file_path in file_list:
+        for file in file_list:
             try:
-                os.remove(file_path)
+                file.unlink()
             except OSError as _e:
                 logger.warning(
                     "%s Builder.build_document Error - cannot delete idx file %s - %s",
                     self.__class__.__name__,
-                    file_path,
+                    file,
                     _e,
                 )
 
@@ -804,7 +806,9 @@ class GribBuilder(Builder):
             if self.do_profiling:
                 with cProfile.Profile() as _pr:
                     self.handle_document()
-                    with open("profiling_stats.txt", "w", encoding="utf-8") as stream:
+                    with Path("profiling_stats.txt").open(
+                        "w", encoding="utf-8"
+                    ) as stream:
                         stats = Stats(_pr, stream=stream)
                         stats.strip_dirs()
                         stats.sort_stats("time")

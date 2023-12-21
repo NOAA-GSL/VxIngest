@@ -12,6 +12,7 @@ import datetime as dt
 import logging
 import re
 import time
+from pathlib import Path
 from pstats import Stats
 
 from couchbase.exceptions import DocumentNotFoundException, TimeoutException
@@ -577,7 +578,9 @@ class CTCBuilder(Builder):
                 with cProfile.Profile() as _pr:
                     # process the fcstValidEpochs with profiling
                     self.handle_fcstValidEpochs()
-                    with open("profiling_stats.txt", "w", encoding="utf-8") as stream:
+                    with Path("profiling_stats.txt").open(
+                        "w", encoding="utf-8"
+                    ) as stream:
                         stats = Stats(_pr, stream=stream)
                         stats.strip_dirs()
                         stats.sort_stats("time")

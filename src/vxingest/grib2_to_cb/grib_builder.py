@@ -9,8 +9,8 @@ Colorado, NOAA/OAR/ESRL/GSL
 import datetime as dt
 import logging
 import math
-import os
 import sys
+from pathlib import Path
 
 import numpy as np
 from vxingest.builder_common.builder_utilities import get_geo_index
@@ -71,7 +71,7 @@ class GribModelBuilderV01(GribBuilder):
         and imported with the other data documents. The VxIngest will query the existing
         dataFile documents to determine if a specific file has already been ingested.
         """
-        mtime = os.path.getmtime(file_name)
+        mtime = Path(file_name).stat().st_mtime
         df_doc = {
             "id": data_file_id,
             "mtime": mtime,

@@ -77,8 +77,8 @@ class CommonVxIngestManager(Process):
         self.logging_queue = logging_queue
         self.logging_configurer = logging_configurer
 
-        if not os.path.exists(self.output_dir):
-            os.makedirs(self.output_dir)
+        if not Path(self.output_dir).exists():
+            Path(self.output_dir).mkdir(parents=True, exist_ok=True)
         if not os.access(self.output_dir, os.W_OK):
             _re = RuntimeError("Output directory: %s is not writable!", self.output_dir)
             logger.exception(_re)
@@ -264,8 +264,8 @@ class CommonVxIngestManager(Process):
             else:
                 Path(self.output_dir).mkdir(parents=True, exist_ok=True)
                 try:
-                    file_name = os.path.basename(file_name) + ".json"
-                    complete_file_name = os.path.join(self.output_dir, file_name)
+                    file_name = Path(file_name).name + ".json"
+                    complete_file_name = Path(self.output_dir) / file_name
                     # how many documents are we writing? Log it for alert
                     num_documents = len(list(document_map.values()))
                     logger.info(
@@ -274,11 +274,10 @@ class CommonVxIngestManager(Process):
                         num_documents,
                         complete_file_name,
                     )
-                    _f = open(complete_file_name, "w", encoding="utf-8")
-                    # we need to write out a list of the values of the _document_map for cbimport
-                    json_data = json.dumps(list(document_map.values()))
-                    _f.write(json_data)
-                    _f.close()
+                    with Path(complete_file_name).open("w", encoding="utf-8") as _f:
+                        # we need to write out a list of the values of the _document_map for cbimport
+                        json_data = json.dumps(list(document_map.values()))
+                        _f.write(json_data)
                 except Exception as _e1:
                     logger.exception(
                         "write_document_to_files - trying write: Got Exception %s",

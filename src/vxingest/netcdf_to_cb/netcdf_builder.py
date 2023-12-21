@@ -12,10 +12,10 @@ import cProfile
 import datetime as dt
 import logging
 import math
-import os
 import re
 import time
 import traceback
+from pathlib import Path
 from pstats import Stats
 
 import netCDF4 as nc
@@ -339,7 +339,7 @@ class NetcdfBuilder(Builder):
             collection = self.load_spec["cb_connection"]["collection"]
 
             # stash the file_name so that it can be used later
-            self.file_name = os.path.basename(queue_element)
+            self.file_name = Path(queue_element).name
 
             self.ncdf_data_set = nc.Dataset(queue_element)
             if len(self.stations) == 0:
@@ -361,7 +361,7 @@ class NetcdfBuilder(Builder):
             if self.do_profiling:
                 with cProfile.Profile() as _pr:
                     self.handle_document()
-                    with open("profiling_stats.txt", "w") as stream:
+                    with Path("profiling_stats.txt").open("w") as stream:
                         stats = Stats(_pr, stream=stream)
                         stats.strip_dirs()
                         stats.sort_stats("time")
@@ -429,7 +429,7 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
         The VxIngest will examine the existing dataFile documents to determine if a psecific file
         has already been ingested.
         """
-        mtime = os.path.getmtime(file_name)
+        mtime = Path(file_name).stat().st_mtime
         df_doc = {
             "id": data_file_id,
             "mtime": mtime,

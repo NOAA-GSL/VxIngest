@@ -44,9 +44,7 @@ from vxingest.grib2_to_cb import grib_builder as my_builder
 logger = logging.getLogger(__name__)
 
 
-class VxIngestManager(
-    CommonVxIngestManager
-):  # pylint:disable=too-many-instance-attributes
+class VxIngestManager(CommonVxIngestManager):  # pylint:disable=too-many-instance-attributes
     """
     IngestManager is a Process Thread that manages an object pool of
     builders to ingest data from GSD grib2 files or netcdf files into documents that can be

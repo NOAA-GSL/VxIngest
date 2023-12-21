@@ -49,6 +49,7 @@ def test_credentials_and_load_spec():
     finally:
         vx_ingest.close_cb()
 
+
 def test_credentials_and_load_spec_multiple_ingest_ids():
     """test the get_credentials and load_spec"""
     vx_ingest = None

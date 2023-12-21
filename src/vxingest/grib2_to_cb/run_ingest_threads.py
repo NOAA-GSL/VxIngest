@@ -81,6 +81,7 @@ from vxingest.log_config import configure_logging, worker_log_configurer
 # Get a logger with this module's name to help with debugging
 logger = logging.getLogger(__name__)
 
+
 def parse_args(args):
     """
     Parse command line arguments
@@ -256,8 +257,8 @@ class VXIngest(CommonVxIngest):
                     self.load_spec,
                     _q,
                     self.output_dir,
-                    logging_queue=log_queue, # Queue to pass logging messages back to the main process on
-                    logging_configurer=log_configurer, # Config function to set up the logger in the multiprocess Process
+                    logging_queue=log_queue,  # Queue to pass logging messages back to the main process on
+                    logging_configurer=log_configurer,  # Config function to set up the logger in the multiprocess Process
                     number_stations=self.number_stations,
                 )
                 ingest_manager_list.append(ingest_manager_thread)

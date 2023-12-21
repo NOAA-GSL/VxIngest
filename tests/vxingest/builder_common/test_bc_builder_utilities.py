@@ -21,6 +21,7 @@ def test_get_geo_index():
     assert get_geo_index(700, geo) == 2
     assert get_geo_index(200, geo) == 0
 
+
 def test_convert_to_iso():
     """test convert_to_iso function"""
     assert convert_to_iso(1627893600) == "2021-08-02T08:40:00Z"
@@ -54,6 +55,7 @@ def test_convert_to_iso():
     with pytest.raises(ValueError):
         v = convert_to_iso("not_an_epoch")
         assert v == "1970-00-00T00:00:00Z"
+
 
 def test_truncate_round():
     """test truncate_round function"""

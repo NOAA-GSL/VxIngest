@@ -1,4 +1,3 @@
-# pylint: disable=missing-module-docstring
 import os
 from datetime import timedelta
 from pathlib import Path
@@ -13,10 +12,10 @@ def connect_cb():
     """
     create a couchbase connection and maintain the collection and cluster objects.
     """
-    # noinspection PyBroadException
+    
     try:
         try:
-            cb_connection  # is it defined pylint:disable=used-before-assignment
+            cb_connection
         except NameError:
             credentials_file = os.environ["CREDENTIALS"]
             assert (
@@ -49,7 +48,7 @@ def connect_cb():
                 .collection(cb_connection["collection"])
             )
         return cb_connection
-    except Exception as _e:  # pylint:disable=broad-except
+    except Exception as _e:
         assert False, f"test_unit_queries Exception failure connecting: {_e}"
 
 
@@ -72,7 +71,7 @@ def test_epoch_fcstlen_model(request):
         assert (
             elapsed_time < _expected_time
         ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
-    except Exception as _e:  # pylint:disable=broad-except
+    except Exception as _e:
         assert False, f"{_name} Exception failure: {_e}"
 
 
@@ -93,7 +92,7 @@ def test_epoch_fcstlen_obs(request):
         assert (
             elapsed_time < _expected_time
         ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
-    except Exception as _e:  # pylint:disable=broad-except
+    except Exception as _e:
         assert False, f"{_name} Exception failure: {_e}"
 
 
@@ -116,7 +115,7 @@ def test_forecast_valid_epoch(request):
         assert (
             elapsed_time < _expected_time
         ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
-    except Exception as _e:  # pylint:disable=broad-except
+    except Exception as _e:
         assert False, f"{_name} Exception failure: {_e}"
 
 
@@ -139,7 +138,7 @@ def test_get_region_lat_lon(request):
         assert (
             elapsed_time < _expected_time
         ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
-    except Exception as _e:  # pylint:disable=broad-except
+    except Exception as _e:
         assert False, f"{_name} Exception failure: {_e}"
 
 
@@ -160,7 +159,7 @@ def test_get_stations(request):
         assert (
             elapsed_time < _expected_time
         ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
-    except Exception as _e:  # pylint:disable=broad-except
+    except Exception as _e:
         assert False, f"{_name} Exception failure: {_e}"
 
 
@@ -183,7 +182,7 @@ def test_get_threshold_descriptions(request):
         assert (
             elapsed_time < _expected_time
         ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
-    except Exception as _e:  # pylint:disable=broad-except
+    except Exception as _e:
         assert False, f"{_name} Exception failure: {_e}"
 
 

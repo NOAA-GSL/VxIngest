@@ -1,4 +1,3 @@
-# pylint:disable=missing-module-docstring
 import os
 import shutil
 import time
@@ -30,7 +29,7 @@ def setup_connection():
             "JOB:V01:METAR:NETCDF:OBS"
         ).content_as[dict]["ingest_document_ids"]
         return _vx_ingest
-    except Exception as _e:  # pylint:disable=broad-except
+    except Exception as _e:
         assert False, f"test_credentials_and_load_spec Exception failure: {_e}"
         return None
 
@@ -40,7 +39,7 @@ def test_credentials_and_load_spec():
     try:
         vx_ingest = setup_connection()
         assert vx_ingest.load_spec["cb_connection"]["user"], "cb_user"
-    except Exception as _e:  # pylint:disable=broad-except
+    except Exception as _e:
         assert False, f"test_credentials_and_load_spec Exception failure: {_e}"
     finally:
         vx_ingest.close_cb()
@@ -54,7 +53,7 @@ def test_cb_connect_disconnect():
         local_time = [list(result)[0]]
         assert local_time is not None
         vx_ingest.close_cb()
-    except Exception as _e:  # pylint:disable=broad-except
+    except Exception as _e:
         assert False, f"test_cb_connect_disconnect Exception failure: {_e}"
     finally:
         vx_ingest.close_cb()
@@ -70,7 +69,7 @@ def test_write_load_job_to_files():
         vx_ingest.write_load_job_to_files()
         assert Path("/tmp/test_id.json").is_file()
         os.remove("/tmp/test_id.json")
-    except Exception as _e:  # pylint:disable=broad-except
+    except Exception as _e:
         assert False, f"test_write_load_job_to_files Exception failure: {_e}"
     finally:
         vx_ingest.close_cb()
@@ -87,7 +86,7 @@ def test_build_load_job_doc():
         assert ljd["id"].startswith(
             "LJ:METAR:vxingest.netcdf_to_cb.run_ingest_threads:VXIngest"
         )
-    except Exception as _e:  # pylint:disable=broad-except
+    except Exception as _e:
         assert False, f"test_build_load_job_doc Exception failure: {_e}"
     finally:
         vx_ingest.close_cb()
@@ -100,13 +99,13 @@ def test_umask_value_transform():
     """
     try:
         # first we have to create a netcdf dataset and a temperature variable
-        _nc = nc.Dataset(  # pylint:disable=no-member
+        _nc = nc.Dataset(
             "inmemory.nc",
             format="NETCDF3_CLASSIC",
             mode="w",
             memory=1028,
             fill_value=3.402823e38,
-        )  # pylint:disable=no-member
+        )
         _d = _nc.createDimension("recNum", None)
         _v = _nc.createVariable("temperature", float, ("recNum"))
         _v.units = "kelvin"
@@ -129,7 +128,7 @@ def test_umask_value_transform():
         # call the handler
         temp = builder.umask_value_transform(params_dict)
         assert temp == 250.15
-    except Exception as _e:  # pylint:disable=broad-except
+    except Exception as _e:
         assert False, f"test_build_load_job_doc Exception failure: {_e}"
     finally:
         vx_ingest.close_cb()
@@ -206,7 +205,7 @@ def test_vxingest_get_file_list():
             ]
         ), "get_file_list wrong list"
 
-    except Exception as _e:  # pylint:disable=broad-except
+    except Exception as _e:
         assert False, f"test_build_load_job_doc Exception failure: {_e}"
     finally:
         vx_ingest.collection.remove("DF:metar:grib2:HRRR_OPS:f_fred_01")
@@ -262,7 +261,7 @@ def test_interpolate_time():
                 assert (
                     1636390800 + 3600 == t_interpolated
                 ), f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
-    except Exception as _e:  # pylint:disable=broad-except
+    except Exception as _e:
         assert False, f"test_interpolate_time Exception failure: {_e}"
 
 
@@ -312,7 +311,7 @@ def test_interpolate_time_iso():
                     == t_interpolated
                 ), f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
 
-    except Exception as _e:  # pylint:disable=broad-except
+    except Exception as _e:
         assert False, f"test_interpolate_time_iso Exception failure: {_e}"
 
 
@@ -339,7 +338,7 @@ def test_handle_station():
         _pattern = "%Y%m%d_%H%M"
         # fmask is usually set in the run_ingest_threads
         _builder.load_spec["fmask"] = _pattern
-        _builder.ncdf_data_set = nc.Dataset(  # pylint:disable=no-member
+        _builder.ncdf_data_set = nc.Dataset(
             "/opt/data/netcdf_to_cb/input_files/20211108_0000"
         )
         rec_num_length = _builder.ncdf_data_set["stationName"].shape[0]
@@ -347,10 +346,10 @@ def test_handle_station():
         for i in range(rec_num_length):
             if (
                 str(
-                    nc.chartostring(_builder.ncdf_data_set["stationName"][i])  # pylint: disable=no-member
-                )  # pylint: disable=no-member
+                    nc.chartostring(_builder.ncdf_data_set["stationName"][i])
+                )
                 == "ZBAA"
-            ):  # pylint:disable=no-member
+            ):
                 break
         _rec_num = i
         # use a station that is in the netcdf file but is not used in any of our domains.
@@ -529,7 +528,7 @@ def test_handle_station():
         new_station_zbaa["geo"][0]["firstTime"] = orig_first_time
         assert_station(_cluster, new_station_zbaa, _builder)
         cleanup_builder_doc(_cluster, _collection, _builder, station_zbaa_copy)
-    except Exception as _e:  # pylint:disable=broad-except
+    except Exception as _e:
         assert False, f"test_handle_station Exception failure: {_e}"
     finally:
         # upsert the original ZBAA station document
@@ -721,7 +720,7 @@ def test_derive_valid_time_epoch():
         assert (
             expected_epoch == derived_epoch
         ), f"derived epoch {derived_epoch} is not equal to 1636329600"
-    except Exception as _e:  # pylint:disable=broad-except
+    except Exception as _e:
         assert False, f"test_derive_valid_time_epoch Exception failure: {_e}"
 
 
@@ -742,5 +741,5 @@ def test_derive_valid_time_iso():
         assert (
             "2021-11-08T00:00:00Z" == derived_epoch
         ), f"derived epoch {derived_epoch} is not equal to 1636390800"
-    except Exception as _e:  # pylint:disable=broad-except
+    except Exception as _e:
         assert False, f"test_derive_valid_time_epoch Exception failure: {_e}"

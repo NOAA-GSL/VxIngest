@@ -1,4 +1,3 @@
-# pylint: disable=too-many-lines
 """
 _test for VxIngest SUMS builders
 """
@@ -82,7 +81,7 @@ def test_check_fcst_valid_epoch_fcst_valid_iso():
                 fve == epoch_time
             ), "fcstValidEpoch and fcstValidIso are not the same time"
             assert (fve % 3600) == 0, "fcstValidEpoch is not at top of hour"
-    except Exception as _e:  # pylint: disable=broad-except, disable=broad-except
+    except Exception as _e:
         assert False, f"TestGsdIngestManager.test_check_fcstValidEpoch_fcstValidIso Exception failure:  {_e}"
 
 
@@ -148,7 +147,7 @@ def test_get_stations_geo_search():
         )
         for row in result:
             # use the builder geosearch to get the station list - just use current epoch
-            stations = sorted(  # pylint: disable=redefined-outer-name
+            stations = sorted( 
                 # builder.get_stations_for_region_by_geosearch(row["name"],round(time.time()))
                 builder.get_stations_for_region_by_sort(row["name"], round(time.time()))
             )
@@ -173,11 +172,11 @@ def test_get_stations_geo_search():
             assert (
                 len(stations_difference) < 1000
             ), "difference between expected and actual greater than 100"
-    except Exception as _e:  # pylint: disable=broad-except
+    except Exception as _e:
         assert False, f"TestGsdIngestManager Exception failure:  {_e}"
 
 
-def test_ps_builder_surface_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
+def test_ps_builder_surface_hrrr_ops_all_hrrr():
     """
     This test verifies that data is returned for each fcstLen.
     It can be used to debug the builder by putting a specific epoch for first_epoch.
@@ -187,9 +186,9 @@ def test_ps_builder_surface_hrrr_ops_all_hrrr():  # pylint: disable=too-many-loc
     It calculates the Partial using couchbase data for input.
     Then the couchbase SUMS fcstValidEpochs are compared and asserted against the derived SUMS.
     """
-    # noinspection PyBroadException
-    global cb_model_obs_data  # pylint: disable=global-variable-not-assigned
-    global stations  # pylint: disable=global-variable-not-assigned
+    
+    global cb_model_obs_data
+    global stations
 
     try:
         credentials_file = os.environ["CREDENTIALS"]
@@ -248,7 +247,7 @@ def test_ps_builder_surface_hrrr_ops_all_hrrr():  # pylint: disable=too-many-loc
             for _elem in docs:
                 fcst_lens.append(_elem["fcstLen"])
             output_file.close()
-        except Exception as _e:  # pylint: disable=broad-except
+        except Exception as _e:
             assert (
                 False
             ), f"TestPartialSumsBuilderV01 Exception failure opening output: {_e}"
@@ -259,12 +258,12 @@ def test_ps_builder_surface_hrrr_ops_all_hrrr():  # pylint: disable=too-many-loc
                 if _elem["fcstLen"] == _i:
                     break
             assert _elem is not None, "fcstLen not found in output"
-    except Exception as _e:  # pylint: disable=broad-except
+    except Exception as _e:
         assert False, f"TestPartialSumsBuilderV01 Exception failure: {_e}"
 
 
-def test_ps_surface_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
-    # noinspection PyBroadException
+def test_ps_surface_data_hrrr_ops_all_hrrr():
+    
     """
     This test is a comprehensive test of the partialSumsBuilder data. It will retrieve SUMS documents
     for a specific fcstValidEpoch from couchbase and calculate the SUM's for the same fcstValidEpoch.
@@ -367,6 +366,6 @@ def test_ps_surface_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
         )
         for _cb_ps in cb_results:
             print(f"do something {_cb_ps}")
-    except Exception as _e:  # pylint: disable=broad-except
+    except Exception as _e:
         assert False, f"TestBuilderV01 Exception failure:  {_e}"
     return

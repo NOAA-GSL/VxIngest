@@ -1,4 +1,3 @@
-# pylint: disable=too-many-lines
 """
 test for VxIngest CTC builders
 """
@@ -82,7 +81,7 @@ def test_check_fcst_valid_epoch_fcst_valid_iso():
                 fve == epoch_time
             ), "fcstValidEpoch and fcstValidIso are not the same time"
             assert (fve % 3600) == 0, "fcstValidEpoch is not at top of hour"
-    except Exception as _e:  # pylint: disable=broad-except, disable=broad-except
+    except Exception as _e:
         assert False, f"TestGsdIngestManager.test_check_fcstValidEpoch_fcstValidIso Exception failure:  {_e}"
 
 
@@ -148,7 +147,7 @@ def test_get_stations_geo_search():
         )
         for row in result:
             # use the builder geosearch to get the station list - just use current epoch
-            stations = sorted(  # pylint: disable=redefined-outer-name
+            stations = sorted( 
                 # builder.get_stations_for_region_by_geosearch(row["name"],round(time.time()))
                 builder.get_stations_for_region_by_sort(row["name"], round(time.time()))
             )
@@ -173,11 +172,11 @@ def test_get_stations_geo_search():
             assert (
                 len(stations_difference) < 1000
             ), "difference between expected and actual greater than 100"
-    except Exception as _e:  # pylint: disable=broad-except
+    except Exception as _e:
         assert False, f"TestGsdIngestManager Exception failure:  {_e}"
 
 
-def calculate_cb_ctc(  # pylint: disable=dangerous-default-value,missing-function-docstring
+def calculate_cb_ctc(
     epoch,
     fcst_len,
     threshold,
@@ -187,8 +186,8 @@ def calculate_cb_ctc(  # pylint: disable=dangerous-default-value,missing-functio
     doc_sub_type,
     reject_stations=[],
 ):
-    global cb_model_obs_data  # pylint: disable=global-statement
-    global stations  # pylint: disable=global-statement
+    global cb_model_obs_data
+    global stations
 
     credentials_file = os.environ["CREDENTIALS"]
     assert Path(credentials_file).is_file(), "credentials_file Does not exist"
@@ -230,20 +229,20 @@ def calculate_cb_ctc(  # pylint: disable=dangerous-default-value,missing-functio
         builder.get_stations_for_region_by_sort(region, epoch)
     )
     obs_id = f"DD:V01:{subset}:obs:{epoch}"
-    stations = sorted(  # pylint: disable=redefined-outer-name
+    stations = sorted( 
         [station for station in legacy_stations if station not in reject_stations]
     )
     model_id = f"DD:V01:{subset}:{model}:{epoch}:{fcst_len}"
     print("cb_ctc model_id:", model_id, " obs_id:", obs_id)
     try:
         full_model_data = load_spec["collection"].get(model_id).content_as[dict]
-    except:  # pylint: disable=bare-except
+    except:
         time.sleep(0.25)
         full_model_data = load_spec["collection"].get(model_id).content_as[dict]
-    cb_model_obs_data = []  # pylint: disable=redefined-outer-name
+    cb_model_obs_data = [] 
     try:
         full_obs_data = load_spec["collection"].get(obs_id).content_as[dict]
-    except:  # pylint: disable=bare-except
+    except:
         time.sleep(0.25)
         full_obs_data = load_spec["collection"].get(obs_id).content_as[dict]
     for station in stations:
@@ -299,7 +298,7 @@ def calculate_cb_ctc(  # pylint: disable=dangerous-default-value,missing-functio
     return ctc
 
 
-def test_ctc_builder_ceiling_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
+def test_ctc_builder_ceiling_hrrr_ops_all_hrrr():
     """
     This test verifies that data is returned for each fcstLen and each threshold.
     It can be used to debug the builder by putting a specific epoch for first_epoch.
@@ -309,9 +308,9 @@ def test_ctc_builder_ceiling_hrrr_ops_all_hrrr():  # pylint: disable=too-many-lo
     It calculates the CTC using couchbase data for input.
     Then the couchbase CTC fcstValidEpochs are compared and asserted against the derived CTC.
     """
-    # noinspection PyBroadException
-    global cb_model_obs_data  # pylint: disable=global-variable-not-assigned
-    global stations  # pylint: disable=global-variable-not-assigned
+    
+    global cb_model_obs_data
+    global stations
 
     try:
         credentials_file = os.environ["CREDENTIALS"]
@@ -371,7 +370,7 @@ def test_ctc_builder_ceiling_hrrr_ops_all_hrrr():  # pylint: disable=too-many-lo
             for _elem in docs:
                 fcst_lens.append(_elem["fcstLen"])
             output_file.close()
-        except Exception as _e:  # pylint: disable=broad-except
+        except Exception as _e:
             assert False, f"TestCTCBuilderV01 Exception failure opening output: {_e}"
         for _i in fcst_lens:
             _elem = None
@@ -396,11 +395,11 @@ def test_ctc_builder_ceiling_hrrr_ops_all_hrrr():  # pylint: disable=too-many-lo
                 if cb_ctc is None:
                     print(f"cb_ctc is None for threshold {str(_t)}- contunuing")
                     continue
-    except Exception as _e:  # pylint: disable=broad-except
+    except Exception as _e:
         assert False, f"TestCTCBuilderV01 Exception failure: {_e}"
 
 
-def test_ctc_builder_visibility_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
+def test_ctc_builder_visibility_hrrr_ops_all_hrrr():
     """
     This test verifies that data is returned for each fcstLen and each threshold.
     It can be used to debug the builder by putting a specific epoch for first_epoch.
@@ -410,9 +409,9 @@ def test_ctc_builder_visibility_hrrr_ops_all_hrrr():  # pylint: disable=too-many
     It calculates the CTC using couchbase data for input.
     Then the couchbase CTC fcstValidEpochs are compared and asserted against the derived CTC.
     """
-    # noinspection PyBroadException
-    global cb_model_obs_data  # pylint: disable=global-variable-not-assigned
-    global stations  # pylint: disable=global-variable-not-assigned
+    
+    global cb_model_obs_data
+    global stations
 
     try:
         credentials_file = os.environ["CREDENTIALS"]
@@ -473,7 +472,7 @@ def test_ctc_builder_visibility_hrrr_ops_all_hrrr():  # pylint: disable=too-many
             for _elem in docs:
                 fcst_lens.append(_elem["fcstLen"])
             output_file.close()
-        except Exception as _e:  # pylint: disable=broad-except
+        except Exception as _e:
             assert False, f"TestCTCBuilderV01 Exception failure opening output: {_e}"
         for _i in fcst_lens:
             _elem = None
@@ -498,12 +497,12 @@ def test_ctc_builder_visibility_hrrr_ops_all_hrrr():  # pylint: disable=too-many
                 if cb_ctc is None:
                     print(f"cb_ctc is None for threshold {str(_threshold)}- contunuing")
                     continue
-    except Exception as _e:  # pylint: disable=broad-except
+    except Exception as _e:
         assert False, f"TestCTCBuilderV01 Exception failure: {_e}"
 
 
-def test_ctc_ceiling_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
-    # noinspection PyBroadException
+def test_ctc_ceiling_data_hrrr_ops_all_hrrr():
+    
     """
     This test is a comprehensive test of the ctcBuilder data. It will retrieve CTC documents
     for a specific fcstValidEpoch from couchbase and calculate the CTC's for the same fcstValidEpoch.
@@ -635,13 +634,13 @@ def test_ctc_ceiling_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-local
                     and fstLen: {_ctc['fcst_len']}
                     and threshold: {_threshold}
                     the derived CTC {field}: {_ctc_value} and caclulated CTC {field}: {_cb_ctc_value} values do not match"""
-    except Exception as _e:  # pylint: disable=broad-except
+    except Exception as _e:
         assert False, f"TestCTCBuilderV01 Exception failure:  {_e}"
     return
 
 
-def test_ctc_visibiltiy_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
-    # noinspection PyBroadException
+def test_ctc_visibiltiy_data_hrrr_ops_all_hrrr():
+    
     """
     This test is a comprehensive test of the ctcBuilder data. It will retrieve CTC documents
     for a specific fcstValidEpoch from couchbase and calculate the CTC's for the same fcstValidEpoch.
@@ -772,6 +771,6 @@ def test_ctc_visibiltiy_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-lo
                     and fstLen: {_ctc['fcst_len']}
                     and threshold: {_threshold}
                     the derived CTC {field}: {_ctc_value} and caclulated CTC {field}: {_cb_ctc_value} values do not match"""
-    except Exception as _e:  # pylint: disable=broad-except
+    except Exception as _e:
         assert False, f"TestCTCBuilderV01 Exception failure:  {_e}"
     return

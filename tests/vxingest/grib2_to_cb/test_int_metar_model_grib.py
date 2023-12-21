@@ -33,7 +33,7 @@ def connect_cb():
     create a couchbase connection and maintain the collection and cluster objects.
     """
     try:
-        if cb_connection:  # pylint: disable=used-before-assignment
+        if cb_connection:
             return cb_connection
         else:
             credentials_file = os.environ["CREDENTIALS"]
@@ -66,7 +66,7 @@ def connect_cb():
                 .collection(cb_connection["collection"])
             )
             return cb_connection
-    except Exception as _e:  # pylint:disable=broad-except
+    except Exception as _e:
         assert False, f"test_unit_queries Exception failure connecting: {_e}"
 
 
@@ -174,7 +174,7 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus(tmp_path):
                             abs_tol=abs_tol,
                         ), f"""TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure data not close within {abs_tol}
                         {_k}.{_dk} {result['data'][_k][_dk]} != {_json['data'][_k][_dk]} within {abs_tol} decimal places."""
-    except Exception as _e:  # pylint: disable=broad-except
+    except Exception as _e:
         assert False, f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus Exception failure: {_e}"
 
 
@@ -208,7 +208,7 @@ def test_grib_builder_two_threads_file_pattern_hrrr_ops_conus(tmp_path):
             log_queue,
             stub_worker_log_configurer,
         )
-    except Exception as _e:  # pylint: disable=broad-except
+    except Exception as _e:
         assert False, f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus Exception failure: {_e} "
 
 
@@ -234,5 +234,5 @@ def test_grib_builder_two_threads_file_pattern_rap_ops_130_conus(tmp_path):
             log_queue,
             stub_worker_log_configurer,
         )
-    except Exception as _e:  # pylint: disable=broad-except
+    except Exception as _e:
         assert False, f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus Exception failure: {_e} "

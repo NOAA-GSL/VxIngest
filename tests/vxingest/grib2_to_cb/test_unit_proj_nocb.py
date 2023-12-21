@@ -1,4 +1,3 @@
-# pylint: disable=missing-module-docstring
 import pyproj
 import xarray as xr
 
@@ -44,7 +43,7 @@ def test_proj_nocb():
         init_transformer = pyproj.Transformer.from_proj(
             proj_from=latlon_proj, proj_to=init_projection
         )
-        _x, _y = init_transformer.transform(  # pylint: disable=unpacking-non-sequence
+        _x, _y = init_transformer.transform(
             lon_0, lat_0, radians=False
         )  # the lower left coordinates in the projection space
 
@@ -83,7 +82,6 @@ def test_proj_nocb():
 
         lat = 39.86
         lon = -104.66999
-        # pylint: disable=unpacking-non-sequence
         (
             _x,
             _y,
@@ -92,5 +90,5 @@ def test_proj_nocb():
         y_gridpoint = _y / spacing
         assert x_gridpoint == 695.3172101518072, "x_gridpoint is not 695.3172101518072"
         assert y_gridpoint == 587.461349077341, "y_gridpoint is not 587.461349077341"
-    except Exception as _e:  # pylint:disable=broad-except
+    except Exception as _e:
         assert False, f"test_proj Exception failure: {_e}"

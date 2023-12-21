@@ -1,4 +1,3 @@
-# pylint: disable=missing-module-docstring
 import os
 import shutil
 from pathlib import Path
@@ -17,7 +16,7 @@ def setup_connection_multiple_ingest_ids():
             "JOB-TEST:V01:METAR:GRIB2:MODEL:HRRR"
         ).content_as[dict]["ingest_document_ids"]
         return _vx_ingest
-    except Exception as _e:  # pylint:disable=broad-except
+    except Exception as _e:
         assert False, f"test_credentials_and_load_spec Exception failure: {_e}"
         return None
 
@@ -33,7 +32,7 @@ def setup_connection():
             "JOB-TEST:V01:METAR:GRIB2:MODEL:HRRR"
         ).content_as[dict]["ingest_document_ids"]
         return _vx_ingest
-    except Exception as _e:  # pylint:disable=broad-except
+    except Exception as _e:
         assert False, f"test_credentials_and_load_spec Exception failure: {_e}"
         return None
 
@@ -44,7 +43,7 @@ def test_credentials_and_load_spec():
     try:
         vx_ingest = setup_connection()
         assert True, vx_ingest.load_spec["cb_connection"]["user"] == "cb_user"
-    except Exception as _e:  # pylint:disable=broad-except
+    except Exception as _e:
         assert False, f"test_credentials_and_load_spec Exception failure: {_e}"
     finally:
         vx_ingest.close_cb()
@@ -56,7 +55,7 @@ def test_credentials_and_load_spec_multiple_ingest_ids():
     try:
         vx_ingest = setup_connection_multiple_ingest_ids()
         assert True, vx_ingest.load_spec["cb_connection"]["user"] == "cb_user"
-    except Exception as _e:  # pylint:disable=broad-except
+    except Exception as _e:
         assert False, f"test_credentials_and_load_spec Exception failure: {_e}"
     finally:
         vx_ingest.close_cb()
@@ -71,7 +70,7 @@ def test_cb_connect_disconnect():
         local_time = [list(result)[0]]
         assert True, local_time is not None
         vx_ingest.close_cb()
-    except Exception as _e:  # pylint:disable=broad-except
+    except Exception as _e:
         assert False, f"test_cb_connect_disconnect Exception failure: {_e}"
     finally:
         vx_ingest.close_cb()
@@ -87,7 +86,7 @@ def test_write_load_job_to_files():
         vx_ingest.load_spec["load_job_doc"] = {"test": "a line of text"}
         vx_ingest.write_load_job_to_files()
         os.remove("/tmp/test_id.json")
-    except Exception as _e:  # pylint:disable=broad-except
+    except Exception as _e:
         assert False, f"test_write_load_job_to_files Exception failure: {_e}"
     finally:
         vx_ingest.close_cb()
@@ -106,7 +105,7 @@ def test_build_load_job_doc():
         assert True, ljd["id"].startswith(
             "LJ:METAR:vxingest.grib2_to_cb.run_ingest_threads:VXIngest"
         )
-    except Exception as _e:  # pylint:disable=broad-except
+    except Exception as _e:
         assert False, f"test_build_load_job_doc Exception failure: {_e}"
     finally:
         vx_ingest.close_cb()
@@ -146,7 +145,7 @@ def test_vxingest_get_file_list():
             "/tmp/test/f_fred_05",
             "/tmp/test/f_fred_03",
         ]
-    except Exception as _e:  # pylint:disable=broad-except
+    except Exception as _e:
         assert False, f"test_build_load_job_doc Exception failure: {_e}"
     finally:
         shutil.rmtree("/tmp/test")

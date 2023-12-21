@@ -24,12 +24,12 @@ def setup_connection():
             "JOB-TEST:V01:METAR:NETCDF:OBS"
         ).content_as[dict]["ingest_document_ids"]
         return _vx_ingest
-    except Exception as _e:  # pylint:disable=broad-except
+    except Exception as _e:
         assert False, f"test_credentials_and_load_spec Exception failure: {_e}"
         return None
 
 
-def test_one_thread_specify_file_pattern(tmp_path):  # pylint:disable=missing-function-docstring
+def test_one_thread_specify_file_pattern(tmp_path):
     try:
         log_queue = Queue()
         vx_ingest = VXIngest()
@@ -62,7 +62,7 @@ def test_one_thread_specify_file_pattern(tmp_path):  # pylint:disable=missing-fu
         assert len(glob(f"{tmp_path}/20211108*.json")) == len(
             glob("/opt/data/netcdf_to_cb/input_files/20211108_0000")
         ), "number of output files is incorrect"
-    except Exception as _e:  # pylint: disable=broad-except
+    except Exception as _e:
         assert False, f"TestGsdIngestManager Exception failure: {_e}"
 
 
@@ -102,7 +102,7 @@ def test_two_threads_spedicfy_file_pattern(tmp_path):
         assert len(glob(f"{tmp_path}/20211105*.json")) == len(
             glob("/opt/data/netcdf_to_cb/input_files/20211105*")
         ), "number of output files is incorrect"
-    except Exception as _e:  # pylint: disable=broad-except
+    except Exception as _e:
         assert False, f"TestGsdIngestManager Exception failure: {_e}"
 
 
@@ -147,7 +147,7 @@ def test_one_thread_default(tmp_path):
             )
         ), "number of output files is incorrect"
 
-    except Exception as _e:  # pylint: disable=broad-except
+    except Exception as _e:
         assert False, f"TestGsdIngestManager Exception failure: {_e}"
 
 
@@ -190,7 +190,7 @@ def test_two_threads_default(tmp_path):
                 "/opt/data/netcdf_to_cb/input_files/[0123456789]???????_[0123456789]???"
             )
         ), "number of output files is incorrect"
-    except Exception as _e:  # pylint: disable=broad-except
+    except Exception as _e:
         assert False, f"TestGsdIngestManager Exception failure: {_e}"
 
 
@@ -214,5 +214,5 @@ def check_mismatched_fcst_valid_epoch_to_id():
         )
         for row in result:
             assert False, f"These do not have the same fcstValidEpoch: {str(row['fcstValidEpoch']) + row['id']}"
-    except Exception as _e:  # pylint: disable=broad-except
+    except Exception as _e:
         assert False, f"TestGsdIngestManager Exception failure: {_e}"

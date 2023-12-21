@@ -103,7 +103,7 @@ jobs:
       - name: Scan image with Trivy
         uses: aquasecurity/trivy-action@0.16.0
         with:
-          image-ref: "ghcr.io/noaa-gsl/vxingest/ingest:${{ github.sha }}"
+          image-ref: "ghcr.io/noaa-gsl/vxingest/ingest:sha-${GITHUB_SHA::7}"
           format: "sarif"
           output: "trivy-ingest-results.sarif"
           ignore-unfixed: true
@@ -125,7 +125,7 @@ jobs:
       - name: Scan image with Trivy
         uses: aquasecurity/trivy-action@0.16.0
         with:
-          image-ref: "ghcr.io/noaa-gsl/vxingest/import:${{ github.sha }}"
+          image-ref: "ghcr.io/noaa-gsl/vxingest/import:sha-${GITHUB_SHA::7}"
           format: "sarif"
           output: "trivy-import-results.sarif"
           ignore-unfixed: true

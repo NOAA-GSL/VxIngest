@@ -101,7 +101,7 @@ jobs:
     needs: build-ingest
     steps:
       - name: Extract SHORT_SHA
-        run: echo "SHORT_SHA=${GITHUB_SHA::7} >> $GITHUB_ENV"
+        run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
       - name: Scan image with Trivy
         uses: aquasecurity/trivy-action@0.16.0
         with:
@@ -125,7 +125,7 @@ jobs:
     needs: build-import
     steps:
       - name: Extract SHORT_SHA
-        run: echo "SHORT_SHA=${GITHUB_SHA::7} >> $GITHUB_ENV"
+        run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
       - name: Scan image with Trivy
         uses: aquasecurity/trivy-action@0.16.0
         with:

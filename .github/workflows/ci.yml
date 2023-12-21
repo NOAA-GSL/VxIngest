@@ -51,6 +51,8 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64
           push: true
+          cache-from: type=registry,ref=ghcr.io/noaa-gsl/vxingest/cache/ingest:buildcache
+          cache-to: type=registry,ref=ghcr.io/noaa-gsl/vxingest/cache/ingest:buildcache,mode=max
   build-import:
     name: Build Import image
     runs-on: ubuntu-latest

@@ -296,7 +296,7 @@ def connect_cb(creds: dict[str, str]) -> Cluster:
     # Set the cluster to use the correct bucket and collection
     # TODO - is this needed? The couchbase docs seemed to indicate it was
     bucket = cluster.bucket(creds["cb_bucket"])
-    collection = bucket.scope(creds["cb_scope"]).collection(creds["cb_collection"])
+    bucket.scope(creds["cb_scope"]).collection(creds["cb_collection"])
 
     return cluster
 

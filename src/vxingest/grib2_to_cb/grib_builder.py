@@ -1,4 +1,3 @@
-# pylint: disable="too-many-lines"
 """
 Program Name: Class grib_builder.py
 Contact(s): Randy Pierce
@@ -22,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 # Concrete builders
-class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attributes
+class GribModelBuilderV01(GribBuilder):
     """
     This is the builder for model data that is ingested from grib2 files. It is a concrete builder specifically
     for the model data.
@@ -33,7 +32,7 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
         load_spec,
         ingest_document,
         number_stations=sys.maxsize,
-    ):  # pylint:disable=too-many-arguments
+    ):
         """This builder creates a set of V01 model documents using the stations in the station list.
         This builder loads domain qualified station data into memory, and uses the domain_station
         list to associate a station with a grid value at an x_lat, x_lon point.
@@ -130,8 +129,7 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
         return doc
 
     # named functions
-    # pylint: disable=no-self-use
-    def handle_ceiling(self, params_dict):  # pylint: disable=unused-argument, disable=too-many-branches
+    def handle_ceiling(self, params_dict):
         """
         returns the ceiling values for all the stations in a list
         the dict_params aren't used here since the calculations are all done here
@@ -219,7 +217,7 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
                 # print (station["geo"][0]['x_gridpoint'],station["geo"][0]['y_gridpoint'],round(ceil_msl_values[i],3), round(surface_values[i],3), round(ceil_agl[i],3))
                 i = i + 1
             return ceil_agl
-        except Exception as _e:  # pylint:disable=broad-except
+        except Exception as _e:
             logger.error(
                 "%s handle_ceiling: Exception  error: %s",
                 self.__class__.__name__,
@@ -254,7 +252,7 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
 
         # relative humidity - convert to float
 
-    def handle_RH(self, params_dict):  # pylint:disable=invalid-name
+    def handle_RH(self, params_dict):
         """translate relative humidity variable
         Args:
             params_dict (dict): named function parameters
@@ -286,7 +284,7 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
 
         # WIND SPEED
 
-    def handle_wind_speed(self, params_dict):  # pylint:disable=unused-argument
+    def handle_wind_speed(self, params_dict):
         """The params_dict aren't used here since we need to
         select two messages (self.grbs.select is expensive since it scans the whole grib file).
         Each message is selected once and the station location data saved in an array,
@@ -330,15 +328,13 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
         ws_mph = []
         for _i, uwind_ms in enumerate(uwind_ms_values):
             vwind_ms = vwind_ms_values[_i]
-            ws_ms = math.sqrt(  # pylint:disable=c-extension-no-member
-                (uwind_ms * uwind_ms) + (vwind_ms * vwind_ms)
-            )  # pylint:disable=c-extension-no-member
+            ws_ms = math.sqrt((uwind_ms * uwind_ms) + (vwind_ms * vwind_ms))
             ws_mph.append((float)((ws_ms / 0.447) + 0.5))
         return ws_mph
 
         # wind direction
 
-    def handle_wind_direction(self, params_dict):  # pylint:disable=unused-argument, disable=too-many-locals
+    def handle_wind_direction(self, params_dict):
         """The params_dict aren't used here since we need to
         select two messages (self.grbs.select is expensive since it scans the whole grib file).
         Each message is selected once and the station location data saved in an array,
@@ -394,9 +390,7 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
             theta = self.get_wind_theta(
                 proj_params, lad_in_degrees, lov_in_degrees, longitude
             )
-            radians = math.atan2(  # pylint:disable=c-extension-no-member
-                u_val, v_val
-            )  # pylint:disable=c-extension-no-member
+            radians = math.atan2(u_val, v_val)
             wd_value = (radians * 57.2958) + theta + 180
             # adjust for outliers
             if wd_value < 0:
@@ -406,7 +400,7 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
             _wd.append((float)(wd_value))
         return _wd
 
-    def handle_wind_dir_u(self, params_dict):  # pylint: disable=unused-argument
+    def handle_wind_dir_u(self, params_dict):
         """returns the wind direction U component for this document
         Args:
             params_dict (dict): contains named_function parameters but is unused here
@@ -429,7 +423,7 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
             )
         return uwind_ms
 
-    def handle_wind_dir_v(self, params_dict):  # pylint: disable=unused-argument
+    def handle_wind_dir_v(self, params_dict):
         """returns the wind direction V component for this document
         Args:
             params_dict (dict): contains named_function parameters but is unused here
@@ -451,7 +445,7 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
             )
         return vwind_ms
 
-    def handle_specific_humidity(self, params_dict):  # pylint: disable=unused-argument
+    def handle_specific_humidity(self, params_dict):
         """returns the specific humidity for this document
         Specific humidity:kg kg**-1 (instant):lambert:heightAboveGround:level 2 m
         Args:
@@ -472,7 +466,7 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
             spfh.append((float)(self.interp_grid_box(values, y_gridpoint, x_gridpoint)))
         return spfh
 
-    def handle_vegetation_type(self, params_dict):  # pylint:disable=unused-argument
+    def handle_vegetation_type(self, params_dict):
         """returns the vegetation type for this document
         Args:
             params_dict (dict): contains named_function parameters but is unused here
@@ -492,7 +486,7 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
             )
         return vegetation_type
 
-    def getName(self, params_dict):  # pylint:disable=unused-argument,disable=invalid-name
+    def getName(self, params_dict):
         """translate the station name
         Args:
             params_dict (object): named function parameters - unused here
@@ -504,7 +498,7 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
             station_names.append(station["name"])
         return station_names
 
-    def handle_time(self, params_dict):  # pylint: disable=unused-argument
+    def handle_time(self, params_dict):
         """return the time variable as an epoch
         Args:
             params_dict (object): named function parameters
@@ -513,7 +507,7 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
         """
         return (int)(self.ds_translate_item_variables_map["fcst_valid_epoch"])
 
-    def handle_iso_time(self, params_dict):  # pylint: disable=unused-argument
+    def handle_iso_time(self, params_dict):
         """return the time variable as an iso
         Args:
             params_dict (object): named function parameters
@@ -524,7 +518,7 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
             (int)(self.ds_translate_item_variables_map["fcst_valid_epoch"])
         ).isoformat()
 
-    def handle_fcst_len(self, params_dict):  # pylint: disable=unused-argument
+    def handle_fcst_len(self, params_dict):
         """return the fcst length variable as an int
         Args:
             params_dict (object): named function parameters

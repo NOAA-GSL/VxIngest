@@ -163,7 +163,7 @@ class VXIngest(CommonVxIngest):
         self.ingest_document = None
         super().__init__()
 
-    def runit(self, args, log_queue: Queue, log_configurer: Callable[[Queue], None]):  # pylint:disable=too-many-locals
+    def runit(self, args, log_queue: Queue, log_configurer: Callable[[Queue], None]):
         """
         This is the entry point for run_ingest_threads.py
 
@@ -235,7 +235,6 @@ class VXIngest(CommonVxIngest):
         )
         logger.info(f"Starting {self.thread_count} processes")
         for thread_count in range(int(self.thread_count)):
-            # noinspection PyBroadException
             try:
                 ingest_manager_thread = VxIngestManager(
                     f"VxIngestManager-{thread_count+1}",  # Processes are 1 indexed in the logger
@@ -248,7 +247,7 @@ class VXIngest(CommonVxIngest):
                 ingest_manager_list.append(ingest_manager_thread)
                 ingest_manager_thread.start()  # This calls a .run() method in the class
                 logger.info(f"Started thread: VxIngestManager-{thread_count+1}")
-            except Exception as _e:  # pylint:disable=broad-except
+            except Exception as _e:
                 logger.error("*** Error in VXIngest %s***", str(_e))
                 raise _e
         # be sure to join all the threads to wait on them
@@ -285,7 +284,7 @@ class VXIngest(CommonVxIngest):
             # Tell the logging thread to finish up, too
             log_queue_listener.stop()
             sys.exit(0)
-        except Exception as _e:  # pylint:disable=broad-except
+        except Exception as _e:
             logger.info("*** FINISHED with exception %s***", str(_e))
             # Tell the logging thread to finish up, too
             log_queue_listener.stop()

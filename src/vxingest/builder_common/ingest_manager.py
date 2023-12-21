@@ -27,7 +27,7 @@ from couchbase.options import ClusterOptions, ClusterTimeoutOptions
 logger = logging.getLogger(__name__)
 
 
-class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attributes
+class CommonVxIngestManager(Process):
     """
     IngestManager is a Process Thread that manages an object pool of
     builders to ingest data from GSD grib2 files or netcdf files into documents that can be
@@ -47,7 +47,6 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
     and dies.
     """
 
-    # pylint:disable=too-many-arguments
     def __init__(
         self,
         name,
@@ -85,7 +84,7 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
             logger.exception(_re)
             raise _re
 
-    def process_queue_element(self, queue_element):  # pylint: disable=missing-function-docstring
+    def process_queue_element(self, queue_element):
         pass
 
     def close_cb(self):
@@ -104,7 +103,7 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
         """
         logger.info("data_type_manager - Connecting to couchbase")
         # get a reference to our cluster
-        # noinspection PyBroadException
+
         try:
             timeout_options = ClusterTimeoutOptions(
                 kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
@@ -125,7 +124,7 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
             self.load_spec["cluster"] = self.cluster
             self.load_spec["collection"] = self.collection
             logger.info("Couchbase connection success")
-        except Exception as _e:  # pylint:disable=broad-except
+        except Exception as _e:
             logger.exception(
                 "*** builder_common.CommonVxIngestManager in connect_cb ***"
             )
@@ -148,7 +147,6 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
         self.logging_configurer(self.logging_queue)
         logger.info(f"Registered new process: {self.thread_name}")
 
-        # noinspection PyBroadException
         try:
             self.cb_credentials = self.load_spec["cb_connection"]
             # get a connection
@@ -185,7 +183,7 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
                             self.thread_name,
                         )
                         break
-        except Exception as _e:  # pylint:disable=broad-except
+        except Exception as _e:
             logger.exception("%s: *** Error in IngestManager run ***", self.thread_name)
             raise _e
         finally:
@@ -201,7 +199,7 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
         """
         # The document_map is all built now so write all the
         # documents in the document_map into couchbase
-        # noinspection PyBroadException
+
         try:
             logger.info(
                 "process_element writing documents for queue_element :%s  with threadName: %s",
@@ -237,7 +235,7 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
                 "process_element - executing upsert: elapsed time: %s",
                 str(upsert_stop_time - upsert_start_time),
             )
-        except Exception as _e:  # pylint:disable=broad-except
+        except Exception as _e:
             logger.exception(
                 "%s: *** Error writing to Couchbase: in process_element writing document ***",
                 self.thread_name,
@@ -281,12 +279,12 @@ class CommonVxIngestManager(Process):  # pylint:disable=too-many-instance-attrib
                     json_data = json.dumps(list(document_map.values()))
                     _f.write(json_data)
                     _f.close()
-                except Exception as _e1:  # pylint:disable=broad-except
+                except Exception as _e1:
                     logger.exception(
                         "write_document_to_files - trying write: Got Exception %s",
                         str(_e1),
                     )
-        except Exception as _e:  # pylint:disable=broad-except
+        except Exception as _e:
             logger.exception(
                 ": *** {self.thread_name} Error writing to files: in process_element writing document*** %s",
                 str(_e),

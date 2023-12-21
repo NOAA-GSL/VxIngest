@@ -42,7 +42,7 @@ from vxingest.partial_sums_to_cb import partial_sums_builder as my_builder
 logger = logging.getLogger(__name__)
 
 
-class VxIngestManager(CommonVxIngestManager):  # pylint:disable=too-many-instance-attributes
+class VxIngestManager(CommonVxIngestManager):
     """
     IngestManager is a Process Thread that manages an object pool of
     builders to ingest data from GSD couchbase documents, producing new documents
@@ -117,7 +117,7 @@ class VxIngestManager(CommonVxIngestManager):  # pylint:disable=too-many-instanc
             self.ingest_type_builder_name = self.load_spec["ingest_documents"][
                 queue_element
             ]["builder_type"]
-        except Exception as _e:  # pylint:disable=broad-except
+        except Exception as _e:
             logger.exception(
                 "%s: process_element: Exception getting ingest document for %s",
                 self.thread_name,
@@ -133,15 +133,15 @@ class VxIngestManager(CommonVxIngestManager):  # pylint:disable=too-many-instanc
             _e: exception
         """
         # get or instantiate the builder
-        # noinspection PyBroadException
+
         start_process_time = int(time.time())
         document_map = {}
-        # noinspection PyBroadException
+
         try:
             logger.info("process_element - : start time: %s", str(start_process_time))
             try:
                 self.set_builder_name(queue_element)
-            except Exception as _e:  # pylint:disable=broad-except
+            except Exception as _e:
                 logger.exception(
                     "%s: *** Error in IngestManager run getting builder name ***",
                     self.thread_name,
@@ -165,7 +165,7 @@ class VxIngestManager(CommonVxIngestManager):  # pylint:disable=too-many-instanc
             else:
                 logger.info("writing document map for %s to database", queue_element)
                 self.write_document_to_cb(queue_element, document_map)
-        except Exception as _e:  # pylint:disable=broad-except
+        except Exception as _e:
             logger.exception(
                 "%s: Exception in builder: %s",
                 self.thread_name,

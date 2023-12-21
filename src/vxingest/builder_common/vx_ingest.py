@@ -38,7 +38,7 @@ from couchbase.options import ClusterOptions, ClusterTimeoutOptions
 logger = logging.getLogger(__name__)
 
 
-class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-instance-attributes
+class CommonVxIngest:
     """
     Parent class for all VxIngest.
     This class is the commandline mechanism for using the builder.
@@ -68,18 +68,17 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
         self.ingest_document_id = None
         self.ingest_document = None
 
-    def parse_args(self, args):  # pylint: disable=missing-function-docstring
+    def parse_args(self, args):
         """This method is intended to be overriden"""
         return args
 
-    def runit(self, args):  # pylint: disable=missing-function-docstring
+    def runit(self, args):
         pass
 
     def write_load_job_to_files(self):
         """
         write all the documents in the document_map into files in the output_dir
         """
-        # noinspection PyBroadException
         try:
             Path(self.output_dir).mkdir(parents=True, exist_ok=True)
             try:
@@ -88,7 +87,7 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
                 _f = open(complete_file_name, "w", encoding="utf-8")
                 _f.write(json.dumps([self.load_spec["load_job_doc"]]))
                 _f.close()
-            except Exception as _e:  # pylint: disable=broad-except
+            except Exception as _e:
                 logger.info(
                     "process_file - trying write load_job: Got Exception - %s", str(_e)
                 )
@@ -135,7 +134,7 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
         """
         logger.debug("%s: data_type_manager - Connecting to couchbase")
         # get a reference to our cluster
-        # noinspection PyBroadException
+
         try:
             timeout_options = ClusterTimeoutOptions(
                 kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
@@ -155,7 +154,7 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
             # stash the credentials for the VxIngestManager - see NOTE at the top of this file.
             self.load_spec["cb_credentials"] = self.cb_credentials
             logger.info("%s: Couchbase connection success")
-        except Exception as _e:  # pylint:disable=broad-except
+        except Exception as _e:
             logger.exception(
                 "*** builder_common.CommonVxIngest Error in connect_cb *** %s", str(_e)
             )
@@ -227,13 +226,13 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
                                     self.__class__.__name__,
                                     filename,
                                 )
-                    except Exception as _e:  # pylint:disable=broad-except
+                    except Exception as _e:
                         # don't care, it just means it wasn't a properly formatted file per the mask
                         continue
             if len(file_names) == 0:
                 logger.info("get_file_list: No files to Process!")
             return file_names
-        except Exception as _e:  # pylint: disable=bare-except, disable=broad-except
+        except Exception as _e:
             logger.error(
                 "%s get_file_list Error: %s",
                 self.__class__.__name__,

@@ -53,7 +53,7 @@ class LoadBackupIngestDocs:
 
     def run(self, args):
         "thread start"
-        # noinspection PyBroadException
+
         try:
             credentials_file = args["credentials_file"]
             # check for existence of file
@@ -84,7 +84,7 @@ class LoadBackupIngestDocs:
             _f.close()
             self.connect_cb()
             self.collection.upsert_multi(data)
-        except:  # pylint: disable=bare-except, disable=broad-except
+        except:
             print(": *** %s Error in multi-upsert *** " + str(sys.exc_info()))
         finally:
             # close any mysql connections
@@ -98,7 +98,7 @@ class LoadBackupIngestDocs:
     def connect_cb(self):
         """Connect to database"""
         # get a reference to our cluster
-        # noinspection PyBroadException
+
         try:
             options = ClusterOptions(
                 PasswordAuthenticator(
@@ -109,7 +109,7 @@ class LoadBackupIngestDocs:
                 "couchbase://" + self.cb_credentials["host"], options
             )
             self.collection = self.cluster.bucket("mdata").default_collection()
-        except:  # pylint: disable=bare-except, disable=broad-except
+        except:
             print("*** %s in connect_cb ***" + str(sys.exc_info()))
             sys.exit("*** Error when connecting to mysql database: ")
 

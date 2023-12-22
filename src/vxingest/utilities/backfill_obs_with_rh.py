@@ -3,12 +3,14 @@ Module to backfill observations with relative humidity, WindU, and WindV.
 """
 
 import os
+import time
 from datetime import timedelta
 from pathlib import Path
 
 import yaml
 from couchbase.auth import PasswordAuthenticator
 from couchbase.cluster import Cluster
+from couchbase.exceptions import TimeoutException
 from couchbase.options import ClusterOptions, ClusterTimeoutOptions
 from metpy.calc import relative_humidity_from_dewpoint, wind_components
 from metpy.units import units
@@ -72,9 +74,20 @@ def run_backfill() -> None:
     print(f"number of ids is {len(_result)}: starting id is {_result[0]} and ending id is {_result[-1]}")
     for i,_id in enumerate(_result):
         print (f"processing #{i} with id {_id}")
-        doc = connection['collection'].get(_id).content_as[dict]
-        calc_components(doc)
-        connection['collection'].upsert(_id, doc)
-
+        ri = 0
+        for ri in range(5):
+            try:
+                doc = connection['collection'].get(_id).content_as[dict]
+                calc_components(doc)
+                connection['collection'].upsert(_id, doc)
+                break
+            except TimeoutException as _e:
+                print (f"TimeoutException failure: {_e} retrying id {_id} #{ri}")
+                if ri == 5:
+                    raise RuntimeWarning (f"Failed to process id {_id} - too many retries") from _e
+                time.sleep(1) # give it a second to breathe
+            except Exception as _e1:  # pylint:disable=broad-except
+                print (f"Exception failure: {_e1}")
+                break
 if __name__ == "__main__":
     run_backfill()

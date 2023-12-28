@@ -16,7 +16,7 @@ def connect_cb():
     # noinspection PyBroadException
     try:
         try:
-            cb_connection # pylint: disable=used-before-assignment
+            cb_connection  # pylint: disable=used-before-assignment
         except NameError:
             credentials_file = os.environ["CREDENTIALS"]
             assert (
@@ -33,9 +33,16 @@ def connect_cb():
             cb_connection["scope"] = _yaml_data["cb_scope"]
             _f.close()
 
-            timeout_options=ClusterTimeoutOptions(kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120))
-            options=ClusterOptions(PasswordAuthenticator(cb_connection["user"], cb_connection["password"]), timeout_options=timeout_options)
-            cb_connection["cluster"] = Cluster("couchbase://" + cb_connection["host"], options)
+            timeout_options = ClusterTimeoutOptions(
+                kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
+            )
+            options = ClusterOptions(
+                PasswordAuthenticator(cb_connection["user"], cb_connection["password"]),
+                timeout_options=timeout_options,
+            )
+            cb_connection["cluster"] = Cluster(
+                "couchbase://" + cb_connection["host"], options
+            )
             cb_connection["collection"] = (
                 cb_connection["cluster"]
                 .bucket(cb_connection["bucket"])
@@ -51,7 +58,9 @@ def test_stations_fcst_valid_epoch(request):
     try:
         _expected_time = 10
         _name = request.node.name
-        testdata = Path("tests/vxingest/builder_common/testdata/stations_fcst_valid_epoch.n1ql")
+        testdata = Path(
+            "tests/vxingest/builder_common/testdata/stations_fcst_valid_epoch.n1ql"
+        )
         with testdata.open(mode="r", encoding="utf-8") as file:
             _statement = file.read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
@@ -59,8 +68,10 @@ def test_stations_fcst_valid_epoch(request):
         _rows = list(result.rows())
         elapsed_time = result.metadata().metrics().elapsed_time().total_seconds()
         print(f"{_name}: elapsed_time is {elapsed_time}")
-        assert result is not None,f"{_name}: result is None"
-        assert elapsed_time < _expected_time, f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
+        assert result is not None, f"{_name}: result is None"
+        assert (
+            elapsed_time < _expected_time
+        ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
     except Exception as _e:  # pylint:disable=broad-except
         assert False, f"{_name} Exception failure: {_e}"
 
@@ -70,7 +81,9 @@ def test_stations_get_file_list_grib2(request):
     try:
         _expected_time = 10
         _name = request.node.name
-        testdata = Path("tests/vxingest/builder_common/testdata/get_file_list_grib2.n1ql")
+        testdata = Path(
+            "tests/vxingest/builder_common/testdata/get_file_list_grib2.n1ql"
+        )
         with testdata.open(mode="r", encoding="utf-8") as file:
             _statement = file.read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
@@ -78,17 +91,22 @@ def test_stations_get_file_list_grib2(request):
         _rows = list(result.rows())
         elapsed_time = result.metadata().metrics().elapsed_time().total_seconds()
         print(f"{_name}: elapsed_time is {elapsed_time}")
-        assert result is not None,f"{_name}: result is None"
-        assert elapsed_time < _expected_time, f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
+        assert result is not None, f"{_name}: result is None"
+        assert (
+            elapsed_time < _expected_time
+        ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
     except Exception as _e:  # pylint:disable=broad-except
         assert False, f"{_name} Exception failure: {_e}"
+
 
 def test_stations_get_file_list_netcdf(request):
     """test"""
     try:
         _expected_time = 5
         _name = request.node.name
-        testdata = Path("tests/vxingest/builder_common/testdata/get_file_list_netcdf.n1ql")
+        testdata = Path(
+            "tests/vxingest/builder_common/testdata/get_file_list_netcdf.n1ql"
+        )
         with testdata.open(mode="r", encoding="utf-8") as file:
             _statement = file.read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
@@ -96,10 +114,13 @@ def test_stations_get_file_list_netcdf(request):
         _rows = list(result.rows())
         elapsed_time = result.metadata().metrics().elapsed_time().total_seconds()
         print(f"{_name}: elapsed_time is {elapsed_time}")
-        assert result is not None,f"{_name}: result is None"
-        assert elapsed_time < _expected_time, f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
+        assert result is not None, f"{_name}: result is None"
+        assert (
+            elapsed_time < _expected_time
+        ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
     except Exception as _e:  # pylint:disable=broad-except
         assert False, f"{_name} Exception failure: {_e}"
+
 
 def test_metar_count(request):
     """test"""
@@ -114,7 +135,9 @@ def test_metar_count(request):
         _rows = list(result.rows())
         elapsed_time = result.metadata().metrics().elapsed_time().total_seconds()
         print(f"{_name}: elapsed_time is {elapsed_time}")
-        assert result is not None,f"{_name}: result is None"
-        assert elapsed_time < _expected_time, f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
+        assert result is not None, f"{_name}: result is None"
+        assert (
+            elapsed_time < _expected_time
+        ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
     except Exception as _e:  # pylint:disable=broad-except
         assert False, f"{_name} Exception failure: {_e}"

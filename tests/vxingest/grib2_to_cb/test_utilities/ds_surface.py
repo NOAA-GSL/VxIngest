@@ -19,9 +19,11 @@ for j in jvals:
         str(j)
         + "\t"
         + str(
-            round(ds_surface_pressure.variables[
-                list(ds_surface_pressure.data_vars.keys())[0]
-            ].values[j - 1, 10])
+            round(
+                ds_surface_pressure.variables[
+                    list(ds_surface_pressure.data_vars.keys())[0]
+                ].values[j - 1, 10]
+            )
         )
         + "\n"
     )
@@ -32,9 +34,11 @@ for i in ivals:
         str(i)
         + "\t"
         + str(
-            round(ds_surface_pressure.variables[
-                list(ds_surface_pressure.data_vars.keys())[0]
-            ].values[10, i - 1])
+            round(
+                ds_surface_pressure.variables[
+                    list(ds_surface_pressure.data_vars.keys())[0]
+                ].values[10, i - 1]
+            )
         )
         + "\n"
     )
@@ -47,9 +51,11 @@ for j in jvals:
         str(j)
         + "\t"
         + str(
-            round(ds_visibility.variables[list(ds_visibility.data_vars.keys())[0]].values[
-                j - 1, 10
-            ])
+            round(
+                ds_visibility.variables[list(ds_visibility.data_vars.keys())[0]].values[
+                    j - 1, 10
+                ]
+            )
         )
         + "\n"
     )
@@ -60,9 +66,11 @@ for i in ivals:
         str(i)
         + "\t"
         + str(
-            round(ds_visibility.variables[list(ds_visibility.data_vars.keys())[0]].values[
-                10, i - 1
-            ])
+            round(
+                ds_visibility.variables[list(ds_visibility.data_vars.keys())[0]].values[
+                    10, i - 1
+                ]
+            )
         )
         + "\n"
     )

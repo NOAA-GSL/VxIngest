@@ -58,7 +58,9 @@ def test_epoch_fcstlen_model(request):
     try:
         _name = request.node.name
         _expected_time = 3.0
-        testdata = Path("tests/vxingest/ctc_to_cb/testdata/test_epoch_fcstLen_model.n1ql")
+        testdata = Path(
+            "tests/vxingest/ctc_to_cb/testdata/test_epoch_fcstLen_model.n1ql"
+        )
         with testdata.open(mode="r", encoding="utf-8") as file:
             _statement = file.read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
@@ -100,7 +102,9 @@ def test_forecast_valid_epoch(request):
     try:
         _name = request.node.name
         _expected_time = 6.0
-        testdata = Path("tests/vxingest/ctc_to_cb/testdata/test_forecast_valid_epoch.n1ql")
+        testdata = Path(
+            "tests/vxingest/ctc_to_cb/testdata/test_forecast_valid_epoch.n1ql"
+        )
         with testdata.open(mode="r", encoding="utf-8") as file:
             _statement = file.read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
@@ -121,7 +125,9 @@ def test_get_region_lat_lon(request):
     try:
         _name = request.node.name
         _expected_time = 0.01
-        testdata = Path("tests/vxingest/ctc_to_cb/testdata/test_get_region_lat_lon.n1ql")
+        testdata = Path(
+            "tests/vxingest/ctc_to_cb/testdata/test_get_region_lat_lon.n1ql"
+        )
         with testdata.open(mode="r", encoding="utf-8") as file:
             _statement = file.read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
@@ -163,7 +169,9 @@ def test_get_threshold_descriptions(request):
     try:
         _name = request.node.name
         _expected_time = 0.01
-        testdata = Path("tests/vxingest/ctc_to_cb/testdata/test_get_threshold_descriptions.n1ql")
+        testdata = Path(
+            "tests/vxingest/ctc_to_cb/testdata/test_get_threshold_descriptions.n1ql"
+        )
         with testdata.open(mode="r", encoding="utf-8") as file:
             _statement = file.read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))

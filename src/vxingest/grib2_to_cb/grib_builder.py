@@ -131,9 +131,7 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
 
     # named functions
     # pylint: disable=no-self-use
-    def handle_ceiling(
-        self, params_dict
-    ):  # pylint: disable=unused-argument, disable=too-many-branches
+    def handle_ceiling(self, params_dict):  # pylint: disable=unused-argument, disable=too-many-branches
         """
         returns the ceiling values for all the stations in a list
         the dict_params aren't used here since the calculations are all done here
@@ -176,7 +174,9 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
             ].values
             ceil_msl_values = []
             # print('fcst_valid_epoch',self.ds_translate_item_variables_map["fcst_valid_epoch"])
-            for station in self.domain_stations:   # get the initial surface values and ceil_msl values for each station
+            for station in (
+                self.domain_stations
+            ):  # get the initial surface values and ceil_msl values for each station
                 geo_index = get_geo_index(
                     self.ds_translate_item_variables_map["fcst_valid_epoch"],
                     station["geo"],
@@ -193,7 +193,9 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
                     ceil_msl_values.append(ceil_var_values[y_gridpoint, x_gridpoint])
             ceil_agl = []
             i = 0
-            for station in self.domain_stations:  # determine the ceil_agl values for each station
+            for (
+                station
+            ) in self.domain_stations:  # determine the ceil_agl values for each station
                 if ceil_msl_values[i] == 60000:
                     ceil_agl.append(60000)
                 else:
@@ -230,9 +232,7 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
         translate all the pressures(one per station location) to milibars
         """
         pressures = []
-        for _v, v_intrp_pressure in list(params_dict.values())[
-            0
-        ]:  # pylint:disable=unused-variable
+        for _v, v_intrp_pressure in list(params_dict.values())[0]:
             # Convert from pascals to milibars
             pressures.append(float(v_intrp_pressure) / 100)
         return pressures
@@ -248,12 +248,7 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
         """
         # convert all the values to a float
         vis_values = []
-        for _v, v_intrp_ignore in list(  # pylint: disable=unused-variable
-            params_dict.values()
-        )[  # pylint: disable=unused-variable
-            0
-            # convert to miles (float)
-        ]:  # pylint:disable=unused-variable
+        for _v, _v_intrp_ignore in list(params_dict.values())[0]:
             vis_values.append(float(_v) / 1609.344 if _v is not None else None)
         return vis_values
 
@@ -268,9 +263,7 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
         """
         # convert all the values to a float
         rh_interpolated_values = []
-        for _v, v_intrp_pressure in list(params_dict.values())[
-            0
-        ]:  # pylint:disable=unused-variable
+        for _v, v_intrp_pressure in list(params_dict.values())[0]:
             rh_interpolated_values.append(
                 float(v_intrp_pressure) if v_intrp_pressure is not None else None
             )
@@ -283,9 +276,7 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
         """
         # Convert each station value from Kelvin to Farenheit
         tempf_values = []
-        for _v, v_intrp_tempf in list(params_dict.values())[
-            0
-        ]:  # pylint:disable=unused-variable
+        for _v, v_intrp_tempf in list(params_dict.values())[0]:
             tempf_values.append(
                 ((float(v_intrp_tempf) - 273.15) * 9) / 5 + 32
                 if v_intrp_tempf is not None
@@ -347,9 +338,7 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
 
         # wind direction
 
-    def handle_wind_direction(
-        self, params_dict
-    ):  # pylint:disable=unused-argument, disable=too-many-locals
+    def handle_wind_direction(self, params_dict):  # pylint:disable=unused-argument, disable=too-many-locals
         """The params_dict aren't used here since we need to
         select two messages (self.grbs.select is expensive since it scans the whole grib file).
         Each message is selected once and the station location data saved in an array,
@@ -503,9 +492,7 @@ class GribModelBuilderV01(GribBuilder):  # pylint:disable=too-many-instance-attr
             )
         return vegetation_type
 
-    def getName(
-        self, params_dict
-    ):  # pylint:disable=unused-argument,disable=invalid-name
+    def getName(self, params_dict):  # pylint:disable=unused-argument,disable=invalid-name
         """translate the station name
         Args:
             params_dict (object): named function parameters - unused here

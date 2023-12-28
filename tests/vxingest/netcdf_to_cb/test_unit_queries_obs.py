@@ -58,7 +58,9 @@ def test_ingest_document_id(request):
     try:
         _name = request.node.name
         _expected_time = 0.005
-        testdata = Path("tests/vxingest/netcdf_to_cb/testdata/test_ingest_document_id.n1ql")
+        testdata = Path(
+            "tests/vxingest/netcdf_to_cb/testdata/test_ingest_document_id.n1ql"
+        )
         with testdata.open(mode="r", encoding="utf-8") as file:
             _statement = file.read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
@@ -81,7 +83,9 @@ def test_ingest_document_fields(request):
     try:
         _name = request.node.name
         _expected_time = 0.005
-        testdata = Path("tests/vxingest/netcdf_to_cb/testdata/test_ingest_document_fields.n1ql")
+        testdata = Path(
+            "tests/vxingest/netcdf_to_cb/testdata/test_ingest_document_fields.n1ql"
+        )
         with testdata.open(mode="r", encoding="utf-8") as file:
             _statement = file.read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
@@ -123,7 +127,9 @@ def test_get_obs_by_fcst_valid_epoch(request):
     try:
         _name = request.node.name
         _expected_time = 1
-        testdata = Path("tests/vxingest/netcdf_to_cb/testdata/test_get_obs_by_fcstValidEpoch.n1ql")
+        testdata = Path(
+            "tests/vxingest/netcdf_to_cb/testdata/test_get_obs_by_fcstValidEpoch.n1ql"
+        )
         with testdata.open(mode="r", encoding="utf-8") as file:
             _statement = file.read()
         result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))

@@ -21,6 +21,7 @@ def setup_connection():
         assert False, f"test_credentials_and_load_spec Exception failure: {_e}"
         return None
 
+
 def test_proj():
     """test the proj"""
     vx_ingest = None
@@ -36,7 +37,7 @@ def test_proj():
                     "level": 2,
                 },
                 "read_keys": ["projString"],
-                "indexpath": ''
+                "indexpath": "",
             },
         )
         in_proj = pyproj.Proj(proj="latlon")
@@ -44,16 +45,12 @@ def test_proj():
         max_x = ds_height_above_ground_2m.r2.attrs["GRIB_Nx"]
         max_y = ds_height_above_ground_2m.r2.attrs["GRIB_Ny"]
         spacing = ds_height_above_ground_2m.r2.attrs["GRIB_DxInMetres"]
-        latitude_of_first_grid_point_in_degrees = (
-            ds_height_above_ground_2m.r2.attrs[
-                "GRIB_latitudeOfFirstGridPointInDegrees"
-            ]
-        )
-        longitude_of_first_grid_point_in_degrees = (
-            ds_height_above_ground_2m.r2.attrs[
-                "GRIB_longitudeOfFirstGridPointInDegrees"
-            ]
-        )
+        latitude_of_first_grid_point_in_degrees = ds_height_above_ground_2m.r2.attrs[
+            "GRIB_latitudeOfFirstGridPointInDegrees"
+        ]
+        longitude_of_first_grid_point_in_degrees = ds_height_above_ground_2m.r2.attrs[
+            "GRIB_longitudeOfFirstGridPointInDegrees"
+        ]
         proj_params = {}
         for _v in proj_string.replace(" ", "").split("+")[1:]:
             elem = _v.split("=")
@@ -80,12 +77,27 @@ def test_proj():
         # Create Proj object
         out_proj = pyproj.Proj(proj_params)
 
-        transformer = pyproj.Transformer.from_proj(
-            proj_from=in_proj, proj_to=out_proj
+        transformer = pyproj.Transformer.from_proj(proj_from=in_proj, proj_to=out_proj)
+        print(
+            "in_proj",
+            in_proj,
+            "out_proj",
+            out_proj,
+            "max_x",
+            max_x,
+            "max_y",
+            max_y,
+            "spacing",
+            spacing,
         )
-        print ('in_proj', in_proj, 'out_proj', out_proj, 'max_x', max_x, 'max_y', max_y, 'spacing', spacing)
-        assert in_proj.definition_string() == 'proj=longlat datum=WGS84 no_defs ellps=WGS84 towgs84=0,0,0', "in_proj definition_string is not 'proj=longlat datum=WGS84 no_defs ellps=WGS84 towgs84=0,0,0'"
-        assert out_proj.definition_string() == 'proj=lcc lat_0=38.5 lon_0=262.5 lat_1=38.5 lat_2=38.5 x_0=2697520.14252193 y_0=1587306.15255666 R=6371229 units=m no_defs', "out_proj is not 'proj=lcc lat_0=38.5 lon_0=262.5 lat_1=38.5 lat_2=38.5 x_0=2697520.14252193 y_0=1587306.15255666 R=6371229 units=m no_defs'"
+        assert (
+            in_proj.definition_string()
+            == "proj=longlat datum=WGS84 no_defs ellps=WGS84 towgs84=0,0,0"
+        ), "in_proj definition_string is not 'proj=longlat datum=WGS84 no_defs ellps=WGS84 towgs84=0,0,0'"
+        assert (
+            out_proj.definition_string()
+            == "proj=lcc lat_0=38.5 lon_0=262.5 lat_1=38.5 lat_2=38.5 x_0=2697520.14252193 y_0=1587306.15255666 R=6371229 units=m no_defs"
+        ), "out_proj is not 'proj=lcc lat_0=38.5 lon_0=262.5 lat_1=38.5 lat_2=38.5 x_0=2697520.14252193 y_0=1587306.15255666 R=6371229 units=m no_defs'"
         assert max_x == 1799, "max_x is not 1799"
         assert max_y == 1059, "max_y is not 1059"
         assert spacing == 3000.0, "spacing is not 3000.0"
@@ -108,13 +120,15 @@ def test_proj():
             (
                 _x,
                 _y,
-            ) = transformer.transform(
-                lon, lat, radians=False
-            )
+            ) = transformer.transform(lon, lat, radians=False)
             x_gridpoint = _x / spacing
             y_gridpoint = _y / spacing
-            assert x_gridpoint == 695.3172101518072, "x_gridpoint is not 695.3172101518072"
-            assert y_gridpoint == 587.461349077341, "y_gridpoint is not 587.461349077341"
+            assert (
+                x_gridpoint == 695.3172101518072
+            ), "x_gridpoint is not 695.3172101518072"
+            assert (
+                y_gridpoint == 587.461349077341
+            ), "y_gridpoint is not 587.461349077341"
 
     except Exception as _e:  # pylint:disable=broad-except
         assert False, f"test_proj Exception failure: {_e}"

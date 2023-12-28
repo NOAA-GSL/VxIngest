@@ -391,9 +391,7 @@ class NetcdfBuilder(Builder):  # pylint disable=too-many-instance-attributes
 
 
 # Concrete builders
-class NetcdfMetarObsBuilderV01(
-    NetcdfBuilder
-):  # pylint: disable=too-many-instance-attributes
+class NetcdfMetarObsBuilderV01(NetcdfBuilder):  # pylint: disable=too-many-instance-attributes
     """
     This is the builder for observation data that is ingested from netcdf (madis) files
     """
@@ -589,9 +587,7 @@ class NetcdfMetarObsBuilderV01(
                 str(skyCover_array),
                 str(skyLayerBase),
             )
-            logger.error(
-                "ceiling_transform stacktrace %s", str(traceback.format_exc())
-            )
+            logger.error("ceiling_transform stacktrace %s", str(traceback.format_exc()))
             return None
 
     def kelvin_to_farenheight(self, params_dict):

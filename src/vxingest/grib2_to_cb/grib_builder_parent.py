@@ -179,9 +179,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                     value = str(self.handle_named_function(part))
                 else:
                     if part.startswith("*"):
-                        _v, _interp_v = self.translate_template_item(
-                            part
-                        )  # pylint:disable=unused-variable
+                        _v, _interp_v = self.translate_template_item(part)  # pylint:disable=unused-variable
                         value = str(_v)
                     else:
                         value = str(part)
@@ -460,7 +458,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
         """
         cfgrib leaves .idx files in the directory - delete the .idx file
         """
-        idx_pattern = queue_element.replace(".grib2", '') + '.*.idx'
+        idx_pattern = queue_element.replace(".grib2", "") + ".*.idx"
         file_list = glob.glob(idx_pattern)
         # Iterate over the list of filepaths & remove each file.
         for file_path in file_list:
@@ -474,9 +472,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                     _e,
                 )
 
-    def build_document(
-        self, queue_element
-    ):  # pylint:disable=too-many-statements, disable=too-many-locals
+    def build_document(self, queue_element):  # pylint:disable=too-many-statements, disable=too-many-locals
         """
         This is the entry point for the gribBuilders from the ingestManager.
         The ingest manager is giving us a grib file to process from the queue.
@@ -526,7 +522,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                         "level": 2,
                     },
                     "read_keys": ["projString"],
-                    "indexpath": ''
+                    "indexpath": "",
                 },
             )
             ds_height_above_ground_10m = xr.open_dataset(
@@ -538,7 +534,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                         "stepType": "instant",
                         "level": 10,
                     },
-                    "indexpath": ''
+                    "indexpath": "",
                 },
             )
             in_proj = pyproj.Proj(proj="latlon")
@@ -628,7 +624,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                         "typeOfLevel": "cloudCeiling",
                         "stepType": "instant",
                     },
-                    "indexpath": ''
+                    "indexpath": "",
                 },
             )
             # to get the values you can use the following...
@@ -641,7 +637,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                 backend_kwargs={
                     "filter_by_keys": {"typeOfLevel": "surface", "stepType": "instant"},
                     "read_keys": ["projString"],
-                    "indexpath": ''
+                    "indexpath": "",
                 },
             )
             ds_surface_pressure = ds_surface.filter_by_attrs(
@@ -669,48 +665,70 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
             try:
                 self.ds_translate_item_variables_map = {
                     "2 metre temperature": ds_hgt_2_metre_temperature.variables[
-                        list(ds_hgt_2_metre_temperature.data_vars.keys())[0] if len(list(ds_hgt_2_metre_temperature.data_vars.keys())) > 0
-                            else None
+                        list(ds_hgt_2_metre_temperature.data_vars.keys())[0]
+                        if len(list(ds_hgt_2_metre_temperature.data_vars.keys())) > 0
+                        else None
                     ],
                     "2 metre dewpoint temperature": ds_hgt_2_metre_dewpoint_temperature.variables[
-                        list(ds_hgt_2_metre_dewpoint_temperature.data_vars.keys())[0] if len(list(ds_hgt_2_metre_dewpoint_temperature.data_vars.keys())) > 0
-                            else None
+                        list(ds_hgt_2_metre_dewpoint_temperature.data_vars.keys())[0]
+                        if len(
+                            list(ds_hgt_2_metre_dewpoint_temperature.data_vars.keys())
+                        )
+                        > 0
+                        else None
                     ],
                     "2 metre relative humidity": ds_hgt_2_metre_relative_humidity.variables[
-                        list(ds_hgt_2_metre_relative_humidity.data_vars.keys())[0] if len(list(ds_hgt_2_metre_relative_humidity.data_vars.keys())) > 0
-                            else None
+                        list(ds_hgt_2_metre_relative_humidity.data_vars.keys())[0]
+                        if len(list(ds_hgt_2_metre_relative_humidity.data_vars.keys()))
+                        > 0
+                        else None
                     ],
                     "2 metre specific humidity": ds_hgt_2_metre_specific_humidity.variables[
-                        list(ds_hgt_2_metre_specific_humidity.data_vars.keys())[0] if len(list(ds_hgt_2_metre_specific_humidity.data_vars.keys())) > 0
-                            else None
+                        list(ds_hgt_2_metre_specific_humidity.data_vars.keys())[0]
+                        if len(list(ds_hgt_2_metre_specific_humidity.data_vars.keys()))
+                        > 0
+                        else None
                     ],
                     "10 metre U wind component": ds_hgt_10_metre_u_component_of_wind.variables[
-                        list(ds_hgt_10_metre_u_component_of_wind.data_vars.keys())[0] if len(list(ds_hgt_10_metre_u_component_of_wind.data_vars.keys())) > 0
-                            else None
+                        list(ds_hgt_10_metre_u_component_of_wind.data_vars.keys())[0]
+                        if len(
+                            list(ds_hgt_10_metre_u_component_of_wind.data_vars.keys())
+                        )
+                        > 0
+                        else None
                     ],
                     "10 metre V wind component": ds_hgt_10_metre_v_component_of_wind.variables[
-                        list(ds_hgt_10_metre_v_component_of_wind.data_vars.keys())[0] if len(list(ds_hgt_10_metre_v_component_of_wind.data_vars.keys())) > 0
-                            else None
+                        list(ds_hgt_10_metre_v_component_of_wind.data_vars.keys())[0]
+                        if len(
+                            list(ds_hgt_10_metre_v_component_of_wind.data_vars.keys())
+                        )
+                        > 0
+                        else None
                     ],
                     "Surface pressure": ds_surface_pressure.variables[
-                        list(ds_surface_pressure.data_vars.keys())[0] if len(list(ds_surface_pressure.data_vars.keys())) > 0
-                            else None
+                        list(ds_surface_pressure.data_vars.keys())[0]
+                        if len(list(ds_surface_pressure.data_vars.keys())) > 0
+                        else None
                     ],
                     "Visibility": ds_surface_visibility.variables[
-                        list(ds_surface_visibility.data_vars.keys())[0] if len(list(ds_surface_visibility.data_vars.keys())) > 0
-                            else None
+                        list(ds_surface_visibility.data_vars.keys())[0]
+                        if len(list(ds_surface_visibility.data_vars.keys())) > 0
+                        else None
                     ],
                     "Orography": ds_surface_orog.variables[
-                        list(ds_surface_orog.data_vars.keys())[0] if len(list(ds_surface_orog.data_vars.keys())) > 0
-                            else None
+                        list(ds_surface_orog.data_vars.keys())[0]
+                        if len(list(ds_surface_orog.data_vars.keys())) > 0
+                        else None
                     ],
                     "Cloud ceiling": ds_cloud_ceiling.variables[
-                        list(ds_cloud_ceiling.data_vars.keys())[0] if len(list(ds_cloud_ceiling.data_vars.keys())) > 0
-                            else None
+                        list(ds_cloud_ceiling.data_vars.keys())[0]
+                        if len(list(ds_cloud_ceiling.data_vars.keys())) > 0
+                        else None
                     ],
                     "Vegetation Type": ds_surface_vegetation_type.variables[
-                        list(ds_surface_vegetation_type.data_vars.keys())[0] if len(list(ds_surface_vegetation_type.data_vars.keys())) > 0
-                            else None
+                        list(ds_surface_vegetation_type.data_vars.keys())[0]
+                        if len(list(ds_surface_vegetation_type.data_vars.keys())) > 0
+                        else None
                     ],
                     "fcst_valid_epoch": ds_fcst_valid_epoch,
                     "fcst_len": ds_fcst_len,
@@ -756,9 +774,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                     (
                         _x,
                         _y,
-                    ) = transformer.transform(
-                        lon, lat, radians=False
-                    )
+                    ) = transformer.transform(lon, lat, radians=False)
                     x_gridpoint = _x / spacing
                     y_gridpoint = _y / spacing
                     # use for debugging if you must
@@ -785,7 +801,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                 # if we have gridpoints for all the geos in the station, add it to the list
                 has_gridpoints = True
                 for elem in station["geo"]:
-                    if "x_gridpoint" not in elem or  "y_gridpoint" not in elem:
+                    if "x_gridpoint" not in elem or "y_gridpoint" not in elem:
                         has_gridpoints = False
                 if has_gridpoints:
                     self.domain_stations.append(station)

@@ -31,9 +31,11 @@ cb_model_obs_data = []
 mysql_model_obs_data = []
 stations = []
 
+
 def stub_worker_log_configurer(queue: Queue):
     """A stub to replace log_config.worker_log_configurer"""
     pass
+
 
 def test_check_fcst_valid_epoch_fcst_valid_iso():
     """
@@ -81,9 +83,7 @@ def test_check_fcst_valid_epoch_fcst_valid_iso():
             ), "fcstValidEpoch and fcstValidIso are not the same time"
             assert (fve % 3600) == 0, "fcstValidEpoch is not at top of hour"
     except Exception as _e:  # pylint: disable=broad-except, disable=broad-except
-        assert (
-            False
-        ), f"TestGsdIngestManager.test_check_fcstValidEpoch_fcstValidIso Exception failure:  {_e}"
+        assert False, f"TestGsdIngestManager.test_check_fcstValidEpoch_fcstValidIso Exception failure:  {_e}"
 
 
 def test_get_stations_geo_search():
@@ -187,8 +187,8 @@ def calculate_cb_ctc(  # pylint: disable=dangerous-default-value,missing-functio
     doc_sub_type,
     reject_stations=[],
 ):
-    global cb_model_obs_data #pylint: disable=global-statement
-    global stations #pylint: disable=global-statement
+    global cb_model_obs_data  # pylint: disable=global-statement
+    global stations  # pylint: disable=global-statement
 
     credentials_file = os.environ["CREDENTIALS"]
     assert Path(credentials_file).is_file(), "credentials_file Does not exist"
@@ -256,7 +256,12 @@ def calculate_cb_ctc(  # pylint: disable=dangerous-default-value,missing-functio
             continue
         model_data = full_model_data["data"][station]
         # add to model_obs_data
-        if obs_data and model_data and obs_data[doc_sub_type] is not None and model_data[doc_sub_type] is not None:
+        if (
+            obs_data
+            and model_data
+            and obs_data[doc_sub_type] is not None
+            and model_data[doc_sub_type] is not None
+        ):
             dat = {
                 "time": epoch,
                 "fcst_len": fcst_len,
@@ -305,8 +310,8 @@ def test_ctc_builder_ceiling_hrrr_ops_all_hrrr():  # pylint: disable=too-many-lo
     Then the couchbase CTC fcstValidEpochs are compared and asserted against the derived CTC.
     """
     # noinspection PyBroadException
-    global cb_model_obs_data #pylint: disable=global-variable-not-assigned
-    global stations #pylint: disable=global-variable-not-assigned
+    global cb_model_obs_data  # pylint: disable=global-variable-not-assigned
+    global stations  # pylint: disable=global-variable-not-assigned
 
     try:
         credentials_file = os.environ["CREDENTIALS"]
@@ -333,7 +338,9 @@ def test_ctc_builder_ceiling_hrrr_ops_all_hrrr():  # pylint: disable=too-many-lo
                 "threads": 1,
                 "first_epoch": 1638489600,
                 "last_epoch": 1638496800,
-            }, log_queue, stub_worker_log_configurer
+            },
+            log_queue,
+            stub_worker_log_configurer,
         )
 
         list_of_output_files = glob.glob(outdir + "/*")
@@ -346,7 +353,7 @@ def test_ctc_builder_ceiling_hrrr_ops_all_hrrr():  # pylint: disable=too-many-lo
             vx_ingest_output_data = json.load(output_file)
             # if this is an LJ document then the CTC's were already ingested
             # and the test should stop here
-            if vx_ingest_output_data[0]['type'] == "LJ":
+            if vx_ingest_output_data[0]["type"] == "LJ":
                 return
             # get the last fcstValidEpochs
             fcst_valid_epochs = {doc["fcstValidEpoch"] for doc in vx_ingest_output_data}
@@ -387,12 +394,11 @@ def test_ctc_builder_ceiling_hrrr_ops_all_hrrr():  # pylint: disable=too-many-lo
                     region="ALL_HRRR",
                 )
                 if cb_ctc is None:
-                    print(
-                        f"cb_ctc is None for threshold {str(_t)}- contunuing"
-                    )
+                    print(f"cb_ctc is None for threshold {str(_t)}- contunuing")
                     continue
     except Exception as _e:  # pylint: disable=broad-except
         assert False, f"TestCTCBuilderV01 Exception failure: {_e}"
+
 
 def test_ctc_builder_visibility_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
     """
@@ -405,8 +411,8 @@ def test_ctc_builder_visibility_hrrr_ops_all_hrrr():  # pylint: disable=too-many
     Then the couchbase CTC fcstValidEpochs are compared and asserted against the derived CTC.
     """
     # noinspection PyBroadException
-    global cb_model_obs_data #pylint: disable=global-variable-not-assigned
-    global stations #pylint: disable=global-variable-not-assigned
+    global cb_model_obs_data  # pylint: disable=global-variable-not-assigned
+    global stations  # pylint: disable=global-variable-not-assigned
 
     try:
         credentials_file = os.environ["CREDENTIALS"]
@@ -434,7 +440,9 @@ def test_ctc_builder_visibility_hrrr_ops_all_hrrr():  # pylint: disable=too-many
                 "threads": 1,
                 "first_epoch": 1638489600,
                 "last_epoch": 1638496800,
-            }, log_queue, stub_worker_log_configurer
+            },
+            log_queue,
+            stub_worker_log_configurer,
         )
 
         list_of_output_files = glob.glob(outdir + "/*")
@@ -447,13 +455,13 @@ def test_ctc_builder_visibility_hrrr_ops_all_hrrr():  # pylint: disable=too-many
             vx_ingest_output_data = json.load(output_file)
             # if this is an LJ document then the CTC's were already ingested
             # and the test should stop here
-            if vx_ingest_output_data[0]['type'] == "LJ":
+            if vx_ingest_output_data[0]["type"] == "LJ":
                 return
             # get the last fcstValidEpochs
             fcst_valid_epochs = {doc["fcstValidEpoch"] for doc in vx_ingest_output_data}
             # take a fcstValidEpoch in the middle of the list
             fcst_valid_epoch = list(fcst_valid_epochs)[int(len(fcst_valid_epochs) / 2)]
-            _thresholds = ["0.5","1.0","3.0","5.0","10.0"]
+            _thresholds = ["0.5", "1.0", "3.0", "5.0", "10.0"]
             # get all the documents that have the chosen fcstValidEpoch
             docs = [
                 _doc
@@ -488,9 +496,7 @@ def test_ctc_builder_visibility_hrrr_ops_all_hrrr():  # pylint: disable=too-many
                     region="ALL_HRRR",
                 )
                 if cb_ctc is None:
-                    print(
-                        f"cb_ctc is None for threshold {str(_threshold)}- contunuing"
-                    )
+                    print(f"cb_ctc is None for threshold {str(_threshold)}- contunuing")
                     continue
     except Exception as _e:  # pylint: disable=broad-except
         assert False, f"TestCTCBuilderV01 Exception failure: {_e}"
@@ -542,7 +548,7 @@ def test_ctc_ceiling_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-local
         if len(cb_fcst_valid_epochs) == 0:
             assert False, "There is no data"
         # choose the last one
-        #fcst_valid_epoch = cb_fcst_valid_epochs[-1]
+        # fcst_valid_epoch = cb_fcst_valid_epochs[-1]
         fcst_valid_epoch = cb_fcst_valid_epochs[round(len(cb_fcst_valid_epochs) / 2)]
         # get all the cb fcstLen values
         result = cluster.query(
@@ -624,9 +630,7 @@ def test_ctc_ceiling_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-local
                 for field in fields:
                     _ctc_value = _ctc[field]
                     _cb_ctc_value = _cb_ctc[_collection]["data"][_threshold][field]
-                    assert (
-                        _ctc_value == _cb_ctc_value
-                    ), f"""
+                    assert _ctc_value == _cb_ctc_value, f"""
                     For epoch : {_ctc['fcst_valid_epoch']}
                     and fstLen: {_ctc['fcst_len']}
                     and threshold: {_threshold}
@@ -634,6 +638,7 @@ def test_ctc_ceiling_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-local
     except Exception as _e:  # pylint: disable=broad-except
         assert False, f"TestCTCBuilderV01 Exception failure:  {_e}"
     return
+
 
 def test_ctc_visibiltiy_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
     # noinspection PyBroadException
@@ -680,7 +685,7 @@ def test_ctc_visibiltiy_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-lo
         if len(cb_fcst_valid_epochs) == 0:
             assert False, "There is no data"
         # choose the last one
-        #fcst_valid_epoch = cb_fcst_valid_epochs[-1]
+        # fcst_valid_epoch = cb_fcst_valid_epochs[-1]
         fcst_valid_epoch = cb_fcst_valid_epochs[round(len(cb_fcst_valid_epochs) / 2)]
         # get all the cb fcstLen values
         result = cluster.query(
@@ -762,9 +767,7 @@ def test_ctc_visibiltiy_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-lo
                 for field in fields:
                     _ctc_value = _ctc[field]
                     _cb_ctc_value = _cb_ctc[_collection]["data"][_threshold][field]
-                    assert (
-                        _ctc_value == _cb_ctc_value
-                    ), f"""
+                    assert _ctc_value == _cb_ctc_value, f"""
                     For epoch : {_ctc['fcst_valid_epoch']}
                     and fstLen: {_ctc['fcst_len']}
                     and threshold: {_threshold}

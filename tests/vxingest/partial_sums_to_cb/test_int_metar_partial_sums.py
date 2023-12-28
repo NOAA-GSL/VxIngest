@@ -81,9 +81,7 @@ def test_check_fcst_valid_epoch_fcst_valid_iso():
             ), "fcstValidEpoch and fcstValidIso are not the same time"
             assert (fve % 3600) == 0, "fcstValidEpoch is not at top of hour"
     except Exception as _e:  # pylint: disable=broad-except, disable=broad-except
-        assert (
-            False
-        ), f"TestGsdIngestManager.test_check_fcstValidEpoch_fcstValidIso Exception failure:  {_e}"
+        assert False, f"TestGsdIngestManager.test_check_fcstValidEpoch_fcstValidIso Exception failure:  {_e}"
 
 
 def test_get_stations_geo_search():
@@ -176,6 +174,7 @@ def test_get_stations_geo_search():
     except Exception as _e:  # pylint: disable=broad-except
         assert False, f"TestGsdIngestManager Exception failure:  {_e}"
 
+
 def test_ps_builder_surface_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
     """
     This test verifies that data is returned for each fcstLen.
@@ -187,8 +186,8 @@ def test_ps_builder_surface_hrrr_ops_all_hrrr():  # pylint: disable=too-many-loc
     Then the couchbase SUMS fcstValidEpochs are compared and asserted against the derived SUMS.
     """
     # noinspection PyBroadException
-    global cb_model_obs_data #pylint: disable=global-variable-not-assigned
-    global stations #pylint: disable=global-variable-not-assigned
+    global cb_model_obs_data  # pylint: disable=global-variable-not-assigned
+    global stations  # pylint: disable=global-variable-not-assigned
 
     try:
         credentials_file = os.environ["CREDENTIALS"]
@@ -215,7 +214,9 @@ def test_ps_builder_surface_hrrr_ops_all_hrrr():  # pylint: disable=too-many-loc
                 "threads": 1,
                 "first_epoch": 1638489600,
                 "last_epoch": 1638496800,
-            }, log_queue, stub_worker_log_configurer
+            },
+            log_queue,
+            stub_worker_log_configurer,
         )
 
         list_of_output_files = glob.glob(outdir + "/*")
@@ -228,7 +229,7 @@ def test_ps_builder_surface_hrrr_ops_all_hrrr():  # pylint: disable=too-many-loc
             vx_ingest_output_data = json.load(output_file)
             # if this is an LJ document then the SUMS's were already ingested
             # and the test should stop here
-            if vx_ingest_output_data[0]['type'] == "LJ":
+            if vx_ingest_output_data[0]["type"] == "LJ":
                 return
             # get the last fcstValidEpochs
             fcst_valid_epochs = {doc["fcstValidEpoch"] for doc in vx_ingest_output_data}
@@ -246,7 +247,9 @@ def test_ps_builder_surface_hrrr_ops_all_hrrr():  # pylint: disable=too-many-loc
                 fcst_lens.append(_elem["fcstLen"])
             output_file.close()
         except Exception as _e:  # pylint: disable=broad-except
-            assert False, f"TestPartialSumsBuilderV01 Exception failure opening output: {_e}"
+            assert (
+                False
+            ), f"TestPartialSumsBuilderV01 Exception failure opening output: {_e}"
         for _i in fcst_lens:
             _elem = None
             # find the document for this fcst_len
@@ -256,6 +259,7 @@ def test_ps_builder_surface_hrrr_ops_all_hrrr():  # pylint: disable=too-many-loc
             assert _elem is not None, "fcstLen not found in output"
     except Exception as _e:  # pylint: disable=broad-except
         assert False, f"TestPartialSumsBuilderV01 Exception failure: {_e}"
+
 
 def test_ps_surface_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
     # noinspection PyBroadException
@@ -300,7 +304,7 @@ def test_ps_surface_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
                 AND subset='{_collection}'"""
         )
         ps_fcst_valid_epochs = list(result)
-        #if len(ps_fcst_valid_epochs) == 0:
+        # if len(ps_fcst_valid_epochs) == 0:
         #    assert False, "There is no data"
         # choose the last one
         fcst_valid_epoch = []
@@ -360,7 +364,7 @@ def test_ps_surface_data_hrrr_ops_all_hrrr():  # pylint: disable=too-many-locals
                 order by fcstLen;"""
         )
         for _cb_ps in cb_results:
-            print (f"do something {_cb_ps}")
+            print(f"do something {_cb_ps}")
     except Exception as _e:  # pylint: disable=broad-except
         assert False, f"TestBuilderV01 Exception failure:  {_e}"
     return

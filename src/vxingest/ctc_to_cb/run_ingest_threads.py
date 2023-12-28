@@ -81,6 +81,7 @@ from vxingest.log_config import configure_logging, worker_log_configurer
 # Get a logger with this module's name to help with debugging
 logger = logging.getLogger(__name__)
 
+
 def parse_args(args):
     """
     Parse command line arguments
@@ -229,21 +230,23 @@ class VXIngest(CommonVxIngest):
         # thread that uses builders to process a file
         # Make the Pool of data_type_managers
         ingest_manager_list = []
-        logger.info(f"The ingest documents in the queue are: {self.load_spec['ingest_document_ids']}")
+        logger.info(
+            f"The ingest documents in the queue are: {self.load_spec['ingest_document_ids']}"
+        )
         logger.info(f"Starting {self.thread_count} processes")
         for thread_count in range(int(self.thread_count)):
             # noinspection PyBroadException
             try:
                 ingest_manager_thread = VxIngestManager(
-                    f"VxIngestManager-{thread_count+1}", # Processes are 1 indexed in the logger
+                    f"VxIngestManager-{thread_count+1}",  # Processes are 1 indexed in the logger
                     self.load_spec,
                     _q,
                     self.output_dir,
-                    log_queue, # Queue to pass logging messages back to the main process on
-                    log_configurer, # Config function to set up the logger in the multiprocess Process
+                    log_queue,  # Queue to pass logging messages back to the main process on
+                    log_configurer,  # Config function to set up the logger in the multiprocess Process
                 )
                 ingest_manager_list.append(ingest_manager_thread)
-                ingest_manager_thread.start() # This calls a .run() method in the class
+                ingest_manager_thread.start()  # This calls a .run() method in the class
                 logger.info(f"Started thread: VxIngestManager-{thread_count+1}")
             except Exception as _e:  # pylint:disable=broad-except
                 logger.error("*** Error in VXIngest %s***", str(_e))

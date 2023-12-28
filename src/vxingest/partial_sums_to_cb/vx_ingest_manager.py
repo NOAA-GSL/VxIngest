@@ -42,9 +42,7 @@ from vxingest.partial_sums_to_cb import partial_sums_builder as my_builder
 logger = logging.getLogger(__name__)
 
 
-class VxIngestManager(
-    CommonVxIngestManager
-):  # pylint:disable=too-many-instance-attributes
+class VxIngestManager(CommonVxIngestManager):  # pylint:disable=too-many-instance-attributes
     """
     IngestManager is a Process Thread that manages an object pool of
     builders to ingest data from GSD couchbase documents, producing new documents
@@ -116,7 +114,9 @@ class VxIngestManager(
         if queue_element is None:
             raise Exception("ingest_document is undefined")
         try:
-            self.ingest_type_builder_name = self.load_spec["ingest_documents"][queue_element]["builder_type"]
+            self.ingest_type_builder_name = self.load_spec["ingest_documents"][
+                queue_element
+            ]["builder_type"]
         except Exception as _e:  # pylint:disable=broad-except
             logger.exception(
                 "%s: process_element: Exception getting ingest document for %s",
@@ -153,15 +153,14 @@ class VxIngestManager(
             else:
                 builder_class = getattr(my_builder, self.ingest_type_builder_name)
                 self.ingest_document = self.load_spec["ingest_documents"][queue_element]
-                builder = builder_class(
-                    self.load_spec,
-                    self.ingest_document
-                )
+                builder = builder_class(self.load_spec, self.ingest_document)
                 self.builder_map[self.ingest_type_builder_name] = builder
             logger.info("building document map for %s", queue_element)
             document_map = builder.build_document(queue_element)
             if self.output_dir:
-                logger.info("writing document map for %s to %s", queue_element, self.output_dir)
+                logger.info(
+                    "writing document map for %s to %s", queue_element, self.output_dir
+                )
                 self.write_document_to_files(queue_element, document_map)
             else:
                 logger.info("writing document map for %s to database", queue_element)

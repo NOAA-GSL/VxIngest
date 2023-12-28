@@ -28,6 +28,7 @@ from vxingest.builder_common.builder_utilities import (
 # Get a logger with this module's name to help with debugging
 logger = logging.getLogger(__name__)
 
+
 class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attributes
     """
     Parent class for PARTIALSUMS builders
@@ -108,12 +109,8 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
         self.sub_doc_type = None
         self.variable = None
         self.model_fcst_valid_epochs = []
-        self.model_data = (
-            {}
-        )  # used to stash each fcstValidEpoch model_data for the handlers
-        self.obs_data = (
-            {}
-        )  # used to stash each fcstValidEpoch obs_data for the handlers
+        self.model_data = {}  # used to stash each fcstValidEpoch model_data for the handlers
+        self.obs_data = {}  # used to stash each fcstValidEpoch obs_data for the handlers
         self.obs_station_names = []  # used to stash sorted obs names for the handlers
         self.thresholds = None
         self.not_found_stations = set()
@@ -181,7 +178,8 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
             return value
         except Exception as _e:  # pylint: disable=broad-except
             logger.error(
-                "PartialSumsBuilder.translate_template_item: Exception  error: %s", str(_e)
+                "PartialSumsBuilder.translate_template_item: Exception  error: %s",
+                str(_e),
             )
             return None
 
@@ -419,8 +417,8 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
         These documents are id'd by model, region, fcstValidEpoch and fcstLen. The data section is a map
         each element of which contains a sum value keyed by a variable name. The values are the
         {
-	        “num_recs”: # matched pairs,
- 	        “sum_obs”: sum of all the observation values for each matched pair,
+                “num_recs”: # matched pairs,
+                “sum_obs”: sum of all the observation values for each matched pair,
             “sum_model”: sum of all the model values for each matched pair,
             “sum_diff”: sum of all variables differences, obs-model,
             “sum2_diff”: sum of all variable differences squared, obs-model,
@@ -497,10 +495,16 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
                     time.sleep(2)  # don't hammer the server too hard
                     error_count = error_count + 1
             # initial value for the max epoch
-            max_partialsums_fcst_valid_epochs = self.load_spec["first_last_params"]["first_epoch"]
+            max_partialsums_fcst_valid_epochs = self.load_spec["first_last_params"][
+                "first_epoch"
+            ]
             max_partialsums_fcst_valid_epochs_result = list(result)
             # if there are partialsums's for this model and region then get the max epoch from the query
-            max_partialsums_fcst_valid_epochs = max_partialsums_fcst_valid_epochs_result[0] if max_partialsums_fcst_valid_epochs_result[0] is not None  else 0
+            max_partialsums_fcst_valid_epochs = (
+                max_partialsums_fcst_valid_epochs_result[0]
+                if max_partialsums_fcst_valid_epochs_result[0] is not None
+                else 0
+            )
 
             # Second get the intersection of the fcstValidEpochs that correspond for this
             # model and the obs for all fcstValidEpochs greater than the first_epoch partialsums
@@ -523,7 +527,7 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
                                 AND fve.fcstValidEpoch <= {self.load_spec["first_last_params"]["last_epoch"]}
                             ORDER BY fve.fcstValidEpoch, fve.fcstLen"""
                     # logger.info("build_document start query %s", stmnt)
-                    result = self.load_spec["cluster"].query(stmnt,read_only=True)
+                    result = self.load_spec["cluster"].query(stmnt, read_only=True)
                     success = True
                     # logger.info("build_document finished query %s", stmnt)
                 except TimeoutException:
@@ -606,9 +610,7 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
             )
             return {}
 
-    def get_stations_for_region_by_geosearch(
-        self, region_name, valid_epoch
-    ):  # pylint: disable=unused-argument
+    def get_stations_for_region_by_geosearch(self, region_name, valid_epoch):  # pylint: disable=unused-argument
         # NOTE: this is currently broken because we have to modify this query to
         # work woth the data model that has data elements as a MAP indexed by station name
         """Using a geosearh return all the stations within the defined region
@@ -805,7 +807,7 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
     # named functions
 
     def handle_sum(self, params_dict):
-        """ calculate sums for a given data set - i.e. model, region, fcstValidEpoch, fcstLen"""
+        """calculate sums for a given data set - i.e. model, region, fcstValidEpoch, fcstLen"""
         try:
             keys = list(params_dict.keys())
             variable = keys[0]
@@ -819,22 +821,57 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
                     obs_elem = self.obs_data[name]
                     model_elem = self.model_data["data"][name]
                     if variable == "RH":
-                        if "RH" not in obs_elem and obs_elem["DewPoint"] is not None and obs_elem["Temperature"] is not None:
-                            obs_elem["RH"] = (relative_humidity_from_dewpoint(obs_elem["Temperature"] * units.degF, obs_elem["DewPoint"] * units.degF).magnitude) * 100
-                        if "RH" not in model_elem and model_elem["DewPoint"] is not None and model_elem["Temperature"] is not None:
-                            model_elem["RH"] = (relative_humidity_from_dewpoint(model_elem["Temperature"] * units.degF, model_elem["DewPoint"] * units.degF).magnitude) * 100
+                        if (
+                            "RH" not in obs_elem
+                            and obs_elem["DewPoint"] is not None
+                            and obs_elem["Temperature"] is not None
+                        ):
+                            obs_elem["RH"] = (
+                                relative_humidity_from_dewpoint(
+                                    obs_elem["Temperature"] * units.degF,
+                                    obs_elem["DewPoint"] * units.degF,
+                                ).magnitude
+                            ) * 100
+                        if (
+                            "RH" not in model_elem
+                            and model_elem["DewPoint"] is not None
+                            and model_elem["Temperature"] is not None
+                        ):
+                            model_elem["RH"] = (
+                                relative_humidity_from_dewpoint(
+                                    model_elem["Temperature"] * units.degF,
+                                    model_elem["DewPoint"] * units.degF,
+                                ).magnitude
+                            ) * 100
                     if variable == "UW" or variable == "VW":
                         # wind direction in the data is from 0 to 360 and we need it from -180 to 180
-                        if ("UW" not in obs_elem or "VW" not in obs_elem) and obs_elem["WS"] is not None and obs_elem["WD"] is not None:
-                            wind_components_t = wind_components( obs_elem["WS"] * units.mph, (obs_elem["WD"] - 180) * units.deg)
+                        if (
+                            ("UW" not in obs_elem or "VW" not in obs_elem)
+                            and obs_elem["WS"] is not None
+                            and obs_elem["WD"] is not None
+                        ):
+                            wind_components_t = wind_components(
+                                obs_elem["WS"] * units.mph,
+                                (obs_elem["WD"] - 180) * units.deg,
+                            )
                             obs_elem["UW"] = wind_components_t[0].magnitude
                             obs_elem["VW"] = wind_components_t[1].magnitude
-                        if ("UW" not in model_elem or "VW" not in model_elem) and model_elem["WS"] is not None and model_elem["WD"] is not None:
-                            wind_components_t = wind_components( model_elem["WS"] * units.mph, (model_elem["WD"] - 180) * units.deg)
+                        if (
+                            ("UW" not in model_elem or "VW" not in model_elem)
+                            and model_elem["WS"] is not None
+                            and model_elem["WD"] is not None
+                        ):
+                            wind_components_t = wind_components(
+                                model_elem["WS"] * units.mph,
+                                (model_elem["WD"] - 180) * units.deg,
+                            )
                             model_elem["UW"] = wind_components_t[0].magnitude
                             model_elem["VW"] = wind_components_t[1].magnitude
                     if variable in obs_elem and variable in model_elem:
-                        if obs_elem[variable] is not None and model_elem[variable] is not  None:
+                        if (
+                            obs_elem[variable] is not None
+                            and model_elem[variable] is not None
+                        ):
                             obs_vals.append(obs_elem[variable])
                             model_vals.append(model_elem[variable])
                             _diff = model_elem[variable] - obs_elem[variable]
@@ -847,7 +884,7 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
                 "sum_model": sum(model_vals),
                 "sum_diff": sum(diff_vals),
                 "sum2_diff": sum(diff_vals_squared),
-                "sum_abs": sum(abs_diff_vals)
+                "sum_abs": sum(abs_diff_vals),
             }
             return sum_elem
         except Exception as _e:  # pylint:disable=broad-except
@@ -868,8 +905,8 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
          "data": {
             Temperature: "
             {
-	            “num_recs”: # matched pairs,
- 	            “sum_obs”: sum of all the observation values for each matched pair,
+                    “num_recs”: # matched pairs,
+                    “sum_obs”: sum of all the observation values for each matched pair,
                 “sum_model”: sum of all the model values for each matched pair,
                 “sum_diff”: sum of all variables differences, obs-model,
                 “sum2_diff”: sum of all variable differences squared, obs-model,
@@ -888,7 +925,9 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
             data_elem = {}
             # it is expected that the template data section be comprised of named functions
             for variable in template_data.keys():
-                data_elem[variable] = self.handle_named_function(template_data[variable])
+                data_elem[variable] = self.handle_named_function(
+                    template_data[variable]
+                )
             doc["data"] = data_elem
             return doc
         except Exception as _e:  # pylint: disable=broad-except

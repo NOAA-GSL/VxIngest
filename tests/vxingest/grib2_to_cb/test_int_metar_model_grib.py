@@ -22,9 +22,11 @@ from vxingest.grib2_to_cb.run_ingest_threads import VXIngest
 
 cb_connection = {}
 
+
 def stub_worker_log_configurer(queue: Queue):
     """A stub to replace log_config.worker_log_configurer"""
     pass
+
 
 def connect_cb():
     """
@@ -92,7 +94,9 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus(tmp_path):
                 "output_dir": f"{tmp_path}",
                 "threads": 1,
                 "file_pattern": "21287230000[0123456789]?",
-            }, log_queue, stub_worker_log_configurer
+            },
+            log_queue,
+            stub_worker_log_configurer,
         )
         # check the output files to see if they match the documents that were
         # preveously created by the real ingest process
@@ -104,16 +108,19 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus(tmp_path):
             _id = _json["id"]
             if _id.startswith("LJ"):
                 for _k in _json.keys():
-                    assert _k in [
-                        "id",
-                        "subset",
-                        "type",
-                        "lineageId",
-                        "script",
-                        "scriptVersion",
-                        "loadSpec",
-                        "note",
-                    ], f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus LJ failure key {_k} not in {_json.keys()}"
+                    assert (
+                        _k
+                        in [
+                            "id",
+                            "subset",
+                            "type",
+                            "lineageId",
+                            "script",
+                            "scriptVersion",
+                            "loadSpec",
+                            "note",
+                        ]
+                    ), f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus LJ failure key {_k} not in {_json.keys()}"
                 continue
             _statement = f"select METAR.* from `{connect_cb()['bucket']}`._default.METAR where meta().id = '{_id}'"
             qresult = connect_cb()["cluster"].query(_statement)
@@ -147,32 +154,31 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus(tmp_path):
                         ), f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure name {result['data'][_k][_dk]} != {_json['data'][_k][_dk]}"
                     else:
                         # math compare
-                        #print(f"result {_k} {_dk} ", result["data"][_k][_dk])
+                        # print(f"result {_k} {_dk} ", result["data"][_k][_dk])
                         abs_tol = 0.0
                         if _dk == "Ceiling":
                             abs_tol = 0.002  # ceiling values don't always have four decimals of resolution
                         elif _dk == "DewPoint":
                             abs_tol = 1.0001  # DewPoint only has 3 decimals of precision from pygrib whereas cfgrib is having 4 (or at least the old ingest only had four)
-                            #abs_tol = 0.0001  # DewPoint only has 3 decimals of precision from pygrib whereas cfgrib is having 4 (or at least the old ingest only had four)
+                            # abs_tol = 0.0001  # DewPoint only has 3 decimals of precision from pygrib whereas cfgrib is having 4 (or at least the old ingest only had four)
                         elif (
                             _dk == "RH"
                         ):  # RH only has one decimal of resolution from the grib file
                             abs_tol = 1.00001  # not really dure why math.isclose compares out to 5 places but not 6
-                            #abs_tol = 0.00001  # not really dure why math.isclose compares out to 5 places but not 6
+                            # abs_tol = 0.00001  # not really dure why math.isclose compares out to 5 places but not 6
                             # There are no unusual math transformations in the RH handler.
                         else:
                             abs_tol = 0.0000000000001  # most fields validate between pygrib and cfgrib precisely
 
                         assert math.isclose(
-                        result["data"][_k][_dk],
-                        _json["data"][_k][_dk],
-                        abs_tol=abs_tol,
+                            result["data"][_k][_dk],
+                            _json["data"][_k][_dk],
+                            abs_tol=abs_tol,
                         ), f"""TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure data not close within {abs_tol}
                         {_k}.{_dk} {result['data'][_k][_dk]} != {_json['data'][_k][_dk]} within {abs_tol} decimal places."""
     except Exception as _e:  # pylint: disable=broad-except
-        assert (
-            False
-        ), f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus Exception failure: {_e}"
+        assert False, f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus Exception failure: {_e}"
+
 
 def test_grib_builder_two_threads_file_pattern_hrrr_ops_conus(tmp_path):
     """test gribBuilder multi-threaded
@@ -200,12 +206,13 @@ def test_grib_builder_two_threads_file_pattern_hrrr_ops_conus(tmp_path):
                 "output_dir": f"{tmp_path}",
                 "threads": 2,
                 "file_pattern": "21287230000[0123456789]?",
-            }, log_queue, stub_worker_log_configurer
+            },
+            log_queue,
+            stub_worker_log_configurer,
         )
     except Exception as _e:  # pylint: disable=broad-except
-        assert (
-            False
-        ), f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus Exception failure: {_e} "
+        assert False, f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus Exception failure: {_e} "
+
 
 def test_grib_builder_two_threads_file_pattern_rap_ops_130_conus(tmp_path):
     """test gribBuilder multi-threaded
@@ -225,9 +232,9 @@ def test_grib_builder_two_threads_file_pattern_rap_ops_130_conus(tmp_path):
                 "output_dir": f"{tmp_path}",
                 "threads": 2,
                 "file_pattern": "23332080000[0123456789]?",
-            }, log_queue, stub_worker_log_configurer
+            },
+            log_queue,
+            stub_worker_log_configurer,
         )
     except Exception as _e:  # pylint: disable=broad-except
-        assert (
-            False
-        ), f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus Exception failure: {_e} "
+        assert False, f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus Exception failure: {_e} "

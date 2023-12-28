@@ -69,7 +69,7 @@ def truncate_round(_n, decimals=0):
     Returns:
         float: The number multiplied by n and then divided by n
     """
-    multiplier = 10 ** decimals
+    multiplier = 10**decimals
     return int(_n * multiplier) / multiplier
 
 

@@ -69,7 +69,7 @@ def calc_components(doc):
 def run_backfill() -> None:
     """entrypoint"""
     connection = setup_connection()
-    _query_result = connection['cluster'].query("select raw meta().id FROM `vxdata`._default.METAR WHERE type='DD' AND docType ='obs' AND version='V01' AND subset='METAR';")
+    _query_result = connection['cluster'].query("select raw meta().id FROM `vxdata`._default.METAR WHERE type='DD' AND docType ='obs' AND version='V01' AND subset='METAR' AND id > 'DD:V01:METAR:obs:1699966800';")
     _result = list(_query_result)
     print(f"number of ids is {len(_result)}: starting id is {_result[0]} and ending id is {_result[-1]}")
     for i,_id in enumerate(_result):

@@ -640,8 +640,7 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):  # pylint: disable=too-many-insta
             return None
 
     def handle_rh(self, params_dict):
-        """Retrieves a RH value, if there is one,
-           and if not derives the RH from the dewpoint and temperature.
+        """Derives the RH from the dewpoint and temperature.
         Args:
             params_dict (dict): named function parameters
         Returns:
@@ -670,8 +669,7 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):  # pylint: disable=too-many-insta
             return None
 
     def handle_wind_dir_u(self, params_dict):
-        """Retrieves a wind direction U value, if there is one,
-           and if not derives the U component from the wind direction and speed.
+        """Derives the U component from the wind direction and speed.
            expects wind speed and wind direction to be in the params_dict.
         Args:
             params_dict (dict): named function parameters
@@ -703,8 +701,7 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):  # pylint: disable=too-many-insta
             return None
 
     def handle_wind_dir_v(self, params_dict):
-        """Retrieves a wind direction V value, if there is one,
-           and if not derives the V component from the wind direction and speed.
+        """Derives the V component from the wind direction and speed.
         Args:
             params_dict (dict): named function parameters
         Returns:

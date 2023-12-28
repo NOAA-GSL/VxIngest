@@ -22,9 +22,9 @@ from multiprocessing import Queue
 from vxingest.netcdf_to_cb.run_ingest_threads import VXIngest
 
 
-def stub_worker_log_configurer(queue: Queue): # pylint:disable=unused-argument
+def stub_worker_log_configurer(queue: Queue):  # pylint:disable=unused-argument
     """A stub to replace log_config.worker_log_configurer"""
-    pass # pylint:disable=unnecessary-pass
+    pass  # pylint:disable=unnecessary-pass
 
 
 def setup_connection():
@@ -42,14 +42,16 @@ def setup_connection():
         assert False, f"test_credentials_and_load_spec Exception failure: {_e}"
         return None
 
+
 def ordered(obj):
-    """ Utliity function to sort a dictionary so that it can be compared to another dictionary"""
+    """Utliity function to sort a dictionary so that it can be compared to another dictionary"""
     if isinstance(obj, dict):
         return sorted((k, ordered(v)) for k, v in obj.items())
     if isinstance(obj, list):
         return sorted(ordered(x) for x in obj)
     else:
         return obj
+
 
 def test_one_thread_specify_file_pattern(tmp_path):  # pylint:disable=missing-function-docstring
     try:
@@ -84,7 +86,9 @@ def test_one_thread_specify_file_pattern(tmp_path):  # pylint:disable=missing-fu
         assert len(glob(f"{tmp_path}/20211108*.json")) == len(
             glob("/opt/data/netcdf_to_cb/input_files/20211108_0000")
         ), "number of output files is incorrect"
-        derived_data = json.load(open(f"{tmp_path}/20211108_0000.json", encoding="utf-8"))
+        derived_data = json.load(
+            open(f"{tmp_path}/20211108_0000.json", encoding="utf-8")
+        )
         station_id = ""
         derived_station = {}
         obs_id = ""
@@ -102,12 +106,18 @@ def test_one_thread_specify_file_pattern(tmp_path):  # pylint:disable=missing-fu
         retrieved_station = vx_ingest.collection.get(station_id).content_as[dict]
         retrieved_obs = vx_ingest.collection.get(obs_id).content_as[dict]
         # make sure the updateTime is the same in both the derived and retrieved station
-        retrieved_station['updateTime'] = derived_station['updateTime']
+        retrieved_station["updateTime"] = derived_station["updateTime"]
         # make sure the firstTime and lastTime are the same in both the derived and retrieved station['geo']
-        retrieved_station['geo'][0]['firstTime'] = derived_station['geo'][0]['firstTime']
-        retrieved_station['geo'][0]['lastTime'] = derived_station['geo'][0]['lastTime']
-        assert ordered(derived_station) == ordered(retrieved_station), "derived station does not match retrieved station"
-        assert ordered(derived_obs) == ordered(retrieved_obs), "derived obs does not match retrieved obs"
+        retrieved_station["geo"][0]["firstTime"] = derived_station["geo"][0][
+            "firstTime"
+        ]
+        retrieved_station["geo"][0]["lastTime"] = derived_station["geo"][0]["lastTime"]
+        assert ordered(derived_station) == ordered(
+            retrieved_station
+        ), "derived station does not match retrieved station"
+        assert ordered(derived_obs) == ordered(
+            retrieved_obs
+        ), "derived obs does not match retrieved obs"
     except Exception as _e:  # pylint: disable=broad-except
         assert False, f"TestGsdIngestManager Exception failure: {_e}"
 

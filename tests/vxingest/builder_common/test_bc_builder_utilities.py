@@ -49,11 +49,14 @@ def test_convert_to_iso():
     assert convert_to_iso(1627976400) == "2021-08-03T07:40:00Z"
     assert convert_to_iso("1627976400") == "2021-08-03T07:40:00Z"
     assert convert_to_iso(1627976400.123) == "2021-08-03T07:40:00Z"
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError, match=r"invalid literal for int\(\) with base 10: .*"
+    ):
         convert_to_iso("1627976400.123")
-    with pytest.raises(ValueError):
-        v = convert_to_iso("not_an_epoch")
-        assert v == "1970-00-00T00:00:00Z"
+    with pytest.raises(
+        ValueError, match=r"invalid literal for int\(\) with base 10: .*"
+    ):
+        assert convert_to_iso("not_an_epoch") == "1970-00-00T00:00:00Z"
 
 
 def test_truncate_round():

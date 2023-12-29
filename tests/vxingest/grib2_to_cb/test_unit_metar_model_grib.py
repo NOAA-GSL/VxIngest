@@ -1,39 +1,32 @@
 import os
 from pathlib import Path
 
+import pytest
 from vxingest.grib2_to_cb.run_ingest_threads import VXIngest
 
 
 def setup_connection_multiple_ingest_ids():
     """test setup - used to test multiple ingest_document_ids"""
-    try:
-        _vx_ingest = VXIngest()
-        _vx_ingest.credentials_file = os.environ["CREDENTIALS"]
-        _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
-        _vx_ingest.connect_cb()
-        _vx_ingest.load_spec["ingest_document_ids"] = _vx_ingest.collection.get(
-            "JOB-TEST:V01:METAR:GRIB2:MODEL:HRRR"
-        ).content_as[dict]["ingest_document_ids"]
-        return _vx_ingest
-    except Exception as _e:
-        assert False, f"test_credentials_and_load_spec Exception failure: {_e}"
-        return None
+    _vx_ingest = VXIngest()
+    _vx_ingest.credentials_file = os.environ["CREDENTIALS"]
+    _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
+    _vx_ingest.connect_cb()
+    _vx_ingest.load_spec["ingest_document_ids"] = _vx_ingest.collection.get(
+        "JOB-TEST:V01:METAR:GRIB2:MODEL:HRRR"
+    ).content_as[dict]["ingest_document_ids"]
+    return _vx_ingest
 
 
 def setup_connection():
     """test setup"""
-    try:
-        _vx_ingest = VXIngest()
-        _vx_ingest.credentials_file = os.environ["CREDENTIALS"]
-        _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
-        _vx_ingest.connect_cb()
-        _vx_ingest.load_spec["ingest_document_ids"] = _vx_ingest.collection.get(
-            "JOB-TEST:V01:METAR:GRIB2:MODEL:HRRR"
-        ).content_as[dict]["ingest_document_ids"]
-        return _vx_ingest
-    except Exception as _e:
-        assert False, f"test_credentials_and_load_spec Exception failure: {_e}"
-        return None
+    _vx_ingest = VXIngest()
+    _vx_ingest.credentials_file = os.environ["CREDENTIALS"]
+    _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
+    _vx_ingest.connect_cb()
+    _vx_ingest.load_spec["ingest_document_ids"] = _vx_ingest.collection.get(
+        "JOB-TEST:V01:METAR:GRIB2:MODEL:HRRR"
+    ).content_as[dict]["ingest_document_ids"]
+    return _vx_ingest
 
 
 def test_credentials_and_load_spec():
@@ -43,7 +36,7 @@ def test_credentials_and_load_spec():
         vx_ingest = setup_connection()
         assert True, vx_ingest.load_spec["cb_connection"]["user"] == "cb_user"
     except Exception as _e:
-        assert False, f"test_credentials_and_load_spec Exception failure: {_e}"
+        pytest.fail(f"test_credentials_and_load_spec Exception failure: {_e}")
     finally:
         vx_ingest.close_cb()
 
@@ -55,7 +48,7 @@ def test_credentials_and_load_spec_multiple_ingest_ids():
         vx_ingest = setup_connection_multiple_ingest_ids()
         assert True, vx_ingest.load_spec["cb_connection"]["user"] == "cb_user"
     except Exception as _e:
-        assert False, f"test_credentials_and_load_spec Exception failure: {_e}"
+        pytest.fail(f"test_credentials_and_load_spec Exception failure: {_e}")
     finally:
         vx_ingest.close_cb()
 
@@ -70,7 +63,7 @@ def test_cb_connect_disconnect():
         assert True, local_time is not None
         vx_ingest.close_cb()
     except Exception as _e:
-        assert False, f"test_cb_connect_disconnect Exception failure: {_e}"
+        pytest.fail(f"test_cb_connect_disconnect Exception failure: {_e}")
     finally:
         vx_ingest.close_cb()
 
@@ -85,7 +78,7 @@ def test_write_load_job_to_files(tmp_path):
         vx_ingest.load_spec["load_job_doc"] = {"test": "a line of text"}
         vx_ingest.write_load_job_to_files()
     except Exception as _e:
-        assert False, f"test_write_load_job_to_files Exception failure: {_e}"
+        pytest.fail(f"test_write_load_job_to_files Exception failure: {_e}")
     finally:
         vx_ingest.close_cb()
 
@@ -104,7 +97,7 @@ def test_build_load_job_doc(tmp_path):
             "LJ:METAR:vxingest.grib2_to_cb.run_ingest_threads:VXIngest"
         )
     except Exception as _e:
-        assert False, f"test_build_load_job_doc Exception failure: {_e}"
+        pytest.fail(f"test_build_load_job_doc Exception failure: {_e}")
     finally:
         vx_ingest.close_cb()
 
@@ -141,6 +134,6 @@ def test_vxingest_get_file_list(tmp_path):
             tmp_path / "f_fred_03",
         ]
     except Exception as _e:
-        assert False, f"test_build_load_job_doc Exception failure: {_e}"
+        pytest.fail(f"test_build_load_job_doc Exception failure: {_e}")
     finally:
         vx_ingest.close_cb()

@@ -6,6 +6,7 @@ from pathlib import Path
 
 import netCDF4 as nc
 import numpy as np
+import pytest
 from couchbase.mutation_state import MutationState
 from couchbase.n1ql import QueryScanConsistency
 from couchbase.options import QueryOptions
@@ -19,18 +20,14 @@ from vxingest.netcdf_to_cb.run_ingest_threads import VXIngest
 
 def setup_connection():
     """test setup"""
-    try:
-        _vx_ingest = VXIngest()
-        _vx_ingest.credentials_file = os.environ["CREDENTIALS"]
-        _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
-        _vx_ingest.connect_cb()
-        _vx_ingest.load_spec["ingest_document_ids"] = _vx_ingest.collection.get(
-            "JOB:V01:METAR:NETCDF:OBS"
-        ).content_as[dict]["ingest_document_ids"]
-        return _vx_ingest
-    except Exception as _e:
-        assert False, f"test_credentials_and_load_spec Exception failure: {_e}"
-        return None
+    _vx_ingest = VXIngest()
+    _vx_ingest.credentials_file = os.environ["CREDENTIALS"]
+    _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
+    _vx_ingest.connect_cb()
+    _vx_ingest.load_spec["ingest_document_ids"] = _vx_ingest.collection.get(
+        "JOB:V01:METAR:NETCDF:OBS"
+    ).content_as[dict]["ingest_document_ids"]
+    return _vx_ingest
 
 
 def test_credentials_and_load_spec():
@@ -39,7 +36,7 @@ def test_credentials_and_load_spec():
         vx_ingest = setup_connection()
         assert vx_ingest.load_spec["cb_connection"]["user"], "cb_user"
     except Exception as _e:
-        assert False, f"test_credentials_and_load_spec Exception failure: {_e}"
+        pytest.fail(f"test_credentials_and_load_spec Exception failure: {_e}")
     finally:
         vx_ingest.close_cb()
 
@@ -53,7 +50,7 @@ def test_cb_connect_disconnect():
         assert local_time is not None
         vx_ingest.close_cb()
     except Exception as _e:
-        assert False, f"test_cb_connect_disconnect Exception failure: {_e}"
+        pytest.fail(f"test_cb_connect_disconnect Exception failure: {_e}")
     finally:
         vx_ingest.close_cb()
 
@@ -68,7 +65,7 @@ def test_write_load_job_to_files(tmp_path):
         vx_ingest.write_load_job_to_files()
         assert Path(tmp_path / "test_id.json").is_file()
     except Exception as _e:
-        assert False, f"test_write_load_job_to_files Exception failure: {_e}"
+        pytest.fail(f"test_write_load_job_to_files Exception failure: {_e}")
     finally:
         vx_ingest.close_cb()
 
@@ -85,7 +82,7 @@ def test_build_load_job_doc(tmp_path):
             "LJ:METAR:vxingest.netcdf_to_cb.run_ingest_threads:VXIngest"
         )
     except Exception as _e:
-        assert False, f"test_build_load_job_doc Exception failure: {_e}"
+        pytest.fail(f"test_build_load_job_doc Exception failure: {_e}")
     finally:
         vx_ingest.close_cb()
 
@@ -127,7 +124,7 @@ def test_umask_value_transform():
         temp = builder.umask_value_transform(params_dict)
         assert temp == 250.15
     except Exception as _e:
-        assert False, f"test_build_load_job_doc Exception failure: {_e}"
+        pytest.fail(f"test_build_load_job_doc Exception failure: {_e}")
     finally:
         vx_ingest.close_cb()
         _nc.close()  # close returns memoryview
@@ -201,7 +198,7 @@ def test_vxingest_get_file_list(tmp_path):
         ), "get_file_list 2 wrong list"
 
     except Exception as _e:
-        assert False, f"test_build_load_job_doc Exception failure: {_e}"
+        pytest.fail(f"test_build_load_job_doc Exception failure: {_e}")
     finally:
         vx_ingest.collection.remove("DF:metar:grib2:HRRR_OPS:f_fred_01")
         vx_ingest.close_cb()
@@ -209,104 +206,96 @@ def test_vxingest_get_file_list(tmp_path):
 
 def test_interpolate_time():
     """test the interpolate time routine in netcdf_builder"""
-    try:
-        vx_ingest = setup_connection()
-        _cluster = vx_ingest.cluster
-        _collection = vx_ingest.collection
-        _load_spec = vx_ingest.load_spec
-        _ingest_document_ids = vx_ingest.load_spec["ingest_document_ids"]
-        _ingest_document = _collection.get(_ingest_document_ids[0]).content_as[dict]
-        _builder = NetcdfMetarObsBuilderV01(_load_spec, _ingest_document)
-        for delta in [
-            0,
-            -1,
-            1,
-            -1799,
-            1799,
-            -1800,
-            1800,
-            -1801,
-            1801,
-            -3599,
-            3599,
-            -3600,
-            3600,
-            -3601,
-            3601,
-        ]:
-            _t = np.array([1636390800 + delta])
-            _t.view(np.ma.MaskedArray)
-            t_interpolated = _builder.interpolate_time({"timeObs": _t})
-            print(
-                "for an offset: "
-                + str(delta)
-                + " results in interpolation: "
-                + str(t_interpolated)
-            )
-            if delta >= -1800 and delta <= 1799:
-                assert (
-                    1636390800 == t_interpolated
-                ), f"1636390800 interpolated to {t_interpolated} is not equal"
-            if delta <= -1801:
-                assert (
-                    1636390800 - 3600 == t_interpolated
-                ), f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
-            if delta >= 1800:
-                assert (
-                    1636390800 + 3600 == t_interpolated
-                ), f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
-    except Exception as _e:
-        assert False, f"test_interpolate_time Exception failure: {_e}"
+    vx_ingest = setup_connection()
+    _cluster = vx_ingest.cluster
+    _collection = vx_ingest.collection
+    _load_spec = vx_ingest.load_spec
+    _ingest_document_ids = vx_ingest.load_spec["ingest_document_ids"]
+    _ingest_document = _collection.get(_ingest_document_ids[0]).content_as[dict]
+    _builder = NetcdfMetarObsBuilderV01(_load_spec, _ingest_document)
+    for delta in [
+        0,
+        -1,
+        1,
+        -1799,
+        1799,
+        -1800,
+        1800,
+        -1801,
+        1801,
+        -3599,
+        3599,
+        -3600,
+        3600,
+        -3601,
+        3601,
+    ]:
+        _t = np.array([1636390800 + delta])
+        _t.view(np.ma.MaskedArray)
+        t_interpolated = _builder.interpolate_time({"timeObs": _t})
+        print(
+            "for an offset: "
+            + str(delta)
+            + " results in interpolation: "
+            + str(t_interpolated)
+        )
+        if delta >= -1800 and delta <= 1799:
+            assert (
+                1636390800 == t_interpolated
+            ), f"1636390800 interpolated to {t_interpolated} is not equal"
+        if delta <= -1801:
+            assert (
+                1636390800 - 3600 == t_interpolated
+            ), f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
+        if delta >= 1800:
+            assert (
+                1636390800 + 3600 == t_interpolated
+            ), f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
 
 
 def test_interpolate_time_iso():
     """test the interpolate time routine in netcdf_builder"""
-    try:
-        vx_ingest = setup_connection()
-        _cluster = vx_ingest.cluster
-        _collection = vx_ingest.collection
-        load_spec = vx_ingest.load_spec
-        ingest_document_ids = vx_ingest.load_spec["ingest_document_ids"]
-        ingest_document = _collection.get(ingest_document_ids[0]).content_as[dict]
-        _builder = NetcdfMetarObsBuilderV01(load_spec, ingest_document)
-        for delta in [
-            0,
-            -1,
-            1,
-            -1799,
-            1799,
-            -1800,
-            1800,
-            -1801,
-            1801,
-            -3599,
-            3599,
-            -3600,
-            3600,
-            -3601,
-            3601,
-        ]:
-            _t = np.array([1636390800 + delta])
-            _t.view(np.ma.MaskedArray)
-            t_interpolated = _builder.interpolate_time_iso({"timeObs": _t})
-            if delta >= -1800 and delta <= 1799:
-                assert (
-                    (datetime.utcfromtimestamp(1636390800).isoformat())
-                    == t_interpolated
-                ), f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
-            if delta <= -1801:
-                assert (
-                    (datetime.utcfromtimestamp(1636390800 - 3600).isoformat())
-                    == t_interpolated
-                ), f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
-            if delta >= 1800:
-                assert (
-                    datetime.utcfromtimestamp(1636390800 + 3600).isoformat()
-                    == t_interpolated
-                ), f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
-
-    except Exception as _e:
-        assert False, f"test_interpolate_time_iso Exception failure: {_e}"
+    vx_ingest = setup_connection()
+    _cluster = vx_ingest.cluster
+    _collection = vx_ingest.collection
+    load_spec = vx_ingest.load_spec
+    ingest_document_ids = vx_ingest.load_spec["ingest_document_ids"]
+    ingest_document = _collection.get(ingest_document_ids[0]).content_as[dict]
+    _builder = NetcdfMetarObsBuilderV01(load_spec, ingest_document)
+    for delta in [
+        0,
+        -1,
+        1,
+        -1799,
+        1799,
+        -1800,
+        1800,
+        -1801,
+        1801,
+        -3599,
+        3599,
+        -3600,
+        3600,
+        -3601,
+        3601,
+    ]:
+        _t = np.array([1636390800 + delta])
+        _t.view(np.ma.MaskedArray)
+        t_interpolated = _builder.interpolate_time_iso({"timeObs": _t})
+        if delta >= -1800 and delta <= 1799:
+            assert (
+                (datetime.utcfromtimestamp(1636390800).isoformat()) == t_interpolated
+            ), f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
+        if delta <= -1801:
+            assert (
+                (datetime.utcfromtimestamp(1636390800 - 3600).isoformat())
+                == t_interpolated
+            ), f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
+        if delta >= 1800:
+            assert (
+                datetime.utcfromtimestamp(1636390800 + 3600).isoformat()
+                == t_interpolated
+            ), f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
 
 
 def test_handle_station():
@@ -518,7 +507,7 @@ def test_handle_station():
         assert_station(_cluster, new_station_zbaa, _builder)
         cleanup_builder_doc(_cluster, _collection, _builder, station_zbaa_copy)
     except Exception as _e:
-        assert False, f"test_handle_station Exception failure: {_e}"
+        pytest.fail(f"test_handle_station Exception failure: {_e}")
     finally:
         # upsert the original ZBAA station document
         station_zbaa["geo"].pop(0)
@@ -692,43 +681,33 @@ def assert_station(cluster, station_zbaa, builder):
 
 def test_derive_valid_time_epoch():
     """test the derive_valid_time_epoch routine in netcdf_builder"""
-    try:
-        vx_ingest = setup_connection()
-        _collection = vx_ingest.collection
-        load_spec = vx_ingest.load_spec
-        ingest_document_ids = vx_ingest.load_spec["ingest_document_ids"]
-        ingest_document = _collection.get(ingest_document_ids[0]).content_as[dict]
-        _builder = NetcdfMetarObsBuilderV01(load_spec, ingest_document)
-        _builder.file_name = "20211108_0000"
-        _pattern = "%Y%m%d_%H%M"
-        _file_utc_time = datetime.strptime(_builder.file_name, _pattern)
-        expected_epoch = (_file_utc_time - datetime(1970, 1, 1)).total_seconds()
-        derived_epoch = _builder.derive_valid_time_epoch(
-            {"file_name_pattern": _pattern}
-        )
-        assert (
-            expected_epoch == derived_epoch
-        ), f"derived epoch {derived_epoch} is not equal to 1636329600"
-    except Exception as _e:
-        assert False, f"test_derive_valid_time_epoch Exception failure: {_e}"
+    vx_ingest = setup_connection()
+    _collection = vx_ingest.collection
+    load_spec = vx_ingest.load_spec
+    ingest_document_ids = vx_ingest.load_spec["ingest_document_ids"]
+    ingest_document = _collection.get(ingest_document_ids[0]).content_as[dict]
+    _builder = NetcdfMetarObsBuilderV01(load_spec, ingest_document)
+    _builder.file_name = "20211108_0000"
+    _pattern = "%Y%m%d_%H%M"
+    _file_utc_time = datetime.strptime(_builder.file_name, _pattern)
+    expected_epoch = (_file_utc_time - datetime(1970, 1, 1)).total_seconds()
+    derived_epoch = _builder.derive_valid_time_epoch({"file_name_pattern": _pattern})
+    assert (
+        expected_epoch == derived_epoch
+    ), f"derived epoch {derived_epoch} is not equal to 1636329600"
 
 
 def test_derive_valid_time_iso():
     """test the derive_valid_time_iso routine in netcdf_builder"""
-    try:
-        vx_ingest = setup_connection()
-        _cluster = vx_ingest.cluster
-        _collection = vx_ingest.collection
-        load_spec = vx_ingest.load_spec
-        ingest_document_ids = vx_ingest.load_spec["ingest_document_ids"]
-        ingest_document = _collection.get(ingest_document_ids[0]).content_as[dict]
-        _builder = NetcdfMetarObsBuilderV01(load_spec, ingest_document)
-        _builder.file_name = "20211108_0000"
-        derived_epoch = _builder.derive_valid_time_iso(
-            {"file_name_pattern": "%Y%m%d_%H%M"}
-        )
-        assert (
-            "2021-11-08T00:00:00Z" == derived_epoch
-        ), f"derived epoch {derived_epoch} is not equal to 1636390800"
-    except Exception as _e:
-        assert False, f"test_derive_valid_time_epoch Exception failure: {_e}"
+    vx_ingest = setup_connection()
+    _cluster = vx_ingest.cluster
+    _collection = vx_ingest.collection
+    load_spec = vx_ingest.load_spec
+    ingest_document_ids = vx_ingest.load_spec["ingest_document_ids"]
+    ingest_document = _collection.get(ingest_document_ids[0]).content_as[dict]
+    _builder = NetcdfMetarObsBuilderV01(load_spec, ingest_document)
+    _builder.file_name = "20211108_0000"
+    derived_epoch = _builder.derive_valid_time_iso({"file_name_pattern": "%Y%m%d_%H%M"})
+    assert (
+        "2021-11-08T00:00:00Z" == derived_epoch
+    ), f"derived epoch {derived_epoch} is not equal to 1636390800"

@@ -3,6 +3,7 @@ Module to backfill observations with relative humidity, WindU, and WindV.
 """
 
 import os
+import sys
 import time
 from datetime import timedelta
 from pathlib import Path
@@ -52,17 +53,17 @@ def calc_components(doc):
     """Calculate RH, WindU, and WindV from Temperature, DewPoint, WS, and WD."""
     # doc = {"data":{'station_name': {'Temperature'} {'DewPoint'} {'WS'} {'WD'} ... }
     for _name, station in doc["data"].items():
-        if "RH" not in station:
-            if station["Temperature"] is not None and station["DewPoint"] is not None:
-                station["RH"] = (
-                    relative_humidity_from_dewpoint(
-                        station["Temperature"] * units.degC,
-                        station["DewPoint"] * units.degC,
-                    ).magnitude
-                    * 100
-                )
-            else:
-                station["RH"] = None
+        # always calculate RH to correct incorrect values that were previously calculated with DegC
+        if station["Temperature"] is not None and station["DewPoint"] is not None:
+            station["RH"] = (
+                relative_humidity_from_dewpoint(
+                    station["Temperature"] * units.degF,
+                    station["DewPoint"] * units.degF,
+                ).magnitude
+                * 100
+            )
+        else:
+            station["RH"] = None
         if "WindU" not in station or "WindV" not in station.keys():
             if station["WS"] is not None and station["WD"] is not None:
                 _u, _v = wind_components(
@@ -75,11 +76,15 @@ def calc_components(doc):
                 station["WindV"] = None
 
 
-def run_backfill() -> None:
+def run_backfill(start_id) -> None:
     """entrypoint"""
+    start_clause = ""
+    if start_id is not None:
+        print(f"starting id is {start_id}")
+        start_clause = f"AND meta().id >= '{start_id}'"
     connection = setup_connection()
     _query_result = connection["cluster"].query(
-        "select raw meta().id FROM `vxdata`._default.METAR WHERE type='DD' AND docType ='obs' AND version='V01' AND subset='METAR' AND id > 'DD:V01:METAR:obs:1699966800';"
+        f"select raw meta().id FROM `vxdata`._default.METAR WHERE type='DD' AND docType ='obs' AND version='V01' AND subset='METAR' {start_clause};"
     )
     _result = list(_query_result)
     print(
@@ -88,7 +93,7 @@ def run_backfill() -> None:
     for i, _id in enumerate(_result):
         print(f"processing #{i} with id {_id}")
         ri = 0
-        for ri in range(5):
+        for ri in range(5):  # retry up to 5 times
             try:
                 doc = connection["collection"].get(_id).content_as[dict]
                 calc_components(doc)
@@ -107,4 +112,7 @@ def run_backfill() -> None:
 
 
 if __name__ == "__main__":
-    run_backfill()
+    STARTID= None
+    if sys.argv[1]:
+        STARTID = sys.argv[1]
+    run_backfill(STARTID)

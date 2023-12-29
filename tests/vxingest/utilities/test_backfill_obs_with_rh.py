@@ -32,7 +32,7 @@ def test_calc_components_backfills_rh():
         assert "RH" not in entries
     calc_components(doc)
     assert math.isclose(
-        doc["data"]["NZCM"]["RH"], 73.78055835142725, abs_tol=0.001
+        doc["data"]["NZCM"]["RH"], 81.008, abs_tol=0.001
     ), "RH wrong value - not within 0.001"
     assert math.isclose(
         doc["data"]["NZCM"]["WindU"], -6.123233995736766e-16, abs_tol=0.001
@@ -44,7 +44,7 @@ def test_calc_components_backfills_rh():
     assert doc["data"]["NZCM"]["WD"] == 180, "WD wrong value"
 
     assert math.isclose(
-        doc["data"]["SUMU"]["RH"], 40.1370668529669, abs_tol=0.001
+        doc["data"]["SUMU"]["RH"], 53.152, abs_tol=0.001
     ), "RH wrong value - not within 0.001"
     assert doc["data"]["SUMU"]["WindU"] == 10.0, "WindU wrong value"
     assert math.isclose(
@@ -65,20 +65,20 @@ def test_calc_components_backfills_windu_and_windv():
                 "DewPoint": 20,
                 "WS": 5,
                 "WD": 180,
-                "RH": 73.78055835142725,
+                "RH": 81.008,
             },
             "SUMU": {
                 "Temperature": 30,
                 "DewPoint": 15,
                 "WS": 10,
                 "WD": 270,
-                "RH": 40.1370668529669,
+                "RH": 53.152,
             },
         }
     }
     calc_components(doc)
     assert math.isclose(
-        doc["data"]["NZCM"]["RH"], 73.78055835142725, abs_tol=0.001
+        doc["data"]["NZCM"]["RH"], 81.008, abs_tol=0.001
     ), "RH wrong value - not within 0.001"
     assert math.isclose(
         doc["data"]["NZCM"]["WindU"], -6.123233995736766e-16, abs_tol=0.001
@@ -90,7 +90,7 @@ def test_calc_components_backfills_windu_and_windv():
     assert doc["data"]["NZCM"]["WD"] == 180, "WD wrong value"
 
     assert math.isclose(
-        doc["data"]["SUMU"]["RH"], 40.1370668529669, abs_tol=0.001
+        doc["data"]["SUMU"]["RH"], 53.152, abs_tol=0.001
     ), "RH wrong value - not within 0.001"
     assert doc["data"]["SUMU"]["WindU"] == 10.0, "WindU wrong value"
     assert math.isclose(
@@ -133,7 +133,7 @@ def test_calc_components_backfills_nochange():
     assert doc["data"]["NZCM"]["WD"] == 180, "WD wrong value"
     assert doc["data"]["NZCM"]["WindU"] == 5, "WindU wrong value"
     assert doc["data"]["NZCM"]["WindV"] == -5, "WindV wrong value"
-    assert doc["data"]["NZCM"]["RH"] == 75, "RH wrong value"
+    assert math.isclose(doc["data"]["NZCM"]["RH"], 81.008, abs_tol=0.001), "RH wrong value"
 
     assert doc["data"]["SUMU"]["Temperature"] == 30, "temperature wrong value"
     assert doc["data"]["SUMU"]["DewPoint"] == 15, "DewPoint wrong value"
@@ -141,4 +141,4 @@ def test_calc_components_backfills_nochange():
     assert doc["data"]["SUMU"]["WD"] == 270, "WD wrong value"
     assert doc["data"]["SUMU"]["WindU"] == 3, "WindU wrong value"
     assert doc["data"]["SUMU"]["WindV"] == -7, "WindV wrong value"
-    assert doc["data"]["SUMU"]["RH"] == 70, "RH wrong value"
+    assert math.isclose(doc["data"]["SUMU"]["RH"], 53.152, abs_tol=0.001), "RH wrong value"

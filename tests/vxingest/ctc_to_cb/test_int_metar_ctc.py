@@ -233,13 +233,13 @@ def calculate_cb_ctc(
     print("cb_ctc model_id:", model_id, " obs_id:", obs_id)
     try:
         full_model_data = load_spec["collection"].get(model_id).content_as[dict]
-    except:
+    except Exception:
         time.sleep(0.25)
         full_model_data = load_spec["collection"].get(model_id).content_as[dict]
     cb_model_obs_data = []
     try:
         full_obs_data = load_spec["collection"].get(obs_id).content_as[dict]
-    except:
+    except Exception:
         time.sleep(0.25)
         full_obs_data = load_spec["collection"].get(obs_id).content_as[dict]
     for station in stations:

@@ -65,8 +65,8 @@ class HistBuilder:
                     labels={"x": unitset[field]},
                 )
                 fig.show()
-        except:
-            print("*** Error in  HistBuilder ***" + str(sys.exc_info()))
+        except Exception as e:
+            print(f"*** Error in  HistBuilder *** - {e}")
 
     def main(self):
         args = parse_args(sys.argv[1:])

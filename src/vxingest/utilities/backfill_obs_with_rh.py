@@ -112,7 +112,7 @@ def run_backfill(start_id) -> None:
 
 
 if __name__ == "__main__":
-    STARTID= None
+    STARTID = None
     if sys.argv[1]:
         STARTID = sys.argv[1]
     run_backfill(STARTID)

@@ -43,15 +43,14 @@ def test_check_fcst_valid_epoch_fcst_valid_iso():
     try:
         credentials_file = os.environ["CREDENTIALS"]
         assert Path(credentials_file).is_file(), "credentials_file Does not exist"
-        _f = open(credentials_file, encoding="utf-8")
-        yaml_data = yaml.load(_f, yaml.SafeLoader)
+        with Path(credentials_file).open(encoding="utf-8") as _f:
+            yaml_data = yaml.load(_f, yaml.SafeLoader)
         _host = yaml_data["cb_host"]
         _user = yaml_data["cb_user"]
         _password = yaml_data["cb_password"]
         _bucket = yaml_data["cb_bucket"]
         _collection = yaml_data["cb_collection"]
         _scope = yaml_data["cb_scope"]
-        _f.close()
 
         timeout_options = ClusterTimeoutOptions(
             kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
@@ -93,15 +92,14 @@ def test_get_stations_geo_search():
     try:
         credentials_file = os.environ["CREDENTIALS"]
         assert Path(credentials_file).is_file(), "credentials_file Does not exist"
-        _f = open(credentials_file, encoding="utf-8")
-        yaml_data = yaml.load(_f, yaml.SafeLoader)
+        with Path(credentials_file).open(encoding="utf-8") as _f:
+            yaml_data = yaml.load(_f, yaml.SafeLoader)
         _host = yaml_data["cb_host"]
         _user = yaml_data["cb_user"]
         _password = yaml_data["cb_password"]
         _bucket = yaml_data["cb_bucket"]
         _collection = yaml_data["cb_collection"]
         _scope = yaml_data["cb_scope"]
-        _f.close()
 
         timeout_options = ClusterTimeoutOptions(
             kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
@@ -193,15 +191,15 @@ def test_ps_builder_surface_hrrr_ops_all_hrrr():
     try:
         credentials_file = os.environ["CREDENTIALS"]
         job_id = "JOB-TEST:V01:METAR:SUMS:SURFACE:MODEL:OPS"
-        outdir = "/opt/data/test/partial_sums_to_cb/hrrr_ops/sums/output"
-        if not os.path.exists(outdir):
+        outdir = Path("/opt/data/test/partial_sums_to_cb/hrrr_ops/sums/output")
+        if not outdir.exists():
             # Create a new directory because it does not exist
-            os.makedirs(outdir)
-        filepaths = outdir + "/*.json"
-        files = glob.glob(filepaths)
+            outdir.mkdir(parents=True)
+        filepaths = outdir / "*.json"
+        files = glob.glob(str(filepaths))
         for _f in files:
             try:
-                os.remove(_f)
+                Path(_f).unlink()
             except OSError as _e:
                 assert False, f"Error:  {_e}"
         log_queue = Queue()
@@ -211,7 +209,7 @@ def test_ps_builder_surface_hrrr_ops_all_hrrr():
             {
                 "job_id": job_id,
                 "credentials_file": credentials_file,
-                "output_dir": outdir,
+                "output_dir": str(outdir),
                 "threads": 1,
                 "first_epoch": 1638489600,
                 "last_epoch": 1638496800,
@@ -220,14 +218,14 @@ def test_ps_builder_surface_hrrr_ops_all_hrrr():
             stub_worker_log_configurer,
         )
 
-        list_of_output_files = glob.glob(outdir + "/*")
+        list_of_output_files = glob.glob(str(outdir) + "/*")
         # latest_output_file = max(list_of_output_files, key=os.path.getctime)
         latest_output_file = min(list_of_output_files, key=os.path.getctime)
         try:
             # Opening JSON file
-            output_file = open(latest_output_file, encoding="utf8")
-            # returns JSON object as a dictionary
-            vx_ingest_output_data = json.load(output_file)
+            with Path(latest_output_file).open(encoding="utf-8") as output_file:
+                # returns JSON object as a dictionary
+                vx_ingest_output_data = json.load(output_file)
             # if this is an LJ document then the SUMS's were already ingested
             # and the test should stop here
             if vx_ingest_output_data[0]["type"] == "LJ":
@@ -273,15 +271,14 @@ def test_ps_surface_data_hrrr_ops_all_hrrr():
 
     credentials_file = os.environ["CREDENTIALS"]
     assert Path(credentials_file).is_file(), "credentials_file Does not exist"
-    _f = open(credentials_file, encoding="utf8")
-    yaml_data = yaml.load(_f, yaml.SafeLoader)
+    with Path(credentials_file).open(encoding="utf-8") as _f:
+        yaml_data = yaml.load(_f, yaml.SafeLoader)
     _host = yaml_data["cb_host"]
     _user = yaml_data["cb_user"]
     _password = yaml_data["cb_password"]
     _bucket = yaml_data["cb_bucket"]
     _collection = yaml_data["cb_collection"]
     _scope = yaml_data["cb_scope"]
-    _f.close()
 
     timeout_options = ClusterTimeoutOptions(
         kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)

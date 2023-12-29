@@ -65,16 +65,15 @@ def test_credentials_and_load_spec():
             vx_ingest_manager.close_cb()
 
 
-def test_write_load_job_to_files():
+def test_write_load_job_to_files(tmp_path):
     """test write the load job"""
     vx_ingest_manager = None
     try:
         vx_ingest, vx_ingest_manager = setup_ingest()
         vx_ingest.load_job_id = "test_id"
-        vx_ingest.output_dir = "/tmp"
+        vx_ingest.output_dir = tmp_path
         vx_ingest.load_spec["load_job_doc"] = {"test": "a line of text"}
         vx_ingest.write_load_job_to_files()
-        os.remove("/tmp/test_id.json")
     except Exception as _e:
         assert False, f"test_write_load_job_to_files Exception failure: {_e}"
     finally:
@@ -82,13 +81,13 @@ def test_write_load_job_to_files():
             vx_ingest_manager.close_cb()
 
 
-def test_build_load_job_doc():
+def test_build_load_job_doc(tmp_path):
     """test the build load job"""
     vx_ingest_manager = None
     try:
         vx_ingest, vx_ingest_manager = setup_ingest()
         vx_ingest.load_job_id = "test_id"
-        vx_ingest.path = "/tmp"
+        vx_ingest.path = tmp_path
         vx_ingest.load_spec["load_job_doc"] = {"test": "a line of text"}
         ljd = vx_ingest.build_load_job_doc("partial_sums")
         assert ljd[

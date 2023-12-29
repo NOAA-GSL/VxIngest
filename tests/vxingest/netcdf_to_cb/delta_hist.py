@@ -11,6 +11,7 @@ Usage: python delta_hist.py input_file
 """
 import argparse
 import sys
+from pathlib import Path
 
 import plotly.express as px
 
@@ -41,8 +42,8 @@ class HistBuilder:
         try:
             datasets = {}
             unitset = {}
-            f = open(self.delta_file)
-            lines = f.readlines()
+            with Path(self.delta_file).open(encoding="utf-8") as f:
+                lines = f.readlines()
             for x in lines:
                 if x.startswith("var"):
                     columns = x.split()
@@ -55,7 +56,6 @@ class HistBuilder:
                         continue
                     datasets[field].append(float(delta))
                     unitset[field] = units
-            f.close()
             keys = datasets.keys()
             for field in keys:
                 fig = px.histogram(

@@ -1,5 +1,4 @@
 import os
-import shutil
 from pathlib import Path
 
 from vxingest.grib2_to_cb.run_ingest_threads import VXIngest
@@ -76,29 +75,28 @@ def test_cb_connect_disconnect():
         vx_ingest.close_cb()
 
 
-def test_write_load_job_to_files():
+def test_write_load_job_to_files(tmp_path):
     """test write the load job"""
     vx_ingest = None
     try:
         vx_ingest = setup_connection()
         vx_ingest.load_job_id = "test_id"
-        vx_ingest.output_dir = "/tmp"
+        vx_ingest.output_dir = tmp_path
         vx_ingest.load_spec["load_job_doc"] = {"test": "a line of text"}
         vx_ingest.write_load_job_to_files()
-        os.remove("/tmp/test_id.json")
     except Exception as _e:
         assert False, f"test_write_load_job_to_files Exception failure: {_e}"
     finally:
         vx_ingest.close_cb()
 
 
-def test_build_load_job_doc():
+def test_build_load_job_doc(tmp_path):
     """test the build load job"""
     vx_ingest = None
     try:
         vx_ingest = setup_connection()
         vx_ingest.load_job_id = "test_id"
-        vx_ingest.path = "/tmp"
+        vx_ingest.path = tmp_path
         vx_ingest.load_spec["load_job_doc"] = {"test": "a line of text"}
         lineage = "CTC"
         ljd = vx_ingest.build_load_job_doc(lineage)
@@ -111,24 +109,21 @@ def test_build_load_job_doc():
         vx_ingest.close_cb()
 
 
-def test_vxingest_get_file_list():
+def test_vxingest_get_file_list(tmp_path):
     """test the vxingest get_file_list"""
     vx_ingest = None
     try:
         vx_ingest = setup_connection()
         vx_ingest.load_job_id = "test_id"
-        if os.path.exists("/tmp/test"):
-            shutil.rmtree("/tmp/test")
-        os.mkdir("/tmp/test")
         # order is important to see if the files are getting returned sorted by mtime
-        Path("/tmp/test/f_fred_01").touch()
-        Path("/tmp/test/f_fred_02").touch()
-        Path("/tmp/test/f_fred_04").touch()
-        Path("/tmp/test/f_fred_05").touch()
-        Path("/tmp/test/f_fred_03").touch()
-        Path("/tmp/test/f_1_fred_01").touch()
-        Path("/tmp/test/f_2_fred_01").touch()
-        Path("/tmp/test/f_3_fred_01").touch()
+        Path(tmp_path / "f_fred_01").touch()
+        Path(tmp_path / "f_fred_02").touch()
+        Path(tmp_path / "f_fred_04").touch()
+        Path(tmp_path / "f_fred_05").touch()
+        Path(tmp_path / "f_fred_03").touch()
+        Path(tmp_path / "f_1_fred_01").touch()
+        Path(tmp_path / "f_2_fred_01").touch()
+        Path(tmp_path / "f_3_fred_01").touch()
         query = f""" SELECT url, mtime
             From `{vx_ingest.cb_credentials['bucket']}`.{vx_ingest.cb_credentials['scope']}.{vx_ingest.cb_credentials['collection']}
             WHERE
@@ -137,16 +132,15 @@ def test_vxingest_get_file_list():
             AND fileType='grib2'
             AND originType='model'
             AND model='HRRR_OPS' order by url;"""
-        files = vx_ingest.get_file_list(query, "/tmp/test", "f_fred_*")
+        files = vx_ingest.get_file_list(query, tmp_path, "f_fred_*")
         assert True, files == [
-            "/tmp/test/f_fred_01",
-            "/tmp/test/f_fred_02",
-            "/tmp/test/f_fred_04",
-            "/tmp/test/f_fred_05",
-            "/tmp/test/f_fred_03",
+            tmp_path / "f_fred_01",
+            tmp_path / "f_fred_02",
+            tmp_path / "f_fred_04",
+            tmp_path / "f_fred_05",
+            tmp_path / "f_fred_03",
         ]
     except Exception as _e:
         assert False, f"test_build_load_job_doc Exception failure: {_e}"
     finally:
-        shutil.rmtree("/tmp/test")
         vx_ingest.close_cb()

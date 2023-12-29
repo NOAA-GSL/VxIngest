@@ -40,15 +40,14 @@ def connect_cb():
             assert (
                 Path(credentials_file).is_file() is True
             ), f"*** credentials_file file {credentials_file} can not be found!"
-            _f = open(credentials_file, encoding="utf-8")
-            _yaml_data = yaml.load(_f, yaml.SafeLoader)
+            with Path(credentials_file).open(encoding="utf-8") as _f:
+                _yaml_data = yaml.load(_f, yaml.SafeLoader)
             cb_connection["host"] = _yaml_data["cb_host"]
             cb_connection["user"] = _yaml_data["cb_user"]
             cb_connection["password"] = _yaml_data["cb_password"]
             cb_connection["bucket"] = _yaml_data["cb_bucket"]
             cb_connection["collection"] = _yaml_data["cb_collection"]
             cb_connection["scope"] = _yaml_data["cb_scope"]
-            _f.close()
 
             timeout_options = ClusterTimeoutOptions(
                 kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
@@ -103,7 +102,7 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus(tmp_path):
         for _f in glob(f"{tmp_path}/*.json"):
             # read in the output file
             _json = None
-            with open(_f, encoding="utf-8") as _f:
+            with Path(_f).open(encoding="utf-8") as _f:
                 _json = json.load(_f)[0]
             _id = _json["id"]
             if _id.startswith("LJ"):

@@ -1,5 +1,4 @@
 import os
-import shutil
 import time
 from copy import deepcopy
 from datetime import datetime
@@ -59,28 +58,27 @@ def test_cb_connect_disconnect():
         vx_ingest.close_cb()
 
 
-def test_write_load_job_to_files():
+def test_write_load_job_to_files(tmp_path):
     """test write the load job"""
     try:
         vx_ingest = setup_connection()
         vx_ingest.load_job_id = "test_id"
-        vx_ingest.output_dir = "/tmp"
+        vx_ingest.output_dir = tmp_path
         vx_ingest.load_spec["load_job_doc"] = {"test": "a line of text"}
         vx_ingest.write_load_job_to_files()
-        assert Path("/tmp/test_id.json").is_file()
-        os.remove("/tmp/test_id.json")
+        assert Path(tmp_path / "test_id.json").is_file()
     except Exception as _e:
         assert False, f"test_write_load_job_to_files Exception failure: {_e}"
     finally:
         vx_ingest.close_cb()
 
 
-def test_build_load_job_doc():
+def test_build_load_job_doc(tmp_path):
     """test the build load job"""
     try:
         vx_ingest = setup_connection()
         vx_ingest.load_job_id = "test_id"
-        vx_ingest.path = "/tmp"
+        vx_ingest.path = tmp_path
         vx_ingest.load_spec["load_job_doc"] = {"test": "a line of text"}
         ljd = vx_ingest.build_load_job_doc(vx_ingest.path)
         assert ljd["id"].startswith(
@@ -135,7 +133,7 @@ def test_umask_value_transform():
         _nc.close()  # close returns memoryview
 
 
-def test_vxingest_get_file_list():
+def test_vxingest_get_file_list(tmp_path):
     """test the vxingest get_file_list"""
     try:
         vx_ingest = setup_connection()
@@ -152,21 +150,18 @@ def test_vxingest_get_file_list():
             "projection": "lambert_conformal_conic",
             "subset": "metar",
             "type": "DF",
-            "url": "/tmp/test/f_fred_01",
+            "url": str(tmp_path / "f_fred_01"),
         }
         vx_ingest.collection.upsert("DF:metar:grib2:HRRR_OPS:f_fred_01", df_record)
-        if os.path.exists("/tmp/test"):
-            shutil.rmtree("/tmp/test")
-        os.mkdir("/tmp/test")
         # order is important to see if the files are getting returned sorted by mtime
-        Path("/tmp/test/f_fred_01").touch()
-        Path("/tmp/test/f_fred_02").touch()
-        Path("/tmp/test/f_fred_04").touch()
-        Path("/tmp/test/f_fred_05").touch()
-        Path("/tmp/test/f_fred_03").touch()
-        Path("/tmp/test/f_1_fred_01").touch()
-        Path("/tmp/test/f_2_fred_01").touch()
-        Path("/tmp/test/f_3_fred_01").touch()
+        Path(tmp_path / "f_fred_01").touch()
+        Path(tmp_path / "f_fred_02").touch()
+        Path(tmp_path / "f_fred_04").touch()
+        Path(tmp_path / "f_fred_05").touch()
+        Path(tmp_path / "f_fred_03").touch()
+        Path(tmp_path / "f_1_fred_01").touch()
+        Path(tmp_path / "f_2_fred_01").touch()
+        Path(tmp_path / "f_3_fred_01").touch()
         query = f""" SELECT url, mtime
             From `{vx_ingest.cb_credentials['bucket']}`.{vx_ingest.cb_credentials['scope']}.{vx_ingest.cb_credentials['collection']}
             WHERE
@@ -176,16 +171,16 @@ def test_vxingest_get_file_list():
             AND originType='model'
             AND model='HRRR_OPS' order by url;"""
         # should get f_fred_01 because the mtime in the DF record is old. The file is newer.
-        files = vx_ingest.get_file_list(query, "/tmp/test", "f_fred_*")
+        files = vx_ingest.get_file_list(query, tmp_path, "f_fred_*")
         assert set(files) == set(
             [
-                "/tmp/test/f_fred_01",
-                "/tmp/test/f_fred_02",
-                "/tmp/test/f_fred_04",
-                "/tmp/test/f_fred_05",
-                "/tmp/test/f_fred_03",
+                str(tmp_path / "f_fred_01"),
+                str(tmp_path / "f_fred_02"),
+                str(tmp_path / "f_fred_04"),
+                str(tmp_path / "f_fred_05"),
+                str(tmp_path / "f_fred_03"),
             ]
-        ), "get_file_list wrong list"
+        ), "get_file_list 1 wrong list"
         # update the mtime in the df record so that the file will not be included
         df_record["mtime"] = round(time.time())
         vx_ingest.collection.upsert("DF:metar:grib2:HRRR_OPS:f_fred_01", df_record)
@@ -194,22 +189,21 @@ def test_vxingest_get_file_list():
         vx_ingest.cluster.query(
             query, QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS)
         )
-        files = vx_ingest.get_file_list(query, "/tmp/test", "f_fred_*")
+        files = vx_ingest.get_file_list(query, tmp_path, "f_fred_*")
         # should not get f_fred_01 because the DF record has a newer mtime
         assert set(files) == set(
             [
-                "/tmp/test/f_fred_02",
-                "/tmp/test/f_fred_04",
-                "/tmp/test/f_fred_05",
-                "/tmp/test/f_fred_03",
+                str(tmp_path / "f_fred_02"),
+                str(tmp_path / "f_fred_04"),
+                str(tmp_path / "f_fred_05"),
+                str(tmp_path / "f_fred_03"),
             ]
-        ), "get_file_list wrong list"
+        ), "get_file_list 2 wrong list"
 
     except Exception as _e:
         assert False, f"test_build_load_job_doc Exception failure: {_e}"
     finally:
         vx_ingest.collection.remove("DF:metar:grib2:HRRR_OPS:f_fred_01")
-        shutil.rmtree("/tmp/test")
         vx_ingest.close_cb()
 
 

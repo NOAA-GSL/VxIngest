@@ -1,7 +1,6 @@
 """
 test for VxIngest CTC builders
 """
-import glob
 import json
 import os
 import time
@@ -146,13 +145,9 @@ def test_get_stations_geo_search():
         for row in result:
             # use the builder geosearch to get the station list - just use current epoch
             stations = sorted(
-                # builder.get_stations_for_region_by_geosearch(row["name"],round(time.time()))
                 builder.get_stations_for_region_by_sort(row["name"], round(time.time()))
             )
             # get the legacy station list from the test document (this came from mysql)
-            # classic_station_id = "MD-TEST:V01:CLASSIC_STATIONS:" + row["name"]
-            # doc = collection.get(classic_station_id.strip())
-            # classic_stations = sorted(doc.content_as[dict]["stations"])
             classic_stations = builder.get_legacy_stations_for_region(row["name"])
             stations_difference = [
                 i
@@ -222,7 +217,6 @@ def calculate_cb_ctc(
     builder.collection = _collection
     builder.subset = _collection
     legacy_stations = sorted(
-        #                builder.get_stations_for_region_by_geosearch(region, epoch)
         builder.get_stations_for_region_by_sort(region, epoch)
     )
     obs_id = f"DD:V01:{subset}:obs:{epoch}"
@@ -316,8 +310,7 @@ def test_ctc_builder_ceiling_hrrr_ops_all_hrrr():
         if not outdir.exists():
             # Create a new directory because it does not exist
             outdir.mkdir(parents=True)
-        filepaths = outdir / "*.json"
-        files = glob.glob(str(filepaths))
+        files = outdir.glob("*.json")
         for _f in files:
             try:
                 Path(_f).unlink()
@@ -339,12 +332,11 @@ def test_ctc_builder_ceiling_hrrr_ops_all_hrrr():
             stub_worker_log_configurer,
         )
 
-        list_of_output_files = glob.glob(str(outdir) + "/*")
-        # latest_output_file = max(list_of_output_files, key=os.path.getctime)
+        list_of_output_files = outdir.glob("*")
         latest_output_file = min(list_of_output_files, key=os.path.getctime)
         try:
             # Opening JSON file
-            with Path(latest_output_file).open(encoding="utf8") as output_file:
+            with latest_output_file.open(encoding="utf8") as output_file:
                 # returns JSON object as a dictionary
                 vx_ingest_output_data = json.load(output_file)
             # if this is an LJ document then the CTC's were already ingested
@@ -416,11 +408,10 @@ def test_ctc_builder_visibility_hrrr_ops_all_hrrr():
         if not outdir.exists():
             # Create a new directory because it does not exist
             outdir.mkdir(parents=True)
-        filepaths = outdir / "*.json"
-        files = glob.glob(str(filepaths))
+        files = outdir.glob("*.json")
         for _f in files:
             try:
-                Path(_f).unlink()
+                _f.unlink()
             except OSError as _e:
                 assert False, f"Error:  {_e}"
         log_queue = Queue()
@@ -440,12 +431,11 @@ def test_ctc_builder_visibility_hrrr_ops_all_hrrr():
             stub_worker_log_configurer,
         )
 
-        list_of_output_files = glob.glob(str(outdir) + "/*")
-        # latest_output_file = max(list_of_output_files, key=os.path.getctime)
+        list_of_output_files = outdir.glob("*")
         latest_output_file = min(list_of_output_files, key=os.path.getctime)
         try:
             # Opening JSON file
-            with Path(latest_output_file).open(encoding="utf8") as output_file:
+            with latest_output_file.open(encoding="utf8") as output_file:
                 # returns JSON object as a dictionary
                 vx_ingest_output_data = json.load(output_file)
             # if this is an LJ document then the CTC's were already ingested
@@ -541,7 +531,6 @@ def test_ctc_ceiling_data_hrrr_ops_all_hrrr():
         if len(cb_fcst_valid_epochs) == 0:
             assert False, "There is no data"
         # choose the last one
-        # fcst_valid_epoch = cb_fcst_valid_epochs[-1]
         fcst_valid_epoch = cb_fcst_valid_epochs[round(len(cb_fcst_valid_epochs) / 2)]
         # get all the cb fcstLen values
         result = cluster.query(
@@ -676,7 +665,6 @@ def test_ctc_visibiltiy_data_hrrr_ops_all_hrrr():
         if len(cb_fcst_valid_epochs) == 0:
             assert False, "There is no data"
         # choose the last one
-        # fcst_valid_epoch = cb_fcst_valid_epochs[-1]
         fcst_valid_epoch = cb_fcst_valid_epochs[round(len(cb_fcst_valid_epochs) / 2)]
         # get all the cb fcstLen values
         result = cluster.query(

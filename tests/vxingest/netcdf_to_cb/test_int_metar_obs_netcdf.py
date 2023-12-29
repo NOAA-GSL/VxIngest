@@ -2,8 +2,8 @@
     integration tests for netcdf
 """
 import os
-from glob import glob
 from multiprocessing import Queue
+from pathlib import Path
 
 from vxingest.netcdf_to_cb.run_ingest_threads import VXIngest
 
@@ -46,21 +46,20 @@ def test_one_thread_specify_file_pattern(tmp_path):
             stub_worker_log_configurer,
         )
         assert (
-            len(glob(f"{tmp_path}/[0123456789]???????_[0123456789]???.json")) > 0
+            len(list(tmp_path.glob("[0123456789]???????_[0123456789]???.json"))) > 0
         ), "There are no output files"
 
+        lj_doc_regex = (
+            "LJ:METAR:vxingest.netcdf_to_cb.run_ingest_threads:VXIngest:*.json"
+        )
         assert (
-            len(
-                glob(
-                    f"{tmp_path}/LJ:METAR:vxingest.netcdf_to_cb.run_ingest_threads:VXIngest:*.json"
-                )
-            )
-            == 1
+            len(list(tmp_path.glob(lj_doc_regex))) == 1
         ), "there is no load job output file"
 
         # use file globbing to see if we got one output file for each input file plus one load job file
-        assert len(glob(f"{tmp_path}/20211108*.json")) == len(
-            glob("/opt/data/netcdf_to_cb/input_files/20211108_0000")
+        input_path = Path("/opt/data/netcdf_to_cb/input_files")
+        assert len(list(tmp_path.glob("20211108*.json"))) == len(
+            list(input_path.glob("20211108_0000"))
         ), "number of output files is incorrect"
     except Exception as _e:
         assert False, f"TestGsdIngestManager Exception failure: {_e}"
@@ -86,21 +85,20 @@ def test_two_threads_spedicfy_file_pattern(tmp_path):
             stub_worker_log_configurer,
         )
         assert (
-            len(glob(f"{tmp_path}/[0123456789]???????_[0123456789]???.json")) > 0
+            len(list(tmp_path.glob("[0123456789]???????_[0123456789]???.json"))) > 0
         ), "There are no output files"
 
+        lj_doc_regex = (
+            "LJ:METAR:vxingest.netcdf_to_cb.run_ingest_threads:VXIngest:*.json"
+        )
         assert (
-            len(
-                glob(
-                    f"{tmp_path}/LJ:METAR:vxingest.netcdf_to_cb.run_ingest_threads:VXIngest:*.json"
-                )
-            )
-            == 1
+            len(list(tmp_path.glob(lj_doc_regex))) == 1
         ), "there is no load job output file"
 
         # use file globbing to see if we got one output file for each input file plus one load job file
-        assert len(glob(f"{tmp_path}/20211105*.json")) == len(
-            glob("/opt/data/netcdf_to_cb/input_files/20211105*")
+        input_path = Path("/opt/data/netcdf_to_cb/input_files")
+        assert len(list(tmp_path.glob("20211105*.json"))) == len(
+            list(input_path.glob("20211105*"))
         ), "number of output files is incorrect"
     except Exception as _e:
         assert False, f"TestGsdIngestManager Exception failure: {_e}"
@@ -128,22 +126,21 @@ def test_one_thread_default(tmp_path):
             stub_worker_log_configurer,
         )
         assert (
-            len(glob(f"{tmp_path}/[0123456789]???????_[0123456789]???.json")) > 0
+            len(list(tmp_path.glob("[0123456789]???????_[0123456789]???.json"))) > 0
         ), "There are no output files"
 
+        lj_doc_regex = (
+            "LJ:METAR:vxingest.netcdf_to_cb.run_ingest_threads:VXIngest:*.json"
+        )
         assert (
-            len(
-                glob(
-                    f"{tmp_path}/LJ:METAR:vxingest.netcdf_to_cb.run_ingest_threads:VXIngest:*.json"
-                )
-            )
-            >= 1
+            len(list(tmp_path.glob(lj_doc_regex))) >= 1
         ), "there is no load job output file"
 
         # use file globbing to see if we got one output file for each input file plus one load job file
-        assert len(glob(f"{tmp_path}/[0123456789]???????_[0123456789]???.json")) == len(
-            glob(
-                "/opt/data/netcdf_to_cb/input_files/[0123456789]???????_[0123456789]???"
+        input_path = Path("/opt/data/netcdf_to_cb/input_files")
+        assert len(list(tmp_path.glob("[0123456789]???????_[0123456789]???.json"))) == len(
+            list(
+                input_path.glob("[0123456789]???????_[0123456789]???")
             )
         ), "number of output files is incorrect"
 
@@ -172,22 +169,24 @@ def test_two_threads_default(tmp_path):
             stub_worker_log_configurer,
         )
         assert (
-            len(glob(f"{tmp_path}/[0123456789]???????_[0123456789]???.json")) > 0
+            len(list(tmp_path.glob("[0123456789]???????_[0123456789]???.json"))) > 0
         ), "There are no output files"
 
+        lj_doc_regex = "LJ:METAR:vxingest.netcdf_to_cb.run_ingest_threads:VXIngest:*.json"
         assert (
             len(
-                glob(
-                    f"{tmp_path}/LJ:METAR:vxingest.netcdf_to_cb.run_ingest_threads:VXIngest:*.json"
+                list(
+                    tmp_path.glob(lj_doc_regex)
                 )
             )
             >= 1
         ), "there is no load job output file"
 
         # use file globbing to see if we got one output file for each input file plus one load job file
-        assert len(glob(f"{tmp_path}/[0123456789]???????_[0123456789]???.json")) == len(
-            glob(
-                "/opt/data/netcdf_to_cb/input_files/[0123456789]???????_[0123456789]???"
+        input_path = Path("/opt/data/netcdf_to_cb/input_files")
+        assert len(list(tmp_path.glob("[0123456789]???????_[0123456789]???.json"))) == len(
+            list(
+                input_path.glob("[0123456789]???????_[0123456789]???")
             )
         ), "number of output files is incorrect"
     except Exception as _e:

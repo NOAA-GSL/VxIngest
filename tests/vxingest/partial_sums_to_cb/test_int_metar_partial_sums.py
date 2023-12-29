@@ -1,7 +1,6 @@
 """
 _test for VxIngest SUMS builders
 """
-import glob
 import json
 import os
 import time
@@ -195,8 +194,7 @@ def test_ps_builder_surface_hrrr_ops_all_hrrr():
         if not outdir.exists():
             # Create a new directory because it does not exist
             outdir.mkdir(parents=True)
-        filepaths = outdir / "*.json"
-        files = glob.glob(str(filepaths))
+        files = outdir.glob("*.json")
         for _f in files:
             try:
                 Path(_f).unlink()
@@ -218,7 +216,7 @@ def test_ps_builder_surface_hrrr_ops_all_hrrr():
             stub_worker_log_configurer,
         )
 
-        list_of_output_files = glob.glob(str(outdir) + "/*")
+        list_of_output_files = outdir.glob("*")
         # latest_output_file = max(list_of_output_files, key=os.path.getctime)
         latest_output_file = min(list_of_output_files, key=os.path.getctime)
         try:

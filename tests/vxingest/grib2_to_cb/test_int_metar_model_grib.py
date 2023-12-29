@@ -5,12 +5,10 @@ This test expects to write to the local output directory /opt/data/grib_to_cb/ou
 21 196 14 000018 %y %j %H %f  treating the last 6 decimals as microseconds even though they are not.
 these files are two digit year, day of year, hour, and forecast lead time (6 digit ??)
 """
-import glob
 import json
 import math
 import os
 from datetime import timedelta
-from glob import glob
 from multiprocessing import Queue
 from pathlib import Path
 
@@ -99,11 +97,11 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus(tmp_path):
         )
         # check the output files to see if they match the documents that were
         # preveously created by the real ingest process
-        for _f in glob(f"{tmp_path}/*.json"):
+        for _f in tmp_path.glob("*.json"):
             # read in the output file
             _json = None
-            with Path(_f).open(encoding="utf-8") as _f:
-                _json = json.load(_f)[0]
+            with _f.open(encoding="utf-8") as json_file:
+                _json = json.load(json_file)[0]
             _id = _json["id"]
             if _id.startswith("LJ"):
                 for _k in _json.keys():

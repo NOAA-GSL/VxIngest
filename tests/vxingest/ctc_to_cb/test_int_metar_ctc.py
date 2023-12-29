@@ -172,8 +172,11 @@ def calculate_cb_ctc(
     subset,
     region,
     doc_sub_type,
-    reject_stations=[],
+    reject_stations=None,
 ):
+    if reject_stations is None:
+        reject_stations = []
+
     global cb_model_obs_data
     global stations
 

@@ -8,6 +8,7 @@ select = [
     "PTH", # flake8-use-pathlib
     "PT", # flake8-pytest-style
     "B", # bugbear
+    "SIM", # flake8-simplify
 ]
 
 ignore = [

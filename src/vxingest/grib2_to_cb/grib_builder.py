@@ -115,7 +115,7 @@ class GribModelBuilderV01(GribBuilder):
         Returns:
             doc (Object): The document being created
         """
-        if "data" not in doc.keys() or doc["data"] is None:
+        if "data" not in doc or doc["data"] is None:
             keys = list(element.keys())
             doc["data"] = {}
             for i in range(len(self.domain_stations)):

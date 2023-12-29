@@ -234,11 +234,11 @@ def calculate_cb_ctc(
         full_obs_data = load_spec["collection"].get(obs_id).content_as[dict]
     for station in stations:
         # find observation data for this station
-        if station not in full_obs_data["data"].keys():
+        if station not in full_obs_data["data"]:
             continue
         obs_data = full_obs_data["data"][station]
         # find model data for this station
-        if station not in full_model_data["data"].keys():
+        if station not in full_model_data["data"]:
             continue
         model_data = full_model_data["data"][station]
         # add to model_obs_data
@@ -577,7 +577,7 @@ def test_ctc_ceiling_data_hrrr_ops_all_hrrr():
     )
     for _cb_ctc in cb_results:
         fcstln = _cb_ctc["METAR"]["fcstLen"]
-        for _threshold in _cb_ctc["METAR"]["data"].keys():
+        for _threshold in _cb_ctc["METAR"]["data"]:
             _ctc = calculate_cb_ctc(
                 fcst_valid_epoch,
                 fcstln,
@@ -708,7 +708,7 @@ def test_ctc_visibiltiy_data_hrrr_ops_all_hrrr():
     )
     for _cb_ctc in cb_results:
         fcstln = _cb_ctc["METAR"]["fcstLen"]
-        for _threshold in _cb_ctc["METAR"]["data"].keys():
+        for _threshold in _cb_ctc["METAR"]["data"]:
             _ctc = calculate_cb_ctc(
                 fcst_valid_epoch,
                 fcstln,

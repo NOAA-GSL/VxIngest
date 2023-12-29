@@ -148,7 +148,7 @@ class VxIngestManager(CommonVxIngestManager):
                 )
                 sys.exit("*** Error getting builder name: ")
 
-            if self.ingest_type_builder_name in self.builder_map.keys():
+            if self.ingest_type_builder_name in self.builder_map:
                 builder = self.builder_map[self.ingest_type_builder_name]
             else:
                 builder_class = getattr(my_builder, self.ingest_type_builder_name)

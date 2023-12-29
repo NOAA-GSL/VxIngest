@@ -201,7 +201,7 @@ class PartialSumsBuilder(Builder):
             # make a copy of the template, which will become the new document
             # once all the translations have occured
             new_document = initialize_data_array(new_document)
-            for key in self.template.keys():
+            for key in self.template:
                 if key == "data":
                     new_document = self.handle_data(doc=new_document)
                     continue
@@ -246,7 +246,7 @@ class PartialSumsBuilder(Builder):
             if isinstance(doc[key], dict):
                 # process an embedded dictionary
                 tmp_doc = copy.deepcopy(self.template[key])
-                for sub_key in tmp_doc.keys():
+                for sub_key in tmp_doc:
                     tmp_doc = self.handle_key(tmp_doc, sub_key)  # recursion
                 doc[key] = tmp_doc
             if (
@@ -386,7 +386,7 @@ class PartialSumsBuilder(Builder):
                                     obs_id,
                                 )
                                 continue
-                            for key in _obs_data["data"].keys():
+                            for key in _obs_data["data"]:
                                 self.obs_data[key] = _obs_data["data"][key]
                                 self.obs_station_names.append(key)
                             self.obs_station_names.sort()
@@ -869,17 +869,15 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
                             )
                             model_elem["UW"] = wind_components_t[0].magnitude
                             model_elem["VW"] = wind_components_t[1].magnitude
-                    if variable in obs_elem and variable in model_elem:
-                        if (
-                            obs_elem[variable] is not None
-                            and model_elem[variable] is not None
-                        ):
-                            obs_vals.append(obs_elem[variable])
-                            model_vals.append(model_elem[variable])
-                            _diff = model_elem[variable] - obs_elem[variable]
-                            diff_vals.append(_diff)
-                            diff_vals_squared.append(_diff * _diff)
-                            abs_diff_vals.append(abs(_diff))
+                    obs_var = obs_elem[variable]
+                    model_var = model_elem[variable]
+                    if obs_var is not None and model_var is not None:
+                        obs_vals.append(obs_var)
+                        model_vals.append(model_var)
+                        _diff = model_var - obs_var
+                        diff_vals.append(_diff)
+                        diff_vals_squared.append(_diff * _diff)
+                        abs_diff_vals.append(abs(_diff))
             sum_elem = {
                 "num_recs": len(obs_vals),
                 "sum_obs": sum(obs_vals),
@@ -926,7 +924,7 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
             template_data = self.template["data"]
             data_elem = {}
             # it is expected that the template data section be comprised of named functions
-            for variable in template_data.keys():
+            for variable in template_data:
                 data_elem[variable] = self.handle_named_function(
                     template_data[variable]
                 )

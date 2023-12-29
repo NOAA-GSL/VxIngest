@@ -170,7 +170,7 @@ class NetcdfBuilder(Builder):
             # once all the translations have occured
             new_document = initialize_data_array(new_document)
             for rec_num in range(rec_num_data_size):
-                for key in self.template.keys():
+                for key in self.template:
                     if key == "data":
                         new_document = self.handle_data(
                             doc=new_document, rec_num=rec_num
@@ -219,7 +219,7 @@ class NetcdfBuilder(Builder):
             if isinstance(doc[key], dict):
                 # process an embedded dictionary
                 tmp_doc = copy.deepcopy(self.template[key])
-                for sub_key in tmp_doc.keys():
+                for sub_key in tmp_doc:
                     tmp_doc = self.handle_key(tmp_doc, _rec_num, sub_key)  # recursion
                 doc[key] = tmp_doc
             if (
@@ -288,7 +288,7 @@ class NetcdfBuilder(Builder):
             data_elem = {}
             data_key = next(iter(self.template["data"]))
             data_template = self.template["data"][data_key]
-            for key in data_template.keys():
+            for key in data_template:
                 try:
                     value = data_template[key]
                     # values can be null...
@@ -480,9 +480,9 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
         :param element: the observation data
         :return: the document being created
         """
-        if "data" not in doc.keys() or doc["data"] is None:
+        if "data" not in doc or doc["data"] is None:
             doc["data"] = {}
-        if element["name"] not in doc["data"].keys():
+        if element["name"] not in doc["data"]:
             # we only want the closest record (to match the legacy-sql data)
             doc["data"][element["name"]] = element
         else:
@@ -613,7 +613,7 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
         try:
             key = None
             rec_num = params_dict["recNum"]
-            for key in params_dict.keys():
+            for key in params_dict:
                 if key != "recNum":
                     break
             nc_value = self.ncdf_data_set[key][rec_num]
@@ -724,7 +724,7 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
         # convert the file name to an epoch using the mask
         try:
             key = None
-            for key in params_dict.keys():
+            for key in params_dict:
                 if key != "recNum":
                     break
             _file_utc_time = dt.datetime.strptime(self.file_name, params_dict[key])
@@ -748,7 +748,7 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
         # convert the file name to an epoch using the mask
         try:
             key = None
-            for key in params_dict.keys():
+            for key in params_dict:
                 if key != "recNum":
                     break
             _file_utc_time = dt.datetime.strptime(self.file_name, params_dict[key])
@@ -898,7 +898,7 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
                     "version": "V01",
                 }
                 # add the new station to the document map with the new id
-                if an_id not in self.document_map.keys():
+                if an_id not in self.document_map:
                     self.document_map[an_id] = new_station
                 self.stations.append(new_station)
             else:

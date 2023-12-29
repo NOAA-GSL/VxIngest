@@ -297,7 +297,7 @@ class GribBuilder(Builder):
             # make a copy of the template, which will become the new document
             # once all the translations have occured
             new_document = initialize_data_array(new_document)
-            for key in self.template.keys():
+            for key in self.template:
                 if key == "data":
                     new_document = self.handle_data(doc=new_document)
                     continue
@@ -342,7 +342,7 @@ class GribBuilder(Builder):
             if isinstance(doc[key], dict):
                 # process an embedded dictionary
                 tmp_doc = copy.deepcopy(self.template[key])
-                for sub_key in tmp_doc.keys():
+                for sub_key in tmp_doc:
                     tmp_doc = self.handle_key(tmp_doc, sub_key)  # recursion
                 doc[key] = tmp_doc
             if (
@@ -416,7 +416,7 @@ class GribBuilder(Builder):
             data_elem = {}
             data_key = next(iter(self.template["data"]))
             data_template = self.template["data"][data_key]
-            for key in data_template.keys():
+            for key in data_template:
                 try:
                     value = data_template[key]
                     # values can be null...

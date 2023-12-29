@@ -100,7 +100,7 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus(tmp_path):
             _json = json.load(json_file)[0]
         _id = _json["id"]
         if _id.startswith("LJ"):
-            for _k in _json.keys():
+            for _k in _json:
                 assert (
                     _k
                     in [
@@ -120,7 +120,7 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus(tmp_path):
         result = list(qresult.rows())[0]
         # assert top level fields
         keys = _json.keys()
-        for _k in result.keys():
+        for _k in result:
             assert (
                 _k in keys
             ), f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure top level key {_k} not in {_json.keys()}"
@@ -129,13 +129,13 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus(tmp_path):
             result["units"] == _json["units"]
         ), f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure units {result['units']} != {_json['units']}"
         # assert the data
-        for _k in result["data"].keys():
+        for _k in result["data"]:
             assert (
-                _k in _json["data"].keys()
+                _k in _json["data"]
             ), f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure data key {_k} not in {_json['data'].keys()}"
-            for _dk in result["data"][_k].keys():
+            for _dk in result["data"][_k]:
                 assert (
-                    _dk in _json["data"][_k].keys()
+                    _dk in _json["data"][_k]
                 ), f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure data key {_k}.{_dk} not in {_json['data'][_k].keys()}"
                 # assert data field matches to 2 decimal places
                 if _dk == "name":

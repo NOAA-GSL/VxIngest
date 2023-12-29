@@ -241,7 +241,7 @@ def test_interpolate_time():
         )
         if delta >= -1800 and delta <= 1799:
             assert (
-                1636390800 == t_interpolated
+                t_interpolated == 1636390800
             ), f"1636390800 interpolated to {t_interpolated} is not equal"
         if delta <= -1801:
             assert (
@@ -372,10 +372,7 @@ def test_handle_station():
             QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS),
         )
         result_list = list(result)
-        if len(result_list) > 0:
-            station_zbaa = result_list[0]
-        else:
-            station_zbaa = None
+        station_zbaa = result_list[0] if len(result_list) > 0 else None
         # keep a copy of station_zbaa around for future use
         station_zbaa_copy = deepcopy(station_zbaa)
         if station_zbaa_copy is not None:
@@ -611,7 +608,7 @@ def assert_station(cluster, station_zbaa, builder):
         assert new_station_zbaa["name"], "new station name is missing"
         assert new_station_zbaa["updateTime"], "new station updateTime is missing"
         assert new_station_zbaa["geo"], "new station geo is missing"
-        assert 1 == len(new_station_zbaa["geo"]), "new station geo is not length 1"
+        assert len(new_station_zbaa["geo"]) == 1, "new station geo is not length 1"
         return
     assert new_station_zbaa["description"] == station_zbaa["description"], (
         "new 'description'"
@@ -709,5 +706,5 @@ def test_derive_valid_time_iso():
     _builder.file_name = "20211108_0000"
     derived_epoch = _builder.derive_valid_time_iso({"file_name_pattern": "%Y%m%d_%H%M"})
     assert (
-        "2021-11-08T00:00:00Z" == derived_epoch
+        derived_epoch == "2021-11-08T00:00:00Z"
     ), f"derived epoch {derived_epoch} is not equal to 1636390800"

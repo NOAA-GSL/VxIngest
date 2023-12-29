@@ -175,7 +175,7 @@ class VXIngest(CommonVxIngest):
         self.thread_count = args["threads"]
         self.output_dir = args["output_dir"].strip()
         self.job_document_id = args["job_id"].strip()
-        if "file_pattern" in args.keys():
+        if "file_pattern" in args:
             self.file_pattern = args["file_pattern"].strip()
         _args_keys = args.keys()
         if "number_stations" in _args_keys:

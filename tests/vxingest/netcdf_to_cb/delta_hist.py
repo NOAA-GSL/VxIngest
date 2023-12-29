@@ -50,7 +50,7 @@ class HistBuilder:
                     field = columns[2]
                     delta = columns[5]
                     units = columns[6]
-                    if field not in datasets.keys():
+                    if field not in datasets:
                         datasets[field] = []
                     if delta == "None":
                         continue

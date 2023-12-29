@@ -199,7 +199,7 @@ class CTCBuilder(Builder):
             # make a copy of the template, which will become the new document
             # once all the translations have occured
             new_document = initialize_data_array(new_document)
-            for key in self.template.keys():
+            for key in self.template:
                 if key == "data":
                     new_document = self.handle_data(doc=new_document)
                     continue
@@ -244,7 +244,7 @@ class CTCBuilder(Builder):
             if isinstance(doc[key], dict):
                 # process an embedded dictionary
                 tmp_doc = copy.deepcopy(self.template[key])
-                for sub_key in tmp_doc.keys():
+                for sub_key in tmp_doc:
                     tmp_doc = self.handle_key(tmp_doc, sub_key)  # recursion
                 doc[key] = tmp_doc
             if (
@@ -381,7 +381,7 @@ class CTCBuilder(Builder):
                                     obs_id,
                                 )
                                 continue
-                            for key in _obs_data["data"].keys():
+                            for key in _obs_data["data"]:
                                 self.obs_data[key] = _obs_data["data"][key]
                                 self.obs_station_names.append(key)
                             self.obs_station_names.sort()
@@ -828,7 +828,7 @@ class CTCModelObsBuilderV01(CTCBuilder):
                 false_alarms = 0
                 correct_negatives = 0
                 none_count = 0
-                for key in self.model_data["data"].keys():
+                for key in self.model_data["data"]:
                     try:
                         model_station_name = key
                         model_station = self.model_data["data"][key]

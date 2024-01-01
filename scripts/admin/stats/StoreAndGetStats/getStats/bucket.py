@@ -1,5 +1,4 @@
-import json
-class Bucket(object):
+class Bucket:
     def __init__(self, attributes_list):
         self.attribute_map  = {}
         self.attributes_list = attributes_list

@@ -64,12 +64,14 @@ Both the start and end datetime should be in ISO format.
 If including a space between the date and time, enclose the
 datetime within quotes.
 """
-import json
-import csv
 import argparse
+import csv
+import json
 from datetime import datetime
+
 # pylint: disable=import-error
 import dictfier
+
 # pylint: enable=import-error
 
 # pylint: disable=superfluous-parens
@@ -82,7 +84,7 @@ thresholds = []
 timeouts = []
 
 
-class Orphans():
+class Orphans:
     """
     This is the collection of orphan log entries
     that are extracted from the log file.
@@ -108,7 +110,7 @@ class Orphans():
 
 
 # pylint: disable=too-many-instance-attributes
-class Orphan():
+class Orphan:
     """
     This is a single orphan log entry from
     the RTO log file.
@@ -125,7 +127,7 @@ class Orphan():
 # pylint: enable=too-many-instance-attributes
 
 
-class Thresholds():
+class Thresholds:
     """
     This is the collection of threshold log entries
     that are extracted from the log file.
@@ -151,7 +153,7 @@ class Thresholds():
 
 
 # pylint: disable=too-many-instance-attributes
-class Threshold():
+class Threshold:
     """
     This is a single threshold log entry from
     the RTO log file.
@@ -195,7 +197,7 @@ class Threshold():
 
 
 
-class Timeout():
+class Timeout:
     """
     This is the combined orphan and threshold log
     entries that will be written out to the .CSV file.
@@ -299,7 +301,7 @@ def read_log_file(log_file, start_date, end_date, threshold):
     threshold entries.
     """
     # Open and read in the file
-    input_file = open(log_file, "r")
+    input_file = open(log_file)
     # Iterate through the lines in the log file
     for line in input_file:
         # Extract the datetime from the line and compare it to

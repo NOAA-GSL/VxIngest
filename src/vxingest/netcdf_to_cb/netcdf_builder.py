@@ -20,7 +20,7 @@ from pstats import Stats
 
 import netCDF4 as nc
 import numpy.ma as ma
-from metpy.calc import wind_components
+from metpy.calc import relative_humidity_from_dewpoint, wind_components
 from metpy.units import units
 from vxingest.builder_common.builder import Builder
 from vxingest.builder_common.builder_utilities import (
@@ -361,7 +361,7 @@ class NetcdfBuilder(Builder):
             if self.do_profiling:
                 with cProfile.Profile() as _pr:
                     self.handle_document()
-                    with Path("profiling_stats.txt").open("w") as stream:
+                    with Path("profiling_stats.txt").open("w", encoding="utf-8") as stream:
                         stats = Stats(_pr, stream=stream)
                         stats.strip_dirs()
                         stats.sort_stats("time")
@@ -631,9 +631,37 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
             )
             return None
 
-    def handle_wind_dir_U(self, params_dict):
-        """Retrieves a wind direction U value, if there is one,
-           and if not derives the U component from the wind direction and speed.
+    def handle_rh(self, params_dict):
+        """Derives the RH from the dewpoint and temperature.
+        Args:
+            params_dict (dict): named function parameters
+        Returns:
+            float: the RH
+        """
+        try:
+            # dewpoint = self.umask_value_transform({"recNum": params_dict["recNum"], "dewpoint":"dewpoint"})
+            # temperature = self.umask_value_transform({"recNum": params_dict["recNum"], "temperature":"temperature"})
+            dewpoint = self.umask_value_transform(
+                {"recNum": params_dict["recNum"], "dewpoint": params_dict["dewpoint"]}
+            )
+            temperature = self.umask_value_transform(
+                {
+                    "recNum": params_dict["recNum"],
+                    "temperature": params_dict["temperature"],
+                }
+            )
+            _q = (
+                relative_humidity_from_dewpoint(
+                    temperature * units.kelvin, dewpoint * units.kelvin
+                ).magnitude
+            ) * 100
+            return _q
+        except Exception as _e:  # pylint:disable=broad-except
+            # there must not have been one
+            return None
+
+    def handle_wind_dir_u(self, params_dict):
+        """Derives the U component from the wind direction and speed.
            expects wind speed and wind direction to be in the params_dict.
         Args:
             params_dict (dict): named function parameters
@@ -641,37 +669,59 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
             float: the wind direction
         """
         try:
-            value = self.umask_value_transform(params_dict)
-            # value = self.meterspersecond_to_milesperhour({"recNum": rec_num, "windSpeed": ""})
-            if value is not None:
-                value = 360 - value
-            return value
-        except Exception as _e:
-            # there must not have been one
-            windDir = self.umask_value_transform({})
-            windSpeed = self.umask_value_transform({})
-            u, _v = wind_components(windSpeed * units("m/s"), windDir * units.deg)
+            _wind_dir = self.umask_value_transform(
+                {"recNum": params_dict["recNum"], "windDir": params_dict["windDir"]}
+            )
+            _wind_speed = self.umask_value_transform(
+                {"recNum": params_dict["recNum"], "windSpeed": params_dict["windSpeed"]}
+            )
+            if _wind_dir is None:
+                return None
+            if _wind_speed is None:
+                return None
+            # wind speed is in meters per second and windDir is in degrees from netcdf file
+            u = wind_components(_wind_speed * units("m/s"), _wind_dir * units.deg)[
+                0
+            ].magnitude
             return u
+        except Exception as _e:  # pylint:disable=broad-exception-caught
+            logger.error(
+                "%s handle_wind_dir_v: Exception in named function:  error: %s",
+                self.__class__.__name__,
+                str(_e),
+            )
+            return None
 
-    def handle_wind_dir_V(self, params_dict):
-        """Retrieves a wind direction V value, if there is one,
-           and if not derives the V component from the wind direction and speed.
+    def handle_wind_dir_v(self, params_dict):
+        """Derives the V component from the wind direction and speed.
         Args:
             params_dict (dict): named function parameters
         Returns:
             float: the wind direction
         """
         try:
-            value = self.umask_value_transform({})
-            if value is not None:
-                value = 360 - value
-            return value
-        except Exception as _e:
-            # there must not have been one
-            windDir = self.umask_value_transform({})
-            windSpeed = self.umask_value_transform({})
-            _u, v = wind_components(windSpeed * units("m/s"), windDir * units.deg)
+            _wind_dir = self.umask_value_transform(
+                {"recNum": params_dict["recNum"], "windDir": params_dict["windDir"]}
+            )
+            _wind_speed = self.umask_value_transform(
+                {"recNum": params_dict["recNum"], "windSpeed": params_dict["windSpeed"]}
+            )
+            if _wind_dir is None:
+                return None
+            if _wind_speed is None:
+                return None
+            # wind speed is in meters per second and windDir is in degrees from netcdf file
+            v = wind_components(_wind_speed * units("m/s"), _wind_dir * units.deg)[
+                1
+            ].magnitude
             return v
+        except Exception as _e:  # pylint:disable=broad-exception-caught
+            logger.error(
+                "%s handle_wind_dir_v: Exception in named function:  error: %s",
+                self.__class__.__name__,
+                str(_e),
+            )
+            return None
 
     def handle_pressure(self, params_dict):
         """Retrieves a pressure value and converts it to millibars from pascals

@@ -1,8 +1,8 @@
-from couchbase.cluster import Cluster
-from couchbase.cluster import PasswordAuthenticator
+from couchbase.cluster import Cluster, PasswordAuthenticator
 from couchbase.n1ql import N1QLQuery
 
-class CBCluster(object):
+
+class CBCluster:
 	def __init__(self, attributes_list, ipaddr):
 		cluster = Cluster('couchbase://' + ipaddr)
 		authenticator = PasswordAuthenticator(attributes_list[unicode("user")], attributes_list[unicode("pwd")])

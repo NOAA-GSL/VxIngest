@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-class NodeOutput(object):
+class NodeOutput:
 
 	def __init__(self, nodeName):
 		self.nodeName = nodeName

@@ -8,15 +8,17 @@ __email__ = "tyler.denton@couchbase.com"
 __maintainer__ = "tdenton"
 __version__ = "0.0.1"
 
+import argparse
+import json
+import os
+import shutil
 import subprocess
 from datetime import datetime
-import shutil
-import argparse
-import os
-import json
+
 from config import Config
 
-class BackerUpper(object):
+
+class BackerUpper:
     '''This class is what actually does the backing up, archiving and cleaning of old backups'''
     def __init__(self, hostname="", port="", username="", password=""):
         self.instance = self.get_config()
@@ -60,7 +62,7 @@ class BackerUpper(object):
 
     def archive_repo(self):
         '''Copys the existing current backup and turns it into an archive'''
-        shutil.copytree("{}/{}".format(self.instance.archive, self.instance.repo), 
+        shutil.copytree(f"{self.instance.archive}/{self.instance.repo}", 
                         "{}/{}".format(self.instance.archive, datetime.now().strftime("%Y-%m-%d")),
                         symlinks=False,
                         ignore=None)
@@ -77,15 +79,15 @@ class BackerUpper(object):
                         "-r", 
                         self.instance.repo, 
                         "-c", 
-                        "{}:{}".format(self.instance.hostname, self.instance.port),
+                        f"{self.instance.hostname}:{self.instance.port}",
                         "-u",
                         self.instance.username,
                         "-p",
                         self.instance.password]
         if self.instance.value_compression != "unchanged":
-            backup_array.append("--value_compression {}".format(self.instance.value_compression))
+            backup_array.append(f"--value_compression {self.instance.value_compression}")
         if self.instance.threads != 1:
-            backup_array.append("--threads {}".format(self.instance.threads))
+            backup_array.append(f"--threads {self.instance.threads}")
         if self.instance.no_progress_bar:
             backup_array.append("--no-progress-bar")
         try:

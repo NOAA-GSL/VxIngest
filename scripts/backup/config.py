@@ -1,6 +1,6 @@
 # pyline disable=C0303, C0325
 
-class Config(object):
+class Config:
     def __init__(self, my_json):
         self.my_json = my_json
         self.weeks_to_keep = self.my_json['weeks_to_keep']

@@ -12,8 +12,10 @@
 # example restore: python rbac.py --restore
 
 import argparse
-import requests
 import json
+
+import requests
+
 
 def backup():
     url = 'http://' + args.host + '/settings/rbac/users'
@@ -35,7 +37,7 @@ def backup():
             for entry in records:
                 entry['password'] = "password"
                 rbacInfo['userInfo'].append(entry)
-            with open(args.rbacFile, 'wt') as f:
+            with open(args.rbacFile, "w") as f:
                 f.write(json.dumps(rbacInfo, indent=4, sort_keys=True))
                 print('Successfully backed up RBAC data to: [%s]' % args.rbacFile)
         except Exception as e:
@@ -45,7 +47,7 @@ def backup():
  
 def restore():
     try:
-        with open(args.rbacFile,'r') as f:
+        with open(args.rbacFile) as f:
             rbacData = json.loads(f.read())
             for cluster in rbacData['clusterInfo']['cluster']:
                 print(cluster)
@@ -69,7 +71,7 @@ def restore():
                         print(output + json.dumps(params))
                     else:
                         print(params)
-                        print('Http requests {} failed: {} {}'.format(url, response.status_code, response.text))
+                        print(f'Http requests {url} failed: {response.status_code} {response.text}')
 
     except Exception as e:
                 print('Error:' + str(e.args))

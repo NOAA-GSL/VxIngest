@@ -30,9 +30,9 @@ mysql_model_obs_data = []
 stations = []
 
 
-def stub_worker_log_configurer(queue: Queue):  # pylint: disable=unused-argument
+def stub_worker_log_configurer(queue: Queue):
     """A stub to replace log_config.worker_log_configurer"""
-    pass  # pylint: disable=unnecessary-pass
+    pass
 
 
 def test_check_fcst_valid_epoch_fcst_valid_iso():

@@ -22,9 +22,9 @@ from pathlib import Path
 from vxingest.netcdf_to_cb.run_ingest_threads import VXIngest
 
 
-def stub_worker_log_configurer(queue: Queue):  # pylint:disable=unused-argument
+def stub_worker_log_configurer(queue: Queue):
     """A stub to replace log_config.worker_log_configurer"""
-    pass  # pylint:disable=unnecessary-pass
+    pass
 
 
 def setup_connection():

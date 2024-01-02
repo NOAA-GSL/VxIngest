@@ -78,9 +78,7 @@ def test_one_thread_specify_file_pattern(tmp_path):
     assert len(list(tmp_path.glob("20211108*.json"))) == len(
         list(input_path.glob("20211108_0000"))
     ), "number of output files is incorrect"
-    derived_data = json.load(
-        (tmp_path / "20211108_0000.json").open(encoding="utf-8")
-    )
+    derived_data = json.load((tmp_path / "20211108_0000.json").open(encoding="utf-8"))
     station_id = ""
     derived_station = {}
     obs_id = ""
@@ -100,9 +98,7 @@ def test_one_thread_specify_file_pattern(tmp_path):
     # make sure the updateTime is the same in both the derived and retrieved station
     retrieved_station["updateTime"] = derived_station["updateTime"]
     # make sure the firstTime and lastTime are the same in both the derived and retrieved station['geo']
-    retrieved_station["geo"][0]["firstTime"] = derived_station["geo"][0][
-        "firstTime"
-    ]
+    retrieved_station["geo"][0]["firstTime"] = derived_station["geo"][0]["firstTime"]
     retrieved_station["geo"][0]["lastTime"] = derived_station["geo"][0]["lastTime"]
     assert ordered(derived_station) == ordered(
         retrieved_station

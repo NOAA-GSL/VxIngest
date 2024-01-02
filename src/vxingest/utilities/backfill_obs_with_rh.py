@@ -64,7 +64,7 @@ def calc_components(doc):
             )
         else:
             station["RH"] = None
-        if "WindU" not in station or "WindV" not in station.keys():
+        if "WindU" not in station or "WindV" not in station:
             if station["WS"] is not None and station["WD"] is not None:
                 _u, _v = wind_components(
                     station["WS"] * units("m/s"), station["WD"] * units.deg

@@ -16,6 +16,7 @@
 """
 import json
 import os
+import pytest
 from multiprocessing import Queue
 from pathlib import Path
 
@@ -39,14 +40,18 @@ def setup_connection():
     return _vx_ingest
 
 
-def ordered(obj):
-    """Utliity function to sort a dictionary so that it can be compared to another dictionary"""
-    if isinstance(obj, dict):
-        return sorted((k, ordered(v)) for k, v in obj.items())
-    if isinstance(obj, list):
-        return sorted(ordered(x) for x in obj)
-    else:
-        return obj
+def assert_dicts_almost_equal(dict1, dict2, rel_tol=1e-09):
+    """Utility function to compare potentially nested dictionaries containing floats"""
+    assert set(dict1.keys()) == set(
+        dict2.keys()
+    ), "Dictionaries do not have the same keys"
+    for key in dict1:
+        if isinstance(dict1[key], dict):
+            assert_dicts_almost_equal(dict1[key], dict2[key], rel_tol)
+        else:
+            assert dict1[key] == pytest.approx(
+                dict2[key], rel=rel_tol
+            ), f"Values for {key} do not match"
 
 
 def test_one_thread_specify_file_pattern(tmp_path):
@@ -64,20 +69,23 @@ def test_one_thread_specify_file_pattern(tmp_path):
         log_queue,
         stub_worker_log_configurer,
     )
-    assert (
-        len(list(tmp_path.glob("[0123456789]???????_[0123456789]???.json"))) > 0
-    ), "There are no output files"
 
+    # Test that we have one or more output files
+    output_file_list = list(tmp_path.glob("[0123456789]???????_[0123456789]???.json"))
+    assert len(output_file_list) > 0, "There are no output files"
+
+    # Test that we have one "load job" ("LJ") document
     lj_doc_regex = "LJ:METAR:vxingest.netcdf_to_cb.run_ingest_threads:VXIngest:*.json"
-    assert (
-        len(list(tmp_path.glob(lj_doc_regex))) == 1
-    ), "there is no load job output file"
+    num_load_job_files = len(list(tmp_path.glob(lj_doc_regex)))
+    assert num_load_job_files == 1, "there is no load job output file"
 
-    # use file globbing to see if we got one output file for each input file plus one load job file
+    # Test that we have one output file per input file
     input_path = Path("/opt/data/netcdf_to_cb/input_files")
-    assert len(list(tmp_path.glob("20211108*.json"))) == len(
-        list(input_path.glob("20211108_0000"))
-    ), "number of output files is incorrect"
+    num_input_files = len(list(input_path.glob("20211108_0000")))
+    num_output_files = len(list(tmp_path.glob("20211108*.json")))
+    assert num_output_files == num_input_files, "number of output files is incorrect"
+
+    # Test that the output file matches the content in the database
     derived_data = json.load((tmp_path / "20211108_0000.json").open(encoding="utf-8"))
     station_id = ""
     derived_station = {}
@@ -100,12 +108,10 @@ def test_one_thread_specify_file_pattern(tmp_path):
     # make sure the firstTime and lastTime are the same in both the derived and retrieved station['geo']
     retrieved_station["geo"][0]["firstTime"] = derived_station["geo"][0]["firstTime"]
     retrieved_station["geo"][0]["lastTime"] = derived_station["geo"][0]["lastTime"]
-    assert ordered(derived_station) == ordered(
-        retrieved_station
-    ), "derived station does not match retrieved station"
-    assert ordered(derived_obs) == ordered(
-        retrieved_obs
-    ), "derived obs does not match retrieved obs"
+
+    assert derived_station == retrieved_station
+
+    assert_dicts_almost_equal(derived_obs, retrieved_obs)
 
 
 def test_two_threads_spedicfy_file_pattern(tmp_path):

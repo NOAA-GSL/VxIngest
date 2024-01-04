@@ -16,10 +16,10 @@
 """
 import json
 import os
-import pytest
 from multiprocessing import Queue
 from pathlib import Path
 
+import pytest
 from vxingest.netcdf_to_cb.run_ingest_threads import VXIngest
 
 

@@ -25,7 +25,8 @@ func testGetCTCCount(conn CbConnection) {
 	tmplSQL = strings.Replace(tmplSQL, "{{vxDBTARGET}}", conn.vxDBTARGET, -1)
 	log.Println(tmplSQL)
 
-	queryWithSQLStringTest(conn.Scope, tmplSQL)
+	rv := queryWithSQLStringTestSA(conn.Scope, tmplSQL)
+	log.Println(jsonPrettyPrint(rv))
 }
 
 func testGetSingleCTC(conn CbConnection) {
@@ -39,10 +40,11 @@ func testGetSingleCTC(conn CbConnection) {
 	tmplSQL = strings.Replace(tmplSQL, "{{vxDBTARGET}}", conn.vxDBTARGET, -1)
 	log.Println(tmplSQL)
 
-	queryWithSQLStringTest(conn.Scope, tmplSQL)
+	rv := queryWithSQLStringTestSA(conn.Scope, tmplSQL)
+	log.Println(jsonPrettyPrint(rv))
 }
 
-func queryWithSQLStringTest(scope *gocb.Scope, text string) {
+func queryWithSQLStringTestSA(scope *gocb.Scope, text string) (jsonOut []interface{}) {
 	log.Println("queryWithSQLStringTest()")
 
 	queryResult, err := scope.Query(
@@ -63,11 +65,14 @@ func queryWithSQLStringTest(scope *gocb.Scope, text string) {
 		}
 		m := row.(map[string]interface{})
 		rows = append(rows, m)
-		fmt.Println(rows)
+		// fmt.Println(rows)
 	}
+
+	/*
 	for i := 0; i < len(rows); i++ {
 		m := rows[i].(map[string]interface{})
 		walkJsonMap(m, 0)
 	}
-	log.Println(jsonPrettyPrint(rows))
+	*/
+	return rows
 }

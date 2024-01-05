@@ -2,7 +2,7 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
+//	"fmt"
 	"log"
 	"os"
 	"slices"
@@ -45,6 +45,7 @@ type CbConnection struct {
 
 // init runs before main() is evaluated
 func init() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	log.Println("meta-update:init()")
 }
 
@@ -97,8 +98,8 @@ func main() {
 
 	conn.Scope = conn.Bucket.Scope(conf.Private.Databases[0].Scope)
 
-	// testGetSingleCTC(conn)
-	// testGetCTCCount(conn)
+	//testGetSingleCTC(conn)
+	//testGetCTCCount(conn)
 
 	for ds := 0; ds < len(conf.Datasets); ds++ {
 		for dt := 0; dt < len(conf.Datasets[ds].DocType); dt++ {
@@ -140,7 +141,7 @@ func updateMedataForDatasetDocType(conn CbConnection, dataset string, app string
 	// initialize the metadata for the models for which the metadata does not exist
 	for i := 0; i < len(models); i++ {
 		contains := slices.Contains(models_with_existing_metadata, models[i])
-		log.Println(fmt.Printf("contains:%t\n", contains))
+		// log.Println(fmt.Printf("contains:%t\n", contains))
 		if !contains {
 			initializeMetadataForModel(conn, dataset, app, doctype, subDocType, models[i])
 		}

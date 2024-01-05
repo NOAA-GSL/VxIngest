@@ -23,10 +23,11 @@ func queryWithSQLFile(scope *gocb.Scope, file string) (jsonOut []string) {
 	text := string(fileContent)
 	fmt.Println(text)
 
-	return queryWithSQLString(scope, text)
+	return queryWithSQLStringSA(scope, text)
 }
 
-func queryWithSQLString(scope *gocb.Scope, text string) (jsonOut []string) {
+func queryWithSQLStringSA(scope *gocb.Scope, text string) (jsonOut []string) {
+	log.Println("queryWithSQLStringSA(\n" + text + "\n)")
 
 	queryResult, err := scope.Query(
 		fmt.Sprintf(text),
@@ -51,6 +52,31 @@ func queryWithSQLString(scope *gocb.Scope, text string) (jsonOut []string) {
 	}
 
 	return retValues
+}
+
+func queryWithSQLStringMAP(scope *gocb.Scope, text string) (jsonOut []interface{}) {
+	log.Println("queryWithSQLStringMAP(\n" + text + "\n)")
+
+	queryResult, err := scope.Query(
+		fmt.Sprintf(text),
+		&gocb.QueryOptions{Adhoc: true},
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	rows := make([]interface{}, 0)
+
+	for queryResult.Next() {
+		var row interface{}
+		err := queryResult.Row(&row)
+		if err != nil {
+			log.Fatal(err)
+		}
+		m := row.(map[string]interface{})
+		rows = append(rows, m)
+	}
+	return rows
 }
 
 func queryWithSQLFileJustPrint(scope *gocb.Scope, file string) {

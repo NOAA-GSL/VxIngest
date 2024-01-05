@@ -24,9 +24,8 @@ func getModels(conn CbConnection, dataset string, app string, doctype string, su
 	tmplGetModelsSQL = strings.Replace(tmplGetModelsSQL, "{{vxDBTARGET}}", conn.vxDBTARGET, -1)
 	tmplGetModelsSQL = strings.Replace(tmplGetModelsSQL, "{{vxDOCTYPE}}", doctype, -1)
 	tmplGetModelsSQL = strings.Replace(tmplGetModelsSQL, "{{vxSUBDOCTYPE}}", subDocType, -1)
-	log.Println(tmplGetModelsSQL)
 
-	models_requiring_metadata := queryWithSQLString(conn.Scope, tmplGetModelsSQL)
+	models_requiring_metadata := queryWithSQLStringSA(conn.Scope, tmplGetModelsSQL)
 	return models_requiring_metadata
 }
 
@@ -42,7 +41,7 @@ func getModelsNoData(conn CbConnection, dataset string, app string, doctype stri
 	tmplgetModelsNoDataSQL = strings.Replace(tmplgetModelsNoDataSQL, "{{vxDOCTYPE}}", doctype, -1)
 	tmplgetModelsNoDataSQL = strings.Replace(tmplgetModelsNoDataSQL, "{{vxAPP}}", app, -1)
 	tmplgetModelsNoDataSQL = strings.Replace(tmplgetModelsNoDataSQL, "{{vxSUBDOCTYPE}}", doctype, -1)
-	models_with_metatada_but_no_data := queryWithSQLString(conn.Scope, tmplgetModelsNoDataSQL)
+	models_with_metatada_but_no_data := queryWithSQLStringSA(conn.Scope, tmplgetModelsNoDataSQL)
 
 	return models_with_metatada_but_no_data
 }
@@ -82,9 +81,8 @@ func getModelsWithExistingMetadata(conn CbConnection, dataset string, app string
 	tmplgetModelsWithMetadataSQL := string(fileContent)
 	tmplgetModelsWithMetadataSQL = strings.Replace(tmplgetModelsWithMetadataSQL, "{{vxDBTARGET}}", conn.vxDBTARGET, 1)
 	tmplgetModelsWithMetadataSQL = strings.Replace(tmplgetModelsWithMetadataSQL, "{{vxAPP}}", app, -1)
-	log.Println(tmplgetModelsWithMetadataSQL)
 
-	models_with_existing_metadata := queryWithSQLString(conn.Scope, tmplgetModelsWithMetadataSQL)
+	models_with_existing_metadata := queryWithSQLStringSA(conn.Scope, tmplgetModelsWithMetadataSQL)
 	return models_with_existing_metadata
 }
 
@@ -110,7 +108,7 @@ func initializeMetadataForModel(conn CbConnection, dataset string, app string, d
 	}
 }
 
-func getDistinctThresholds(conn CbConnection, dataset string, app string, doctype string, subDocType string, model string) (jsonOut []string) {
+func getDistinctThresholds(conn CbConnection, dataset string, app string, doctype string, subDocType string, model string) (jsonOut []interface{}) {
 	log.Println("getDistinctThresholds(" + dataset + "," + app + "," + doctype + "," + subDocType + "," + model + ")")
 
 	fileContent, err := os.ReadFile("sqls/getDistinctThresholds.sql")
@@ -122,8 +120,7 @@ func getDistinctThresholds(conn CbConnection, dataset string, app string, doctyp
 	tmplSQL = strings.Replace(tmplSQL, "{{vxDOCTYPE}}", doctype, -1)
 	tmplSQL = strings.Replace(tmplSQL, "{{vxSUBDOCTYPE}}", subDocType, -1)
 	tmplSQL = strings.Replace(tmplSQL, "{{vxMODEL}}", model, -1)
-	log.Println(tmplSQL)
 
-	result := queryWithSQLString(conn.Scope, tmplSQL)
+	result := queryWithSQLStringMAP(conn.Scope, tmplSQL)
 	return result
 }

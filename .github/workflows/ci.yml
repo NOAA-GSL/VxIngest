@@ -28,6 +28,21 @@ jobs:
         run: poetry run ruff format --check src tests
       - name: Lint with Ruff
         run: poetry run ruff check --output-format=github src tests
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install poetry
+        run: pipx install poetry
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          poetry env use 3.11
+          poetry install
+      - name: Unit test with pytest
+        run: poetry run pytest -m "not integration" tests
   build-ingest:
     name: Build Ingest image
     runs-on: ubuntu-latest

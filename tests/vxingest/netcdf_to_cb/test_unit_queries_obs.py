@@ -2,6 +2,7 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
+import pytest
 import yaml
 from couchbase.auth import PasswordAuthenticator
 from couchbase.cluster import Cluster
@@ -42,6 +43,7 @@ def connect_cb():
     return cb_connection
 
 
+@pytest.mark.integration()
 def test_ingest_document_id(request):
     _name = request.node.name
     _expected_time = 0.005
@@ -61,6 +63,7 @@ def test_ingest_document_id(request):
     ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
 
 
+@pytest.mark.integration()
 def test_ingest_document_fields(request):
     _name = request.node.name
     _expected_time = 0.005
@@ -80,6 +83,7 @@ def test_ingest_document_fields(request):
     ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
 
 
+@pytest.mark.integration()
 def test_get_stations(request):
     _name = request.node.name
     _expected_time = 0.01
@@ -97,6 +101,7 @@ def test_get_stations(request):
     ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
 
 
+@pytest.mark.integration()
 def test_get_obs_by_fcst_valid_epoch(request):
     _name = request.node.name
     _expected_time = 1

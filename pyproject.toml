@@ -31,3 +31,8 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
 ingest = "vxingest.main:run_ingest"
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: marks tests that need external resources like databases or data files (deselect with '-m \"not integration\"')",
+]

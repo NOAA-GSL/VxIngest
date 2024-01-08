@@ -53,7 +53,7 @@ class LoadBackupIngestDocs:
 
     def run(self, args):
         "thread start"
-        # noinspection PyBroadException
+
         try:
             credentials_file = args["credentials_file"]
             # check for existence of file
@@ -63,29 +63,25 @@ class LoadBackupIngestDocs:
                     + credentials_file
                     + " can not be found!"
                 )
-            _f = open(credentials_file, encoding="utf-8")
-            yaml_data = yaml.load(_f, yaml.SafeLoader)
+            with Path(credentials_file).open(encoding="utf-8") as _f:
+                yaml_data = yaml.load(_f, yaml.SafeLoader)
             self.cb_credentials["host"] = yaml_data["cb_host"]
             self.cb_credentials["user"] = yaml_data["cb_user"]
             self.cb_credentials["password"] = yaml_data["cb_password"]
-            _f.close()
 
+            # Get JSON data as a dict
             f_name = args["file_name"]
-            # Opening JSON file
-            _f = open(f_name, encoding="utf-8")
-            # returns JSON object as
-            # a dictionary
-            list_data = json.load(_f)
+            with Path(f_name).open(encoding="utf-8") as _f:
+                list_data = json.load(_f)
             data = {}
             for elem in list_data:
                 _id = elem["id"]
                 del elem["id"]
                 data[_id] = elem
-            _f.close()
             self.connect_cb()
             self.collection.upsert_multi(data)
-        except:  # pylint: disable=bare-except, disable=broad-except
-            print(": *** %s Error in multi-upsert *** " + str(sys.exc_info()))
+        except Exception as e:
+            print(f" *** Error in multi-upsert *** {e}")
         finally:
             # close any mysql connections
             self.close_cb()
@@ -98,7 +94,7 @@ class LoadBackupIngestDocs:
     def connect_cb(self):
         """Connect to database"""
         # get a reference to our cluster
-        # noinspection PyBroadException
+
         try:
             options = ClusterOptions(
                 PasswordAuthenticator(
@@ -109,8 +105,8 @@ class LoadBackupIngestDocs:
                 "couchbase://" + self.cb_credentials["host"], options
             )
             self.collection = self.cluster.bucket("mdata").default_collection()
-        except:  # pylint: disable=bare-except, disable=broad-except
-            print("*** %s in connect_cb ***" + str(sys.exc_info()))
+        except Exception as e:
+            print(f"*** Error in connect_cb *** {e}")
             sys.exit("*** Error when connecting to mysql database: ")
 
     def main(self):

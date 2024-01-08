@@ -12,6 +12,7 @@ import datetime as dt
 import logging
 import re
 import time
+from pathlib import Path
 from pstats import Stats
 
 from couchbase.exceptions import DocumentNotFoundException, TimeoutException
@@ -27,7 +28,7 @@ from vxingest.builder_common.builder_utilities import (
 logger = logging.getLogger(__name__)
 
 
-class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
+class CTCBuilder(Builder):
     """
     Parent class for CTC builders
     1) find all the stations for the region for this ingest (model and region)
@@ -145,7 +146,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                 new_parts.append(value)
             new_id = ":".join(new_parts)
             return new_id
-        except Exception as _e:  # pylint:disable=broad-except
+        except Exception as _e:
             logger.exception("CTCBuilder.derive_id")
             return None
 
@@ -175,7 +176,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                     else:
                         value = variable.replace("*" + _ri, str(value))
             return value
-        except Exception as _e:  # pylint: disable=broad-except
+        except Exception as _e:
             logger.error(
                 "CtcBuilder.translate_template_item: Exception  error: %s", str(_e)
             )
@@ -187,7 +188,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
         the self.modelData and self.obsData
         :return: The modified document_map
         """
-        # noinspection PyBroadException
+
         try:
             new_document = copy.deepcopy(self.template)
             if self.domain_stations is None:
@@ -198,9 +199,8 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
             # make a copy of the template, which will become the new document
             # once all the translations have occured
             new_document = initialize_data_array(new_document)
-            for key in self.template.keys():
+            for key in self.template:
                 if key == "data":
-                    # pylint: disable=assignment-from-no-return
                     new_document = self.handle_data(doc=new_document)
                     continue
                 new_document = self.handle_key(new_document, key)
@@ -216,7 +216,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                     "CtcBuilder.handle_document - cannot add document with key %s",
                     str(new_document["id"]),
                 )
-        except Exception as _e:  # pylint: disable=broad-except
+        except Exception as _e:
             logger.error(
                 "%s CtcBuilder.handle_document: Exception instantiating builder:  error %s",
                 self.__class__.__name__,
@@ -234,7 +234,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
         :param _key: A key to be processed, This can be a key to a primitive,
         or to another dictionary, or to a named function
         """
-        # noinspection PyBroadException
+
         try:
             if key == "id":
                 an_id = self.derive_id(template_id=self.template["id"])
@@ -244,7 +244,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
             if isinstance(doc[key], dict):
                 # process an embedded dictionary
                 tmp_doc = copy.deepcopy(self.template[key])
-                for sub_key in tmp_doc.keys():
+                for sub_key in tmp_doc:
                     tmp_doc = self.handle_key(tmp_doc, sub_key)  # recursion
                 doc[key] = tmp_doc
             if (
@@ -256,7 +256,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
             else:
                 doc[key] = self.translate_template_item(doc[key])
             return doc
-        except Exception as _e:  # pylint:disable=broad-except
+        except Exception as _e:
             logger.exception(
                 "%s CtcBuilder.handle_key: Exception in builder",
                 self.__class__.__name__,
@@ -296,7 +296,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                 dict_params[_p[1:]] = self.translate_template_item(_p)
             # call the named function using getattr
             replace_with = getattr(self, func)(dict_params)
-        except Exception as _e:  # pylint:disable=broad-except
+        except Exception as _e:
             logger.exception(
                 "%s handle_named_function: %s params %s: Exception instantiating builder:",
                 self.__class__.__name__,
@@ -305,12 +305,12 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
             )
         return replace_with
 
-    def handle_fcstValidEpochs(self):  # pylint: disable=invalid-name
+    def handle_fcstValidEpochs(self):
         """iterate through all the fcstValidEpochs for which we have both model data and observation data.
         For each entry in the data section, i.e for each station build a data element that
         has model and observation data, then handle the document.
         """
-        try:  # pylint: disable=too-many-nested-blocks
+        try:
             _obs_data = {}
             for fve in self.model_fcst_valid_epochs:
                 try:
@@ -323,7 +323,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                             self.region, fve["fcstValidEpoch"]
                         )
                         self.domain_stations = full_station_name_list
-                    except Exception as _e:  # pylint: disable=broad-except
+                    except Exception as _e:
                         logger.error(
                             "%s: Exception with builder build_document: error: %s",
                             self.__class__.__name__,
@@ -352,7 +352,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                             self.__class__.__name__,
                             fve["id"],
                         )
-                    except Exception as _e:  # pylint: disable=broad-except
+                    except Exception as _e:
                         logger.error(
                             "%s Error getting model document: %s",
                             self.__class__.__name__,
@@ -381,7 +381,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                                     obs_id,
                                 )
                                 continue
-                            for key in _obs_data["data"].keys():
+                            for key in _obs_data["data"]:
                                 self.obs_data[key] = _obs_data["data"][key]
                                 self.obs_station_names.append(key)
                             self.obs_station_names.sort()
@@ -392,14 +392,14 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                             self.__class__.__name__,
                             fve["id"],
                         )
-                except Exception as _e:  # pylint: disable=broad-except
+                except Exception as _e:
                     logger.exception(
                         "%s problem getting obs document: %s",
                         self.__class__.__name__,
                         str(_e),
                     )
 
-        except Exception as _e:  # pylint: disable=broad-except
+        except Exception as _e:
             logger.error(
                 "%s handle_fcstValidEpochs: Exception instantiating builder:  error: %s",
                 self.__class__.__name__,
@@ -426,7 +426,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
         fcstValidEpoch and fcstLen. This will result in a document for each fcstLen within a fcstValidEpoch.
         5) and 6) are enclosed in the handle_document()
         """
-        # noinspection PyBroadException
+
         try:
             # reset the builders document_map for a new file
             self.initialize_document_map()
@@ -573,12 +573,14 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                     self.model_fcst_valid_epochs.append(fve)
 
             # if we have asked for profiling go ahead and do it
-            # pylint: disable=no-member
+
             if self.do_profiling:
                 with cProfile.Profile() as _pr:
                     # process the fcstValidEpochs with profiling
                     self.handle_fcstValidEpochs()
-                    with open("profiling_stats.txt", "w", encoding="utf-8") as stream:
+                    with Path("profiling_stats.txt").open(
+                        "w", encoding="utf-8"
+                    ) as stream:
                         stats = Stats(_pr, stream=stream)
                         stats.strip_dirs()
                         stats.sort_stats("time")
@@ -587,13 +589,13 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
             else:
                 # process the fcstValidEpochs without profiling
                 self.handle_fcstValidEpochs()
-            # pylint: disable=assignment-from-no-return
+
             logger.info(
                 "There were %s stations not found", self.not_found_station_count
             )
             document_map = self.get_document_map()
             return document_map
-        except Exception as _e:  # pylint: disable=broad-except
+        except Exception as _e:
             logger.error(
                 "%s: Exception with builder build_document: error: %s for element %s",
                 self.__class__.__name__,
@@ -602,7 +604,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
             )
             return {}
 
-    def get_stations_for_region_by_geosearch(self, region_name, valid_epoch):  # pylint: disable=unused-argument
+    def get_stations_for_region_by_geosearch(self, region_name, valid_epoch):
         # NOTE: this is currently broken because we have to modify this query to
         # work woth the data model that has data elements as a MAP indexed by station name
         """Using a geosearh return all the stations within the defined region
@@ -639,7 +641,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                 _domain_stations.append(elem.fields["name"])
             _domain_stations.sort()
             return _domain_stations
-        except Exception as _e:  # pylint: disable=broad-except
+        except Exception as _e:
             logger.error(
                 "%s: Exception with builder: error: %s",
                 self.__class__.__name__,
@@ -661,7 +663,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
             classic_stations = doc.content_as[dict]["stations"]
             classic_stations.sort()
             return classic_stations
-        except Exception as _e:  # pylint: disable=broad-except
+        except Exception as _e:
             logger.error(
                 "%s: Exception with builder: error: %s",
                 self.__class__.__name__,
@@ -732,7 +734,7 @@ class CTCBuilder(Builder):  # pylint:disable=too-many-instance-attributes
                     continue
             _domain_stations.sort()
             return _domain_stations
-        except Exception as _e:  # pylint: disable=broad-except
+        except Exception as _e:
             logger.error(
                 "%s: Exception with builder: error: %s",
                 self.__class__.__name__,
@@ -797,13 +799,13 @@ class CTCModelObsBuilderV01(CTCBuilder):
         return self.document_map
 
     # named functions
-    def handle_data(self, **kwargs):  # pylint:disable=too-many-branches
+    def handle_data(self, **kwargs):
         """
         This routine processes the ctc data element. The data elements are all the same and always have the
         same keys which are thresholds, therefore this class does not implement handlers.
         :return: The modified document_map
         """
-        try:  # pylint: disable=too-many-nested-blocks
+        try:
             doc = kwargs["doc"]
             data_elem = {}
             # get the thresholds
@@ -826,7 +828,7 @@ class CTCModelObsBuilderV01(CTCBuilder):
                 false_alarms = 0
                 correct_negatives = 0
                 none_count = 0
-                for key in self.model_data["data"].keys():
+                for key in self.model_data["data"]:
                     try:
                         model_station_name = key
                         model_station = self.model_data["data"][key]
@@ -886,7 +888,7 @@ class CTCModelObsBuilderV01(CTCBuilder):
                             < threshold
                         ):
                             correct_negatives = correct_negatives + 1
-                    except Exception as _e:  # pylint: disable=broad-except
+                    except Exception as _e:
                         logger.exception("unexpected exception:%s", str(_e))
                 data_elem[threshold] = (
                     data_elem[threshold] if threshold in data_elem else {}
@@ -898,7 +900,7 @@ class CTCModelObsBuilderV01(CTCBuilder):
                 data_elem[threshold]["none_count"] = none_count
             doc["data"] = data_elem
             return doc
-        except Exception as _e:  # pylint: disable=broad-except
+        except Exception as _e:
             logger.error(
                 "%s handle_data: Exception :  error: %s",
                 self.__class__.__name__,
@@ -906,7 +908,7 @@ class CTCModelObsBuilderV01(CTCBuilder):
             )
         return doc
 
-    def handle_time(self, params_dict):  # pylint: disable=unused-argument
+    def handle_time(self, params_dict):
         """return the fcstValidTime for the current model in epoch
         Args:
             params_dict (dict): contains named_function parameters
@@ -915,7 +917,7 @@ class CTCModelObsBuilderV01(CTCBuilder):
         """
         return self.model_data["fcstValidEpoch"]
 
-    def handle_iso_time(self, params_dict):  # pylint: disable=unused-argument
+    def handle_iso_time(self, params_dict):
         """return the fcstValidTime for the current model in ISO
         Args:
             params_dict (dict): contains named_function parameters
@@ -926,7 +928,7 @@ class CTCModelObsBuilderV01(CTCBuilder):
             self.model_data["fcstValidEpoch"]
         ).isoformat()
 
-    def handle_fcst_len(self, params_dict):  # pylint: disable=unused-argument
+    def handle_fcst_len(self, params_dict):
         """returns the fcst lead time in hours for this document
         Args:
             params_dict (dict): contains named_function parameters

@@ -8,11 +8,10 @@ Colorado, NOAA/OAR/ESRL/GSL
 
 import copy
 import cProfile
-import glob
 import logging
 import math
-import os
 import sys
+from pathlib import Path
 from pstats import Stats
 
 import pyproj
@@ -28,7 +27,7 @@ from vxingest.builder_common.builder_utilities import (
 logger = logging.getLogger(__name__)
 
 
-class GribBuilder(Builder):  # pylint: disable=too-many-arguments
+class GribBuilder(Builder):
     """parent class for grib builders. This class contains methods that are
     common to all the grib builders. The entry point for every builder is the build_document(self, queue_element)
     which is common to all grib2 builders and is in this class."""
@@ -81,7 +80,6 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
         Returns:
             projection: projection object
         """
-        # do not know how to disable pylint bad-option-value - probably a python2 - python3 problem
         init_projection = pyproj.Proj(proj_params)
         latlon_proj = pyproj.Proj(proj="latlon")
         lat_0 = latitude_of_first_grid_point_in_degrees
@@ -90,7 +88,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
         init_transformer = pyproj.Transformer.from_proj(
             proj_from=latlon_proj, proj_to=init_projection
         )
-        _x, _y = init_transformer.transform(  # pylint: disable=unpacking-non-sequence
+        _x, _y = init_transformer.transform(
             lon_0, lat_0, radians=False
         )  # the lower left coordinates in the projection space
 
@@ -154,9 +152,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
             )
             return interpolated_value
         except Exception as _e:
-            raise Exception(  # pylint: disable=broad-exception-raised
-                f"Error in get_grid.interpGridBox - {str(_e)}"
-            ) from _e
+            raise Exception(f"Error in get_grid.interpGridBox - {str(_e)}") from _e
 
     def derive_id(self, **kwargs):
         """
@@ -179,14 +175,14 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                     value = str(self.handle_named_function(part))
                 else:
                     if part.startswith("*"):
-                        _v, _interp_v = self.translate_template_item(part)  # pylint:disable=unused-variable
+                        _v, _interp_v = self.translate_template_item(part)
                         value = str(_v)
                     else:
                         value = str(part)
                 new_parts.append(value)
             new_id = ":".join(new_parts)
             return new_id
-        except Exception as _e:  # pylint:disable=broad-except
+        except Exception as _e:
             logger.exception("GribBuilder.derive_id")
             return None
 
@@ -265,7 +261,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                 (station_value, interpolated_value)
                 for i in range(len(self.domain_stations))
             ]
-        except Exception as _e:  # pylint:disable=broad-except
+        except Exception as _e:
             logger.exception(
                 "Builder.translate_template_item for variable %s: replacements: %s",
                 str(variable),
@@ -301,7 +297,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
             # make a copy of the template, which will become the new document
             # once all the translations have occured
             new_document = initialize_data_array(new_document)
-            for key in self.template.keys():
+            for key in self.template:
                 if key == "data":
                     new_document = self.handle_data(doc=new_document)
                     continue
@@ -318,7 +314,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                     "GribBuilder.handle_document - cannot add document with key %s",
                     str(new_document["id"]),
                 )
-        except Exception as _e:  # pylint: disable=broad-except
+        except Exception as _e:
             logger.error(
                 "%s GribBuilder.handle_document: Exception instantiating builder: %s",
                 self.__class__.__name__,
@@ -336,7 +332,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
         :param _key: A key to be processed, This can be a key to a primitive,
         or to another dictionary, or to a named function
         """
-        # noinspection PyBroadException
+
         try:
             if key == "id":
                 an_id = self.derive_id(template_id=self.template["id"])
@@ -346,7 +342,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
             if isinstance(doc[key], dict):
                 # process an embedded dictionary
                 tmp_doc = copy.deepcopy(self.template[key])
-                for sub_key in tmp_doc.keys():
+                for sub_key in tmp_doc:
                     tmp_doc = self.handle_key(tmp_doc, sub_key)  # recursion
                 doc[key] = tmp_doc
             if (
@@ -358,7 +354,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
             else:
                 doc[key], _interp_v = self.translate_template_item(doc[key], True)
             return doc
-        except Exception as _e:  # pylint:disable=broad-except
+        except Exception as _e:
             logger.exception(
                 "%s GribBuilder.handle_key: Exception in builder:",
                 self.__class__.__name__,
@@ -397,7 +393,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                 dict_params[_p[1:]] = self.translate_template_item(_p)
             # call the named function using getattr
             replace_with = getattr(self, func)(dict_params)
-        except Exception as _e:  # pylint:disable=broad-except
+        except Exception as _e:
             logger.exception(
                 "%s handle_named_function: %s params %s: Exception instantiating builder:",
                 self.__class__.__name__,
@@ -420,7 +416,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
             data_elem = {}
             data_key = next(iter(self.template["data"]))
             data_template = self.template["data"][data_key]
-            for key in data_template.keys():
+            for key in data_template:
                 try:
                     value = data_template[key]
                     # values can be null...
@@ -428,7 +424,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                         value = self.handle_named_function(value)
                     else:
                         value = self.translate_template_item(value)
-                except Exception as _e:  # pylint:disable=broad-except
+                except Exception as _e:
                     value = [(None, None)]
                     logger.warning(
                         "%s Builder.handle_data - value is (None,None)",
@@ -447,7 +443,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                 )
             self.load_data(doc, data_key, data_elem)
             return doc
-        except Exception as _e:  # pylint:disable=broad-except
+        except Exception as _e:
             logger.exception(
                 "%s handle_data: Exception instantiating builder",
                 self.__class__.__name__,
@@ -458,21 +454,24 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
         """
         cfgrib leaves .idx files in the directory - delete the .idx file
         """
-        idx_pattern = queue_element.replace(".grib2", "") + ".*.idx"
-        file_list = glob.glob(idx_pattern)
+        queue_element = Path(queue_element)
+        basepath = queue_element.parent
+        idx_pattern = queue_element.name.replace(".grib2", "") + ".*.idx"
+        file_list = basepath.glob(idx_pattern)
+
         # Iterate over the list of filepaths & remove each file.
-        for file_path in file_list:
+        for file in file_list:
             try:
-                os.remove(file_path)
+                file.unlink()
             except OSError as _e:
                 logger.warning(
                     "%s Builder.build_document Error - cannot delete idx file %s - %s",
                     self.__class__.__name__,
-                    file_path,
+                    file,
                     _e,
                 )
 
-    def build_document(self, queue_element):  # pylint:disable=too-many-statements, disable=too-many-locals
+    def build_document(self, queue_element):
         """
         This is the entry point for the gribBuilders from the ingestManager.
         The ingest manager is giving us a grib file to process from the queue.
@@ -770,7 +769,6 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                     lon = row["geo"][geo_index]["lon"]
                     if lat == -90 and lon == 180:
                         continue  # don't know how to transform that station
-                    # pylint: disable=unpacking-non-sequence
                     (
                         _x,
                         _y,
@@ -780,7 +778,6 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                     # use for debugging if you must
                     # print (f"transform - lat: {lat}, lon: {lon}, x_gridpoint: {x_gridpoint}, y_gridpoint: {y_gridpoint}")
                     try:
-                        # pylint: disable=c-extension-no-member
                         if (
                             math.floor(x_gridpoint) < 0
                             or math.ceil(x_gridpoint) >= max_x
@@ -788,7 +785,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                             or math.ceil(y_gridpoint) >= max_y
                         ):
                             continue
-                    except Exception as _e:  # pylint: disable=broad-except
+                    except Exception as _e:
                         logger.error(
                             "%s: Exception with builder build_document processing station: error: %s",
                             self.__class__.__name__,
@@ -809,7 +806,9 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
             if self.do_profiling:
                 with cProfile.Profile() as _pr:
                     self.handle_document()
-                    with open("profiling_stats.txt", "w", encoding="utf-8") as stream:
+                    with Path("profiling_stats.txt").open(
+                        "w", encoding="utf-8"
+                    ) as stream:
                         stats = Stats(_pr, stream=stream)
                         stats.strip_dirs()
                         stats.sort_stats("time")
@@ -817,7 +816,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
                         stats.print_stats()
             else:
                 self.handle_document()
-            # pylint: disable=assignment-from-no-return
+
             document_map = self.get_document_map()
             data_file_id = self.create_data_file_id(
                 self.subset, "grib2", self.template["model"], queue_element
@@ -834,7 +833,7 @@ class GribBuilder(Builder):  # pylint: disable=too-many-arguments
             document_map[data_file_doc["id"]] = data_file_doc
             self.delete_idx_file(queue_element)
             return document_map
-        except Exception as _e:  # pylint:disable=broad-except
+        except Exception as _e:
             logger.exception(
                 "%s: Exception with builder build_document: file_name: %s, exception %s",
                 self.__class__.__name__,

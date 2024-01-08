@@ -44,7 +44,7 @@ from vxingest.grib2_to_cb import grib_builder as my_builder
 logger = logging.getLogger(__name__)
 
 
-class VxIngestManager(CommonVxIngestManager):  # pylint:disable=too-many-instance-attributes
+class VxIngestManager(CommonVxIngestManager):
     """
     IngestManager is a Process Thread that manages an object pool of
     builders to ingest data from GSD grib2 files or netcdf files into documents that can be
@@ -121,7 +121,7 @@ class VxIngestManager(CommonVxIngestManager):  # pylint:disable=too-many-instanc
         if self.ingest_type_builder_name is None:
             try:
                 self.ingest_type_builder_name = self.ingest_document["builder_type"]
-            except Exception as _e:  # pylint:disable=broad-except
+            except Exception as _e:
                 logger.exception(
                     "%s: process_element: Exception getting ingest document for %s ",
                     self.thread_name,
@@ -137,22 +137,22 @@ class VxIngestManager(CommonVxIngestManager):  # pylint:disable=too-many-instanc
             _e: exception
         """
         # get or instantiate the builder
-        # noinspection PyBroadException
+
         start_process_time = int(time.time())
         document_map = {}
-        # noinspection PyBroadException
+
         try:
             logger.info("process_element - : start time: %s", str(start_process_time))
             try:
                 self.set_builder_name(queue_element)
-            except Exception as _e:  # pylint:disable=broad-except
+            except Exception as _e:
                 logger.exception(
                     "%s: *** Error in IngestManager run getting builder name ***",
                     self.thread_name,
                 )
                 sys.exit("*** Error getting builder name: ")
 
-            if self.ingest_type_builder_name in self.builder_map.keys():
+            if self.ingest_type_builder_name in self.builder_map:
                 builder = self.builder_map[self.ingest_type_builder_name]
             else:
                 builder_class = getattr(my_builder, self.ingest_type_builder_name)
@@ -165,7 +165,7 @@ class VxIngestManager(CommonVxIngestManager):  # pylint:disable=too-many-instanc
                 self.write_document_to_files(queue_element, document_map)
             else:
                 self.write_document_to_cb(queue_element, document_map)
-        except Exception as _e:  # pylint:disable=broad-except
+        except Exception as _e:
             logger.exception(
                 "%s: Exception in builder: %s",
                 self.thread_name,

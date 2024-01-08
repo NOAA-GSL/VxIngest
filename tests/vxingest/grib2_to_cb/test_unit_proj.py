@@ -1,25 +1,21 @@
-# pylint: disable=missing-module-docstring
 import os
 
 import pyproj
+import pytest
 import xarray as xr
 from vxingest.grib2_to_cb.run_ingest_threads import VXIngest
 
 
 def setup_connection():
     """test setup"""
-    try:
-        _vx_ingest = VXIngest()
-        _vx_ingest.credentials_file = os.environ["CREDENTIALS"]
-        _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
-        _vx_ingest.connect_cb()
-        _vx_ingest.load_spec["ingest_document_ids"] = _vx_ingest.collection.get(
-            "JOB-TEST:V01:METAR:GRIB2:MODEL:HRRR"
-        ).content_as[dict]["ingest_document_ids"]
-        return _vx_ingest
-    except Exception as _e:  # pylint:disable=broad-except
-        assert False, f"test_credentials_and_load_spec Exception failure: {_e}"
-        return None
+    _vx_ingest = VXIngest()
+    _vx_ingest.credentials_file = os.environ["CREDENTIALS"]
+    _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
+    _vx_ingest.connect_cb()
+    _vx_ingest.load_spec["ingest_document_ids"] = _vx_ingest.collection.get(
+        "JOB-TEST:V01:METAR:GRIB2:MODEL:HRRR"
+    ).content_as[dict]["ingest_document_ids"]
+    return _vx_ingest
 
 
 def test_proj():
@@ -65,7 +61,7 @@ def test_proj():
         init_transformer = pyproj.Transformer.from_proj(
             proj_from=latlon_proj, proj_to=init_projection
         )
-        _x, _y = init_transformer.transform(  # pylint: disable=unpacking-non-sequence
+        _x, _y = init_transformer.transform(
             lon_0, lat_0, radians=False
         )  # the lower left coordinates in the projection space
 
@@ -116,7 +112,6 @@ def test_proj():
             lon = row["lon"]
             if lat == -90 and lon == 180:
                 continue  # don't know how to transform that station
-            # pylint: disable=unpacking-non-sequence
             (
                 _x,
                 _y,
@@ -130,7 +125,7 @@ def test_proj():
                 y_gridpoint == 587.461349077341
             ), "y_gridpoint is not 587.461349077341"
 
-    except Exception as _e:  # pylint:disable=broad-except
-        assert False, f"test_proj Exception failure: {_e}"
+    except Exception as _e:
+        pytest.fail(f"test_proj Exception failure: {_e}")
     finally:
         vx_ingest.close_cb()

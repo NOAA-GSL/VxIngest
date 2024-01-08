@@ -11,6 +11,7 @@ Usage: python delta_hist.py input_file
 """
 import argparse
 import sys
+from pathlib import Path
 
 import plotly.express as px
 
@@ -41,21 +42,20 @@ class HistBuilder:
         try:
             datasets = {}
             unitset = {}
-            f = open(self.delta_file)
-            lines = f.readlines()
+            with Path(self.delta_file).open(encoding="utf-8") as f:
+                lines = f.readlines()
             for x in lines:
                 if x.startswith("var"):
                     columns = x.split()
                     field = columns[2]
                     delta = columns[5]
                     units = columns[6]
-                    if field not in datasets.keys():
+                    if field not in datasets:
                         datasets[field] = []
                     if delta == "None":
                         continue
                     datasets[field].append(float(delta))
                     unitset[field] = units
-            f.close()
             keys = datasets.keys()
             for field in keys:
                 fig = px.histogram(
@@ -65,8 +65,8 @@ class HistBuilder:
                     labels={"x": unitset[field]},
                 )
                 fig.show()
-        except:
-            print("*** Error in  HistBuilder ***" + str(sys.exc_info()))
+        except Exception as e:
+            print(f"*** Error in  HistBuilder *** - {e}")
 
     def main(self):
         args = parse_args(sys.argv[1:])

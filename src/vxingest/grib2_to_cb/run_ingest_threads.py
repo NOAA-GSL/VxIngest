@@ -164,7 +164,7 @@ class VXIngest(CommonVxIngest):
         self.ingest_document = None
         super().__init__()
 
-    def runit(self, args, log_queue: Queue, log_configurer: Callable[[Queue], None]):  # pylint:disable=too-many-locals
+    def runit(self, args, log_queue: Queue, log_configurer: Callable[[Queue], None]):
         """
         This is the entry point for run_ingest_threads.py
         There is a file_pattern and a file_mask. The file_mask is a python time.strftime format e.g. '%y%j%H%f'.
@@ -175,7 +175,7 @@ class VXIngest(CommonVxIngest):
         self.thread_count = args["threads"]
         self.output_dir = args["output_dir"].strip()
         self.job_document_id = args["job_id"].strip()
-        if "file_pattern" in args.keys():
+        if "file_pattern" in args:
             self.file_pattern = args["file_pattern"].strip()
         _args_keys = args.keys()
         if "number_stations" in _args_keys:
@@ -249,7 +249,6 @@ class VXIngest(CommonVxIngest):
         # Make the Pool of ingest_managers
         ingest_manager_list = []
         for thread_count in range(int(self.thread_count)):
-            # noinspection PyBroadException
             try:
                 self.load_spec["fmask"] = self.fmask
                 ingest_manager_thread = VxIngestManager(
@@ -263,7 +262,7 @@ class VXIngest(CommonVxIngest):
                 )
                 ingest_manager_list.append(ingest_manager_thread)
                 ingest_manager_thread.start()
-            except Exception as _e:  # pylint:disable=broad-except
+            except Exception as _e:
                 logger.error("*** Error in VXIngest %s***", str(_e))
         # be sure to join all the threads to wait on them
         finished = [proc.join() for proc in ingest_manager_list]

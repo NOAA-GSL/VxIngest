@@ -12,6 +12,7 @@ import datetime as dt
 import logging
 import re
 import time
+from pathlib import Path
 from pstats import Stats
 
 from couchbase.exceptions import DocumentNotFoundException, TimeoutException
@@ -29,7 +30,7 @@ from vxingest.builder_common.builder_utilities import (
 logger = logging.getLogger(__name__)
 
 
-class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attributes
+class PartialSumsBuilder(Builder):
     """
     Parent class for PARTIALSUMS builders
     1) find all the stations for the region for this ingest (model and region)
@@ -146,7 +147,7 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
                 new_parts.append(value)
             new_id = ":".join(new_parts)
             return new_id
-        except Exception as _e:  # pylint:disable=broad-except
+        except Exception as _e:
             logger.exception("PARTIALSUMSBuilder.derive_id")
             return None
 
@@ -176,7 +177,7 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
                     else:
                         value = variable.replace("*" + _ri, str(value))
             return value
-        except Exception as _e:  # pylint: disable=broad-except
+        except Exception as _e:
             logger.error(
                 "PartialSumsBuilder.translate_template_item: Exception  error: %s",
                 str(_e),
@@ -189,7 +190,7 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
         the self.modelData and self.obsData
         :return: The modified document_map
         """
-        # noinspection PyBroadException
+
         try:
             new_document = copy.deepcopy(self.template)
             if self.domain_stations is None:
@@ -200,9 +201,8 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
             # make a copy of the template, which will become the new document
             # once all the translations have occured
             new_document = initialize_data_array(new_document)
-            for key in self.template.keys():
+            for key in self.template:
                 if key == "data":
-                    # pylint: disable=assignment-from-no-return
                     new_document = self.handle_data(doc=new_document)
                     continue
                 new_document = self.handle_key(new_document, key)
@@ -218,7 +218,7 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
                     "PartialSumsBuilder.handle_document - cannot add document with key %s",
                     str(new_document["id"]),
                 )
-        except Exception as _e:  # pylint: disable=broad-except
+        except Exception as _e:
             logger.error(
                 "%s PartialSumsBuilder.handle_document: Exception instantiating builder:  error %s",
                 self.__class__.__name__,
@@ -236,7 +236,7 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
         :param _key: A key to be processed, This can be a key to a primitive,
         or to another dictionary, or to a named function
         """
-        # noinspection PyBroadException
+
         try:
             if key == "id":
                 an_id = self.derive_id(template_id=self.template["id"])
@@ -246,7 +246,7 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
             if isinstance(doc[key], dict):
                 # process an embedded dictionary
                 tmp_doc = copy.deepcopy(self.template[key])
-                for sub_key in tmp_doc.keys():
+                for sub_key in tmp_doc:
                     tmp_doc = self.handle_key(tmp_doc, sub_key)  # recursion
                 doc[key] = tmp_doc
             if (
@@ -258,7 +258,7 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
             else:
                 doc[key] = self.translate_template_item(doc[key])
             return doc
-        except Exception as _e:  # pylint:disable=broad-except
+        except Exception as _e:
             logger.exception(
                 "%s PartialSumsBuilder.handle_key: Exception in builder",
                 self.__class__.__name__,
@@ -301,7 +301,7 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
                     dict_params[_p] = self.translate_template_item(_p)
             # call the named function using getattr
             replace_with = getattr(self, func)(dict_params)
-        except Exception as _e:  # pylint:disable=broad-except
+        except Exception as _e:
             logger.exception(
                 "%s handle_named_function: %s params %s: Exception instantiating builder:",
                 self.__class__.__name__,
@@ -310,12 +310,12 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
             )
         return replace_with
 
-    def handle_fcstValidEpochs(self):  # pylint: disable=invalid-name
+    def handle_fcstValidEpochs(self):
         """iterate through all the fcstValidEpochs for which we have both model data and observation data.
         For each entry in the data section, i.e for each station build a data element that
         has model and observation data, then handle the document.
         """
-        try:  # pylint: disable=too-many-nested-blocks
+        try:
             _obs_data = {}
             for fve in self.model_fcst_valid_epochs:
                 try:
@@ -328,7 +328,7 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
                             self.region, fve["fcstValidEpoch"]
                         )
                         self.domain_stations = full_station_name_list
-                    except Exception as _e:  # pylint: disable=broad-except
+                    except Exception as _e:
                         logger.error(
                             "%s: Exception with builder build_document: error: %s",
                             self.__class__.__name__,
@@ -357,7 +357,7 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
                             self.__class__.__name__,
                             fve["id"],
                         )
-                    except Exception as _e:  # pylint: disable=broad-except
+                    except Exception as _e:
                         logger.error(
                             "%s Error getting model document: %s",
                             self.__class__.__name__,
@@ -386,7 +386,7 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
                                     obs_id,
                                 )
                                 continue
-                            for key in _obs_data["data"].keys():
+                            for key in _obs_data["data"]:
                                 self.obs_data[key] = _obs_data["data"][key]
                                 self.obs_station_names.append(key)
                             self.obs_station_names.sort()
@@ -397,14 +397,14 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
                             self.__class__.__name__,
                             fve["id"],
                         )
-                except Exception as _e:  # pylint: disable=broad-except
+                except Exception as _e:
                     logger.exception(
                         "%s problem getting obs document: %s",
                         self.__class__.__name__,
                         str(_e),
                     )
 
-        except Exception as _e:  # pylint: disable=broad-except
+        except Exception as _e:
             logger.error(
                 "%s handle_fcstValidEpochs: Exception instantiating builder:  error: %s",
                 self.__class__.__name__,
@@ -434,7 +434,7 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
         fcstValidEpoch and fcstLen. This will result in a document for each fcstLen within a fcstValidEpoch.
         5) and 6) are enclosed in the handle_document()
         """
-        # noinspection PyBroadException
+
         try:
             # reset the builders document_map for a new file
             self.initialize_document_map()
@@ -581,12 +581,14 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
                     self.model_fcst_valid_epochs.append(fve)
 
             # if we have asked for profiling go ahead and do it
-            # pylint: disable=no-member
+
             if self.do_profiling:
                 with cProfile.Profile() as _pr:
                     # process the fcstValidEpochs with profiling
                     self.handle_fcstValidEpochs()
-                    with open("profiling_stats.txt", "w", encoding="utf-8") as stream:
+                    with Path("profiling_stats.txt").open(
+                        "w", encoding="utf-8"
+                    ) as stream:
                         stats = Stats(_pr, stream=stream)
                         stats.strip_dirs()
                         stats.sort_stats("time")
@@ -595,13 +597,13 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
             else:
                 # process the fcstValidEpochs without profiling
                 self.handle_fcstValidEpochs()
-            # pylint: disable=assignment-from-no-return
+
             logger.info(
                 "There were %s stations not found", self.not_found_station_count
             )
             document_map = self.get_document_map()
             return document_map
-        except Exception as _e:  # pylint: disable=broad-except
+        except Exception as _e:
             logger.error(
                 "%s: Exception with builder build_document: error: %s for element %s",
                 self.__class__.__name__,
@@ -610,7 +612,7 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
             )
             return {}
 
-    def get_stations_for_region_by_geosearch(self, region_name, valid_epoch):  # pylint: disable=unused-argument
+    def get_stations_for_region_by_geosearch(self, region_name, valid_epoch):
         # NOTE: this is currently broken because we have to modify this query to
         # work woth the data model that has data elements as a MAP indexed by station name
         """Using a geosearh return all the stations within the defined region
@@ -647,7 +649,7 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
                 _domain_stations.append(elem.fields["name"])
             _domain_stations.sort()
             return _domain_stations
-        except Exception as _e:  # pylint: disable=broad-except
+        except Exception as _e:
             logger.error(
                 "%s: Exception with builder: error: %s",
                 self.__class__.__name__,
@@ -669,7 +671,7 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
             classic_stations = doc.content_as[dict]["stations"]
             classic_stations.sort()
             return classic_stations
-        except Exception as _e:  # pylint: disable=broad-except
+        except Exception as _e:
             logger.error(
                 "%s: Exception with builder: error: %s",
                 self.__class__.__name__,
@@ -740,7 +742,7 @@ class PartialSumsBuilder(Builder):  # pylint:disable=too-many-instance-attribute
                     continue
             _domain_stations.sort()
             return _domain_stations
-        except Exception as _e:  # pylint: disable=broad-except
+        except Exception as _e:
             logger.error(
                 "%s: Exception with builder: error: %s",
                 self.__class__.__name__,
@@ -867,17 +869,15 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
                             )
                             model_elem["UW"] = wind_components_t[0].magnitude
                             model_elem["VW"] = wind_components_t[1].magnitude
-                    if variable in obs_elem and variable in model_elem:
-                        if (
-                            obs_elem[variable] is not None
-                            and model_elem[variable] is not None
-                        ):
-                            obs_vals.append(obs_elem[variable])
-                            model_vals.append(model_elem[variable])
-                            _diff = model_elem[variable] - obs_elem[variable]
-                            diff_vals.append(_diff)
-                            diff_vals_squared.append(_diff * _diff)
-                            abs_diff_vals.append(abs(_diff))
+                    obs_var = obs_elem[variable]
+                    model_var = model_elem[variable]
+                    if obs_var is not None and model_var is not None:
+                        obs_vals.append(obs_var)
+                        model_vals.append(model_var)
+                        _diff = model_var - obs_var
+                        diff_vals.append(_diff)
+                        diff_vals_squared.append(_diff * _diff)
+                        abs_diff_vals.append(abs(_diff))
             sum_elem = {
                 "num_recs": len(obs_vals),
                 "sum_obs": sum(obs_vals),
@@ -887,7 +887,7 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
                 "sum_abs": sum(abs_diff_vals),
             }
             return sum_elem
-        except Exception as _e:  # pylint:disable=broad-except
+        except Exception as _e:
             logger.error(
                 "%s handle_sum: Exception :  error: %s",
                 self.__class__.__name__,
@@ -895,7 +895,7 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
             )
             return None
 
-    def handle_data(self, **kwargs):  # pylint:disable=too-many-branches
+    def handle_data(self, **kwargs):
         """
         This routine processes the partialsums data element. The data elements are
         variables for which we will derive a set of sums. The sums are
@@ -919,18 +919,18 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
             SurfacePressure: {...}
         }
         """
-        try:  # pylint: disable=too-many-nested-blocks
+        try:
             doc = kwargs["doc"]
             template_data = self.template["data"]
             data_elem = {}
             # it is expected that the template data section be comprised of named functions
-            for variable in template_data.keys():
+            for variable in template_data:
                 data_elem[variable] = self.handle_named_function(
                     template_data[variable]
                 )
             doc["data"] = data_elem
             return doc
-        except Exception as _e:  # pylint: disable=broad-except
+        except Exception as _e:
             logger.error(
                 "%s handle_data: Exception :  error: %s",
                 self.__class__.__name__,
@@ -938,7 +938,7 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
             )
         return doc
 
-    def handle_time(self, params_dict):  # pylint: disable=unused-argument
+    def handle_time(self, params_dict):
         """return the fcstValidTime for the current model in epoch
         Args:
             params_dict (dict): contains named_function parameters
@@ -947,7 +947,7 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
         """
         return self.model_data["fcstValidEpoch"]
 
-    def handle_iso_time(self, params_dict):  # pylint: disable=unused-argument
+    def handle_iso_time(self, params_dict):
         """return the fcstValidTime for the current model in ISO
         Args:
             params_dict (dict): contains named_function parameters
@@ -958,7 +958,7 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
             self.model_data["fcstValidEpoch"]
         ).isoformat()
 
-    def handle_fcst_len(self, params_dict):  # pylint: disable=unused-argument
+    def handle_fcst_len(self, params_dict):
         """returns the fcst lead time in hours for this document
         Args:
             params_dict (dict): contains named_function parameters
@@ -967,7 +967,7 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
         """
         return self.model_data["fcstLen"]
 
-    def handleWindDirU(self, params_dict):  # pylint: disable=unused-argument, invalid-name
+    def handleWindDirU(self, params_dict):
         """returns the wind direction U component for this document
         Args:
             params_dict (dict): contains named_function parameters
@@ -976,7 +976,7 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
         """
         return self.model_data["windDirU"]
 
-    def handleWindDirV(self, params_dict):  # pylint: disable=unused-argument, invalid-name
+    def handleWindDirV(self, params_dict):
         """returns the wind direction V component for this document
         Args:
             params_dict (dict): contains named_function parameters
@@ -985,7 +985,7 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
         """
         return self.model_data["windDirV"]
 
-    def handle_specific_humidity(self, params_dict):  # pylint: disable=unused-argument
+    def handle_specific_humidity(self, params_dict):
         """returns the specific humidity for this document
         Args:
             params_dict (dict): contains named_function parameters

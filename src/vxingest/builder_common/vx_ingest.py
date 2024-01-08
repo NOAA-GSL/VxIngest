@@ -19,7 +19,6 @@ import os
 import sys
 import time
 from datetime import timedelta
-from glob import glob
 from pathlib import Path
 
 # This pyproj import has to remain here in order to enforce the
@@ -38,7 +37,7 @@ from couchbase.options import ClusterOptions, ClusterTimeoutOptions
 logger = logging.getLogger(__name__)
 
 
-class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-instance-attributes
+class CommonVxIngest:
     """
     Parent class for all VxIngest.
     This class is the commandline mechanism for using the builder.
@@ -68,27 +67,25 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
         self.ingest_document_id = None
         self.ingest_document = None
 
-    def parse_args(self, args):  # pylint: disable=missing-function-docstring
+    def parse_args(self, args):
         """This method is intended to be overriden"""
         return args
 
-    def runit(self, args):  # pylint: disable=missing-function-docstring
+    def runit(self, args):
         pass
 
     def write_load_job_to_files(self):
         """
         write all the documents in the document_map into files in the output_dir
         """
-        # noinspection PyBroadException
         try:
             Path(self.output_dir).mkdir(parents=True, exist_ok=True)
             try:
                 file_name = self.load_job_id + ".json"
-                complete_file_name = os.path.join(self.output_dir, file_name)
-                _f = open(complete_file_name, "w", encoding="utf-8")
-                _f.write(json.dumps([self.load_spec["load_job_doc"]]))
-                _f.close()
-            except Exception as _e:  # pylint: disable=broad-except
+                complete_file_name = Path(self.output_dir) / file_name
+                with Path(complete_file_name).open("w", encoding="utf-8") as _f:
+                    _f.write(json.dumps([self.load_spec["load_job_doc"]]))
+            except Exception as _e:
                 logger.info(
                     "process_file - trying write load_job: Got Exception - %s", str(_e)
                 )
@@ -135,7 +132,7 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
         """
         logger.debug("%s: data_type_manager - Connecting to couchbase")
         # get a reference to our cluster
-        # noinspection PyBroadException
+
         try:
             timeout_options = ClusterTimeoutOptions(
                 kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
@@ -155,7 +152,7 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
             # stash the credentials for the VxIngestManager - see NOTE at the top of this file.
             self.load_spec["cb_credentials"] = self.cb_credentials
             logger.info("%s: Couchbase connection success")
-        except Exception as _e:  # pylint:disable=broad-except
+        except Exception as _e:
             logger.exception(
                 "*** builder_common.CommonVxIngest Error in connect_cb *** %s", str(_e)
             )
@@ -189,51 +186,51 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
             result = self.cluster.query(df_query)
             df_elements = list(result)
             df_full_names = [element["url"] for element in df_elements]
-            if os.path.exists(directory) and os.path.isdir(directory):
+            if Path(directory).exists() and Path(directory).is_dir():
                 file_list = sorted(
-                    glob(directory + os.path.sep + file_pattern), key=os.path.getmtime
+                    Path(directory).glob(file_pattern), key=os.path.getmtime
                 )
                 for filename in file_list:
                     try:
                         # check to see if this file has already been ingested
                         # (if it is not in the df_full_names - add it)
-                        if filename not in df_full_names:
+                        if str(filename) not in df_full_names:
                             logger.debug(
                                 "%s - File %s is added because it isn't in any datafile document",
                                 self.__class__.__name__,
                                 filename,
                             )
-                            file_names.append(filename)
+                            file_names.append(str(filename))
                         else:
                             # it was already processed so check to see if the mtime of the
                             # file is greater than the mtime in the database entry, if so then add it
                             df_entry = next(
                                 element
                                 for element in df_elements
-                                if element["url"] == filename
+                                if element["url"] == str(filename)
                             )
-                            if int(os.path.getmtime(filename)) > int(df_entry["mtime"]):
+                            if int(filename.stat().st_mtime) > int(df_entry["mtime"]):
                                 logger.debug(
                                     "%s - File %s is added because file mtime %s is greater than df mtime %s",
                                     self.__class__.__name__,
                                     filename,
-                                    int(os.path.getmtime(filename)),
+                                    int(filename.stat().st_mtime),
                                     int(df_entry["mtime"]),
                                 )
-                                file_names.append(filename)
+                                file_names.append(str(filename))
                             else:
                                 logger.debug(
                                     "%s - File %s has already been processed - not adding",
                                     self.__class__.__name__,
                                     filename,
                                 )
-                    except Exception as _e:  # pylint:disable=broad-except
+                    except Exception as _e:
                         # don't care, it just means it wasn't a properly formatted file per the mask
                         continue
             if len(file_names) == 0:
                 logger.info("get_file_list: No files to Process!")
             return file_names
-        except Exception as _e:  # pylint: disable=bare-except, disable=broad-except
+        except Exception as _e:
             logger.error(
                 "%s get_file_list Error: %s",
                 self.__class__.__name__,
@@ -257,8 +254,8 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
                     + self.credentials_file
                     + " can not be found!"
                 )
-            _f = open(self.credentials_file, encoding="utf-8")
-            _yaml_data = yaml.load(_f, yaml.SafeLoader)
+            with Path(self.credentials_file).open(encoding="utf-8") as _f:
+                _yaml_data = yaml.load(_f, yaml.SafeLoader)
             load_spec["cb_connection"] = {}
             load_spec["cb_connection"]["host"] = _yaml_data["cb_host"]
             load_spec["cb_connection"]["user"] = _yaml_data["cb_user"]
@@ -266,7 +263,6 @@ class CommonVxIngest:  # pylint: disable=too-many-arguments disable=too-many-ins
             load_spec["cb_connection"]["bucket"] = _yaml_data["cb_bucket"]
             load_spec["cb_connection"]["collection"] = _yaml_data["cb_collection"]
             load_spec["cb_connection"]["scope"] = _yaml_data["cb_scope"]
-            _f.close()
             return load_spec["cb_connection"]
         except (RuntimeError, TypeError, NameError, KeyError) as e:
             logger.error(f"*** Error reading credential file: {e} ***")

@@ -21,7 +21,7 @@ def convert_to_iso(an_epoch):
 def initialize_data(doc):
     """initialize the data by just making sure the template data element has been removed.
     All the data elements are going to be top level elements"""
-    if "data" in doc.keys():
+    if "data" in doc:
         del doc["data"]
     return doc
 
@@ -55,7 +55,7 @@ def get_geo_index(fcst_valid_epoch, geo):
             return geo_index
         else:
             return latest_index
-    except Exception as _e:  # pylint: disable=bare-except, disable=broad-except
+    except Exception as _e:
         logging.error("CTCBuilder.get_geo_index: Exception  error: %s", str(_e))
         return 0
 
@@ -76,6 +76,6 @@ def truncate_round(_n, decimals=0):
 def initialize_data_array(doc):
     """initialize the data by just making sure the template data element has been removed.
     All the data elements are going to be top level elements"""
-    if "data" in doc.keys():
+    if "data" in doc:
         del doc["data"]
     return doc

@@ -23,7 +23,7 @@ CREDENTIALS=config.yaml poetry run pytest tests/vxingest/ctc_to_cb
 You can create a coverage report with:
 
 ```shell
-CREDENTIALS=config.yaml poetry run coverage run --branch -m pytest tests
+CREDENTIALS=config.yaml poetry run coverage run -m pytest tests
 poetry run coverage report
 poetry run coverage html
 ```

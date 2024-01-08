@@ -42,7 +42,10 @@ jobs:
           poetry env use 3.11
           poetry install
       - name: Unit test with pytest
-        run: poetry run pytest -m "not integration" --cov=vxingest --cov-report=xml tests
+        run: | 
+          poetry run coverage run -m pytest tests
+          poetry run coverage report
+          poetry run coverage xml
       - name: Code Coverage Report
         uses: irongut/CodeCoverageSummary@v1.3.0
         with:

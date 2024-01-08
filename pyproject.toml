@@ -24,7 +24,7 @@ prometheus-client = "^0.19.0"
 pytest = "^7.4.3"
 types-pyyaml = "^6.0.12.12"
 ruff = "^0.1.6"
-pytest-cov = "^4.1.0"
+coverage = "^7.4.0"
 
 [build-system]
 requires = ["poetry-core"]
@@ -37,3 +37,6 @@ ingest = "vxingest.main:run_ingest"
 markers = [
     "integration: marks tests that need external resources like databases or data files (deselect with '-m \"not integration\"')",
 ]
+
+[tool.coverage.run]
+branch = true

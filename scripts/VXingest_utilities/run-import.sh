@@ -121,7 +121,8 @@ ls -1 ${load_dir}/*.gz | while read f; do
   echo "processing the tar file ${f}"
   echo "extracting tarball ${f} to temp_dir ${t_dir}"
   echo "tar -xzf ${f} -C ${t_dir}"
-  tar -xzf "${f}" -C "${t_dir}"
+  # NOTE: the archives are tar'd into a subdirectory so strip-components 1
+  tar -xzf "${f}" -C "${t_dir}" --strip-components 1
   if [[ $? != 0 ]]; then
     echo "ERROR: tarball ${f} failed to extract"
     base_f=$(basename $f)
@@ -136,7 +137,7 @@ ls -1 ${load_dir}/*.gz | while read f; do
     rm -rf ${t_dir}/*
     continue  # go to the next tar file
   fi
-  echo "finished extracting tarball ${f}"
+  echo "finished extracting tarball ${f} to ${t_dir}"
   log_file_count=`ls -1 ${t_dir}/*.log | wc -l`
   if [[ ${log_file_count} -ne 1 ]]; then
     echo "There is not just one log_file in ${t_dir} - extracted from ${f} - there are ${log_file_count}"

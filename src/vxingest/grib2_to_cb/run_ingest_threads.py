@@ -86,10 +86,6 @@ def parse_args(args):
     """
     Parse command line arguments
     """
-    begin_time = str(datetime.now())
-    logger.info("--- *** --- Start --- *** ---")
-    logger.info("Begin a_time: %s", begin_time)
-    # a_time execution
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-j",
@@ -171,6 +167,10 @@ class VXIngest(CommonVxIngest):
         The file_pattern is a glob pattern that is used to match filenames that are derived from the path and file_mask.
         The file_mask is specified in the load_spec. The file_pattern is specified on the command line.
         """
+        begin_time = str(datetime.now())
+        logger.info("--- *** --- Start --- *** ---")
+        logger.info("Begin a_time: %s", begin_time)
+
         self.credentials_file = args["credentials_file"].strip()
         self.thread_count = args["threads"]
         self.output_dir = args["output_dir"].strip()

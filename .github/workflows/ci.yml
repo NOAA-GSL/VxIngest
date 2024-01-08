@@ -43,7 +43,7 @@ jobs:
           poetry install
       - name: Unit test with pytest
         run: | 
-          poetry run coverage run -m pytest tests
+          poetry run coverage run -m pytest -m "not integration" tests
           poetry run coverage report
           poetry run coverage xml
       - name: Code Coverage Report

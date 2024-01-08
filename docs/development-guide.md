@@ -100,7 +100,7 @@ docker build \
     .
 ```
 
-And run it via Docker Compose with the below. Note the `data` and `public` env variables point to where the input data resides and where you'd like the container to write out to. These are currently (12/2023) mounted to `/opt/data` inside the container.
+And run it via Docker Compose with the below. You'll need to update the `compose.yaml` file in the repo with your image tag. Note the `data` and `public` env variables point to where the input data resides and where you'd like the container to write out to. These are currently (12/2023) mounted to `/opt/data` inside the container.
 
 ```bash
 data=/data-ingest/data \
@@ -173,6 +173,8 @@ data=/data-ingest/data \
 
 There is currently a Docker Compose file with options to run unit tests and ingest from within the container. This may be a useful option for local development as well.
 
+*NOTE*: if you're using Rancher Desktop, you won't be able to access /opt on your system as it's not mounted into the VM by default. You'll need to move your test files into your home directory.
+
 * `shell`: expects /data and /public for mounting
 * `test`: expects /opt/data for mounting
 * `ingest`: expects /data and /public for mounting
@@ -181,7 +183,7 @@ There is currently a Docker Compose file with options to run unit tests and inge
 And can be run like:
 
 ```bash
-data=/opt/data docker compose run test
+data=/home/path/to/a/copy/of/opt/data docker compose run test
 ```
 
 ## Notes

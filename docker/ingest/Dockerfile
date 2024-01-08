@@ -96,13 +96,14 @@ ENV ECCODES_DEFINITION_PATH=/usr/local/share/eccodes/definitions/ \
 WORKDIR /app
 
 # Specify the UID/GID we want our user to have.
-# In this case, use the same uid/gid as the local amb-verif user.
-ENV ID=5002
+# In this case, use the same uid/gid as the import image.
+ARG ID=5002
+ARG USERNAME=ingest
 
 # Add a user with a known uid/gid
 # Create a home dir so we have a place for temporary cache dirs & etc...
-RUN groupadd --gid ${ID} python && \
-    useradd --shell /bin/bash --create-home --uid ${ID} --gid ${ID} python
+RUN groupadd --gid ${ID} ${USERNAME} && \
+    useradd --shell /bin/bash --create-home --uid ${ID} --gid ${ID} ${USERNAME}
 
 # Run OS updates
 RUN apt-get update && apt-get upgrade -y && \
@@ -113,6 +114,6 @@ RUN apt-get update && apt-get upgrade -y && \
 # Copy just the vxingest app
 COPY ./src/ /app/
 
-USER python
+USER ${USERNAME}
 
 ENTRYPOINT ["python", "-m", "vxingest.main"]

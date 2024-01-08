@@ -5,10 +5,7 @@ secrets:
 
 services:
   shell:
-    build:
-      context: .
-      dockerfile: docker/ingest/Dockerfile
-      target: prod
+    image: ghcr.io/noaa-gsl/vxingest/ingest:main
     volumes:
       - ${data}:/opt/data
       - ${public}:/public
@@ -16,9 +13,9 @@ services:
       - CREDENTIALS_FILE
     environment:
     - CREDENTIALS=/run/secrets/CREDENTIALS_FILE
-    command: /bin/bash
+    entrypoint: /bin/bash
   test:
-    build:
+    build: # build the image so we can specify the target
       context: .
       dockerfile: docker/ingest/Dockerfile
       target: dev
@@ -31,10 +28,7 @@ services:
     command: poetry run pytest tests
   # FIXME - add a way to specify unit & integration tests
   ingest:
-    build:
-      context: .
-      dockerfile: docker/ingest/Dockerfile
-      target: prod
+    image: ghcr.io/noaa-gsl/vxingest/ingest:main
     volumes:
       - ${data}:/opt/data
       - ${public}:/public
@@ -47,9 +41,7 @@ services:
       - "--metrics_dir=/opt/data/test/metrics"
       - "--transfer_dir=/opt/data/test/xfer"
   import:
-    build:
-      context: .
-      dockerfile: docker/import/Dockerfile
+    image: ghcr.io/noaa-gsl/vxingest/import:main
     volumes:
       - ${data}:/opt/data
     secrets:

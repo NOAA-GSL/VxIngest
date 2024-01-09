@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from multiprocessing import Queue
 from pathlib import Path
 
+import pytest
 import yaml
 from couchbase.auth import PasswordAuthenticator
 from couchbase.cluster import Cluster
@@ -35,6 +36,7 @@ def stub_worker_log_configurer(queue: Queue):
     pass
 
 
+@pytest.mark.integration()
 def test_check_fcst_valid_epoch_fcst_valid_iso():
     """
     integration test to check fcst_valid_epoch is derived correctly
@@ -80,6 +82,7 @@ def test_check_fcst_valid_epoch_fcst_valid_iso():
         assert (fve % 3600) == 0, "fcstValidEpoch is not at top of hour"
 
 
+@pytest.mark.integration()
 def test_get_stations_geo_search():
     """
     Currently we know that there are differences between the geo search stations list and the legacy
@@ -167,6 +170,7 @@ def test_get_stations_geo_search():
         ), "difference between expected and actual greater than 100"
 
 
+@pytest.mark.integration()
 def test_ps_builder_surface_hrrr_ops_all_hrrr():
     """
     This test verifies that data is returned for each fcstLen.
@@ -242,6 +246,7 @@ def test_ps_builder_surface_hrrr_ops_all_hrrr():
         assert _elem is not None, "fcstLen not found in output"
 
 
+@pytest.mark.integration()
 def test_ps_surface_data_hrrr_ops_all_hrrr():
     """
     This test is a comprehensive test of the partialSumsBuilder data. It will retrieve SUMS documents

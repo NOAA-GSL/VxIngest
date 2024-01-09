@@ -68,6 +68,10 @@ poetry run ruff format .
 poetry run mypy src
 # Unit test
 CREDENTIALS=config.yaml poetry run pytest tests
+# Coverage report
+CREDENTIALS=config.yaml poetry run coverage run -m pytest tests && \
+    poetry run coverage report && \
+    poetry run coverage html
 ```
 
 ### Testing

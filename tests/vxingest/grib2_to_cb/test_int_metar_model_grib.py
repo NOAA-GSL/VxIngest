@@ -12,6 +12,7 @@ from datetime import timedelta
 from multiprocessing import Queue
 from pathlib import Path
 
+import pytest
 import yaml
 from couchbase.auth import PasswordAuthenticator
 from couchbase.cluster import Cluster
@@ -64,6 +65,7 @@ def connect_cb():
         return cb_connection
 
 
+@pytest.mark.integration()
 def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus(tmp_path):
     """test gribBuilder with one thread.
     This test verifies the resulting data file against the one that is in couchbase already
@@ -174,6 +176,7 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus(tmp_path):
                     {_k}.{_dk} {result['data'][_k][_dk]} != {_json['data'][_k][_dk]} within {abs_tol} decimal places."""
 
 
+@pytest.mark.integration()
 def test_grib_builder_two_threads_file_pattern_hrrr_ops_conus(tmp_path):
     """test gribBuilder multi-threaded
     Not going to qulify the data on this one, just make sure it runs two threads properly
@@ -205,6 +208,7 @@ def test_grib_builder_two_threads_file_pattern_hrrr_ops_conus(tmp_path):
     )
 
 
+@pytest.mark.integration()
 def test_grib_builder_two_threads_file_pattern_rap_ops_130_conus(tmp_path):
     """test gribBuilder multi-threaded
     Not going to qulify the data on this one, just make sure it runs two threads properly

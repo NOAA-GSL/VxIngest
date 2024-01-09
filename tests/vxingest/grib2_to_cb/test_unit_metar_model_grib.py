@@ -29,6 +29,7 @@ def setup_connection():
     return _vx_ingest
 
 
+@pytest.mark.integration()
 def test_credentials_and_load_spec():
     """test the get_credentials and load_spec"""
     vx_ingest = None
@@ -41,6 +42,7 @@ def test_credentials_and_load_spec():
         vx_ingest.close_cb()
 
 
+@pytest.mark.integration()
 def test_credentials_and_load_spec_multiple_ingest_ids():
     """test the get_credentials and load_spec"""
     vx_ingest = None
@@ -53,6 +55,7 @@ def test_credentials_and_load_spec_multiple_ingest_ids():
         vx_ingest.close_cb()
 
 
+@pytest.mark.integration()
 def test_cb_connect_disconnect():
     """test the cb connect and close"""
     vx_ingest = None
@@ -68,6 +71,7 @@ def test_cb_connect_disconnect():
         vx_ingest.close_cb()
 
 
+@pytest.mark.integration()
 def test_write_load_job_to_files(tmp_path):
     """test write the load job"""
     vx_ingest = None
@@ -83,6 +87,7 @@ def test_write_load_job_to_files(tmp_path):
         vx_ingest.close_cb()
 
 
+@pytest.mark.integration()
 def test_build_load_job_doc(tmp_path):
     """test the build load job"""
     vx_ingest = None
@@ -102,6 +107,7 @@ def test_build_load_job_doc(tmp_path):
         vx_ingest.close_cb()
 
 
+@pytest.mark.integration()
 def test_vxingest_get_file_list(tmp_path):
     """test the vxingest get_file_list"""
     vx_ingest = None

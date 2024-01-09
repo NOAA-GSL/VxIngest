@@ -20,7 +20,23 @@ You can specify certain directories to limit which tests are run.
 CREDENTIALS=config.yaml poetry run pytest tests/vxingest/ctc_to_cb
 ```
 
-Note that for now, you'll need some test data & a connection to our couchbase cluster in order to run the test suite.
+You can create a coverage report with:
+
+```shell
+CREDENTIALS=config.yaml poetry run coverage run -m pytest tests
+poetry run coverage report
+poetry run coverage html
+```
+
+Then open `./htmlcov/index.html` in your browser for a detailed dive into what lines were run by the test suite.
+
+Lastly, you can disable tests that require external resources (database connections & raw data files) like so:
+
+```shell
+CREDENTIALS=config.yaml poetry run pytest -m "not integration" tests
+```
+
+Note that this currently (as of 1/2024) disables most of the tests.
 
 ## Test data
 

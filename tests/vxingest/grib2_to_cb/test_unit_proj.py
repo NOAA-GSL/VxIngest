@@ -18,6 +18,7 @@ def setup_connection():
     return _vx_ingest
 
 
+@pytest.mark.integration()
 def test_proj():
     """test the proj"""
     vx_ingest = None

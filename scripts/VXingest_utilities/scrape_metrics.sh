@@ -111,10 +111,10 @@ if [ -z "${textfile_dir}" ]; then
 fi
 
 metric_name=$(grep 'metric_name' ${log_file} | awk '{print $2}')
-start_epoch=$(date -d "$(grep  'Begin a_time:' ${log_file} | awk '{print $3" "$4}')" +"%s")
+start_epoch=$(date -d "$(grep  'Begin a_time:' ${log_file} | awk '{print $7" "$8}')" +"%s")
 is_epoch_rational ${start_epoch}
 
-finish_epoch=$(date -d "$(grep  'End a_time:' ${log_file} | awk '{print $3" "$4}')" +"%s")
+finish_epoch=$(date -d "$(grep  'End a_time:' ${log_file} | awk '{print $7" "$8}')" +"%s")
 is_epoch_rational ${finish_epoch}
 
 #Get the error count from the log file

@@ -86,10 +86,6 @@ def parse_args(args):
     """
     Parse command line arguments
     """
-    begin_time = str(datetime.now())
-    logger.info("--- *** --- Start --- *** ---")
-    logger.info("Begin a_time: %s", begin_time)
-    # a_time execution
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-j",
@@ -170,6 +166,10 @@ class VXIngest(CommonVxIngest):
         The method creates multiprocess "Process"es so expects a queue to pass log messages back
         on and a logger configuration function to format them
         """
+        begin_time = str(datetime.now())
+        logger.info("--- *** --- Start --- *** ---")
+        logger.info("Begin a_time: %s", begin_time)
+
         self.credentials_file = args["credentials_file"].strip()
         self.thread_count = args["threads"]
         self.output_dir = args["output_dir"].strip()

@@ -4,6 +4,8 @@ import (
 	"log"
 	"os"
 	"strings"
+	"strconv"
+	"fmt"
 
 	"github.com/couchbase/gocb/v2"
 )
@@ -95,7 +97,7 @@ func initializeMetadataForModel(conn CbConnection, dataset string, app string, d
 	}
 	tmplInitializeMetadataSQL := string(fileContent)
 	tmplInitializeMetadataSQL = strings.Replace(tmplInitializeMetadataSQL, "{{vxDBTARGET}}", conn.vxDBTARGET, -1)
-	tmplInitializeMetadataSQL = strings.Replace(tmplInitializeMetadataSQL, "{{vxAPP}}", doctype, -1)
+	tmplInitializeMetadataSQL = strings.Replace(tmplInitializeMetadataSQL, "{{vxAPP}}", app, -1)
 	tmplInitializeMetadataSQL = strings.Replace(tmplInitializeMetadataSQL, "{{vxMODEL}}", model, -1)
 	log.Println(tmplInitializeMetadataSQL)
 	queryResult, err := conn.Scope.Query(
@@ -108,7 +110,7 @@ func initializeMetadataForModel(conn CbConnection, dataset string, app string, d
 	}
 }
 
-func getDistinctThresholds(conn CbConnection, dataset string, app string, doctype string, subDocType string, model string) (jsonOut []interface{}) {
+func getDistinctThresholds(conn CbConnection, dataset string, app string, doctype string, subDocType string, model string) (rv []float64) {
 	log.Println("getDistinctThresholds(" + dataset + "," + app + "," + doctype + "," + subDocType + "," + model + ")")
 
 	fileContent, err := os.ReadFile("sqls/getDistinctThresholds.sql")
@@ -122,5 +124,21 @@ func getDistinctThresholds(conn CbConnection, dataset string, app string, doctyp
 	tmplSQL = strings.Replace(tmplSQL, "{{vxMODEL}}", model, -1)
 
 	result := queryWithSQLStringMAP(conn.Scope, tmplSQL)
-	return result
+
+	m := result[0].(map[string]interface{})
+	fmt.Printf("m[thresholds]: %T\n", m["thresholds"])
+	tarr := ConvertSlice[string](m["thresholds"].([]interface{}))
+	rv = make([]float64, 0)
+	log.Println(tarr)
+	for k := 0; k < len(tarr); k++ {
+		// fmt.Printf("%T\n", tarr[k])
+		// log.Println(tarr[k])
+		val, err := strconv.ParseFloat(tarr[k], 64)
+		if err != nil {
+			panic(err)
+		}
+		// log.Println(val)
+		rv = append(rv, val)
+	}
+	return rv
 }

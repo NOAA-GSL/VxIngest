@@ -27,12 +27,12 @@ type ConfigJSON struct {
 			Password   string `json:"password"`
 		} `json:"databases"`
 	} `json:"private"`
-	Datasets []struct {
+	Metadata []struct {
 		Name       string   `json:"name"`
 		App        string   `json:"app"`
 		SubDocType string   `json:"subDocType"`
 		DocType    StrArray `json:"docType"`
-	} `json:"datasets"`
+	} `json:"metadata"`
 }
 
 type CbConnection struct {
@@ -101,10 +101,10 @@ func main() {
 	//testGetSingleCTC(conn)
 	//testGetCTCCount(conn)
 
-	for ds := 0; ds < len(conf.Datasets); ds++ {
-		for dt := 0; dt < len(conf.Datasets[ds].DocType); dt++ {
-			log.Println("Dataset:" + conf.Datasets[ds].Name + ",DocType:" + conf.Datasets[ds].DocType[dt])
-			updateMedataForDatasetDocType(conn, conf.Datasets[ds].Name, conf.Datasets[ds].App, conf.Datasets[ds].DocType[dt], conf.Datasets[ds].SubDocType)
+	for ds := 0; ds < len(conf.Metadata); ds++ {
+		for dt := 0; dt < len(conf.Metadata[ds].DocType); dt++ {
+			log.Println("Metadata:" + conf.Metadata[ds].Name + ",DocType:" + conf.Metadata[ds].DocType[dt])
+			updateMedataForAppDocType(conn, conf.Metadata[ds].Name, conf.Metadata[ds].App, conf.Metadata[ds].DocType[dt], conf.Metadata[ds].SubDocType)
 			// TODO - remove break for after testing
 			break
 		}
@@ -113,8 +113,8 @@ func main() {
 	}
 }
 
-func updateMedataForDatasetDocType(conn CbConnection, dataset string, app string, doctype string, subDocType string) {
-	log.Println("updateMedataForDatasetDocType(" + dataset + "," + doctype + ")")
+func updateMedataForAppDocType(conn CbConnection, dataset string, app string, doctype string, subDocType string) {
+	log.Println("updateMedataForAppDocType(" + dataset + "," + doctype + ")")
 
 	// get needed models
 	models := getModels(conn, dataset, app, doctype, subDocType)

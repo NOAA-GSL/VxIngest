@@ -15,11 +15,14 @@
             }
         ]
     },
-    "datasets": [
+    "metadata": [
         {
             "name": "ceiling",
             "app": "cb-ceiling",
             "docType": [
+                "CTC"
+            ],
+            "docType_TODO": [
                 "CTC",
                 "SUMS"
             ],
@@ -27,8 +30,11 @@
         },
         {
             "name": "visibility",
-            "app": "cb-ceiling",
+            "app": "cb-visibility",
             "docType": [
+                "CTC"
+            ],
+            "docType_TODO": [
                 "CTC",
                 "SUMS"
             ],
@@ -36,8 +42,11 @@
         },
         {
             "name": "surface",
-            "app": "cb-ceiling",
+            "app": "cb-surface",
             "docType": [
+                "CTC"
+            ],
+            "docType_TODO": [
                 "CTC",
                 "SUMS"
             ],

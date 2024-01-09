@@ -2,7 +2,7 @@ package main
 
 import (
 	"encoding/json"
-//	"fmt"
+	"fmt"
 	"log"
 	"os"
 	"slices"
@@ -50,10 +50,13 @@ func init() {
 }
 
 func main() {
+	// Uncomment following line to enable logging
+	// gocb.SetLogger(gocb.VerboseStdioLogger())
+
+	start := time.Now()
 	log.Print("meta-update:main()")
 
 	conf := ConfigJSON{}
-	conn := CbConnection{}
 
 	conf, err := parseConfig("settings.json")
 	if err != nil {
@@ -61,42 +64,11 @@ func main() {
 		return
 	}
 
-	// Uncomment following line to enable logging
-	// gocb.SetLogger(gocb.VerboseStdioLogger())
-
-	connectionString := conf.Private.Databases[0].Host
-	bucketName := conf.Private.Databases[0].Bucket
-	username := conf.Private.Databases[0].User
-	password := conf.Private.Databases[0].Password
-
-	// log.Println(conf.Datasets[0].Name)
-
-	options := gocb.ClusterOptions{
-		Authenticator: gocb.PasswordAuthenticator{
-			Username: username,
-			Password: password,
-		},
+	connDst := getDbConnection(conf, 0)
+	connSrc := connDst
+	if(len(conf.Private.Databases) > 1) {
+		connSrc = getDbConnection(conf, 1)
 	}
-
-	cluster, err := gocb.Connect("couchbase://"+connectionString, options)
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-
-	conn.Cluster = cluster
-	conn.Bucket = conn.Cluster.Bucket(bucketName)
-	conn.vxDBTARGET = conf.Private.Databases[0].Bucket + "._default." + conf.Private.Databases[0].Collection
-
-	log.Println("vxDBTARGET:" + conn.vxDBTARGET)
-
-	err = conn.Bucket.WaitUntilReady(5*time.Second, nil)
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-
-	conn.Scope = conn.Bucket.Scope(conf.Private.Databases[0].Scope)
 
 	//testGetSingleCTC(conn)
 	//testGetCTCCount(conn)
@@ -104,26 +76,28 @@ func main() {
 	for ds := 0; ds < len(conf.Metadata); ds++ {
 		for dt := 0; dt < len(conf.Metadata[ds].DocType); dt++ {
 			log.Println("Metadata:" + conf.Metadata[ds].Name + ",DocType:" + conf.Metadata[ds].DocType[dt])
-			updateMedataForAppDocType(conn, conf.Metadata[ds].Name, conf.Metadata[ds].App, conf.Metadata[ds].DocType[dt], conf.Metadata[ds].SubDocType)
+			updateMedataForAppDocType(connSrc, connDst, conf.Metadata[ds].Name, conf.Metadata[ds].App, conf.Metadata[ds].DocType[dt], conf.Metadata[ds].SubDocType)
 			// TODO - remove break for after testing
 			break
 		}
 		// TODO - remove break for after testing
 		break
 	}
+	log.Println(fmt.Sprintf("\tmeta update finished in %v", time.Since(start)))
 }
 
-func updateMedataForAppDocType(conn CbConnection, dataset string, app string, doctype string, subDocType string) {
+
+func updateMedataForAppDocType(connSrc CbConnection,connDst CbConnection, dataset string, app string, doctype string, subDocType string) {
 	log.Println("updateMedataForAppDocType(" + dataset + "," + doctype + ")")
 
 	// get needed models
-	models := getModels(conn, dataset, app, doctype, subDocType)
+	models := getModels(connSrc, dataset, app, doctype, subDocType)
 	log.Println("models:")
 	printStringArray(models)
 
 	// get models having metadata but no data (remove metadata for these)
 	// (note 'like %' is changed to 'like %25')
-	models_with_metatada_but_no_data := getModelsNoData(conn, dataset, app, doctype, subDocType)
+	models_with_metatada_but_no_data := getModelsNoData(connSrc, dataset, app, doctype, subDocType)
 	log.Println("models_with_metatada_but_no_data:")
 	printStringArray(models_with_metatada_but_no_data)
 
@@ -131,10 +105,10 @@ func updateMedataForAppDocType(conn CbConnection, dataset string, app string, do
 	// models_with_metatada_but_no_data = append(models_with_metatada_but_no_data, "RAP_OOPS_130")
 
 	// remove metadata for models with no data
-	removeMetadataForModelsWithNoData(conn, dataset, app, doctype, subDocType, models_with_metatada_but_no_data)
+	removeMetadataForModelsWithNoData(connDst, dataset, app, doctype, subDocType, models_with_metatada_but_no_data)
 
 	// get models with existing metadada
-	models_with_existing_metadata := getModelsWithExistingMetadata(conn, dataset, app, doctype, subDocType)
+	models_with_existing_metadata := getModelsWithExistingMetadata(connSrc, dataset, app, doctype, subDocType)
 	log.Println("models_with_existing_metadata:")
 	printStringArray(models_with_existing_metadata)
 
@@ -143,13 +117,25 @@ func updateMedataForAppDocType(conn CbConnection, dataset string, app string, do
 		contains := slices.Contains(models_with_existing_metadata, models[i])
 		// log.Println(fmt.Printf("contains:%t\n", contains))
 		if !contains {
-			initializeMetadataForModel(conn, dataset, app, doctype, subDocType, models[i])
+			initializeMetadataForModel(connDst, dataset, app, doctype, subDocType, models[i])
 		}
 	}
 
 	for i := 0; i < len(models); i++ {
-		thresholds := getDistinctThresholds(conn, dataset, app, doctype, subDocType, models[i])
+		thresholds := getDistinctThresholds(connSrc, dataset, app, doctype, subDocType, models[i])
 		log.Println(thresholds)
+		fcstLen := getDistinctFcstLen(connSrc, dataset, app, doctype, subDocType, models[i])
+		log.Println(fcstLen)
+		region := getDistinctRegion(connSrc, dataset, app, doctype, subDocType, models[i])
+		log.Println(region)
+		displayText := getDistinctDisplayText(connSrc, dataset, app, doctype, subDocType, models[i])
+		log.Println(displayText)
+		displayCategory := getDistinctDisplayCategory(connSrc, dataset, app, doctype, subDocType, models[i])
+		log.Println(displayCategory)
+		displayOrder := getDistinctDisplayOrder(connSrc, dataset, app, doctype, subDocType, models[i], i)
+		log.Println(displayOrder)
+		minMaxCountFloor := getMinMaxCountFloor(connSrc, dataset, app, doctype, subDocType, models[i])
+		log.Println(minMaxCountFloor)
 	}
 
 	/*

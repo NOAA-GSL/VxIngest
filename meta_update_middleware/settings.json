@@ -12,6 +12,18 @@
                 "port": "8091",
                 "user": "avid",
                 "password": "pwd_av!d"
+            },
+            {
+                "role": "couchbase",
+                "status": "active",
+                "host": "adb-cb1.gsd.esrl.noaa.gov",
+                "host0": "adb-cb2.gsd.esrl.noaa.gov,adb-cb3.gsd.esrl.noaa.gov,adb-cb4.gsd.esrl.noaa.gov",
+                "bucket": "vxdata",
+                "scope": "_default",
+                "collection": "METAR",
+                "port": "8091",
+                "user": "avid",
+                "password": "pwd_av!d"
             }
         ]
     },

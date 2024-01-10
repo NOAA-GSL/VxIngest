@@ -9,6 +9,14 @@ import (
 	"github.com/couchbase/gocb/v2"
 )
 
+type CbConnection struct {
+	Cluster    *gocb.Cluster
+	Bucket     *gocb.Bucket
+	Scope      *gocb.Scope
+	Collection *gocb.Collection
+	vxDBTARGET string
+}
+
 // init runs before main() is evaluated
 func init() {
 	log.Println("db-utils:init()")
@@ -20,6 +28,7 @@ func getDbConnection(conf ConfigJSON, dbIdx int) (conn  CbConnection) {
 	conn = CbConnection{}
 	connectionString := conf.Private.Databases[dbIdx].Host
 	bucketName := conf.Private.Databases[dbIdx].Bucket
+	collection := conf.Private.Databases[dbIdx].Collection
 	username := conf.Private.Databases[dbIdx].User
 	password := conf.Private.Databases[dbIdx].Password
 
@@ -38,6 +47,7 @@ func getDbConnection(conf ConfigJSON, dbIdx int) (conn  CbConnection) {
 
 	conn.Cluster = cluster
 	conn.Bucket = conn.Cluster.Bucket(bucketName)
+	conn.Collection = conn.Bucket.Collection(collection)
 	conn.vxDBTARGET = conf.Private.Databases[dbIdx].Bucket + "._default." + conf.Private.Databases[dbIdx].Collection
 
 	log.Println("vxDBTARGET:" + conn.vxDBTARGET)
@@ -116,6 +126,38 @@ func queryWithSQLStringFA(scope *gocb.Scope, text string) (rv []float64) {
 			log.Fatal(err)
 		}
 		retValues = append(retValues, row.(float64))
+	}
+
+	return retValues
+}
+
+func queryWithSQLStringIA(scope *gocb.Scope, text string) (rv []int) {
+	log.Println("queryWithSQLStringFA(\n" + text + "\n)")
+
+	queryResult, err := scope.Query(
+		fmt.Sprintf(text),
+		&gocb.QueryOptions{Adhoc: true},
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	retValues := make([]int, 0)
+
+	// Stream the values returned from the query into an untyped and unstructred
+	// array of interfaces
+	for queryResult.Next() {
+		var row interface{}
+		err := queryResult.Row(&row)
+		if err != nil {
+			log.Fatal(err)
+		}
+		switch row.(type) {
+			case float64:
+				retValues = append(retValues, int(row.(float64)))
+			case int:
+				retValues = append(retValues, row.(int))
+		}
 	}
 
 	return retValues

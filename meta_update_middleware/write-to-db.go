@@ -39,3 +39,10 @@ type MetadataJSON struct {
 func init() {
 	log.Println("write-to-db:init()")
 }
+
+func writeMetadataToDb(conn CbConnection, metadata MetadataJSON) {
+	_, err := conn.Collection.Upsert(metadata.ID, metadata, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+}

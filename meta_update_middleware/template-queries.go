@@ -123,7 +123,7 @@ func initializeMetadataForModel(conn CbConnection, dataset string, app string, d
 	log.Println(fmt.Sprintf("\tin %v", time.Since(start)))
 }
 
-func getDistinctThresholds(conn CbConnection, dataset string, app string, doctype string, subDocType string, model string) (rv []float64) {
+func getDistinctThresholds(conn CbConnection, dataset string, app string, doctype string, subDocType string, model string) (rv []string) {
 	log.Println("getDistinctThresholds(" + dataset + "," + app + "," + doctype + "," + subDocType + "," + model + ")")
 	start := time.Now()
 
@@ -142,6 +142,8 @@ func getDistinctThresholds(conn CbConnection, dataset string, app string, doctyp
 	m := result[0].(map[string]interface{})
 	fmt.Printf("m[thresholds]: %T\n", m["thresholds"])
 	tarr := ConvertSlice[string](m["thresholds"].([]interface{}))
+
+	/*
 	rv = make([]float64, 0)
 	log.Println(tarr)
 	for k := 0; k < len(tarr); k++ {
@@ -154,11 +156,13 @@ func getDistinctThresholds(conn CbConnection, dataset string, app string, doctyp
 		// log.Println(val)
 		rv = append(rv, val)
 	}
+	*/
+
 	log.Println(fmt.Sprintf("\tin %v", time.Since(start)))
-	return rv
+	return tarr
 }
 
-func getDistinctFcstLen(conn CbConnection, dataset string, app string, doctype string, subDocType string, model string) (rv []float64) {
+func getDistinctFcstLen(conn CbConnection, dataset string, app string, doctype string, subDocType string, model string) (rv []int) {
 	log.Println("getDistinctFcstLen(" + dataset + "," + app + "," + doctype + "," + subDocType + "," + model + ")")
 	start := time.Now()
 
@@ -172,7 +176,7 @@ func getDistinctFcstLen(conn CbConnection, dataset string, app string, doctype s
 	tmplSQL = strings.Replace(tmplSQL, "{{vxSUBDOCTYPE}}", subDocType, -1)
 	tmplSQL = strings.Replace(tmplSQL, "{{vxMODEL}}", model, -1)
 
-	result := queryWithSQLStringFA(conn.Scope, tmplSQL)
+	result := queryWithSQLStringIA(conn.Scope, tmplSQL)
 	log.Println(fmt.Sprintf("\tin %v", time.Since(start)))
 	return result
 }
@@ -215,7 +219,7 @@ func getDistinctDisplayText(conn CbConnection, dataset string, app string, docty
 	return result
 }
 
-func getDistinctDisplayCategory(conn CbConnection, dataset string, app string, doctype string, subDocType string, model string) (rv []float64) {
+func getDistinctDisplayCategory(conn CbConnection, dataset string, app string, doctype string, subDocType string, model string) (rv []int) {
 	log.Println("getDistinctDisplayCategory(" + dataset + "," + app + "," + doctype + "," + subDocType + "," + model + ")")
 	start := time.Now()
 
@@ -229,12 +233,12 @@ func getDistinctDisplayCategory(conn CbConnection, dataset string, app string, d
 	tmplSQL = strings.Replace(tmplSQL, "{{vxSUBDOCTYPE}}", subDocType, -1)
 	tmplSQL = strings.Replace(tmplSQL, "{{vxMODEL}}", model, -1)
 
-	result := queryWithSQLStringFA(conn.Scope, tmplSQL)
+	result := queryWithSQLStringIA(conn.Scope, tmplSQL)
 	log.Println(fmt.Sprintf("\tin %v", time.Since(start)))
 	return result
 }
 
-func getDistinctDisplayOrder(conn CbConnection, dataset string, app string, doctype string, subDocType string, model string, mindx int) (rv []float64) {
+func getDistinctDisplayOrder(conn CbConnection, dataset string, app string, doctype string, subDocType string, model string, mindx int) (rv []int) {
 	log.Println("getDistinctDisplayOrder(" + dataset + "," + app + "," + doctype + "," + subDocType + "," + model + ")")
 	start := time.Now()
 
@@ -249,7 +253,7 @@ func getDistinctDisplayOrder(conn CbConnection, dataset string, app string, doct
 	tmplSQL = strings.Replace(tmplSQL, "{{vxMODEL}}", model, -1)
 	tmplSQL = strings.Replace(tmplSQL, "{{mindx}}", strconv.Itoa(mindx), -1)
 
-	result := queryWithSQLStringFA(conn.Scope, tmplSQL)
+	result := queryWithSQLStringIA(conn.Scope, tmplSQL)
 	log.Println(fmt.Sprintf("\tin %v", time.Since(start)))
 	return result
 }

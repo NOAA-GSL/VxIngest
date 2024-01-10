@@ -8,7 +8,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/couchbase/gocb/v2"
+//	"github.com/couchbase/gocb/v2"
 )
 
 type StrArray []string
@@ -33,14 +33,6 @@ type ConfigJSON struct {
 		SubDocType string   `json:"subDocType"`
 		DocType    StrArray `json:"docType"`
 	} `json:"metadata"`
-}
-
-type CbConnection struct {
-	Cluster    *gocb.Cluster
-	Bucket     *gocb.Bucket
-	Scope      *gocb.Scope
-	Collection *gocb.Collection
-	vxDBTARGET string
 }
 
 // init runs before main() is evaluated
@@ -125,40 +117,35 @@ func updateMedataForAppDocType(connSrc CbConnection,connDst CbConnection, name s
 
 	for i := 0; i < len(models); i++ {
 		model := Model{Name: models[i]}
-		/*
-		thresholds := getDistinctThresholds(connSrc, dataset, app, doctype, subDocType, models[i])
+		thresholds := getDistinctThresholds(connSrc, name, app, doctype, subDocType, models[i])
 		log.Println(thresholds)
-		fcstLen := getDistinctFcstLen(connSrc, dataset, app, doctype, subDocType, models[i])
+		fcstLen := getDistinctFcstLen(connSrc, name, app, doctype, subDocType, models[i])
 		log.Println(fcstLen)
-		region := getDistinctRegion(connSrc, dataset, app, doctype, subDocType, models[i])
+		region := getDistinctRegion(connSrc, name, app, doctype, subDocType, models[i])
 		log.Println(region)
-		displayText := getDistinctDisplayText(connSrc, dataset, app, doctype, subDocType, models[i])
+		displayText := getDistinctDisplayText(connSrc, name, app, doctype, subDocType, models[i])
 		log.Println(displayText)
-		displayCategory := getDistinctDisplayCategory(connSrc, dataset, app, doctype, subDocType, models[i])
+		displayCategory := getDistinctDisplayCategory(connSrc, name, app, doctype, subDocType, models[i])
 		log.Println(displayCategory)
-		displayOrder := getDistinctDisplayOrder(connSrc, dataset, app, doctype, subDocType, models[i], i)
+		displayOrder := getDistinctDisplayOrder(connSrc, name, app, doctype, subDocType, models[i], i)
 		log.Println(displayOrder)
-		minMaxCountFloor := getMinMaxCountFloor(connSrc, dataset, app, doctype, subDocType, models[i])
-		log.Println(minMaxCountFloor)
-		*/
+		minMaxCountFloor := getMinMaxCountFloor(connSrc, name, app, doctype, subDocType, models[i])
+		log.Println(jsonPrettyPrintStruct(minMaxCountFloor[0].(map[string]interface{})))
+
+		model.Thresholds = thresholds
+		model.FcstLens = fcstLen
+		model.Regions = region
+		model.DisplayText = displayText[0]
+		model.DisplayCategory = displayCategory[0]
+		model.DisplayOrder = displayOrder[0]
+		model.Mindate = int(minMaxCountFloor[0].(map[string]interface{})["mindate"].(float64))
+		model.Maxdate = int(minMaxCountFloor[0].(map[string]interface{})["maxdate"].(float64))
+		model.Numrecs = int(minMaxCountFloor[0].(map[string]interface{})["numrecs"].(float64))
+		model.Updated = int(minMaxCountFloor[0].(map[string]interface{})["updated"].(float64))
 		metadata.Models = append(metadata.Models, model)
 	}
 	log.Println(jsonPrettyPrintStruct(metadata))
-
-	/*
-		// get a sorted list of all the models
-		// now update all the metdata for all the models that require it
-		fileContent, err = os.ReadFile("sqls/updateMetadata.sql")
-		if err != nil {
-			log.Fatal(err)
-		}
-		tmplUpdateMetadataSQL := string(fileContent)
-		log.Println(tmplUpdateMetadataSQL)
-		for i := 0; i < len(models); i++ {
-			model := models[i]
-			log.Println(model)
-		}
-	*/
+	writeMetadataToDb(connDst, metadata)
 }
 
 func parseConfig(file string) (ConfigJSON, error) {

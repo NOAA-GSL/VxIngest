@@ -34,10 +34,6 @@
             "docType": [
                 "CTC"
             ],
-            "docType_TODO": [
-                "CTC",
-                "SUMS"
-            ],
             "subDocType": "CEILING"
         },
         {
@@ -46,20 +42,12 @@
             "docType": [
                 "CTC"
             ],
-            "docType_TODO": [
-                "CTC",
-                "SUMS"
-            ],
             "subDocType": "VISIBILITY"
         },
         {
             "name": "surface",
             "app": "cb-surface",
             "docType": [
-                "CTC"
-            ],
-            "docType_TODO": [
-                "CTC",
                 "SUMS"
             ],
             "subDocType": "SURFACE"

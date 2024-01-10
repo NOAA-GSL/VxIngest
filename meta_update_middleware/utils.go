@@ -36,6 +36,16 @@ func jsonPrettyPrint(in []interface{}) string {
 	return out.String()
 }
 
+func jsonPrettyPrintStruct(in interface{}) string {
+	jsonText, err := json.Marshal(in)
+	if err != nil {
+		fmt.Println("ERROR PROCESSING STREAMING OUTPUT:", err)
+	}
+	var out bytes.Buffer
+	json.Indent(&out, jsonText, "", "\t")
+	return out.String()
+}
+
 func walkJsonMap(val map[string]interface{}, depth int) {
 	for k, v := range val {
 		switch vv := v.(type) {

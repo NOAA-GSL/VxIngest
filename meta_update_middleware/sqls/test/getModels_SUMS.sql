@@ -5,7 +5,7 @@ FROM
 WHERE
     type = "DD"
     AND docType = "SUMS"
-    AND subDocType = "CEILING"
+    AND subDocType = "SURFACE"
     AND version = "V01"
 order by
     model

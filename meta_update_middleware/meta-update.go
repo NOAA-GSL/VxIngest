@@ -87,17 +87,17 @@ func main() {
 }
 
 
-func updateMedataForAppDocType(connSrc CbConnection,connDst CbConnection, dataset string, app string, doctype string, subDocType string) {
-	log.Println("updateMedataForAppDocType(" + dataset + "," + doctype + ")")
+func updateMedataForAppDocType(connSrc CbConnection,connDst CbConnection, name string, app string, doctype string, subDocType string) {
+	log.Println("updateMedataForAppDocType(" + name + "," + doctype + ")")
 
 	// get needed models
-	models := getModels(connSrc, dataset, app, doctype, subDocType)
+	models := getModels(connSrc, name, app, doctype, subDocType)
 	log.Println("models:")
 	printStringArray(models)
 
 	// get models having metadata but no data (remove metadata for these)
 	// (note 'like %' is changed to 'like %25')
-	models_with_metatada_but_no_data := getModelsNoData(connSrc, dataset, app, doctype, subDocType)
+	models_with_metatada_but_no_data := getModelsNoData(connSrc, name, app, doctype, subDocType)
 	log.Println("models_with_metatada_but_no_data:")
 	printStringArray(models_with_metatada_but_no_data)
 
@@ -105,10 +105,10 @@ func updateMedataForAppDocType(connSrc CbConnection,connDst CbConnection, datase
 	// models_with_metatada_but_no_data = append(models_with_metatada_but_no_data, "RAP_OOPS_130")
 
 	// remove metadata for models with no data
-	removeMetadataForModelsWithNoData(connDst, dataset, app, doctype, subDocType, models_with_metatada_but_no_data)
+	removeMetadataForModelsWithNoData(connDst, name, app, doctype, subDocType, models_with_metatada_but_no_data)
 
 	// get models with existing metadada
-	models_with_existing_metadata := getModelsWithExistingMetadata(connSrc, dataset, app, doctype, subDocType)
+	models_with_existing_metadata := getModelsWithExistingMetadata(connSrc, name, app, doctype, subDocType)
 	log.Println("models_with_existing_metadata:")
 	printStringArray(models_with_existing_metadata)
 
@@ -117,11 +117,15 @@ func updateMedataForAppDocType(connSrc CbConnection,connDst CbConnection, datase
 		contains := slices.Contains(models_with_existing_metadata, models[i])
 		// log.Println(fmt.Printf("contains:%t\n", contains))
 		if !contains {
-			initializeMetadataForModel(connDst, dataset, app, doctype, subDocType, models[i])
+			initializeMetadataForModel(connDst, name, app, doctype, subDocType, models[i])
 		}
 	}
 
+	metadata := MetadataJSON{ID: "MD:matsGui:" + name + ":COMMON:V01", Name: name, App: app}
+
 	for i := 0; i < len(models); i++ {
+		model := Model{Name: models[i]}
+		/*
 		thresholds := getDistinctThresholds(connSrc, dataset, app, doctype, subDocType, models[i])
 		log.Println(thresholds)
 		fcstLen := getDistinctFcstLen(connSrc, dataset, app, doctype, subDocType, models[i])
@@ -136,7 +140,10 @@ func updateMedataForAppDocType(connSrc CbConnection,connDst CbConnection, datase
 		log.Println(displayOrder)
 		minMaxCountFloor := getMinMaxCountFloor(connSrc, dataset, app, doctype, subDocType, models[i])
 		log.Println(minMaxCountFloor)
+		*/
+		metadata.Models = append(metadata.Models, model)
 	}
+	log.Println(jsonPrettyPrintStruct(metadata))
 
 	/*
 		// get a sorted list of all the models

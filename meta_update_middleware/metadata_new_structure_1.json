@@ -1,0 +1,72 @@
+{
+    "id": "MD:matsGui:ceiling:COMMON:V01",
+    "name": "ceiling",
+    "app": "cb-ceiling",
+    "models": [
+        {
+            "name": "HRRR_OPS",
+            "displayCategory": 1,
+            "displayOrder": 110,
+            "displayText": "HRRR_OPS",
+            "docType": "matsGui",
+            "fcstLens": [
+                0,
+                1
+            ],
+            "maxdate": 1702396800,
+            "mindate": 1638316800,
+            "model": "HRRR_OPS",
+            "numrecs": 1723659,
+            "regions": [
+                "ALL_HRRR",
+                "E_HRRR",
+                "E_US",
+                "GtLk",
+                "W_HRRR"
+            ],
+            "subset": "COMMON",
+            "thresholds": [
+                "1000.0",
+                "3000.0",
+                "500.0",
+                "60000.0"
+            ],
+            "type": "MD",
+            "updated": 1702410244,
+            "version": "V01"
+        },
+        {
+            "name": "RAP_OPS_130",
+            "displayCategory": 1,
+            "displayOrder": 30,
+            "displayText": "RAP_OPS_130",
+            "docType": "matsGui",
+            "fcstLens": [
+                0,
+                1,
+                2
+            ],
+            "maxdate": 1693742400,
+            "mindate": 1644951600,
+            "model": "RAP_OPS_130",
+            "numrecs": 1668826,
+            "regions": [
+                "ALL_HRRR",
+                "E_HRRR",
+                "E_US",
+                "GtLk",
+                "W_HRRR"
+            ],
+            "subset": "COMMON",
+            "thresholds": [
+                "1000.0",
+                "3000.0",
+                "500.0",
+                "60000.0"
+            ],
+            "type": "MD",
+            "updated": 1702410431,
+            "version": "V01"
+        }
+    ]
+}

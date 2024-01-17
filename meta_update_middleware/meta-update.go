@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"slices"
 	"time"
-
-//	"github.com/couchbase/gocb/v2"
+	// "github.com/couchbase/gocb/v2"
 )
 
 type StrArray []string
@@ -48,9 +46,18 @@ func main() {
 	start := time.Now()
 	log.Print("meta-update:main()")
 
+	settingsFilePath := "./settings.json"
+	if len(os.Args) > 1 {
+		settingsFilePath = os.Args[1]
+		log.Println("Using settings file:" + settingsFilePath)
+	}
+	if len(os.Args) > 2 {
+		log.Println("Updating meta-data for:" + os.Args[2])
+	}
+
 	conf := ConfigJSON{}
 
-	conf, err := parseConfig("settings.json")
+	conf, err := parseConfig(settingsFilePath)
 	if err != nil {
 		log.Fatal("Unable to parse config")
 		return
@@ -58,28 +65,28 @@ func main() {
 
 	connDst := getDbConnection(conf, 0)
 	connSrc := connDst
-	if(len(conf.Private.Databases) > 1) {
+	if len(conf.Private.Databases) > 1 {
 		connSrc = getDbConnection(conf, 1)
 	}
 
 	//testGetSingleCTC(conn)
-	//testGetCTCCount(conn)
+	//testGetCTCCount(connSrc)
 
 	for ds := 0; ds < len(conf.Metadata); ds++ {
+		if len(os.Args) > 2 {
+			if os.Args[2] != conf.Metadata[ds].Name {
+				continue
+			}
+		}
 		for dt := 0; dt < len(conf.Metadata[ds].DocType); dt++ {
 			log.Println("Metadata:" + conf.Metadata[ds].Name + ",DocType:" + conf.Metadata[ds].DocType[dt])
 			updateMedataForAppDocType(connSrc, connDst, conf.Metadata[ds].Name, conf.Metadata[ds].App, conf.Metadata[ds].DocType[dt], conf.Metadata[ds].SubDocType)
-			// TODO - remove break for after testing
-			break
 		}
-		// TODO - remove break for after testing
-		break
 	}
 	log.Println(fmt.Sprintf("\tmeta update finished in %v", time.Since(start)))
 }
 
-
-func updateMedataForAppDocType(connSrc CbConnection,connDst CbConnection, name string, app string, doctype string, subDocType string) {
+func updateMedataForAppDocType(connSrc CbConnection, connDst CbConnection, name string, app string, doctype string, subDocType string) {
 	log.Println("updateMedataForAppDocType(" + name + "," + doctype + ")")
 
 	// get needed models
@@ -93,27 +100,30 @@ func updateMedataForAppDocType(connSrc CbConnection,connDst CbConnection, name s
 	log.Println("models_with_metatada_but_no_data:")
 	printStringArray(models_with_metatada_but_no_data)
 
-	//log.Println("Inserting fake model:RAP_OOPS_130 to test SQL ...")
-	// models_with_metatada_but_no_data = append(models_with_metatada_but_no_data, "RAP_OOPS_130")
+	/*
+		//log.Println("Inserting fake model:RAP_OOPS_130 to test SQL ...")
+		// models_with_metatada_but_no_data = append(models_with_metatada_but_no_data, "RAP_OOPS_130")
 
-	// remove metadata for models with no data
-	removeMetadataForModelsWithNoData(connDst, name, app, doctype, subDocType, models_with_metatada_but_no_data)
+		// remove metadata for models with no data
+		removeMetadataForModelsWithNoData(connDst, name, app, doctype, subDocType, models_with_metatada_but_no_data)
 
-	// get models with existing metadada
-	models_with_existing_metadata := getModelsWithExistingMetadata(connSrc, name, app, doctype, subDocType)
-	log.Println("models_with_existing_metadata:")
-	printStringArray(models_with_existing_metadata)
+		// get models with existing metadada
+		models_with_existing_metadata := getModelsWithExistingMetadata(connSrc, name, app, doctype, subDocType)
+		log.Println("models_with_existing_metadata:")
+		printStringArray(models_with_existing_metadata)
 
-	// initialize the metadata for the models for which the metadata does not exist
-	for i := 0; i < len(models); i++ {
-		contains := slices.Contains(models_with_existing_metadata, models[i])
-		// log.Println(fmt.Printf("contains:%t\n", contains))
-		if !contains {
-			initializeMetadataForModel(connDst, name, app, doctype, subDocType, models[i])
+		// initialize the metadata for the models for which the metadata does not exist
+		for i := 0; i < len(models); i++ {
+			contains := slices.Contains(models_with_existing_metadata, models[i])
+			// log.Println(fmt.Printf("contains:%t\n", contains))
+			if !contains {
+				initializeMetadataForModel(connDst, name, app, doctype, subDocType, models[i])
+			}
 		}
-	}
+	*/
 
 	metadata := MetadataJSON{ID: "MD:matsGui:" + name + ":COMMON:V01", Name: name, App: app}
+	metadata.Updated = 0
 
 	for i := 0; i < len(models); i++ {
 		model := Model{Name: models[i]}
@@ -132,7 +142,12 @@ func updateMedataForAppDocType(connSrc CbConnection,connDst CbConnection, name s
 		minMaxCountFloor := getMinMaxCountFloor(connSrc, name, app, doctype, subDocType, models[i])
 		log.Println(jsonPrettyPrintStruct(minMaxCountFloor[0].(map[string]interface{})))
 
-		model.Thresholds = thresholds
+		// ./sqls/getDistinctThresholds.sql returns list of variables for SUMS DocType, like in Surface
+		if doctype == "SUMS" {
+			model.Variables = thresholds
+		} else {
+			model.Thresholds = thresholds
+		}
 		model.FcstLens = fcstLen
 		model.Regions = region
 		model.DisplayText = displayText[0]
@@ -141,7 +156,7 @@ func updateMedataForAppDocType(connSrc CbConnection,connDst CbConnection, name s
 		model.Mindate = int(minMaxCountFloor[0].(map[string]interface{})["mindate"].(float64))
 		model.Maxdate = int(minMaxCountFloor[0].(map[string]interface{})["maxdate"].(float64))
 		model.Numrecs = int(minMaxCountFloor[0].(map[string]interface{})["numrecs"].(float64))
-		model.Updated = int(minMaxCountFloor[0].(map[string]interface{})["updated"].(float64))
+		metadata.Updated = int(minMaxCountFloor[0].(map[string]interface{})["updated"].(float64))
 		metadata.Models = append(metadata.Models, model)
 	}
 	log.Println(jsonPrettyPrintStruct(metadata))

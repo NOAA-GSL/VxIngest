@@ -1,11 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
-	"strings"
 	"strconv"
-	"fmt"
+	"strings"
 	"time"
 
 	"github.com/couchbase/gocb/v2"
@@ -138,24 +138,25 @@ func getDistinctThresholds(conn CbConnection, dataset string, app string, doctyp
 	tmplSQL = strings.Replace(tmplSQL, "{{vxMODEL}}", model, -1)
 
 	result := queryWithSQLStringMAP(conn.Scope, tmplSQL)
+	log.Println(len(result))
 
 	m := result[0].(map[string]interface{})
 	fmt.Printf("m[thresholds]: %T\n", m["thresholds"])
 	tarr := ConvertSlice[string](m["thresholds"].([]interface{}))
 
 	/*
-	rv = make([]float64, 0)
-	log.Println(tarr)
-	for k := 0; k < len(tarr); k++ {
-		// fmt.Printf("%T\n", tarr[k])
-		// log.Println(tarr[k])
-		val, err := strconv.ParseFloat(tarr[k], 64)
-		if err != nil {
-			panic(err)
+		rv = make([]float64, 0)
+		log.Println(tarr)
+		for k := 0; k < len(tarr); k++ {
+			// fmt.Printf("%T\n", tarr[k])
+			// log.Println(tarr[k])
+			val, err := strconv.ParseFloat(tarr[k], 64)
+			if err != nil {
+				panic(err)
+			}
+			// log.Println(val)
+			rv = append(rv, val)
 		}
-		// log.Println(val)
-		rv = append(rv, val)
-	}
 	*/
 
 	log.Println(fmt.Sprintf("\tin %v", time.Since(start)))

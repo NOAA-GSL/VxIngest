@@ -8,3 +8,4 @@ WHERE
     AND object_names_t.subDocType = '{{vxSUBDOCTYPE}}'
     AND object_names_t.version = 'V01'
     AND object_names_t.model = '{{vxMODEL}}'
+    AND object_names_t.data IS NOT MISSING

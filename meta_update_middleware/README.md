@@ -23,6 +23,10 @@ For example:
 
 ## updating the metadata
 ## cd VxIngest/meta_update_middleware
+## to update meta-data using ./settings.json for all apps
 go run .
+## to update meta-data using an alternate settings file and/or for a specific app (surface)
+go run . ./settings.json surface
+
 
 /Users/gopa.padmanabhan/git/ascend/VxIngest/meta_update_middleware/sqls/test/metadata_new_structure.json

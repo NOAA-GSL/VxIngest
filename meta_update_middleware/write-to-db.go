@@ -1,16 +1,15 @@
 package main
 
 import (
-//	"fmt"
+	//	"fmt"
 	"log"
-//	"os"
-//	"time"
-
-//	"github.com/couchbase/gocb/v2"
+	//	"os"
+	//	"time"
+	// "github.com/couchbase/gocb/v2"
 )
 
 type Model struct {
-    Name            string   `json:"name"`
+	Name            string   `json:"name"`
 	DisplayCategory int      `json:"displayCategory"`
 	DisplayOrder    int      `json:"displayOrder"`
 	DisplayText     string   `json:"displayText"`
@@ -23,17 +22,18 @@ type Model struct {
 	Regions         []string `json:"regions"`
 	Subset          string   `json:"subset"`
 	Thresholds      []string `json:"thresholds"`
+	Variables       []string `json:"variables"`
 	Type            string   `json:"type"`
-	Updated         int      `json:"updated"`
 	Version         string   `json:"version"`
 }
 
 type MetadataJSON struct {
-		ID     string `json:"id"`
-		Name   string `json:"name"`
-		App    string `json:"app"`
-		Models []Model	`json:"models"`
-	}
+	ID      string  `json:"id"`
+	Name    string  `json:"name"`
+	App     string  `json:"app"`
+	Updated int     `json:"updated"`
+	Models  []Model `json:"models"`
+}
 
 // init runs before main() is evaluated
 func init() {

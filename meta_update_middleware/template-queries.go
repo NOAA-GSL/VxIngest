@@ -138,10 +138,14 @@ func getDistinctThresholds(conn CbConnection, dataset string, app string, doctyp
 	tmplSQL = strings.Replace(tmplSQL, "{{vxMODEL}}", model, -1)
 
 	result := queryWithSQLStringMAP(conn.Scope, tmplSQL)
-	log.Println(len(result))
 
 	m := result[0].(map[string]interface{})
-	fmt.Printf("m[thresholds]: %T\n", m["thresholds"])
+	if len(result) > 1 {
+		log.Println("Empty {}, using second result in array ...")
+		m = result[1].(map[string]interface{})
+	}
+
+	// fmt.Printf("m[thresholds]: %T\n", m["thresholds"])
 	tarr := ConvertSlice[string](m["thresholds"].([]interface{}))
 
 	/*

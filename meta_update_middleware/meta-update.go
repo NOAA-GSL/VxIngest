@@ -1,10 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
+	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
+	"strings"
 	"time"
 	// "github.com/couchbase/gocb/v2"
 )
@@ -12,25 +16,21 @@ import (
 type StrArray []string
 
 type ConfigJSON struct {
-	Private struct {
-		Databases []struct {
-			Role       string `json:"role"`
-			Status     string `json:"status"`
-			Host       string `json:"host"`
-			Bucket     string `json:"bucket"`
-			Scope      string `json:"scope"`
-			Collection string `json:"collection"`
-			Port       string `json:"port"`
-			User       string `json:"user"`
-			Password   string `json:"password"`
-		} `json:"databases"`
-	} `json:"private"`
 	Metadata []struct {
 		Name       string   `json:"name"`
 		App        string   `json:"app"`
 		SubDocType string   `json:"subDocType"`
 		DocType    StrArray `json:"docType"`
 	} `json:"metadata"`
+}
+
+type Credentials struct {
+	cb_host       string
+	cb_user       string
+	cb_password   string
+	cb_bucket     string
+	cb_scope      string
+	cb_collection string
 }
 
 // init runs before main() is evaluated
@@ -46,13 +46,22 @@ func main() {
 	start := time.Now()
 	log.Print("meta-update:main()")
 
-	settingsFilePath := "./settings.json"
-	if len(os.Args) > 1 {
-		settingsFilePath = os.Args[1]
-		log.Println("Using settings file:" + settingsFilePath)
-	}
-	if len(os.Args) > 2 {
-		log.Println("Updating meta-data for:" + os.Args[2])
+	home, _ := os.UserHomeDir()
+	var credentialsFilePath string
+	flag.StringVar(&credentialsFilePath, "c", home+"/credentials", "path to credentials file")
+
+	var settingsFilePath string
+	flag.StringVar(&settingsFilePath, "s", "./settings.json", "path to settings.json file")
+
+	var app string
+	flag.StringVar(&app, "a", "", "app name")
+
+	flag.Parse()
+
+	if len(app) > 0 {
+		log.Println("meta-update, settings file:" + settingsFilePath + ",credentials file:" + credentialsFilePath + ",app:" + app)
+	} else {
+		log.Println("meta-update, settings file:" + settingsFilePath + ",credentials file:" + credentialsFilePath + ",app:[all apps in settings file]")
 	}
 
 	conf := ConfigJSON{}
@@ -63,40 +72,38 @@ func main() {
 		return
 	}
 
-	connDst := getDbConnection(conf, 0)
-	connSrc := connDst
-	if len(conf.Private.Databases) > 1 {
-		connSrc = getDbConnection(conf, 1)
-	}
+	credentials := getCredentials(credentialsFilePath)
+
+	conn := getDbConnection(credentials)
 
 	//testGetSingleCTC(conn)
 	//testGetCTCCount(connSrc)
 
 	for ds := 0; ds < len(conf.Metadata); ds++ {
-		if len(os.Args) > 2 {
-			if os.Args[2] != conf.Metadata[ds].Name {
+		if len(app) > 0 {
+			if app != conf.Metadata[ds].Name {
 				continue
 			}
 		}
 		for dt := 0; dt < len(conf.Metadata[ds].DocType); dt++ {
 			log.Println("Metadata:" + conf.Metadata[ds].Name + ",DocType:" + conf.Metadata[ds].DocType[dt])
-			updateMedataForAppDocType(connSrc, connDst, conf.Metadata[ds].Name, conf.Metadata[ds].App, conf.Metadata[ds].DocType[dt], conf.Metadata[ds].SubDocType)
+			updateMedataForAppDocType(conn, conf.Metadata[ds].Name, conf.Metadata[ds].App, conf.Metadata[ds].DocType[dt], conf.Metadata[ds].SubDocType)
 		}
 	}
 	log.Println(fmt.Sprintf("\tmeta update finished in %v", time.Since(start)))
 }
 
-func updateMedataForAppDocType(connSrc CbConnection, connDst CbConnection, name string, app string, doctype string, subDocType string) {
+func updateMedataForAppDocType(conn CbConnection, name string, app string, doctype string, subDocType string) {
 	log.Println("updateMedataForAppDocType(" + name + "," + doctype + ")")
 
 	// get needed models
-	models := getModels(connSrc, name, app, doctype, subDocType)
+	models := getModels(conn, name, app, doctype, subDocType)
 	log.Println("models:")
 	printStringArray(models)
 
 	// get models having metadata but no data (remove metadata for these)
 	// (note 'like %' is changed to 'like %25')
-	models_with_metatada_but_no_data := getModelsNoData(connSrc, name, app, doctype, subDocType)
+	models_with_metatada_but_no_data := getModelsNoData(conn, name, app, doctype, subDocType)
 	log.Println("models_with_metatada_but_no_data:")
 	printStringArray(models_with_metatada_but_no_data)
 
@@ -127,19 +134,19 @@ func updateMedataForAppDocType(connSrc CbConnection, connDst CbConnection, name 
 
 	for i := 0; i < len(models); i++ {
 		model := Model{Name: models[i]}
-		thresholds := getDistinctThresholds(connSrc, name, app, doctype, subDocType, models[i])
+		thresholds := getDistinctThresholds(conn, name, app, doctype, subDocType, models[i])
 		log.Println(thresholds)
-		fcstLen := getDistinctFcstLen(connSrc, name, app, doctype, subDocType, models[i])
+		fcstLen := getDistinctFcstLen(conn, name, app, doctype, subDocType, models[i])
 		log.Println(fcstLen)
-		region := getDistinctRegion(connSrc, name, app, doctype, subDocType, models[i])
+		region := getDistinctRegion(conn, name, app, doctype, subDocType, models[i])
 		log.Println(region)
-		displayText := getDistinctDisplayText(connSrc, name, app, doctype, subDocType, models[i])
+		displayText := getDistinctDisplayText(conn, name, app, doctype, subDocType, models[i])
 		log.Println(displayText)
-		displayCategory := getDistinctDisplayCategory(connSrc, name, app, doctype, subDocType, models[i])
+		displayCategory := getDistinctDisplayCategory(conn, name, app, doctype, subDocType, models[i])
 		log.Println(displayCategory)
-		displayOrder := getDistinctDisplayOrder(connSrc, name, app, doctype, subDocType, models[i], i)
+		displayOrder := getDistinctDisplayOrder(conn, name, app, doctype, subDocType, models[i], i)
 		log.Println(displayOrder)
-		minMaxCountFloor := getMinMaxCountFloor(connSrc, name, app, doctype, subDocType, models[i])
+		minMaxCountFloor := getMinMaxCountFloor(conn, name, app, doctype, subDocType, models[i])
 		log.Println(jsonPrettyPrintStruct(minMaxCountFloor[0].(map[string]interface{})))
 
 		// ./sqls/getDistinctThresholds.sql returns list of variables for SUMS DocType, like in Surface
@@ -148,6 +155,7 @@ func updateMedataForAppDocType(connSrc CbConnection, connDst CbConnection, name 
 		} else {
 			model.Thresholds = thresholds
 		}
+		model.Model = models[i]
 		model.FcstLens = fcstLen
 		model.Regions = region
 		model.DisplayText = displayText[0]
@@ -160,7 +168,7 @@ func updateMedataForAppDocType(connSrc CbConnection, connDst CbConnection, name 
 		metadata.Models = append(metadata.Models, model)
 	}
 	log.Println(jsonPrettyPrintStruct(metadata))
-	writeMetadataToDb(connDst, metadata)
+	writeMetadataToDb(conn, metadata)
 }
 
 func parseConfig(file string) (ConfigJSON, error) {
@@ -182,4 +190,47 @@ func parseConfig(file string) (ConfigJSON, error) {
 	}
 
 	return conf, nil
+}
+
+func getCredentials(credentiasFilePath string) (out Credentials) {
+	rv := Credentials{}
+
+	f, err := os.OpenFile(credentiasFilePath, os.O_RDONLY, os.ModePerm)
+	if err != nil {
+		log.Fatalf("open file error: %v", err)
+		return rv
+	}
+	defer f.Close()
+
+	rd := bufio.NewReader(f)
+	for {
+		line, err := rd.ReadString('\n')
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			log.Fatalf("read file line error: %v", err)
+			return rv
+		}
+		toks := strings.Split(line, ":")
+		if strings.TrimSpace(toks[0]) == "cb_user" {
+			rv.cb_user = strings.TrimSpace(toks[1])
+		}
+		if strings.TrimSpace(toks[0]) == "cb_password" {
+			rv.cb_password = strings.TrimSpace(toks[1])
+		}
+		if strings.TrimSpace(toks[0]) == "cb_host" {
+			rv.cb_host = strings.TrimSpace(toks[1])
+		}
+		if strings.TrimSpace(toks[0]) == "cb_bucket" {
+			rv.cb_bucket = strings.TrimSpace(toks[1])
+		}
+		if strings.TrimSpace(toks[0]) == "cb_scope" {
+			rv.cb_scope = strings.TrimSpace(toks[1])
+		}
+		if strings.TrimSpace(toks[0]) == "cb_collection" {
+			rv.cb_collection = strings.TrimSpace(toks[1])
+		}
+	}
+	return rv
 }

@@ -22,15 +22,15 @@ func init() {
 	log.Println("db-utils:init()")
 }
 
-func getDbConnection(conf ConfigJSON, dbIdx int) (conn  CbConnection) {
-	log.Println(fmt.Sprintf("getDbConnection(%d)", dbIdx))
+func getDbConnection(cred Credentials) (conn CbConnection) {
+	log.Println(fmt.Sprintf("getDbConnection()"))
 
 	conn = CbConnection{}
-	connectionString := conf.Private.Databases[dbIdx].Host
-	bucketName := conf.Private.Databases[dbIdx].Bucket
-	collection := conf.Private.Databases[dbIdx].Collection
-	username := conf.Private.Databases[dbIdx].User
-	password := conf.Private.Databases[dbIdx].Password
+	connectionString := cred.cb_host
+	bucketName := cred.cb_bucket
+	collection := cred.cb_collection
+	username := cred.cb_user
+	password := cred.cb_password
 
 	options := gocb.ClusterOptions{
 		Authenticator: gocb.PasswordAuthenticator{
@@ -48,7 +48,7 @@ func getDbConnection(conf ConfigJSON, dbIdx int) (conn  CbConnection) {
 	conn.Cluster = cluster
 	conn.Bucket = conn.Cluster.Bucket(bucketName)
 	conn.Collection = conn.Bucket.Collection(collection)
-	conn.vxDBTARGET = conf.Private.Databases[dbIdx].Bucket + "._default." + conf.Private.Databases[dbIdx].Collection
+	conn.vxDBTARGET = cred.cb_bucket + "._default." + cred.cb_collection
 
 	log.Println("vxDBTARGET:" + conn.vxDBTARGET)
 
@@ -58,10 +58,9 @@ func getDbConnection(conf ConfigJSON, dbIdx int) (conn  CbConnection) {
 		return
 	}
 
-	conn.Scope = conn.Bucket.Scope(conf.Private.Databases[dbIdx].Scope)
+	conn.Scope = conn.Bucket.Scope(cred.cb_scope)
 	return conn
 }
-
 
 func queryWithSQLFile(scope *gocb.Scope, file string) (jsonOut []string) {
 	fileContent, err := os.ReadFile(file)
@@ -153,10 +152,10 @@ func queryWithSQLStringIA(scope *gocb.Scope, text string) (rv []int) {
 			log.Fatal(err)
 		}
 		switch row.(type) {
-			case float64:
-				retValues = append(retValues, int(row.(float64)))
-			case int:
-				retValues = append(retValues, row.(int))
+		case float64:
+			retValues = append(retValues, int(row.(float64)))
+		case int:
+			retValues = append(retValues, row.(int))
 		}
 	}
 

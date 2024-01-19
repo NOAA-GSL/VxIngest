@@ -22,6 +22,9 @@
           "Visibility": "&handle_visibility|*visibility",
           "WD": "&umask_value_transform|*windDir",
           "WS": "&meterspersecond_to_milesperhour|*windSpeed",
+          "U": "&handleWindDirU|*windDirU,*windSpeed,*windDir",
+          "V": "&handleWindDirV|*windDirV,*windSpeed,*windDir",
+          "SPFH": "&handle_specific_humidity|*temperature,*dewpoint",
           "name": "&handle_station|*stationName,*timeObs"
         }
       },

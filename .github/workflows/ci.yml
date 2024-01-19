@@ -1,0 +1,202 @@
+name: "CI"
+on:
+  push:
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+"
+      - "[0-9]+.[0-9]+.[0-9]+-rc[0-9]+"
+    branches: [main]
+  pull_request:
+  workflow_dispatch: # Manually
+env:
+  REGISTRY: ghcr.io/noaa-gsl/vxingest
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install poetry
+        run: pipx install poetry
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          poetry env use 3.11
+          poetry install
+      - name: Format with Ruff
+        run: poetry run ruff format --check src tests
+      - name: Lint with Ruff
+        run: poetry run ruff check --output-format=github src tests
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install poetry
+        run: pipx install poetry
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          poetry env use 3.11
+          poetry install
+      - name: Unit test with pytest
+        run: | 
+          poetry run coverage run -m pytest -m "not integration" tests
+          poetry run coverage report
+          poetry run coverage xml
+      - name: Code Coverage Report
+        uses: irongut/CodeCoverageSummary@v1.3.0
+        with:
+          header: Test Coverage Report
+          filename: coverage.xml
+          badge: true
+          fail_below_min: false
+          hide_complexity: true
+          format: markdown
+          output: both
+          thresholds: "60 80"
+      - name: Add Coverage PR Comment
+        uses: marocchino/sticky-pull-request-comment@v2
+        if: github.event_name == 'pull_request'
+        with:
+          recreate: true
+          path: code-coverage-results.md
+      - name: Add Coverage to Job Summary
+        run: cat code-coverage-results.md >> $GITHUB_STEP_SUMMARY
+  build-ingest:
+    name: Build Ingest image
+    runs-on: ubuntu-latest
+    needs: [ lint, test ]
+    permissions:
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate image metadata
+        uses: docker/metadata-action@v4
+        id: meta
+        with:
+          images: |
+            ghcr.io/noaa-gsl/vxingest/ingest
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha
+            # set latest tag for default branch
+            type=raw,value=latest,enable={{is_default_branch}}
+          labels: |
+            org.opencontainers.image.vendor=NOAA's Global Systems Laboratory
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build image and push
+        uses: docker/build-push-action@v5
+        with:
+          file: docker/ingest/Dockerfile
+          context: .
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          # Use a cache to speed up builds
+          # Note: this may cause security issues if the apt updates are cached
+          # It may make more sense to build eccodes as its own image instead.
+          cache-from: type=registry,ref=ghcr.io/noaa-gsl/vxingest/cache/ingest:buildcache
+          cache-to: type=registry,ref=ghcr.io/noaa-gsl/vxingest/cache/ingest:buildcache,mode=max
+  build-import:
+    name: Build Import image
+    runs-on: ubuntu-latest
+    needs: [ lint, test ]
+    permissions:
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate image metadata
+        uses: docker/metadata-action@v4
+        id: meta
+        with:
+          images: |
+            ghcr.io/noaa-gsl/vxingest/import
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha
+            # set latest tag for default branch
+            type=raw,value=latest,enable={{is_default_branch}}
+          labels: |
+            org.opencontainers.image.vendor=NOAA's Global Systems Laboratory
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build image and push
+        uses: docker/build-push-action@v5
+        with:
+          file: docker/import/Dockerfile
+          context: .
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+  scan-ingest:
+    runs-on: ubuntu-latest
+    needs: build-ingest
+    steps:
+      - name: Extract SHORT_SHA
+        run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@0.16.0
+        with:
+          image-ref: "ghcr.io/noaa-gsl/vxingest/ingest:sha-${{ env.SHORT_SHA }}"
+          format: "sarif"
+          output: "trivy-ingest-results.sarif"
+          ignore-unfixed: true
+          severity: "CRITICAL,HIGH"
+          limit-severities-for-sarif: true
+          exit-code: "1"
+        env:
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload Trivy scan results to GitHub Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: "trivy-ingest-results.sarif"
+  scan-import:
+    runs-on: ubuntu-latest
+    needs: build-import
+    steps:
+      - name: Extract SHORT_SHA
+        run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@0.16.0
+        with:
+          image-ref: "ghcr.io/noaa-gsl/vxingest/import:sha-${{ env.SHORT_SHA }}"
+          format: "sarif"
+          output: "trivy-import-results.sarif"
+          ignore-unfixed: true
+          severity: "CRITICAL,HIGH"
+          limit-severities-for-sarif: true
+          # exit-code: "1" # FIXME: allow failures for now. Couchbase needs to update cbtools
+        env:
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload Trivy scan results to GitHub Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: "trivy-import-results.sarif"

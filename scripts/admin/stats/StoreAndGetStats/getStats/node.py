@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-class Node(object):
+class Node:
 
     def __init__(self, attributes_dict, timeslice):
         self.attributes_dict = attributes_dict

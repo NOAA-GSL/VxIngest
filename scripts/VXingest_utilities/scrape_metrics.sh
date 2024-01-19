@@ -111,10 +111,10 @@ if [ -z "${textfile_dir}" ]; then
 fi
 
 metric_name=$(grep 'metric_name' ${log_file} | awk '{print $2}')
-start_epoch=$(date -d "$(grep  'Begin a_time:' ${log_file} | awk '{print $3" "$4}')" +"%s")
+start_epoch=$(date -d "$(grep  'Begin a_time:' ${log_file} | awk '{print $7" "$8}')" +"%s")
 is_epoch_rational ${start_epoch}
 
-finish_epoch=$(date -d "$(grep  'End a_time:' ${log_file} | awk '{print $3" "$4}')" +"%s")
+finish_epoch=$(date -d "$(grep  'End a_time:' ${log_file} | awk '{print $7" "$8}')" +"%s")
 is_epoch_rational ${finish_epoch}
 
 #Get the error count from the log file
@@ -124,7 +124,7 @@ error_count=$(grep -i error ${log_file} | wc -l)
 exit_code=$(grep exit_code ${log_file} | cut -d':' -f2)
 
 # get the list of data document ids by greping "adding document DD:" from the log and awking the 5th param
-# and determine the common pattern  
+# and determine the common pattern
 dids=()
 IFS=$'\r\n' dids=($(grep 'adding document DD:' ${log_file} | grep 'DD:' | sort | uniq | awk  '{print $5}'))
 document_id_pattern=$(derive_pattern_from_ids "${dids[@]}")
@@ -159,21 +159,23 @@ metric_name=$(echo "${metric_name}" | tr '[:upper:]' '[:lower:]')
 # example metric name 'job_v01_metar_grib2_model_hrrr_adb_cb1'
 
 # for getting historical data from promql...
+# promql is a promql-cli tool that can be used to query prometheus
+# it can be found at https://github.com/nalbury/promql-cli/releases
 # we have to default these to 0 if they do not exist in the promql database - otherwise the scrape will fail next time
-min_recorded_record_count_average=$(/home/amb-verif/vx-prometheus/promql --no-headers --host "http://${cb_host}:9090"  "floor(min(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_recorded_record_count'}[6h:1h])))" | awk '{print $1}')
+min_recorded_record_count_average=$(scripts/VXingest_utilities/promql --no-headers --host "http://${cb_host}:9090"  "floor(min(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_recorded_record_count'}[6h:1h])))" | awk '{print $1}')
 if [[ "x" == "x${min_recorded_record_count_average}" ]] ; then
       min_recorded_record_count_average=0
 fi
-max_recorded_record_count_average=$(/home/amb-verif/vx-prometheus/promql --no-headers --host "http://${cb_host}:9090"  "ceil(max(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_recorded_record_count'}[6h:1h])))" | awk '{print $1}')
+max_recorded_record_count_average=$(scripts/VXingest_utilities/promql --no-headers --host "http://${cb_host}:9090"  "ceil(max(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_recorded_record_count'}[6h:1h])))" | awk '{print $1}')
 if [[ "x" == "x${max_recorded_record_count_average}" ]] ; then
       max_recorded_record_count_average=0
 fi
 
-min_actual_duration_seconds_average=$(/home/amb-verif/vx-prometheus/promql --no-headers --host "http://${cb_host}:9090"  "floor(min(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_actual_duration_seconds'}[6h:1h])))" | awk '{print $1}')
+min_actual_duration_seconds_average=$(scripts/VXingest_utilities/promql --no-headers --host "http://${cb_host}:9090"  "floor(min(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_actual_duration_seconds'}[6h:1h])))" | awk '{print $1}')
 if [[ "x" == "x${min_actual_duration_seconds_average}" ]] ; then
       min_actual_duration_seconds_average=0
 fi
-max_actual_duration_seconds_average=$(/home/amb-verif/vx-prometheus/promql --no-headers --host "http://${cb_host}:9090"  "ceil(max(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_actual_duration_seconds'}[6h:1h])))" | awk '{print $1}')
+max_actual_duration_seconds_average=$(scripts/VXingest_utilities/promql --no-headers --host "http://${cb_host}:9090"  "ceil(max(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_actual_duration_seconds'}[6h:1h])))" | awk '{print $1}')
 if [[ "x" == "x${max_actual_duration_seconds_average}" ]] ; then
       max_actual_duration_seconds_average=0
 fi
@@ -195,10 +197,4 @@ echo "${metric_name}{ingest_id=\"ingest_record_count_difference\",log_file=\"${l
 echo "${metric_name}{ingest_id=\"ingest_exit_code\",log_file=\"${log_file}\"} ${exit_code}" >> ${tmp_metric_file}
 
 mv ${tmp_metric_file} ${metric_file}
-# archive the log_file
-dirname_log_file=$(dirname ${log_file})
-basename_log_file=$(basename ${log_file})
-import_log_file="${dirname_log_file}/import-${basename_log_file}"
-mv ${log_file} ${dirname_log_file}/archive
-# archive the import log_file
-mv ${import_log_file} ${dirname_log_file}/archive
+

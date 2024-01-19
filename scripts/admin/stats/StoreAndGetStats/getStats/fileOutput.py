@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 from nodeOutput import NodeOutput
 
-class FileOutput(object):
+
+class FileOutput:
 	header_line = "\"Date Time\""
 	quota_used = "\"quotaPercentUsed\""
 	itemCount = "\"itemCount\""

@@ -1,0 +1,53 @@
+version: "3.2"
+secrets:
+  CREDENTIALS_FILE:
+    file: ${HOME}/credentials
+
+services:
+  shell:
+    image: ghcr.io/noaa-gsl/vxingest/ingest:main
+    volumes:
+      - ${data}:/opt/data
+      - ${public}:/public
+    secrets:
+      - CREDENTIALS_FILE
+    environment:
+    - CREDENTIALS=/run/secrets/CREDENTIALS_FILE
+    entrypoint: /bin/bash
+  test:
+    build: # build the image so we can specify the target
+      context: .
+      dockerfile: docker/ingest/Dockerfile
+      target: dev
+    volumes:
+      -  ${data}:/opt/data
+    secrets:
+      - CREDENTIALS_FILE
+    environment:
+    - CREDENTIALS=/run/secrets/CREDENTIALS_FILE
+    command: poetry run pytest tests
+  # FIXME - add a way to specify unit & integration tests
+  ingest:
+    image: ghcr.io/noaa-gsl/vxingest/ingest:main
+    volumes:
+      - ${data}:/opt/data
+      - ${public}:/public
+    secrets:
+      - CREDENTIALS_FILE
+    command:
+      - "--credentials_file=/run/secrets/CREDENTIALS_FILE"
+      - "--output_dir=/opt/data/test/outdir"
+      - "--log_dir=/opt/data/test/logs"
+      - "--metrics_dir=/opt/data/test/metrics"
+      - "--transfer_dir=/opt/data/test/xfer"
+  import:
+    image: ghcr.io/noaa-gsl/vxingest/import:main
+    volumes:
+      - ${data}:/opt/data
+    secrets:
+      - CREDENTIALS_FILE
+    command:
+      - "-c /run/secrets/CREDENTIALS_FILE"
+      - "-l /opt/data/xfer"
+      - "-t /opt/data/temp_tar"
+      - "-m /opt/data/common/job_metrics"

@@ -1,0 +1,6 @@
+-- should execute in less than 10 milliseconds
+SELECT RAW thresholdDescriptions
+FROM `vxdata`._default.METAR
+WHERE type="MD"
+    AND docType="matsAux"
+    AND subset="COMMON"

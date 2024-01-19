@@ -1,0 +1,131 @@
+[
+  {
+    "id": "JOB:V01:METAR:CTC:SUM:MODEL:HRRR_RAP_130",
+    "ingest_document_ids": [
+      "MD:V01:METAR:HRRR_OPS:E_US:CTC:CEILING:ingest",
+      "MD:V01:METAR:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest",
+      "MD:V01:METAR:HRRR_OPS:E_HRRR:CTC:CEILING:ingest",
+      "MD:V01:METAR:HRRR_OPS:W_HRRR:CTC:CEILING:ingest",
+      "MD:V01:METAR:HRRR_OPS:GtLk:CTC:CEILING:ingest",
+      "MD:V01:METAR:RAP_OPS_130:E_US:CTC:CEILING:ingest",
+      "MD:V01:METAR:RAP_OPS_130:ALL_HRRR:CTC:CEILING:ingest",
+      "MD:V01:METAR:RAP_OPS_130:E_HRRR:CTC:CEILING:ingest",
+      "MD:V01:METAR:RAP_OPS_130:W_HRRR:CTC:CEILING:ingest",
+      "MD:V01:METAR:RAP_OPS_130:GtLk:CTC:CEILING:ingest",
+      "MD:V01:METAR:HRRR_OPS:E_US:CTC:VISIBILITY:ingest",
+      "MD:V01:METAR:HRRR_OPS:ALL_HRRR:CTC:VISIBILITY:ingest",
+      "MD:V01:METAR:HRRR_OPS:E_HRRR:CTC:VISIBILITY:ingest",
+      "MD:V01:METAR:HRRR_OPS:W_HRRR:CTC:VISIBILITY:ingest",
+      "MD:V01:METAR:HRRR_OPS:GtLk:CTC:VISIBILITY:ingest",
+      "MD:V01:METAR:RAP_OPS_130:E_US:CTC:VISIBILITY:ingest",
+      "MD:V01:METAR:RAP_OPS_130:ALL_HRRR:CTC:VISIBILITY:ingest",
+      "MD:V01:METAR:RAP_OPS_130:E_HRRR:CTC:VISIBILITY:ingest",
+      "MD:V01:METAR:RAP_OPS_130:W_HRRR:CTC:VISIBILITY:ingest",
+      "MD:V01:METAR:RAP_OPS_130:GtLk:CTC:VISIBILITY:ingest"
+    ],
+    "offset_minutes": 0,
+    "run_priority": 5,
+    "schedule": "0 * * * *",
+    "status": "active",
+    "subDoc": "SUM",
+    "subDocType": "HRRR",
+    "subType": "CTC",
+    "subset": "METAR",
+    "type": "JOB",
+    "version": "V01"
+  },
+  {
+    "id": "JOB:V01:METAR:CTC:SUM:MODEL:HRRR_VIS_TEST",
+    "ingest_document_ids": [
+      "MD:V01:METAR:HRRR_OPS:ALL_HRRR:CTC:VISIBILITY:ingest"
+    ],
+    "offset_minutes": 0,
+    "run_priority": 5,
+    "schedule": "0 * * * *",
+    "status": "test",
+    "subDoc": "SUM",
+    "subDocType": "HRRR",
+    "subType": "CTC",
+    "subset": "METAR",
+    "type": "JOB",
+    "version": "V01"
+  },
+  {
+    "file_mask": "%y%j%H%f",
+    "id": "JOB:V01:METAR:GRIB2:MODEL:HRRR",
+    "ingest_document_ids": [
+      "MD:V01:METAR:HRRR_OPS:ingest:grib2"
+    ],
+    "input_data_path": "/public/data/grids/hrrr/conus/wrfprs/grib2",
+    "offset_minutes": 0,
+    "run_priority": 2,
+    "schedule": "0 * * * *",
+    "status": "active",
+    "subDoc": "MODEL",
+    "subDocType": "HRRR",
+    "subType": "GRIB2",
+    "subset": "METAR",
+    "type": "JOB",
+    "version": "V01"
+  },
+  {
+    "file_mask": "%y%j%H%f",
+    "id": "JOB:V01:METAR:GRIB2:MODEL:RAP_OPS_130",
+    "ingest_document_ids": [
+      "MD:V01:METAR:RAP_OPS_130:ingest:grib2"
+    ],
+    "input_data_path": "/public/data/grids/rap/iso_130/grib2",
+    "offset_minutes": 0,
+    "run_priority": 3,
+    "schedule": "0 * * * *",
+    "status": "active",
+    "subDoc": "MODEL",
+    "subDocType": "RAP_OPS_130",
+    "subType": "GRIB2",
+    "subset": "METAR",
+    "type": "JOB",
+    "version": "V01"
+  },
+  {
+    "file_mask": "%Y%m%d_%H%M",
+    "id": "JOB:V01:METAR:NETCDF:OBS",
+    "ingest_document_ids": [
+      "MD:V01:METAR:obs:ingest:netcdf"
+    ],
+    "input_data_path": "/public/data/madis/point/metar/netcdf",
+    "offset_minutes": 0,
+    "run_priority": 1,
+    "schedule": "0 * * * *",
+    "status": "active",
+    "subDoc": "OBS",
+    "subType": "NETCDF",
+    "subset": "METAR",
+    "type": "JOB",
+    "version": "V01"
+  },
+  {
+    "id": "JOB:V01:METAR:SUMS:SURFACE:MODEL:HRRR_RAP_130",
+    "ingest_document_ids": [
+      "MD:V01:METAR:HRRR_OPS:E_US:SUMS:SURFACE:ingest",
+      "MD:V01:METAR:HRRR_OPS:ALL_HRRR:SUMS:SURFACE:ingest",
+      "MD:V01:METAR:HRRR_OPS:E_HRRR:SUMS:SURFACE:ingest",
+      "MD:V01:METAR:HRRR_OPS:W_HRRR:SUMS:SURFACE:ingest",
+      "MD:V01:METAR:HRRR_OPS:GtLk:SUMS:SURFACE:ingest",
+      "MD:V01:METAR:RAP_OPS_130:E_US:SUMS:SURFACE:ingest",
+      "MD:V01:METAR:RAP_OPS_130:ALL_HRRR:SUMS:SURFACE:ingest",
+      "MD:V01:METAR:RAP_OPS_130:E_HRRR:SUMS:SURFACE:ingest",
+      "MD:V01:METAR:RAP_OPS_130:W_HRRR:SUMS:SURFACE:ingest",
+      "MD:V01:METAR:RAP_OPS_130:GtLk:SUMS:SURFACE:ingest"
+    ],
+    "offset_minutes": 0,
+    "run_priority": 6,
+    "schedule": "0 * * * *",
+    "status": "active",
+    "subDoc": "SUM",
+    "subDocType": "HRRR",
+    "subType": "SUMS",
+    "subset": "METAR",
+    "type": "JOB",
+    "version": "V01"
+  }
+]

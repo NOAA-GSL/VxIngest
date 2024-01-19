@@ -1,1 +1,0 @@
-0 */2 * * * /home/amb-verif/VxIngest/scripts/VXingest_utilities/run-cron.sh /home/amb-verif/VxIngest > /home/amb-verif/VxIngest/logs/cron-`date +\%Y-\%m-\%d:\%H:\%M:\%S` 2>&1

@@ -1,1 +1,4 @@
-BUILD INDEX ON mdata ((SELECT RAW name FROM system:indexes WHERE keyspace_id = 'mdata' AND state = 'deferred'));
+USE ONE OF THESE
+BUILD INDEX ON `vxdata`.`_default`.`METAR` ((SELECT RAW name FROM system:indexes WHERE state = "deferred"));
+OR
+BUILD INDEX ON `vxdatatest`.`_default`.`METAR` ((SELECT RAW name FROM system:indexes WHERE state = "deferred"));

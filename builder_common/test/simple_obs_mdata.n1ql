@@ -1,7 +1,0 @@
-SELECT *
-FROM mdata
-WHERE type='DD'
-    AND docType='obs'
-    AND version='V01'
-    AND subset='METAR'
-    AND fcstValidEpoch = 1656637200;

@@ -1,7 +1,0 @@
-load_spec:
-  email: "randy.pierce@noaa.gov"
-  ingest_document_ids: ["MD:V01:METAR-LEGACY:HRRR_OPS_LEGACY:E_US:CTC:CEILING:ingest", 
-        "MD:V01:METAR-LEGACY:HRRR_OPS_LEGACY:ALL_HRRR:CTC:CEILING:ingest",
-        "MD:V01:METAR-LEGACY:HRRR_OPS_LEGACY:E_HRRR:CTC:CEILING:ingest",
-        "MD:V01:METAR-LEGACY:HRRR_OPS_LEGACY:W_HRRR:CTC:CEILING:ingest",
-        "MD:V01:METAR-LEGACY:HRRR_OPS_LEGACY:GtLk:CTC:CEILING:ingest"]

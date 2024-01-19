@@ -13,3 +13,5 @@ CREATE INDEX `adv_type_subset_docType_version` ON `vxdata`.`_default`.`METAR`(`t
 CREATE INDEX `adv_version_docType_subset_type_geo_name` ON `vxdata`.`_default`.`METAR`(`version`,`docType`,`subset`,`type`,`geo`,`name`) WITH { "defer_build":true};
 CREATE INDEX `adv_version_fcstValidEpoch_type_docType_subset` ON `default`:`vxdata`.`_default`.`METAR`(`version`,`fcstValidEpoch`) WHERE `subset` = 'METAR' AND `type` = 'DD' AND `docType` = 'obs' WITH { "defer_build":true};
 CREATE INDEX `adv_subDocType_type_docType_version` ON `vxdata`.`_default`.`METAR`(`subDocType`) WHERE (((`docType` = "CTC") and (`version` = "V01")) and (`type` = "DD")) WITH { "defer_build":true};
+CREATE INDEX `adv_type_id_status` ON `vxdata`.`_default`.`METAR`(`type`,`id`,`status`) WITH { "defer_build":true};
+CREATE INDEX adv_fcstValidEpoch_region_type_docType_subDocType_version_subset ON `default`:`vxdata`.`_default`.`METAR`(`fcstValidEpoch`,`region`) WHERE `docType` = 'SUMS' AND `subDocType` = 'SURFACE' AND `version` = 'V01' AND `subset` = 'METAR' AND `type` = 'DD' WITH { "defer_build":true};

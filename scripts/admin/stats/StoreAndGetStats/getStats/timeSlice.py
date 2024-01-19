@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-class TimeSlice(object):
+class TimeSlice:
 	
 	def __init__(self, id, timeslice):
 		self.id = id

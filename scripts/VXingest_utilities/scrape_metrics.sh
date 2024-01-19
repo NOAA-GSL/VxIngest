@@ -58,8 +58,7 @@ function usage {
   echo "Usage $0 -c credentials-file -l log_file -d textfile directory"
   echo "The credentials-file specifies cb_host, cb_user, and cb_password."
   echo "Metrics will be written into the textfile directory (-t)"
-  echo "The load spec should be the load_spec file with its full path that was used for the ingest process"
-  echo "The scrape_metrics.sh script scans the log for the intended_record_count, and any errors,"
+  echo "The scrape_metrics.sh script scans the log_file for the intended_record_count, and any errors,"
   echo "and queries the database to determine how many records were just added."
   exit 1
 }
@@ -161,21 +160,29 @@ metric_name=$(echo "${metric_name}" | tr '[:upper:]' '[:lower:]')
 # for getting historical data from promql...
 # promql is a promql-cli tool that can be used to query prometheus
 # it can be found at https://github.com/nalbury/promql-cli/releases
+which promql
+if [ $? -eq 0 ]
+then
+	echo "no promql in path"
+	echo "promql is a promql-cli tool that can be used to query prometheus"
+	echo "promql can be found at https://github.com/nalbury/promql-cli/releases"
+	usage
+fi
 # we have to default these to 0 if they do not exist in the promql database - otherwise the scrape will fail next time
-min_recorded_record_count_average=$(scripts/VXingest_utilities/promql --no-headers --host "http://${cb_host}:9090"  "floor(min(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_recorded_record_count'}[6h:1h])))" | awk '{print $1}')
+min_recorded_record_count_average=$(promql --no-headers --host "http://${cb_host}:9090"  "floor(min(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_recorded_record_count'}[6h:1h])))" | awk '{print $1}')
 if [[ "x" == "x${min_recorded_record_count_average}" ]] ; then
       min_recorded_record_count_average=0
 fi
-max_recorded_record_count_average=$(scripts/VXingest_utilities/promql --no-headers --host "http://${cb_host}:9090"  "ceil(max(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_recorded_record_count'}[6h:1h])))" | awk '{print $1}')
+max_recorded_record_count_average=$(promql --no-headers --host "http://${cb_host}:9090"  "ceil(max(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_recorded_record_count'}[6h:1h])))" | awk '{print $1}')
 if [[ "x" == "x${max_recorded_record_count_average}" ]] ; then
       max_recorded_record_count_average=0
 fi
 
-min_actual_duration_seconds_average=$(scripts/VXingest_utilities/promql --no-headers --host "http://${cb_host}:9090"  "floor(min(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_actual_duration_seconds'}[6h:1h])))" | awk '{print $1}')
+min_actual_duration_seconds_average=$(promql --no-headers --host "http://${cb_host}:9090"  "floor(min(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_actual_duration_seconds'}[6h:1h])))" | awk '{print $1}')
 if [[ "x" == "x${min_actual_duration_seconds_average}" ]] ; then
       min_actual_duration_seconds_average=0
 fi
-max_actual_duration_seconds_average=$(scripts/VXingest_utilities/promql --no-headers --host "http://${cb_host}:9090"  "ceil(max(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_actual_duration_seconds'}[6h:1h])))" | awk '{print $1}')
+max_actual_duration_seconds_average=$(promql --no-headers --host "http://${cb_host}:9090"  "ceil(max(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_actual_duration_seconds'}[6h:1h])))" | awk '{print $1}')
 if [[ "x" == "x${max_actual_duration_seconds_average}" ]] ; then
       max_actual_duration_seconds_average=0
 fi

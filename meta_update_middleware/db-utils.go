@@ -23,14 +23,14 @@ func init() {
 }
 
 func getDbConnection(cred Credentials) (conn CbConnection) {
-	log.Println(fmt.Sprintf("getDbConnection()"))
+	log.Println("getDbConnection()")
 
 	conn = CbConnection{}
-	connectionString := cred.cb_host
-	bucketName := cred.cb_bucket
-	collection := cred.cb_collection
-	username := cred.cb_user
-	password := cred.cb_password
+	connectionString := cred.Cb_host
+	bucketName := cred.Cb_bucket
+	collection := cred.Cb_collection
+	username := cred.Cb_user
+	password := cred.Cb_password
 
 	options := gocb.ClusterOptions{
 		Authenticator: gocb.PasswordAuthenticator{
@@ -48,7 +48,7 @@ func getDbConnection(cred Credentials) (conn CbConnection) {
 	conn.Cluster = cluster
 	conn.Bucket = conn.Cluster.Bucket(bucketName)
 	conn.Collection = conn.Bucket.Collection(collection)
-	conn.vxDBTARGET = cred.cb_bucket + "._default." + cred.cb_collection
+	conn.vxDBTARGET = cred.Cb_bucket + "." + cred.Cb_scope + "." + cred.Cb_collection
 
 	log.Println("vxDBTARGET:" + conn.vxDBTARGET)
 
@@ -58,7 +58,7 @@ func getDbConnection(cred Credentials) (conn CbConnection) {
 		return
 	}
 
-	conn.Scope = conn.Bucket.Scope(cred.cb_scope)
+	conn.Scope = conn.Bucket.Scope(cred.Cb_scope)
 	return conn
 }
 

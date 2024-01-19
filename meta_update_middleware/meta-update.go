@@ -1,15 +1,14 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"os"
-	"strings"
 	"time"
+
+	"gopkg.in/yaml.v3"
 	// "github.com/couchbase/gocb/v2"
 )
 
@@ -25,12 +24,12 @@ type ConfigJSON struct {
 }
 
 type Credentials struct {
-	cb_host       string
-	cb_user       string
-	cb_password   string
-	cb_bucket     string
-	cb_scope      string
-	cb_collection string
+	Cb_host       string `yaml:"cb_host"`
+	Cb_user       string `yaml:"cb_user"`
+	Cb_password   string `yaml:"cb_password"`
+	Cb_bucket     string `yaml:"cb_bucket"`
+	Cb_scope      string `yaml:"cb_scope"`
+	Cb_collection string `yaml:"cb_collection"`
 }
 
 // init runs before main() is evaluated
@@ -132,21 +131,21 @@ func updateMedataForAppDocType(conn CbConnection, name string, app string, docty
 	metadata := MetadataJSON{ID: "MD:matsGui:" + name + ":COMMON:V01", Name: name, App: app}
 	metadata.Updated = 0
 
-	for i := 0; i < len(models); i++ {
-		model := Model{Name: models[i]}
-		thresholds := getDistinctThresholds(conn, name, app, doctype, subDocType, models[i])
+	for i, m := range models {
+		model := Model{Name: m}
+		thresholds := getDistinctThresholds(conn, name, app, doctype, subDocType, m)
 		log.Println(thresholds)
-		fcstLen := getDistinctFcstLen(conn, name, app, doctype, subDocType, models[i])
+		fcstLen := getDistinctFcstLen(conn, name, app, doctype, subDocType, m)
 		log.Println(fcstLen)
-		region := getDistinctRegion(conn, name, app, doctype, subDocType, models[i])
+		region := getDistinctRegion(conn, name, app, doctype, subDocType, m)
 		log.Println(region)
-		displayText := getDistinctDisplayText(conn, name, app, doctype, subDocType, models[i])
+		displayText := getDistinctDisplayText(conn, name, app, doctype, subDocType, m)
 		log.Println(displayText)
-		displayCategory := getDistinctDisplayCategory(conn, name, app, doctype, subDocType, models[i])
+		displayCategory := getDistinctDisplayCategory(conn, name, app, doctype, subDocType, m)
 		log.Println(displayCategory)
-		displayOrder := getDistinctDisplayOrder(conn, name, app, doctype, subDocType, models[i], i)
+		displayOrder := getDistinctDisplayOrder(conn, name, app, doctype, subDocType, m, i)
 		log.Println(displayOrder)
-		minMaxCountFloor := getMinMaxCountFloor(conn, name, app, doctype, subDocType, models[i])
+		minMaxCountFloor := getMinMaxCountFloor(conn, name, app, doctype, subDocType, m)
 		log.Println(jsonPrettyPrintStruct(minMaxCountFloor[0].(map[string]interface{})))
 
 		// ./sqls/getDistinctThresholds.sql returns list of variables for SUMS DocType, like in Surface
@@ -192,45 +191,15 @@ func parseConfig(file string) (ConfigJSON, error) {
 	return conf, nil
 }
 
-func getCredentials(credentiasFilePath string) (out Credentials) {
-	rv := Credentials{}
-
-	f, err := os.OpenFile(credentiasFilePath, os.O_RDONLY, os.ModePerm)
+func getCredentials(credentialsFilePath string) Credentials {
+	creds := Credentials{}
+	yamlFile, err := os.ReadFile(credentialsFilePath)
 	if err != nil {
-		log.Fatalf("open file error: %v", err)
-		return rv
+		log.Printf("yamlFile.Get err   #%v ", err)
 	}
-	defer f.Close()
-
-	rd := bufio.NewReader(f)
-	for {
-		line, err := rd.ReadString('\n')
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			log.Fatalf("read file line error: %v", err)
-			return rv
-		}
-		toks := strings.Split(line, ":")
-		if strings.TrimSpace(toks[0]) == "cb_user" {
-			rv.cb_user = strings.TrimSpace(toks[1])
-		}
-		if strings.TrimSpace(toks[0]) == "cb_password" {
-			rv.cb_password = strings.TrimSpace(toks[1])
-		}
-		if strings.TrimSpace(toks[0]) == "cb_host" {
-			rv.cb_host = strings.TrimSpace(toks[1])
-		}
-		if strings.TrimSpace(toks[0]) == "cb_bucket" {
-			rv.cb_bucket = strings.TrimSpace(toks[1])
-		}
-		if strings.TrimSpace(toks[0]) == "cb_scope" {
-			rv.cb_scope = strings.TrimSpace(toks[1])
-		}
-		if strings.TrimSpace(toks[0]) == "cb_collection" {
-			rv.cb_collection = strings.TrimSpace(toks[1])
-		}
+	err = yaml.Unmarshal(yamlFile, &creds)
+	if err != nil {
+		log.Fatalf("Unmarshal: %v", err)
 	}
-	return rv
+	return creds
 }

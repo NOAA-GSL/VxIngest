@@ -20,6 +20,9 @@ Make sure settings.json is in the same folder as the meta-update executable
 
 ### configuration
 credentials file
+NOTE: If no specific credentails file is given on the command-line, meta-update
+will look for and use ~/credentials
+
 meta-update picks up Couchbase conection information from this file, example below
 Please note that the cb_user and cb_password values should be replaced with actual values
 cb_host: adb-cb1.gsd.esrl.noaa.gov

@@ -203,8 +203,8 @@ ls -1 ${load_dir}/*.gz | while read f; do
   fi
   # run the scraper
   sleep 2  # eventually consistent data - give it a little time
-  echo "RUNNING - scripts/VXingest_utilities/scrape_metrics.sh -c ${credentials_file} -l ${log_file} -d ${metrics_dir}"
-  scripts/VXingest_utilities/scrape_metrics.sh -c ${credentials_file} -l ${log_file} -d ${metrics_dir}
+  echo "RUNNING - scripts/VXingest_utilities/scrape_metrics.sh -c ${credentials_file} -i ${import_log_file} -l ${log_file} -d ${metrics_dir}"
+  scripts/VXingest_utilities/scrape_metrics.sh -c ${credentials_file} -i ${import_log_file} -l ${log_file} -d ${metrics_dir}
   exit_code=$?
   if [[ "${exit_code}" -ne "0" ]]; then
     failed_scrape_count=$((failed_scrape_count+1))

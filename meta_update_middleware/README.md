@@ -46,3 +46,13 @@ go run .
 go run . -c ~/credentials -s ./settings.json -a ceiling
 
 
+## contab (add the following lines to amb-verif contab on adb-cb1)
+# run new matadata update (for Couchbase) for ceiling
+0 4 * * * cd /home/amb-verif/VxIngest-gopa/meta_update_middleware; ./meta-update -c /home/amb-verif/credentials -s ./settings.json -a ceiling > /home/amb-verif/logs/cron-metadata-update-ceiling-`date +\%s`.out 2>&1
+
+# run new matadata update (for Couchbase) for visibility
+0 5 * * * cd /home/amb-verif/VxIngest-gopa/meta_update_middleware; ./meta-update -c /home/amb-verif/credentials -s ./settings.json -a visibility > /home/amb-verif/logs/cron-metadata-update-visibility-`date +\%s`.out 2>&1
+
+# run new matadata update (for Couchbase) for surface
+0 6 * * * cd /home/amb-verif/VxIngest-gopa/meta_update_middleware; ./meta-update -c /home/amb-verif/credentials -s ./settings.json -a surface > /home/amb-verif/logs/cron-metadata-update-surface-`date +\%s`.out 2>&1
+

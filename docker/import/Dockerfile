@@ -10,7 +10,6 @@ ARG BUILDVER=dev
 ENV BRANCH=${COMMITBRANCH}
 ENV COMMIT=${COMMITSHA}
 ENV VERSION=${BUILDVER}
-ENV PROMQL_VERSION=v0.3.0
 
 LABEL version=${BUILDVER} code.branch=${COMMITBRANCH} code.commit=${COMMITSHA}
 
@@ -32,11 +31,13 @@ RUN apt-get update && apt-get upgrade -y && \
 
 WORKDIR /app
 
-# add promql
-RUN curl -L https://github.com/nalbury/promql-cli/releases/download/${PROMQL_VERSION}/promql-${PROMQL_VERSION}-linux-$(uname -m).tar.gz | tar xz --directory /usr/local
+# Install promql
+ARG PROMQL_VERSION=v0.3.0
+RUN echo "$(uname -m | sed s/aarch64/arm64/)" && \
+    curl -L https://github.com/nalbury/promql-cli/releases/download/${PROMQL_VERSION}/promql-${PROMQL_VERSION}-linux-$(uname -m | sed s/aarch64/arm64/).tar.gz | tar xz --directory /usr/local/bin
 
 # Install the couchbase tools
-ENV CB_VERSION=7.2.2
+ARG CB_VERSION=7.2.2
 RUN curl -L https://packages.couchbase.com/releases/${CB_VERSION}/couchbase-server-tools_${CB_VERSION}-linux_$(uname -m).tar.gz | tar xz --directory /usr/local
 
 # Copy the scripts and metadata dirs so the import script can run

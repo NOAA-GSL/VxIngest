@@ -10,6 +10,7 @@ ARG BUILDVER=dev
 ENV BRANCH=${COMMITBRANCH}
 ENV COMMIT=${COMMITSHA}
 ENV VERSION=${BUILDVER}
+ENV PROMQL_VERSION=v0.3.0
 
 LABEL version=${BUILDVER} code.branch=${COMMITBRANCH} code.commit=${COMMITSHA}
 
@@ -30,6 +31,9 @@ RUN apt-get update && apt-get upgrade -y && \
     apt-get clean && rm -rf /var/lib/apt/lists/* 
 
 WORKDIR /app
+
+# add promql
+RUN curl -L https://github.com/nalbury/promql-cli/releases/download/${PROMQL_VERSION}/promql-${PROMQL_VERSION}-linux-$(uname -m).tar.gz | tar xz --directory /usr/local
 
 # Install the couchbase tools
 ENV CB_VERSION=7.2.2

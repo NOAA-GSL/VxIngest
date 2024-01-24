@@ -33,8 +33,8 @@ WORKDIR /app
 
 # Install promql
 ARG PROMQL_VERSION=v0.3.0
-RUN echo "$(uname -m | sed s/aarch64/arm64/)" && \
-    curl -L https://github.com/nalbury/promql-cli/releases/download/${PROMQL_VERSION}/promql-${PROMQL_VERSION}-linux-$(uname -m | sed s/aarch64/arm64/).tar.gz | tar xz --directory /usr/local/bin
+RUN echo "$(uname -m | sed s/aarch64/arm64/ | sed s/x86_64/amd64)" && \
+    curl -L https://github.com/nalbury/promql-cli/releases/download/${PROMQL_VERSION}/promql-${PROMQL_VERSION}-linux-$(uname -m | sed s/aarch64/arm64/ | sed s/x86_64/amd64).tar.gz | tar xz --directory /usr/local/bin
 
 # Install the couchbase tools
 ARG CB_VERSION=7.2.2

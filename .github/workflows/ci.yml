@@ -34,6 +34,8 @@ jobs:
         run: poetry run ruff check --output-format=github src tests
   test:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
       - name: Install poetry

@@ -252,11 +252,11 @@ def test_interpolate_time():
             ), f"1636390800 interpolated to {t_interpolated} is not equal"
         if delta <= -1801:
             assert (
-                1636390800 - 3600 == t_interpolated
+                t_interpolated == 1636390800 - 3600
             ), f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
         if delta >= 1800:
             assert (
-                1636390800 + 3600 == t_interpolated
+                t_interpolated == 1636390800 + 3600
             ), f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
 
 

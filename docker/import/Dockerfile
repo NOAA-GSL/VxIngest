@@ -31,8 +31,13 @@ RUN apt-get update && apt-get upgrade -y && \
 
 WORKDIR /app
 
+# Install promql
+ARG PROMQL_VERSION=v0.3.0
+RUN echo "$(uname -m | sed s/aarch64/arm64/ | sed s/x86_64/amd64/)" && \
+    curl -L https://github.com/nalbury/promql-cli/releases/download/${PROMQL_VERSION}/promql-${PROMQL_VERSION}-linux-$(uname -m | sed s/aarch64/arm64/ | sed s/x86_64/amd64/).tar.gz | tar xz --directory /usr/local/bin
+
 # Install the couchbase tools
-ENV CB_VERSION=7.2.2
+ARG CB_VERSION=7.2.2
 RUN curl -L https://packages.couchbase.com/releases/${CB_VERSION}/couchbase-server-tools_${CB_VERSION}-linux_$(uname -m).tar.gz | tar xz --directory /usr/local
 
 # Copy the scripts and metadata dirs so the import script can run

@@ -55,16 +55,15 @@ function get_record_count_from_log(){
 }
 
 function usage {
-  echo "Usage $0 -c credentials-file -l log_file -d textfile directory"
+  echo "Usage $0 -c credentials-file -i import_log_file -l log_file -d textfile directory"
   echo "The credentials-file specifies cb_host, cb_user, and cb_password."
-  echo "Metrics will be written into the textfile directory (-t)"
-  echo "The load spec should be the load_spec file with its full path that was used for the ingest process"
-  echo "The scrape_metrics.sh script scans the log for the intended_record_count, and any errors,"
+  echo "Metrics will be written into the textfile directory (-d)"
+  echo "The scrape_metrics.sh script scans the log_file for the intended_record_count, and any errors,"
   echo "and queries the database to determine how many records were just added."
   exit 1
 }
 
-while getopts 'c:l:d:' param; do
+while getopts 'c:l:i:d:' param; do
   case "${param}" in
   c)
     credentials_file=${OPTARG}
@@ -91,6 +90,13 @@ while getopts 'c:l:d:' param; do
       usage
     fi
     ;;
+  i)
+    import_log_file=${OPTARG}
+    if [[ ! -f "${import_log_file}" ]]; then
+      echo "ERROR: import log file ${import_log_file} does not exist"
+      usage
+    fi
+    ;;
   d)
     textfile_dir=${OPTARG}
     if [[ ! -d "${textfile_dir}" ]]; then
@@ -110,7 +116,7 @@ if [ -z "${textfile_dir}" ]; then
     usage
 fi
 
-metric_name=$(grep 'metric_name' ${log_file} | awk '{print $2}')
+metric_name=$(grep 'metric_name' ${log_file} | awk '{print $6}')
 start_epoch=$(date -d "$(grep  'Begin a_time:' ${log_file} | awk '{print $7" "$8}')" +"%s")
 is_epoch_rational ${start_epoch}
 
@@ -121,12 +127,12 @@ is_epoch_rational ${finish_epoch}
 error_count=$(grep -i error ${log_file} | wc -l)
 
 #Get the exit code from the log file
-exit_code=$(grep exit_code ${log_file} | cut -d':' -f2)
+exit_code=$(grep exit_code ${log_file} | cut -d':' -f5)
 
 # get the list of data document ids by greping "adding document DD:" from the log and awking the 5th param
 # and determine the common pattern
 dids=()
-IFS=$'\r\n' dids=($(grep 'adding document DD:' ${log_file} | grep 'DD:' | sort | uniq | awk  '{print $5}'))
+IFS=$'\r\n' dids=($(grep 'adding document DD:' ${log_file} | grep 'DD:' | sort | uniq | awk  '{print $9}'))
 document_id_pattern=$(derive_pattern_from_ids "${dids[@]}")
 # do not know how to do that yet, perhaps from the prior metrics - actual_duration_seconds?
 expected_duration_seconds=0
@@ -135,8 +141,8 @@ error_count=${error_count}
 
 # the cas meta field in couchbase is going to reflect the time that a document was imported, not when it was created.
 # We need to get the start and stop epochs from the corresponding import log
-start_import_epoch=$(grep Start "$(dirname $log_file)/import-$(basename $log_file)" | awk '{print $2}')
-finish_import_epoch=$(grep Stop "$(dirname $log_file)/import-$(basename $log_file)" | awk '{print $2}')
+start_import_epoch=$(grep Start ${import_log_file} | awk '{print $2}')
+finish_import_epoch=$(grep Stop ${import_log_file} | awk '{print $2}')
 # add 60 seconds for latency?
 finish_import_epoch=$((finish_import_epoch + 60))
 intended_record_count=$(get_record_count_from_log "${log_file}")
@@ -161,21 +167,29 @@ metric_name=$(echo "${metric_name}" | tr '[:upper:]' '[:lower:]')
 # for getting historical data from promql...
 # promql is a promql-cli tool that can be used to query prometheus
 # it can be found at https://github.com/nalbury/promql-cli/releases
+which promql > /dev/null
+if [ $? -ne 0 ]
+then
+	echo "no promql in path"
+	echo "promql is a promql-cli tool that can be used to query prometheus"
+	echo "promql can be found at https://github.com/nalbury/promql-cli/releases"
+	usage
+fi
 # we have to default these to 0 if they do not exist in the promql database - otherwise the scrape will fail next time
-min_recorded_record_count_average=$(scripts/VXingest_utilities/promql --no-headers --host "http://${cb_host}:9090"  "floor(min(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_recorded_record_count'}[6h:1h])))" | awk '{print $1}')
+min_recorded_record_count_average=$(promql --no-headers --host "http://${cb_host}:9090"  "floor(min(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_recorded_record_count'}[6h:1h])))" | awk '{print $1}')
 if [[ "x" == "x${min_recorded_record_count_average}" ]] ; then
       min_recorded_record_count_average=0
 fi
-max_recorded_record_count_average=$(scripts/VXingest_utilities/promql --no-headers --host "http://${cb_host}:9090"  "ceil(max(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_recorded_record_count'}[6h:1h])))" | awk '{print $1}')
+max_recorded_record_count_average=$(promql --no-headers --host "http://${cb_host}:9090"  "ceil(max(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_recorded_record_count'}[6h:1h])))" | awk '{print $1}')
 if [[ "x" == "x${max_recorded_record_count_average}" ]] ; then
       max_recorded_record_count_average=0
 fi
 
-min_actual_duration_seconds_average=$(scripts/VXingest_utilities/promql --no-headers --host "http://${cb_host}:9090"  "floor(min(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_actual_duration_seconds'}[6h:1h])))" | awk '{print $1}')
+min_actual_duration_seconds_average=$(promql --no-headers --host "http://${cb_host}:9090"  "floor(min(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_actual_duration_seconds'}[6h:1h])))" | awk '{print $1}')
 if [[ "x" == "x${min_actual_duration_seconds_average}" ]] ; then
       min_actual_duration_seconds_average=0
 fi
-max_actual_duration_seconds_average=$(scripts/VXingest_utilities/promql --no-headers --host "http://${cb_host}:9090"  "ceil(max(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_actual_duration_seconds'}[6h:1h])))" | awk '{print $1}')
+max_actual_duration_seconds_average=$(promql --no-headers --host "http://${cb_host}:9090"  "ceil(max(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_actual_duration_seconds'}[6h:1h])))" | awk '{print $1}')
 if [[ "x" == "x${max_actual_duration_seconds_average}" ]] ; then
       max_actual_duration_seconds_average=0
 fi

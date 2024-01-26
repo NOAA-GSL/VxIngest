@@ -3,7 +3,7 @@
 # NOTE - avoid installing python packages via apt - they install an alternate version of Python
 
 # The eccodes image, used for building the eccodes library against the correct Python version
-FROM python:3.11-slim-bookworm AS eccodes
+FROM python:3.12-slim-bookworm AS eccodes
 
 ARG ECCODES_VER=2.32.1
 
@@ -25,7 +25,7 @@ RUN apt-get update && \
 
 
 # The builder image, used for building the virtual environment
-FROM python:3.11-slim-bookworm AS builder
+FROM python:3.12-slim-bookworm AS builder
 
 COPY --from=eccodes /eccodes /usr/local
 
@@ -69,7 +69,7 @@ RUN poetry install
 
 
 # The runtime image, used for running just the application with its dependencies
-FROM python:3.11-slim-bookworm AS prod
+FROM python:3.12-slim-bookworm AS prod
 
 ARG COMMITBRANCH=development
 ARG COMMITSHA=unspecified

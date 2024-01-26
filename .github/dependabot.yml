@@ -1,0 +1,62 @@
+# To get started with Dependabot version updates, you'll need to specify which
+# package ecosystems to update and where the package manifests are located.
+# Please see the documentation for all configuration options:
+# https://docs.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
+
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    pull-request-branch-name:
+      separator: "-" # Use "-" instead of "/" in branch names to avoid issues with docker registries
+    assignees:
+      - "ian-noaa"
+
+  - package-ecosystem: "docker"
+    directory: "/docker/ingest"
+    schedule:
+      interval: "weekly"
+    pull-request-branch-name:
+      separator: "-" # Use "-" instead of "/" in branch names to avoid issues with docker registries
+    assignees:
+      - "ian-noaa"
+
+  - package-ecosystem: "docker"
+    directory: "/docker/import"
+    schedule:
+      interval: "weekly"
+    pull-request-branch-name:
+      separator: "-" # Use "-" instead of "/" in branch names to avoid issues with docker registries
+    assignees:
+      - "ian-noaa"
+
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    pull-request-branch-name:
+      separator: "-" # Use "-" instead of "/" in branch names to avoid issues with docker registries
+    assignees:
+      - "ian-noaa"
+    groups:
+      python-dependencies:
+        patterns:
+        # Ideally, we could split this into dev and application dependencies.
+        # However, then we'd have to maintain our dependencies list here as
+        # well as in the pyproject.toml file.
+        - "*"
+
+  - package-ecosystem: "gomod"
+    directory: "/meta_update_middleware"
+    schedule:
+      interval: "weekly"
+    pull-request-branch-name:
+      separator: "-" # Use "-" instead of "/" in branch names to avoid issues with docker registries
+    assignees:
+      - "gopa-noaa"
+    groups:
+      go-dependencies:
+        patterns:
+        - "*"

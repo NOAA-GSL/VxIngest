@@ -60,6 +60,7 @@ class GribModelBuilderV01(GribBuilder):
         self.cadence = ingest_document["validTimeInterval"]
         self.template = ingest_document["template"]
         self.subset = self.template["subset"]
+        self.land_use_types = None
         # self.do_profiling = True  # set to True to enable build_document profiling
         self.do_profiling = False  # set to True to enable build_document profiling
 
@@ -167,6 +168,8 @@ class GribModelBuilderV01(GribBuilder):
                 "Orography"
             ].values
             surface_values = []
+            if self.ds_translate_item_variables_map["Cloud ceiling"] is None:
+                return None
             ceil_var_values = self.ds_translate_item_variables_map[
                 "Cloud ceiling"
             ].values
@@ -285,6 +288,9 @@ class GribModelBuilderV01(GribBuilder):
             [int]: translated wind speed
         """
         # interpolated value cannot use rounded gridpoints
+        if self.ds_translate_item_variables_map["10 metre U wind component"] is None:
+            return None
+
         values = self.ds_translate_item_variables_map[
             "10 metre U wind component"
         ].values
@@ -335,6 +341,8 @@ class GribModelBuilderV01(GribBuilder):
         Returns:
             [int]: wind direction
         """
+        if self.ds_translate_item_variables_map["10 metre U wind component"] is None:
+            return None
         u_values = self.ds_translate_item_variables_map[
             "10 metre U wind component"
         ].values
@@ -396,6 +404,8 @@ class GribModelBuilderV01(GribBuilder):
         Returns:
             float: wind direction U component
         """
+        if self.ds_translate_item_variables_map["10 metre U wind component"] is None:
+            return None
         u_values = self.ds_translate_item_variables_map[
             "10 metre U wind component"
         ].values
@@ -419,6 +429,8 @@ class GribModelBuilderV01(GribBuilder):
         Returns:
             float: wind direction V component
         """
+        if self.ds_translate_item_variables_map["10 metre V wind component"] is None:
+            return None
         v_values = self.ds_translate_item_variables_map[
             "10 metre V wind component"
         ].values
@@ -442,6 +454,8 @@ class GribModelBuilderV01(GribBuilder):
         Returns:
             float: specific humidity
         """
+        if self.ds_translate_item_variables_map["2 metre specific humidity"] is None:
+            return None
         values = self.ds_translate_item_variables_map[
             "2 metre specific humidity"
         ].values
@@ -462,17 +476,46 @@ class GribModelBuilderV01(GribBuilder):
         Returns:
             string: vegetation_type
         """
+        if self.ds_translate_item_variables_map["Vegetation Type"] is None:
+            return None
         values = self.ds_translate_item_variables_map["Vegetation Type"].values
         vegetation_type = []
+        # I don't know which land_use_type to use i.e. USGS,MODIFIED_IGBP_MODIS_NOAH,NLCD40,USGS-RUC, or MODI-RUC
+        # or which land_use_type_index i.e. "0"
+        land_use_type = "USGS"
+        land_use_type_index = "0"
+        # using lazy initialization get the land use types from the metadata, if not there set them to {}
+        if self.land_use_types is None:
+            try:
+                # get the land use types from the metadata
+                land_use_metadata = (
+                    self.load_spec["collection"]
+                    .get("MD:LAND_USE_TYPES:COMMON:V01")
+                    .content_as[dict]
+                )
+                self.land_use_types = land_use_metadata[land_use_type][
+                    land_use_type_index
+                ]
+            except Exception as _e:
+                logger.error(
+                    "%s handle_vegetation_type: Exception  error: %s",
+                    self.__class__.__name__,
+                    str(_e),
+                )
+                self.land_use_types = {}
         for station in self.domain_stations:
             geo_index = get_geo_index(
                 self.ds_translate_item_variables_map["fcst_valid_epoch"], station["geo"]
             )
             x_gridpoint = station["geo"][geo_index]["x_gridpoint"]
             y_gridpoint = station["geo"][geo_index]["y_gridpoint"]
-            vegetation_type.append(
-                self.interp_grid_box(values, y_gridpoint, x_gridpoint)
+            vegetation_type_USGS_index = str(
+                round(self.interp_grid_box(values, y_gridpoint, x_gridpoint))
             )
+            vegetation_type_str = self.land_use_types.get(
+                vegetation_type_USGS_index, None
+            )
+            vegetation_type.append(vegetation_type_str)
         return vegetation_type
 
     def getName(self, params_dict):

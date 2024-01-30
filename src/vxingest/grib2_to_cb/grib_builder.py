@@ -481,7 +481,7 @@ class GribModelBuilderV01(GribBuilder):
         values = self.ds_translate_item_variables_map["Vegetation Type"].values
         vegetation_type = []
         # I don't know which land_use_type to use i.e. USGS,MODIFIED_IGBP_MODIS_NOAH,NLCD40,USGS-RUC, or MODI-RUC
-        # or which land_use_type_index i.e. "0"
+        # or which land_use_type_index i.e. "0". Jeff said to use these values but we should better understand why.
         land_use_type = "USGS"
         land_use_type_index = "0"
         # using lazy initialization get the land use types from the metadata, if not there set them to {}

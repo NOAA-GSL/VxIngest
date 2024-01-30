@@ -156,12 +156,19 @@ def test_vxingest_get_file_list(tmp_path):
             "url": str(tmp_path / "f_fred_01"),
         }
         vx_ingest.collection.upsert("DF:metar:grib2:HRRR_OPS:f_fred_01", df_record)
+        # make sure the get_file_list is returning the files and ignoring the .prev and .tmp directories
+        Path.mkdir(tmp_path / ".prev")
+        Path.mkdir(tmp_path / ".tmp")
         # order is important to see if the files are getting returned sorted by mtime
         Path(tmp_path / "f_fred_01").touch()
         Path(tmp_path / "f_fred_02").touch()
         Path(tmp_path / "f_fred_04").touch()
         Path(tmp_path / "f_fred_05").touch()
         Path(tmp_path / "f_fred_03").touch()
+        Path(tmp_path / "f_1_fred_01").touch()
+        Path(tmp_path / ".prev_fred").touch()
+        Path(tmp_path / ".prev/prev_fred").touch()
+        Path(tmp_path / ".tmp/tmp_fred").touch()
         Path(tmp_path / "f_1_fred_01").touch()
         Path(tmp_path / "f_2_fred_01").touch()
         Path(tmp_path / "f_3_fred_01").touch()

@@ -137,10 +137,12 @@ def test_umask_value_transform():
 
 @pytest.mark.integration()
 def test_vxingest_get_file_list(tmp_path):
-    """test the vxingest get_file_list"""
+    """test the vxingest get_file_list sorting and filtering"""
     try:
+        pattern = "%y%j%H%f"
         vx_ingest = setup_connection()
         vx_ingest.load_job_id = "test_id"
+        # using a phony document "id": to test the function
         df_record = {
             "dataSourceId": "GSL",
             "fileType": "grib2",
@@ -153,18 +155,21 @@ def test_vxingest_get_file_list(tmp_path):
             "projection": "lambert_conformal_conic",
             "subset": "metar",
             "type": "DF",
-            "url": str(tmp_path / "f_fred_01"),
+            "url": str(tmp_path / "1820013010000"),
         }
         vx_ingest.collection.upsert("DF:metar:grib2:HRRR_OPS:f_fred_01", df_record)
+        # make a ".prev" and a ".tmp" directory to see if they get filtered out
+        Path(tmp_path / ".prev").mkdir()
+        Path(tmp_path / ".tmp").mkdir()
         # order is important to see if the files are getting returned sorted by mtime
-        Path(tmp_path / "f_fred_01").touch()
-        Path(tmp_path / "f_fred_02").touch()
-        Path(tmp_path / "f_fred_04").touch()
-        Path(tmp_path / "f_fred_05").touch()
-        Path(tmp_path / "f_fred_03").touch()
-        Path(tmp_path / "f_1_fred_01").touch()
-        Path(tmp_path / "f_2_fred_01").touch()
-        Path(tmp_path / "f_3_fred_01").touch()
+        Path(tmp_path / "1820013010000").touch()
+        Path(tmp_path / "1820013020000").touch()
+        Path(tmp_path / "1820013040000").touch()
+        Path(tmp_path / "1820013050000").touch()
+        Path(tmp_path / "1820013030000").touch()
+        Path(tmp_path / "1820014010000").touch()
+        Path(tmp_path / "1820015010000").touch()
+        Path(tmp_path / "1820016010000").touch()
         query = f""" SELECT url, mtime
             From `{vx_ingest.cb_credentials['bucket']}`.{vx_ingest.cb_credentials['scope']}.{vx_ingest.cb_credentials['collection']}
             WHERE
@@ -173,15 +178,15 @@ def test_vxingest_get_file_list(tmp_path):
             AND fileType='grib2'
             AND originType='model'
             AND model='HRRR_OPS' order by url;"""
-        # should get f_fred_01 because the mtime in the DF record is old. The file is newer.
-        files = vx_ingest.get_file_list(query, tmp_path, "f_fred_*")
+        # should get 1820013010000 because the mtime in the DF record is old. The file is newer.
+        files = vx_ingest.get_file_list(query, tmp_path, "1820013*", pattern)
         assert set(files) == set(
             [
-                str(tmp_path / "f_fred_01"),
-                str(tmp_path / "f_fred_02"),
-                str(tmp_path / "f_fred_04"),
-                str(tmp_path / "f_fred_05"),
-                str(tmp_path / "f_fred_03"),
+                str(tmp_path / "1820013010000"),
+                str(tmp_path / "1820013020000"),
+                str(tmp_path / "1820013040000"),
+                str(tmp_path / "1820013050000"),
+                str(tmp_path / "1820013030000"),
             ]
         ), "get_file_list 1 wrong list"
         # update the mtime in the df record so that the file will not be included
@@ -192,14 +197,14 @@ def test_vxingest_get_file_list(tmp_path):
         vx_ingest.cluster.query(
             query, QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS)
         )
-        files = vx_ingest.get_file_list(query, tmp_path, "f_fred_*")
+        files = vx_ingest.get_file_list(query, tmp_path, "1820013*", pattern)
         # should not get f_fred_01 because the DF record has a newer mtime
         assert set(files) == set(
             [
-                str(tmp_path / "f_fred_02"),
-                str(tmp_path / "f_fred_04"),
-                str(tmp_path / "f_fred_05"),
-                str(tmp_path / "f_fred_03"),
+                str(tmp_path / "1820013020000"),
+                str(tmp_path / "1820013040000"),
+                str(tmp_path / "1820013050000"),
+                str(tmp_path / "1820013030000"),
             ]
         ), "get_file_list 2 wrong list"
 

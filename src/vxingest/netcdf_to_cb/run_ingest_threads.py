@@ -20,7 +20,7 @@ The job document might look like this...
   "subDocType": "NETCDF",
   "subDoc": "OBS",
   "run_priority": 1,
-  "file_pattern": "%Y%m%d_%H%M",
+  "file_mask": "%Y%m%d_%H%M",
   "schedule": "0 * * * *",
   "offset_minutes": 0,
   "ingest_document_ids": [
@@ -28,27 +28,26 @@ The job document might look like this...
   ]
 }
 The important run time fields are "file_mask" and "ingest_document_ids".
-The file mask is a python time.strftime that specifies what files will
-be chosen based on pattern matching.
+The file mask is a python time.strftime that specifies how the code will
+decipher a file name for time. These file names are derived from the file
+modification time, according to a specific mask.
 The ingest_document_ids specify a list of ingest_document ids that a job
 must process.
 The script maintains a thread pool of VxIngestManagers and a queue of
-filenames that are derived from the path and file_mask.
-If a file_pattern is provided further restrictions, beyond the file_mask match pattern,
-on the selected filenames happen as globbing is used to qualify
-which filenames in the input_path are included for ingesting.
+filenames that are derived from the path and the optional file_pattern parameter.
+If a file_pattern is provided - as a parameter - then globbing will be used to
+determine which which filenames in the input_path are included for ingesting.
+The default file_pattern is "*", which will include all files.
 The number of threads in the thread pool is set to the -t n (or --threads n)
 argument, where n is the number of threads to start. The default is one thread.
-There is a file_pattern argument that allows to specify a filename pattern to which
-all the file_mask matching files in the input directory will be further qualified
-with standard globing. Only matching files will be ingested if this option is used.
 Each thread will run a VxIngestManager which will pull filenames, one at a time,
 from the filename queue and fully process that input file.
 When the queue is empty each NetcdfIngestManager will gracefully die.
 Only files that do not have a DataFile entry in the database will be added to the file queue.
 When a file is processed a datafile entry will be made for that file and added to the result documents to ne imported.
 
-The file_mask  is a python time.strftime format e.g. '%y%j%H%f'.
+The file_mask is a python time.strftime format e.g. '%y%j%H%f'.
+The file_pattern is a file glob string. e.g. '202409*'.
 The optional output_dir specifies the directory where output files will be written instead
 of writing them directly to couchbase. If the output_dir is not specified data will be written
 to couchbase cluster specified in the cb_connection.
@@ -224,7 +223,8 @@ class VXIngest(CommonVxIngest):
             AND fileType='netcdf'
             AND originType='madis' order by url;
             """
-        file_names = self.get_file_list(file_query, self.path, self.file_pattern)
+        # file_pattern is a glob string not a python file match string
+        file_names = self.get_file_list(file_query, self.path, self.file_pattern, self.fmask)
         for _f in file_names:
             _q.put(_f)
 
@@ -234,7 +234,6 @@ class VXIngest(CommonVxIngest):
         ingest_manager_list = []
         for thread_count in range(int(self.thread_count)):
             try:
-                self.load_spec["fmask"] = self.fmask
                 ingest_manager_thread = VxIngestManager(
                     "VxIngestManager-" + str(thread_count),
                     self.load_spec,

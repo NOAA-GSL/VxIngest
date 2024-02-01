@@ -186,7 +186,7 @@ def test_ps_builder_surface_hrrr_ops_all_hrrr():
     global stations
 
     credentials_file = os.environ["CREDENTIALS"]
-    job_id = "JOB-TEST:V01:METAR:SUMS:SURFACE:MODEL:OPS"
+    job_id = "JOB-TEST:V01:METAR:PARTIAL_SUMS:SURFACE:MODEL:OPS"
     outdir = Path("/opt/data/test/partial_sums_to_cb/hrrr_ops/sums/output")
     if not outdir.exists():
         # Create a new directory because it does not exist

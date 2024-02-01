@@ -161,6 +161,8 @@ def test_vxingest_get_file_list(tmp_path):
         # make a ".prev" and a ".tmp" directory to see if they get filtered out
         Path(tmp_path / ".prev").mkdir()
         Path(tmp_path / ".tmp").mkdir()
+        # put a properly formed file (different name) into the .prev directory
+        Path(tmp_path / ".prev/1820017010000").touch()
         # order is important to see if the files are getting returned sorted by mtime
         Path(tmp_path / "1820013010000").touch()
         Path(tmp_path / "1820013020000").touch()

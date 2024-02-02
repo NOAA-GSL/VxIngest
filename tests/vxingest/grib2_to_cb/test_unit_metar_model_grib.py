@@ -114,7 +114,7 @@ def test_vxingest_get_file_list(tmp_path):
     try:
         vx_ingest = setup_connection()
         vx_ingest.load_job_id = "test_id"
-        pattern = '%Y%m%d_%H%M'
+        pattern = "%Y%m%d_%H%M"
         # order is important to see if the files are getting returned sorted by mtime, not name
         Path(tmp_path / "20210920_1701").touch()
         Path(tmp_path / "20210920_1702").touch()

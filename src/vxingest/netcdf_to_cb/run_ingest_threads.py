@@ -224,7 +224,9 @@ class VXIngest(CommonVxIngest):
             AND originType='madis' order by url;
             """
         # file_pattern is a glob string not a python file match string
-        file_names = self.get_file_list(file_query, self.path, self.file_pattern, self.fmask)
+        file_names = self.get_file_list(
+            file_query, self.path, self.file_pattern, self.fmask
+        )
         for _f in file_names:
             _q.put(_f)
 

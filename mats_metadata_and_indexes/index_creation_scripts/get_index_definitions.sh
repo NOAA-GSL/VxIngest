@@ -16,4 +16,4 @@ pwd=`grep cb_password ${credentials_file} | awk '{print $2}'`
 
 cred="${user}:${pwd}"
 
-curl --user ${cred} "http://${host}:8091/indexStatus" | jq -r '.indexes | .[] .definition'
+curl -s --user ${cred} "http://${host}:8091/indexStatus" | jq -r '.indexes | .[] .definition' | grep -v PRIMARY | grep -v SCORECARD | sort -k 3,3 

@@ -172,6 +172,7 @@ def test_vxingest_get_file_list(tmp_path):
         Path(tmp_path / "1820014010000").touch()
         Path(tmp_path / "1820015010000").touch()
         Path(tmp_path / "1820016010000").touch()
+
         query = f""" SELECT url, mtime
             From `{vx_ingest.cb_credentials['bucket']}`.{vx_ingest.cb_credentials['scope']}.{vx_ingest.cb_credentials['collection']}
             WHERE

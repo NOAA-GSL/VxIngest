@@ -869,8 +869,9 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
                             )
                             model_elem["UW"] = wind_components_t[0].magnitude
                             model_elem["VW"] = wind_components_t[1].magnitude
-                    obs_var = obs_elem[variable]
-                    model_var = model_elem[variable]
+                    # If there is no observation or model data for this variable for this station, skip it by setting the value to None
+                    obs_var = obs_elem[variable] if variable in obs_elem else None
+                    model_var = model_elem[variable] if variable in model_elem else None
                     if obs_var is not None and model_var is not None:
                         obs_vals.append(obs_var)
                         model_vals.append(model_var)
@@ -879,12 +880,12 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
                         diff_vals_squared.append(_diff * _diff)
                         abs_diff_vals.append(abs(_diff))
             sum_elem = {
-                "num_recs": len(obs_vals),
-                "sum_obs": sum(obs_vals),
-                "sum_model": sum(model_vals),
-                "sum_diff": sum(diff_vals),
-                "sum2_diff": sum(diff_vals_squared),
-                "sum_abs": sum(abs_diff_vals),
+                "num_recs": len(obs_vals) if obs_vals else None,
+                "sum_obs": sum(obs_vals) if obs_vals else None,
+                "sum_model": sum(model_vals) if model_vals else None,
+                "sum_diff": sum(diff_vals) if diff_vals else None,
+                "sum2_diff": sum(diff_vals_squared) if diff_vals_squared else None,
+                "sum_abs": sum(abs_diff_vals) if abs_diff_vals else None,
             }
             return sum_elem
         except Exception as _e:

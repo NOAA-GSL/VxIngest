@@ -13,13 +13,13 @@ stored in the load_spec. It feels redundant and it is definitelty confusing but 
 threading model.
 """
 
+import datetime as dt
 import json
 import logging
 import os
+import pathlib
 import sys
 import time
-from datetime import timedelta
-from pathlib import Path
 
 # This pyproj import has to remain here in order to enforce the
 # order of loading of the pyproj and cocuhbase libraries.  If ipyproj is loaded after
@@ -79,11 +79,11 @@ class CommonVxIngest:
         write all the documents in the document_map into files in the output_dir
         """
         try:
-            Path(self.output_dir).mkdir(parents=True, exist_ok=True)
+            pathlib.Path(self.output_dir).mkdir(parents=True, exist_ok=True)
             try:
                 file_name = self.load_job_id + ".json"
-                complete_file_name = Path(self.output_dir) / file_name
-                with Path(complete_file_name).open("w", encoding="utf-8") as _f:
+                complete_file_name = pathlib.Path(self.output_dir) / file_name
+                with pathlib.Path(complete_file_name).open("w", encoding="utf-8") as _f:
                     _f.write(json.dumps([self.load_spec["load_job_doc"]]))
             except Exception as _e:
                 logger.info(
@@ -135,7 +135,8 @@ class CommonVxIngest:
 
         try:
             timeout_options = ClusterTimeoutOptions(
-                kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
+                kv_timeout=dt.timedelta(seconds=25),
+                query_timeout=dt.timedelta(seconds=120),
             )
             options = ClusterOptions(
                 PasswordAuthenticator(
@@ -160,7 +161,7 @@ class CommonVxIngest:
                 "*** builder_common.CommonVxIngest Error when connecting to cb database: "
             )
 
-    def get_file_list(self, df_query, directory, file_pattern):
+    def get_file_list(self, df_query, directory, file_pattern, file_mask):
         """This method accepts a file path (directory), a query statement (df_query),
         and a file pattern (file_pattern). It uses the df_query statement to retrieve a
         list of file {url:file_url, mtime:mtime} records from DataFile
@@ -186,12 +187,19 @@ class CommonVxIngest:
             result = self.cluster.query(df_query)
             df_elements = list(result)
             df_full_names = [element["url"] for element in df_elements]
-            if Path(directory).exists() and Path(directory).is_dir():
+            if pathlib.Path(directory).exists() and pathlib.Path(directory).is_dir():
                 file_list = sorted(
-                    Path(directory).glob(file_pattern), key=os.path.getmtime
+                    pathlib.Path(directory).glob(file_pattern), key=os.path.getmtime
                 )
                 for filename in file_list:
                     try:
+                        # test to see if this filename can be parsed into a valid date using the fmask, i.e. it is a valid file name
+                        try:
+                            _d = dt.datetime.strptime(
+                                pathlib.PurePath(filename).name, file_mask
+                            )
+                        except ValueError:
+                            continue
                         # check to see if this file has already been ingested
                         # (if it is not in the df_full_names - add it)
                         if str(filename) not in df_full_names:
@@ -248,13 +256,13 @@ class CommonVxIngest:
         logger.debug("credentials filename is %s", self.credentials_file)
         try:
             # check for existence of file
-            if not Path(self.credentials_file).is_file():
+            if not pathlib.Path(self.credentials_file).is_file():
                 sys.exit(
                     "*** credentials_file file "
                     + self.credentials_file
                     + " can not be found!"
                 )
-            with Path(self.credentials_file).open(encoding="utf-8") as _f:
+            with pathlib.Path(self.credentials_file).open(encoding="utf-8") as _f:
                 _yaml_data = yaml.load(_f, yaml.SafeLoader)
             load_spec["cb_connection"] = {}
             load_spec["cb_connection"]["host"] = _yaml_data["cb_host"]

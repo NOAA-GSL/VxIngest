@@ -114,15 +114,16 @@ def test_vxingest_get_file_list(tmp_path):
     try:
         vx_ingest = setup_connection()
         vx_ingest.load_job_id = "test_id"
-        # order is important to see if the files are getting returned sorted by mtime
-        Path(tmp_path / "f_fred_01").touch()
-        Path(tmp_path / "f_fred_02").touch()
-        Path(tmp_path / "f_fred_04").touch()
-        Path(tmp_path / "f_fred_05").touch()
-        Path(tmp_path / "f_fred_03").touch()
-        Path(tmp_path / "f_1_fred_01").touch()
-        Path(tmp_path / "f_2_fred_01").touch()
-        Path(tmp_path / "f_3_fred_01").touch()
+        pattern = "%Y%m%d_%H%M"
+        # order is important to see if the files are getting returned sorted by mtime, not name
+        Path(tmp_path / "20210920_1701").touch()
+        Path(tmp_path / "20210920_1702").touch()
+        Path(tmp_path / "20210920_1704").touch()
+        Path(tmp_path / "20210920_1705").touch()
+        Path(tmp_path / "20210920_1703").touch()
+        Path(tmp_path / "20210921_1701").touch()
+        Path(tmp_path / "20210922_1701").touch()
+        Path(tmp_path / "20210923_1701").touch()
         query = f""" SELECT url, mtime
             From `{vx_ingest.cb_credentials['bucket']}`.{vx_ingest.cb_credentials['scope']}.{vx_ingest.cb_credentials['collection']}
             WHERE
@@ -131,13 +132,13 @@ def test_vxingest_get_file_list(tmp_path):
             AND fileType='grib2'
             AND originType='model'
             AND model='HRRR_OPS' order by url;"""
-        files = vx_ingest.get_file_list(query, tmp_path, "f_fred_*")
+        files = vx_ingest.get_file_list(query, tmp_path, "20210920_17*", pattern)
         assert True, files == [
-            tmp_path / "f_fred_01",
-            tmp_path / "f_fred_02",
-            tmp_path / "f_fred_04",
-            tmp_path / "f_fred_05",
-            tmp_path / "f_fred_03",
+            tmp_path / "20210920_1701",
+            tmp_path / "20210920_1702",
+            tmp_path / "20210920_1704",
+            tmp_path / "20210920_1705",
+            tmp_path / "20210920_1703",
         ]
     except Exception as _e:
         pytest.fail(f"test_build_load_job_doc Exception failure: {_e}")

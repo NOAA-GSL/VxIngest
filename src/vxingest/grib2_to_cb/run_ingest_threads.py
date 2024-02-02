@@ -21,7 +21,7 @@ The job document might look like this...
   "subDoc": "MODEL",
   "subDocType": "HRRR",
   "run_priority": 2,
-  "file_pattern": "%y%j%H%f",
+  "file_mask": "%y%j%H%f",
   "schedule": "0 * * * *",
   "offset_minutes": 0,
   "ingest_document_ids": [
@@ -29,13 +29,13 @@ The job document might look like this...
   ]
 }
 The important run time fields are "file_mask" and "ingest_document_ids".
-The file mask is a python time.strftime that specifies what files will
-be chosen based on pattern matching.
+The file mask is a python time.strftime that specifies how to interpret the file names with respect to time.
+These file names represent the validTime of the data in the file.
 The ingest_document_ids specify a list of ingest_document ids that a job
 must process.The script maintains a thread pool of VxIngestManagers and a queue of
 filenames that are derived from the path and file_mask.
-If a file_pattern is provided globbing is used to qualify which filenames in the input_path
-are included for ingesting.
+If the optional file_pattern parameter is provided, globbing is used to qualify which filenames in the input_path
+are included for ingesting. The deafult is to include all files in the input_path i.e. "*".
 The number of threads in the thread pool is set to the -t n (or --threads n)
 argument, where n is the number of threads to start. The default is one thread.
 The optional -n number_stations will restrict the processing to n number of stations to limit run time.
@@ -240,7 +240,9 @@ class VXIngest(CommonVxIngest):
             AND originType='{model}'
             order by url;
             """
-        file_names = self.get_file_list(file_query, self.path, self.file_pattern)
+        file_names = self.get_file_list(
+            file_query, self.path, self.file_pattern, self.fmask
+        )
         for _f in file_names:
             _q.put(_f)
 
@@ -250,7 +252,6 @@ class VXIngest(CommonVxIngest):
         ingest_manager_list = []
         for thread_count in range(int(self.thread_count)):
             try:
-                self.load_spec["fmask"] = self.fmask
                 ingest_manager_thread = VxIngestManager(
                     "VxIngestManager-" + str(thread_count),
                     self.load_spec,

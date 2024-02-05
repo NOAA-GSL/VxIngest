@@ -869,9 +869,9 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
                             )
                             model_elem["UW"] = wind_components_t[0].magnitude
                             model_elem["VW"] = wind_components_t[1].magnitude
-                    # If there is no observation or model data for this variable for this station, skip it by setting the value to None
-                    obs_var = obs_elem[variable] if variable in obs_elem else None
-                    model_var = model_elem[variable] if variable in model_elem else None
+                    obs_var = obs_elem.get(variable)
+                    model_var = model_elem.get(variable)
+                    # If there is no observation or model data for this variable for this station, skip it
                     if obs_var is not None and model_var is not None:
                         obs_vals.append(obs_var)
                         model_vals.append(model_var)

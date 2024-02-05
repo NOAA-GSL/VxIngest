@@ -890,9 +890,7 @@ class CTCModelObsBuilderV01(CTCBuilder):
                             correct_negatives = correct_negatives + 1
                     except Exception as _e:
                         logger.exception("unexpected exception:%s", str(_e))
-                data_elem[threshold] = (
-                    data_elem[threshold] if threshold in data_elem else {}
-                )
+                data_elem[threshold] = data_elem.get(threshold, {})
                 data_elem[threshold]["hits"] = hits
                 data_elem[threshold]["false_alarms"] = false_alarms
                 data_elem[threshold]["misses"] = misses

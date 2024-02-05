@@ -41,3 +41,29 @@ markers = [
 [tool.coverage.run]
 branch = true
 source = ["src"]
+
+[tool.ruff]
+# Dirs that contain third party example scripts and other languages
+exclude = [
+    "scripts",
+    "meta_update_middleware",
+]
+output-format="full"
+
+# For a list of available rules, see: https://docs.astral.sh/ruff/rules/
+lint.select = [
+    "E", # pycodestyle errors
+    "W", # pycodestyle warnings
+    "F", # pyflakes
+    "UP", # pyupgrade
+    "I", # isort
+    "PTH", # flake8-use-pathlib
+    "PT", # flake8-pytest-style
+    "B", # bugbear
+    "SIM", # flake8-simplify
+]
+
+lint.ignore = [
+    "E501", # Supress line-too-long warnings: trust the formatter's judgement on this one.
+    "W505", # Supress line-too-long warnings: trust the formatter's judgement on this one.
+]

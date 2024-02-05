@@ -61,6 +61,7 @@ lint.select = [
     "PT", # flake8-pytest-style
     "B", # bugbear
     "SIM", # flake8-simplify
+    "LOG", # flake8-logging
 ]
 
 lint.ignore = [

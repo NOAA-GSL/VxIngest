@@ -118,11 +118,13 @@ if [[ ! -d "${t_dir}" ]]; then
   usage
 fi
 ls -1 ${load_dir}/*.gz | while read f; do
+  subdir=$(tar --exclude=*/* -tzf ${f})
   echo "processing the tar file ${f}"
+  data_dir="${t_dir}/${subdir}"
   echo "extracting tarball ${f} to temp_dir ${t_dir}"
-  echo "tar -xzf ${f} -C ${t_dir} --strip-components 1"
-  # NOTE: the archives are tar'd into a subdirectory so strip-components 1
-  tar -xzf "${f}" -C "${t_dir}" --strip-components 1
+  echo "tar -xzf ${f} -C ${t_dir}"
+  # NOTE: the archives are tar'd into a subdirectory so data_dir is t_dir/sub_dir
+  tar -xzf "${f}" -C "${t_dir}"
   if [[ $? != 0 ]]; then
     echo "ERROR: tarball ${f} failed to extract"
     base_f=$(basename $f)
@@ -133,14 +135,14 @@ ls -1 ${load_dir}/*.gz | while read f; do
     cp $f "${archive_dir}/failed-extract-${base_f}"
     echo rm -rf $f
     rm -rf $f
-    echo "removing temp_dir files ${t_dir}/*"
-    rm -rf ${t_dir}/*
+    echo "removing temp_dir files ${data_dir}/*"
+    rm -rf ${data_dir}
     continue  # go to the next tar file
   fi
   echo "finished extracting tarball ${f} to ${t_dir}"
-  log_file_count=`ls -1 ${t_dir}/*.log | wc -l`
+  log_file_count=`ls -1 ${data_dir}/*.log | wc -l`
   if [[ ${log_file_count} -ne 1 ]]; then
-    echo "There is not just one log_file in ${t_dir} - extracted from ${f} - there are ${log_file_count}"
+    echo "There is not just one log_file in ${data_dir} - extracted from ${f} - there are ${log_file_count}"
     base_f=$(basename $f)
     echo "moving tar file ${f} to ${archive_dir}/failred-too-many-log-files-${base_f}"
     echo " - exiting"
@@ -150,12 +152,12 @@ ls -1 ${load_dir}/*.gz | while read f; do
     cp $f "${archive_dir}/failed-too-many-log-files-${base_f}"
     echo rm -rf $f
     rm -rf $f
-    echo "removing temp_dir ${t_dir}"
-    rm -rf ${t_dir}
+    echo "removing temp_dir ${data_dir}"
+    rm -rf ${data_dir}
     usage
   fi
   # ok - have one log file
-  log_file=`ls -1 ${t_dir}/*.log`
+  log_file=`ls -1 ${data_dir}/*.log`
   echo "processing log_file ${log_file}"
   log_dir=$(dirname ${log_file})
   log_file_name=$(basename $log_file)
@@ -167,8 +169,8 @@ ls -1 ${load_dir}/*.gz | while read f; do
   import_metric_name="import_${metric_name}"
   echo "import metric name will be ${import_metric_name}"
   echo "metric_name ${import_metric_name}" > ${import_log_file}
-  echo "RUNNING - scripts/VXingest_utilities/import_docs.sh -c ${credentials_file} -p ${t_dir} -n 6 -l logs >> ${import_log_file}"
-  scripts/VXingest_utilities/import_docs.sh -c ${credentials_file} -p ${t_dir} -n $(nproc) -l logs 2>&1 >> ${import_log_file}
+  echo "RUNNING - scripts/VXingest_utilities/import_docs.sh -c ${credentials_file} -p ${data_dir} -n 6 -l logs >> ${import_log_file}"
+  scripts/VXingest_utilities/import_docs.sh -c ${credentials_file} -p ${data_dir} -n $(nproc) -l logs 2>&1 >> ${import_log_file}
   exit_code=$?
   wait
   echo "exit_code:${exit_code}" >> ${import_log_file}
@@ -233,8 +235,8 @@ ls -1 ${load_dir}/*.gz | while read f; do
   if [[ ${ret} != 0 ]]; then
     echo "ERROR: failed to move import log file ${import_log_file} to ${dirname_log_file}/archive ret: ${ret}"
   fi
-  echo "removing temp_dir files ${t_dir}/*"
-  rm -rf ${t_dir}/*
+  echo "removing temp_dir files ${data_dir}/*"
+  rm -rf ${data_dir}/*
   echo "--------"
 done
 # remove the data dir ($t_dir)

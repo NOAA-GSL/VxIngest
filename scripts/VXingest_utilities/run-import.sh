@@ -120,7 +120,7 @@ fi
 ls -1 ${load_dir}/*.gz | while read f; do
   echo "processing the tar file ${f}"
   echo "extracting tarball ${f} to temp_dir ${t_dir}"
-  echo "tar -xzf ${f} -C ${t_dir}"
+  echo "tar -xzf ${f} -C ${t_dir} --strip-components 1"
   # NOTE: the archives are tar'd into a subdirectory so strip-components 1
   tar -xzf "${f}" -C "${t_dir}" --strip-components 1
   if [[ $? != 0 ]]; then

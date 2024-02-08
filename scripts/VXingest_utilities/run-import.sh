@@ -160,8 +160,9 @@ ls -1 ${load_dir}/*.gz | while read f; do
   log_file=`ls -1 ${data_dir}/*.log`
   echo "processing log_file ${log_file}"
   log_dir=$(dirname ${log_file})
+  mkdir -p ${log_dir}
   log_file_name=$(basename $log_file)
-  import_log_file="${log_dir}/import-${log_file_name}"
+  import_log_file="${log_dir}import-${log_file_name}"
   echo "import log file will be: ${import_log_file}"
   # run the import job
   metric_name=$(grep metric_name ${log_file} | awk '{print $6}') # Grab the desired column from the python log format
@@ -169,11 +170,12 @@ ls -1 ${load_dir}/*.gz | while read f; do
   import_metric_name="import_${metric_name}"
   echo "import metric name will be ${import_metric_name}"
   echo "metric_name ${import_metric_name}" > ${import_log_file}
-  echo "RUNNING - scripts/VXingest_utilities/import_docs.sh -c ${credentials_file} -p ${data_dir} -n 6 -l logs >> ${import_log_file}"
-  scripts/VXingest_utilities/import_docs.sh -c ${credentials_file} -p ${data_dir} -n $(nproc) -l logs 2>&1 >> ${import_log_file}
-  exit_code=$?
-  wait
-  echo "exit_code:${exit_code}" >> ${import_log_file}
+  number_of_cpus=$(nproc)
+  
+  for json_f in ${data_dir}/*.json; do
+    fname=$(basename ${json_f})
+    ${HOME}/cbtools/bin/cbimport json --threads ${number_of_cpus} --cluster couchbase://${cb_host} --bucket ${bucket}  --scope-collection-exp ${scope}.${collection} --username ${cb_user} --password ${cb_pwd} --format list --generate-key %id% --dataset file:///${json_f}
+  done
   if [[ "${exit_code}" -ne "0" ]]; then
     echo "import failed for $f exit_code:${exit_code}"
     failed_import_count=$((failed_import_count+1))

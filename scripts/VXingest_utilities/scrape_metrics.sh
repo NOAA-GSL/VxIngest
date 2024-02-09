@@ -1,22 +1,30 @@
 #!/usr/bin/env bash
 
+# NOTE: This script uses date -d which is a GNU date option that is unavailable on Mac OS X.
+# This script will not work on Mac OS X unless you install GNU date (gdate)
+# and alias the date command to gdate in your profile
+# brew install coreutils
+# alias date="gdate".
+
+# set the timezone to UTC0 so that the date command will return the correct epoch time
+export TZ="UTC0"
 
 function is_epoch_rational {
     if [ -z "$1" ]; then
         echo "is_epoch_rational: ERROR: no epoch specified"
         usage
     fi
-
-    if [ $1 -lt $(($(date +%s)-3600*24)) ]; then
-        echo "is_epoch_rational: ERROR: irrational epoch - prior to yesterday at this time"
+    current=$(date +"%s")
+    if [ $1 -lt $((${current}-3600*24)) ]; then
+        echo "is_epoch_rational: ERROR: irrational epoch - $1 is prior to yesterday at this time ($((${current}-3600*24)))"
         usage
     fi
 
-    if [ $1 -gt $(date +%s) ]; then
-        echo "is_epoch_rational: ERROR: irrational epoch - beyond current time"
+    if [ $1 -gt ${current} ]; then
+        echo "is_epoch_rational: ERROR: irrational epoch - $1 is beyond current time ${current}"
         usage
     fi
-return 0
+    return 0
 }
 
 function derive_pattern_from_ids {
@@ -55,7 +63,7 @@ function get_record_count_from_log(){
 }
 
 function usage {
-  echo "Usage $0 -c credentials-file -i import_log_file -l log_file -d textfile directory"
+  echo "Usage $0 -c credentials-file -b begin_epoch -e end_epoch -l log_file -d textfile directory"
   echo "The credentials-file specifies cb_host, cb_user, and cb_password."
   echo "Metrics will be written into the textfile directory (-d)"
   echo "The scrape_metrics.sh script scans the log_file for the intended_record_count, and any errors,"
@@ -63,7 +71,7 @@ function usage {
   exit 1
 }
 
-while getopts 'c:l:i:d:' param; do
+while getopts 'c:l:b:e:d:' param; do
   case "${param}" in
   c)
     credentials_file=${OPTARG}
@@ -90,12 +98,14 @@ while getopts 'c:l:i:d:' param; do
       usage
     fi
     ;;
-  i)
-    import_log_file=${OPTARG}
-    if [[ ! -f "${import_log_file}" ]]; then
-      echo "ERROR: import log file ${import_log_file} does not exist"
-      usage
-    fi
+  b)
+    start_import_epoch=${OPTARG}
+    ;;
+  e)
+    finish_import_epoch=${OPTARG}
+    # the cas meta field in couchbase is going to reflect the time that a document was imported, not when it was created.
+    # so add 60 seconds for latency
+    finish_import_epoch=$((finish_import_epoch + 60))
     ;;
   d)
     textfile_dir=${OPTARG}
@@ -139,12 +149,6 @@ expected_duration_seconds=0
 actual_duration_seconds=$((finish_epoch - start_epoch))
 error_count=${error_count}
 
-# the cas meta field in couchbase is going to reflect the time that a document was imported, not when it was created.
-# We need to get the start and stop epochs from the corresponding import log
-start_import_epoch=$(grep Start ${import_log_file} | awk '{print $2}')
-finish_import_epoch=$(grep Stop ${import_log_file} | awk '{print $2}')
-# add 60 seconds for latency?
-finish_import_epoch=$((finish_import_epoch + 60))
 intended_record_count=$(get_record_count_from_log "${log_file}")
 # NOTE: curl URL's don't like '%' or ';' characters. replace them with '%25' and '%3B' respectively (you can leave the ';' at the end of the statement off, actually)
 echo "start_import_epoch is ${start_import_epoch}"

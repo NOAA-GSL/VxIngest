@@ -124,7 +124,7 @@ function import_archive {
   stop_epoch=$(date +%s)
   # run the scraper
   sleep 2 # eventually consistent data - give it a little time
-  echo "RUNNING - scripts/VXingest_utilities/scrape_metrics.sh -c ${credentials_file} -i ${import_log_file} -l ${log_file} -d ${metrics_dir}"
+  echo "RUNNING - scripts/VXingest_utilities/scrape_metrics.sh -c ${credentials_file} -b ${start_epoch} -e ${stop_epoch} -l ${log_file} -d ${metrics_dir}"
   scripts/VXingest_utilities/scrape_metrics.sh -c ${credentials_file} -b ${start_epoch} -e ${stop_epoch} -l ${log_file} -d ${metrics_dir}
   exit_code=$?
   if [[ "${exit_code}" -ne "0" ]]; then
@@ -234,7 +234,6 @@ ls -1 ${load_dir}/*.gz | while read f; do
 done
 
 # update metadata
-echo "*************************************"
 if [[ "${success_import_count}" -ne "0" ]]; then
   echo "update metadata import success count: ${success_import_count}"
   LOCKDIR="/data/import_lock"
@@ -269,10 +268,7 @@ if [[ "${success_import_count}" -ne "0" ]]; then
       echo "IMPORT ERROR: Could not remove import lock dir" >&2
     fi
   fi
-else
-  echo "no new data to import - import success count: ${success_import_count}"
 fi
-echo "capture metrics"
 end=$(date +%s)
 m_file=$(mktemp)
 echo "run_import_duration $((end - start))" >${m_file}
@@ -281,5 +277,4 @@ echo "run_import_failure_count ${failed_import_count}" >>${m_file}
 echo "run_scrape_success_count ${success_scrape_count}" >>${m_file}
 echo "run_scrape_failure_count ${failed_scrape_count}" >>${m_file}
 mv ${m_file} "${metrics_dir}/run_import_metrics.prom"
-echo "FINISHED"
 exit 0

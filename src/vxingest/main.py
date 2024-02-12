@@ -371,8 +371,7 @@ def process_jobs(
         )
         f_handler = add_logfile(ql, logpath)
 
-        hostname = os.uname().nodename.split(".")[0]
-        metric_name = f"{name}_{hostname}"
+        metric_name = f"{name}"
         logger.info(f"metric_name {metric_name}")
 
         # create an output directory with the time this job was started.

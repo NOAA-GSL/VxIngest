@@ -21,8 +21,7 @@ from pathlib import Path
 import pyproj  # noqa: F401
 from couchbase.auth import PasswordAuthenticator
 from couchbase.cluster import Cluster
-from couchbase.exceptions import TimeoutException
-from couchbase.exceptions import CouchbaseException
+from couchbase.exceptions import CouchbaseException, TimeoutException
 from couchbase.options import ClusterOptions, ClusterTimeoutOptions
 
 logger = logging.getLogger(__name__)
@@ -125,7 +124,9 @@ class CommonVxIngestManager(Process):
                     time.sleep(5)
                     _attempts = _attempts + 1
             if _attempts == 3:
-                raise _e
+                raise CouchbaseException(
+                    "Could not connect to couchbase after 3 attempts"
+                )
             self.collection = self.cluster.bucket(
                 self.cb_credentials["bucket"]
             ).collection(self.cb_credentials["collection"])

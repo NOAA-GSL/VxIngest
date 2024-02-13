@@ -48,7 +48,8 @@ exclude = [
     "scripts",
     "meta_update_middleware",
 ]
-output-format="full"
+output-format="pylint"
+
 
 # For a list of available rules, see: https://docs.astral.sh/ruff/rules/
 lint.select = [

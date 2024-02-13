@@ -22,6 +22,7 @@ import pyproj  # noqa: F401
 from couchbase.auth import PasswordAuthenticator
 from couchbase.cluster import Cluster
 from couchbase.exceptions import TimeoutException
+from couchbase.exceptions import CouchbaseException
 from couchbase.options import ClusterOptions, ClusterTimeoutOptions
 
 logger = logging.getLogger(__name__)
@@ -114,9 +115,17 @@ class CommonVxIngestManager(Process):
                 ),
                 timeout_options=timeout_options,
             )
-            self.cluster = Cluster(
-                "couchbase://" + self.cb_credentials["host"], options
-            )
+            _attempts = 0
+            while _attempts < 3:
+                try:
+                    self.cluster = Cluster(
+                        "couchbase://" + self.cb_credentials["host"], options
+                    )
+                except CouchbaseException as _e:
+                    time.sleep(5)
+                    _attempts = _attempts + 1
+            if _attempts == 3:
+                raise _e
             self.collection = self.cluster.bucket(
                 self.cb_credentials["bucket"]
             ).collection(self.cb_credentials["collection"])

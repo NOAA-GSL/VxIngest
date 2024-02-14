@@ -31,6 +31,7 @@ import pyproj  # noqa: F401
 import yaml
 from couchbase.auth import PasswordAuthenticator
 from couchbase.cluster import Cluster
+from couchbase.exceptions import CouchbaseException
 from couchbase.options import ClusterOptions, ClusterTimeoutOptions
 
 # Get a logger with this module's name to help with debugging
@@ -144,9 +145,20 @@ class CommonVxIngest:
                 ),
                 timeout_options=timeout_options,
             )
-            self.cluster = Cluster(
-                "couchbase://" + self.cb_credentials["host"], options
-            )
+            _attempts = 0
+            while _attempts < 3:
+                try:
+                    self.cluster = Cluster(
+                        "couchbase://" + self.cb_credentials["host"], options
+                    )
+                    break
+                except CouchbaseException as _e:
+                    time.sleep(5)
+                    _attempts = _attempts + 1
+            if _attempts == 3:
+                raise CouchbaseException(
+                    "Could not connect to couchbase after 3 attempts"
+                )
             self.collection = self.cluster.bucket(
                 self.cb_credentials["bucket"]
             ).collection(self.cb_credentials["collection"])

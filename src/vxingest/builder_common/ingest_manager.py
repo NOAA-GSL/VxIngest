@@ -106,7 +106,8 @@ class CommonVxIngestManager(Process):
 
         try:
             timeout_options = ClusterTimeoutOptions(
-                kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
+                kv_timeout=timedelta(seconds=25),
+                query_timeout=timedelta(seconds=120),
             )
             options = ClusterOptions(
                 PasswordAuthenticator(

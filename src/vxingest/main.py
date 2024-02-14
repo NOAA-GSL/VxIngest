@@ -7,6 +7,7 @@ import os
 import shutil
 import sys
 import tarfile
+import time
 from datetime import datetime, timedelta
 from multiprocessing import Queue, set_start_method
 from pathlib import Path
@@ -285,10 +286,21 @@ def connect_cb(creds: dict[str, str]) -> Cluster:
     # Get a reference to our cluster
     # NOTE: For TLS/SSL connection use 'couchbases://<your-ip-address>' instead
     logger.info(f"Connecting to Couchbase at: {creds['cb_host']}")
-    cluster = Cluster(
-        f"couchbase://{creds['cb_host']}",
-        ClusterOptions(auth, timeout_options=timeout_config),  # type: ignore
-    )
+    _attempts = 0
+    while _attempts < 3:
+        try:
+            cluster = Cluster(
+                f"couchbase://{creds['cb_host']}",
+                ClusterOptions(auth, timeout_options=timeout_config),  # type: ignore
+            )
+            break
+        except CouchbaseException as _e:
+            time.sleep(5)
+            _attempts = _attempts + 1
+    if _attempts == 3:
+        raise CouchbaseException(
+            "Could not connect to couchbase after 3 attempts"
+        )
 
     # Wait until the cluster is ready for use.
     cluster.wait_until_ready(timedelta(seconds=5))

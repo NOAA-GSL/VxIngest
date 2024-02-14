@@ -298,9 +298,7 @@ def connect_cb(creds: dict[str, str]) -> Cluster:
             time.sleep(5)
             _attempts = _attempts + 1
     if _attempts == 3:
-        raise CouchbaseException(
-            "Could not connect to couchbase after 3 attempts"
-        )
+        raise CouchbaseException("Could not connect to couchbase after 3 attempts")
 
     # Wait until the cluster is ready for use.
     cluster.wait_until_ready(timedelta(seconds=5))

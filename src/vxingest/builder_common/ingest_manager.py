@@ -120,6 +120,7 @@ class CommonVxIngestManager(Process):
                     self.cluster = Cluster(
                         "couchbase://" + self.cb_credentials["host"], options
                     )
+                    break
                 except CouchbaseException as _e:
                     time.sleep(5)
                     _attempts = _attempts + 1

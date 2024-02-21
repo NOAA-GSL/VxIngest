@@ -233,8 +233,9 @@ ls -1 ${load_dir}/*.gz | while read f; do
   fi
 done
 
-# update metadata
-if [[ "${success_import_count}" -ne "0" ]]; then
+# update metadata  - currently disabled
+update_metadata_enabled="false"
+if [ ${update_metadata_enabled} == "true" ] && [ "${success_import_count}" -ne "0" ]; then
   echo "update metadata import success count: ${success_import_count}"
   LOCKDIR="/data/import_lock"
   #if LOCKDIR is > 48 * 3600 seconds old, remove it

@@ -192,14 +192,10 @@ class VXIngest(CommonVxIngest):
             self.cb_credentials = self.get_credentials(self.load_spec)
             # establish connections to cb, collection
             self.connect_cb()
-            bucket = self.load_spec["cb_connection"]["bucket"]
-            scope = self.load_spec["cb_connection"]["scope"]
-            collection = self.load_spec["cb_connection"]["collection"]
-
             # load the ingest document ids into the load_spec (this might be redundant)
-            stmnt = f'Select ingest_document_ids from `{bucket}`.{scope}.{collection} where meta().id = "{self.job_document_id}"'
-            result = self.cluster.query(stmnt)
-            self.load_spec["ingest_document_ids"] = list(result)[0][
+            ingest_document_result = self.collection.get(self.job_document_id)
+            ingest_document = ingest_document_result.content_as[dict]
+            self.load_spec["ingest_document_ids"] = ingest_document[
                 "ingest_document_ids"
             ]
             # put all the ingest documents into the load_spec too

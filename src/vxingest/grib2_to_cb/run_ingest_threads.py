@@ -188,11 +188,12 @@ class VXIngest(CommonVxIngest):
             # establish connections to cb, collection
             self.connect_cb()
             # load the ingest document ids into the load_spec (this might be redundant)
-            stmnt = f"Select ingest_document_ids from `{self.cb_credentials['bucket']}`.{self.cb_credentials['scope']}.{self.cb_credentials['collection']} where meta().id = \"{self.job_document_id}\""
-            result = self.cluster.query(stmnt)
-            self.load_spec["ingest_document_ids"] = list(result)[0][
+            ingest_document_result = self.collection.get(self.job_document_id)
+            ingest_document = ingest_document_result.content_as[dict]
+            self.load_spec["ingest_document_ids"] = ingest_document[
                 "ingest_document_ids"
             ]
+
             # put all the ingest documents into the load_spec too
             self.load_spec["ingest_documents"] = {}
             for _id in self.load_spec["ingest_document_ids"]:
@@ -200,11 +201,8 @@ class VXIngest(CommonVxIngest):
                     _id
                 ).content_as[dict]
             # load the fmask and input_data_path into the load_spec
-            stmnt = f"Select file_mask, input_data_path from `{self.cb_credentials['bucket']}`.{self.cb_credentials['scope']}.{self.cb_credentials['collection']} where meta().id = \"{self.job_document_id}\""
-            result = self.cluster.query(stmnt)
-            result_list = list(result)
-            self.fmask = result_list[0]["file_mask"]
-            self.path = result_list[0]["input_data_path"]
+            self.fmask = ingest_document["file_mask"]
+            self.path = ingest_document["input_data_path"]
             self.load_spec["fmask"] = self.fmask
             self.load_spec["input_data_path"] = self.path
             # stash the load_job in the load_spec

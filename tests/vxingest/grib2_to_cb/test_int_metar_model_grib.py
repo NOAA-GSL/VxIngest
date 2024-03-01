@@ -54,9 +54,7 @@ def connect_cb():
             PasswordAuthenticator(cb_connection["user"], cb_connection["password"]),
             timeout_options=timeout_options,
         )
-        cb_connection["cluster"] = Cluster(
-            "couchbase://" + cb_connection["host"], options
-        )
+        cb_connection["cluster"] = Cluster(cb_connection["host"], options)
         cb_connection["collection"] = (
             cb_connection["cluster"]
             .bucket(cb_connection["bucket"])

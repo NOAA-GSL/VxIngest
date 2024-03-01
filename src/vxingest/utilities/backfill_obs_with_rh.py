@@ -40,7 +40,7 @@ def setup_connection():
         )
         options = ClusterOptions(PasswordAuthenticator(_user, _password))
         connection = {}
-        connection["cluster"] = Cluster("couchbase://" + _host, options)
+        connection["cluster"] = Cluster(_host, options)
         connection["bucket"] = connection["cluster"].bucket(_bucket)
         connection["scope"] = connection["bucket"].scope(_scope)
         connection["collection"] = connection["scope"].collection(_collection)

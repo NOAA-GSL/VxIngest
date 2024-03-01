@@ -3,11 +3,11 @@
 .fleet/
 .vscode/
 .history/
-
 # Mac
 .DS_Store
 
 # Project-specific
+.env*
 [Ll]ogs/
 test_venv/
 grib2_to_cb_test/test/2119312000003

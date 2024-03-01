@@ -101,9 +101,7 @@ class LoadBackupIngestDocs:
                     self.cb_credentials["user"], self.cb_credentials["password"]
                 )
             )
-            self.cluster = Cluster(
-                "couchbase://" + self.cb_credentials["host"], options
-            )
+            self.cluster = Cluster(self.cb_credentials["host"], options)
             self.collection = self.cluster.bucket("mdata").default_collection()
         except Exception as e:
             print(f"*** Error in connect_cb *** {e}")

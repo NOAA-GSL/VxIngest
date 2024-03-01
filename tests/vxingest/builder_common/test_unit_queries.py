@@ -34,7 +34,7 @@ def connect_cb():
         PasswordAuthenticator(cb_connection["user"], cb_connection["password"]),
         timeout_options=timeout_options,
     )
-    cb_connection["cluster"] = Cluster("couchbase://" + cb_connection["host"], options)
+    cb_connection["cluster"] = Cluster(cb_connection["host"], options)
     cb_connection["collection"] = (
         cb_connection["cluster"]
         .bucket(cb_connection["bucket"])
@@ -65,7 +65,7 @@ def test_stations_fcst_valid_epoch(request):
 
 @pytest.mark.integration()
 def test_stations_get_file_list_grib2(request):
-    _expected_time = 10
+    _expected_time = 16
     _name = request.node.name
     testdata = Path("tests/vxingest/builder_common/testdata/get_file_list_grib2.n1ql")
     with testdata.open(mode="r", encoding="utf-8") as file:

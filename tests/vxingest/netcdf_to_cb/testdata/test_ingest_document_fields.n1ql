@@ -1,4 +1,4 @@
 Select file_mask,
     input_data_path
 from `vxdata`._default.METAR
-where meta().id = "MD:V01:METAR:obs:ingest:netcdf";
+USE KEYS ["MD:V01:METAR:obs:ingest:netcdf"];

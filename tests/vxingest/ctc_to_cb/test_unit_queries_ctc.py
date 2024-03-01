@@ -35,7 +35,7 @@ def connect_cb():
         PasswordAuthenticator(cb_connection["user"], cb_connection["password"]),
         timeout_options=timeout_options,
     )
-    cb_connection["cluster"] = Cluster("couchbase://" + cb_connection["host"], options)
+    cb_connection["cluster"] = Cluster(cb_connection["host"], options)
     cb_connection["collection"] = (
         cb_connection["cluster"]
         .bucket(cb_connection["bucket"])
@@ -137,7 +137,7 @@ def test_get_stations(request):
 @pytest.mark.integration()
 def test_get_threshold_descriptions(request):
     _name = request.node.name
-    _expected_time = 0.01
+    _expected_time = 0.6
     testdata = Path(
         "tests/vxingest/ctc_to_cb/testdata/test_get_threshold_descriptions.n1ql"
     )

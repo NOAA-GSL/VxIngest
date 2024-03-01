@@ -58,9 +58,9 @@ def test_check_fcst_valid_epoch_fcst_valid_iso():
     options = ClusterOptions(
         PasswordAuthenticator(_user, _password), timeout_options=timeout_options
     )
-    cluster = Cluster("couchbase://" + _host, options)
+    cluster = Cluster(_host, options)
     options = ClusterOptions(PasswordAuthenticator(_user, _password))
-    cluster = Cluster("couchbase://" + _host, options)
+    cluster = Cluster(_host, options)
     stmnt = f"""SELECT m0.fcstValidEpoch fve, fcstValidISO fvi
         FROM `{_bucket}`.{_scope}.{_collection} m0
         WHERE
@@ -105,7 +105,7 @@ def test_get_stations_geo_search():
     options = ClusterOptions(
         PasswordAuthenticator(_user, _password), timeout_options=timeout_options
     )
-    cluster = Cluster("couchbase://" + _host, options)
+    cluster = Cluster(_host, options)
     collection = cluster.bucket(_bucket).scope(_scope).collection(_collection)
     load_spec = {}
     load_spec["cluster"] = cluster
@@ -273,7 +273,7 @@ def test_ps_surface_data_hrrr_ops_all_hrrr():
     options = ClusterOptions(
         PasswordAuthenticator(_user, _password), timeout_options=timeout_options
     )
-    cluster = Cluster("couchbase://" + _host, options)
+    cluster = Cluster(_host, options)
     # get available fcstValidEpochs for couchbase
 
     result = cluster.query(

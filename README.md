@@ -46,6 +46,8 @@ cb_scope: "_default"
 cb_collection: "METAR"
 ```
 
+The cb_host file requires a protocol. For example ... "couchbase://adb-cb1.gsd.esrl.noaa.gov" - because adb-cb1... is a single node cluster. For adb-cb2 (which is one node of a multinode cluster) it would be "couchbases://adb-cb2.gsd.esrl.noaa.gov". Any of the nodes would suffice.
+
 Once that's in place, you can run the ingest with Docker Compose like the example below. Note the `public` and `data` env variables respectively point to where the input data resides and where you'd like the container to write out to. They are the only part of the command you would need to modify.
 
 ```bash

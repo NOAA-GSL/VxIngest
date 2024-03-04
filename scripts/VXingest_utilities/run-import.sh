@@ -101,7 +101,7 @@ function import_archive {
 
   for json_f in ${data_dir}/*.json; do
     fname=$(basename ${json_f})
-    ${HOME}/cbtools/bin/cbimport json --threads ${number_of_cpus} --cluster couchbase://${cb_host} --bucket ${bucket} --scope-collection-exp ${scope}.${collection} --username ${cb_user} --password ${cb_pwd} --format list --generate-key %id% --dataset file:///${json_f}
+    ${HOME}/cbtools/bin/cbimport json --threads ${number_of_cpus} --cluster ${cb_host} --bucket ${bucket} --scope-collection-exp ${scope}.${collection} --username ${cb_user} --password ${cb_pwd} --format list --generate-key %id% --dataset file:///${json_f}
   done
   if [[ "${exit_code}" -ne "0" ]]; then
     echo "import failed for $f exit_code:${exit_code}"

@@ -288,7 +288,7 @@ def connect_cb(creds: dict[str, str]) -> Cluster:
     while _attempts < 3:
         try:
             cluster = Cluster(
-                f"couchbase://{creds['cb_host']}",
+                f"{creds['cb_host']}",
                 ClusterOptions(auth, timeout_options=timeout_config),  # type: ignore
             )
             break

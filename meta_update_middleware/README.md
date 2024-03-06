@@ -25,7 +25,7 @@ will look for and use ~/credentials
 
 meta-update picks up Couchbase conection information from this file, example below
 Please note that the cb_user and cb_password values should be replaced with actual values
-cb_host: adb-cb1.gsd.esrl.noaa.gov
+cb_host: couchbase://adb-cb1.gsd.esrl.noaa.gov
 cb_user: ***
 cb_password: ***
 cb_bucket: vxdata
@@ -39,7 +39,8 @@ settings.json
 Defines each app and its docType and subDocTypeß
 
 ## updating the metadata
-## cd VxIngest/meta_update_middleware
+## cd /home/amb-verif/VxIngest/meta_update_middleware
+go build .
 ## to update meta-data using ~/credentials, ./settings.json for all apps
 go run .
 ## to update meta-data with specific credentials,settings and/or for a specific app (ceiling)
@@ -48,11 +49,11 @@ go run . -c ~/credentials -s ./settings.json -a ceiling
 
 ## contab (add the following lines to amb-verif contab on adb-cb1)
 # run new matadata update (for Couchbase) for ceiling
-0 4 * * * cd /home/amb-verif/VxIngest-gopa/meta_update_middleware; ./meta-update -c /home/amb-verif/credentials -s ./settings.json -a ceiling > /home/amb-verif/logs/cron-metadata-update-ceiling-`date +\%s`.out 2>&1
+0 4 * * * cd /home/amb-verif/VxIngest/meta_update_middleware; ./meta-update -c /home/amb-verif/credentials -s ./settings.json -a ceiling > /home/amb-verif/logs/cron-metadata-update-ceiling-`date +\%s`.out 2>&1
 
 # run new matadata update (for Couchbase) for visibility
-0 5 * * * cd /home/amb-verif/VxIngest-gopa/meta_update_middleware; ./meta-update -c /home/amb-verif/credentials -s ./settings.json -a visibility > /home/amb-verif/logs/cron-metadata-update-visibility-`date +\%s`.out 2>&1
+0 5 * * * cd /home/amb-verif/VxIngest/meta_update_middleware; ./meta-update -c /home/amb-verif/credentials -s ./settings.json -a visibility > /home/amb-verif/logs/cron-metadata-update-visibility-`date +\%s`.out 2>&1
 
 # run new matadata update (for Couchbase) for surface
-0 6 * * * cd /home/amb-verif/VxIngest-gopa/meta_update_middleware; ./meta-update -c /home/amb-verif/credentials -s ./settings.json -a surface > /home/amb-verif/logs/cron-metadata-update-surface-`date +\%s`.out 2>&1
+0 6 * * * cd /home/amb-verif/VxIngest/meta_update_middleware; ./meta-update -c /home/amb-verif/credentials -s ./settings.json -a surface > /home/amb-verif/logs/cron-metadata-update-surface-`date +\%s`.out 2>&1
 

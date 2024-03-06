@@ -39,7 +39,7 @@ func getDbConnection(cred Credentials) (conn CbConnection) {
 		},
 	}
 
-	cluster, err := gocb.Connect("couchbase://"+connectionString, options)
+	cluster, err := gocb.Connect(connectionString, options)
 	if err != nil {
 		log.Fatal(err)
 		return

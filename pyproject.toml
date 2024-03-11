@@ -14,16 +14,16 @@ pyyaml = "^6.0.1"
 xarray = "^2024.2.0"
 netcdf4 = "^1.6.5"
 cfgrib = "^0.9.10.4"
-couchbase = "^4.1.11"
+couchbase = "^4.1.12"
 pyproj = "^3.6.1"
 numpy = "^1.26.4"
 metpy = "^1.5.1"
 prometheus-client = "^0.20.0"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.0.2"
+pytest = "^8.1.1"
 types-pyyaml = "^6.0.12.12"
-ruff = "^0.2.2"
+ruff = "^0.3.2"
 coverage = "^7.4.3"
 
 [build-system]

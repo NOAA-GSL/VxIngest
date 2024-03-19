@@ -1,26 +1,25 @@
-""" "
-integration tests for netcdf
-This test derives a METAR observation from a netcdf file and then compares the derived
-observation to the observation that is stored in the couchbase database.
-Special note on test data:
-The test data is located in the directory /opt/data/netcdf_to_cb/input_files/20211108_0000
-and this data does exist in the couchbase database. The document id of the obs document
-is "DD-TEST:V01:METAR:obs:1636329600" and the data set also includes many station documents.
-The data set aslo includes a data file document "DF:METAR:netcdf:madis:20211108_0000" which is used
-by the ingest manager to determine if the data has already been ingested.
-If you want to re-import the
-data ***you will need to delete the DF document from the couchbase database*** in order
-for the data to be re-processed.
-If you re-import the data and forget to delete the DF document you will get an error like...
-"AssertionError: There are no output files".
+""""
+    integration tests for netcdf
+    This test derives a METAR observation from a netcdf file and then compares the derived
+    observation to the observation that is stored in the couchbase database.
+    Special note on test data:
+    The test data is located in the directory /opt/data/netcdf_to_cb/input_files/20211108_0000
+    and this data does exist in the couchbase database. The document id of the obs document
+    is "DD-TEST:V01:METAR:obs:1636329600" and the data set also includes many station documents.
+    The data set aslo includes a data file document "DF:METAR:netcdf:madis:20211108_0000" which is used
+    by the ingest manager to determine if the data has already been ingested.
+    If you want to re-import the
+    data ***you will need to delete the DF document from the couchbase database*** in order
+    for the data to be re-processed.
+    If you re-import the data and forget to delete the DF document you will get an error like...
+    "AssertionError: There are no output files".
 """
-
 import json
 import os
+import pytest
 from multiprocessing import Queue
 from pathlib import Path
 
-import pytest
 from vxingest.netcdf_to_cb.run_ingest_threads import VXIngest
 
 
@@ -55,7 +54,6 @@ def assert_dicts_almost_equal(dict1, dict2, rel_tol=1e-09):
             ), f"Values for {key} do not match"
 
 
-@pytest.mark.integration()
 def test_one_thread_specify_file_pattern(tmp_path):
     log_queue = Queue()
     vx_ingest = VXIngest()
@@ -93,16 +91,18 @@ def test_one_thread_specify_file_pattern(tmp_path):
     derived_station = {}
     obs_id = ""
     derived_obs = {}
-    for item in derived_data:
+    for item in derived_data:  # Is there a faster way to access KDEN? Can we do derived_data[*]["name"] == "KDEN"?
         if item["docType"] == "station" and item["name"] == "KDEN":
-            station_id = item["id"]
+            station_id = item["id"] # 'MD:V01:METAR:station:KDEN'
             derived_station = item
-        else:
-            if item["docType"] == "obs":
-                obs_id = item["id"]
-                derived_obs = item
+        else: # This is the second to last item in the list of 4647 items. Seemingly the only "obs" variable.
+            if item["docType"] == "obs": # item["station_id"] == 'MD:V01:METAR:station:KDEN'
+                obs_id = item["id"] # 'DD-TEST:V01:METAR:obs:1636329600'
+                derived_obs = item # A list of all obs for all stations?
+        # why is this here? It looks like to break early, but this seems like derived_obs could be inconsistent
         if derived_station and derived_obs:
             break
+    # Get documents in the database? How did those originally get there? Manually?
     retrieved_station = vx_ingest.collection.get(station_id).content_as[dict]
     retrieved_obs = vx_ingest.collection.get(obs_id).content_as[dict]
     # make sure the updateTime is the same in both the derived and retrieved station
@@ -116,7 +116,6 @@ def test_one_thread_specify_file_pattern(tmp_path):
     assert_dicts_almost_equal(derived_obs, retrieved_obs)
 
 
-@pytest.mark.integration()
 def test_two_threads_spedicfy_file_pattern(tmp_path):
     """
     integration test for testing multithreaded capability
@@ -151,7 +150,6 @@ def test_two_threads_spedicfy_file_pattern(tmp_path):
     ), "number of output files is incorrect"
 
 
-@pytest.mark.integration()
 def test_one_thread_default(tmp_path):
     """This test will start one thread of the ingestManager and simply make sure it runs with no Exceptions.
     It will attempt to process any files that are in the input directory that match the file_name_mask.
@@ -188,7 +186,6 @@ def test_one_thread_default(tmp_path):
     ), "number of output files is incorrect"
 
 
-@pytest.mark.integration()
 def test_two_threads_default(tmp_path):
     """This test will start one thread of the ingestManager and simply make sure it runs with no Exceptions.
     It will attempt to process any files that are in the input directory that atch the file_name_mask.

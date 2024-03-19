@@ -969,13 +969,13 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
                         fcst_valid_epoch
                         <= self.stations[station_index]["geo"][geo_index]["firstTime"]
                     ):
-                        self.stations[station_index]["geo"][geo_index][
-                            "firstTime"
-                        ] = fcst_valid_epoch
+                        self.stations[station_index]["geo"][geo_index]["firstTime"] = (
+                            fcst_valid_epoch
+                        )
                     else:
-                        self.stations[station_index]["geo"][geo_index][
-                            "lastTime"
-                        ] = fcst_valid_epoch
+                        self.stations[station_index]["geo"][geo_index]["lastTime"] = (
+                            fcst_valid_epoch
+                        )
                 else:
                     # This station requires a new geo because there are no matching locations i.e. the location has changed
                     requires_new_geo = True

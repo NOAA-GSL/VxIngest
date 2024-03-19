@@ -1,6 +1,7 @@
 """
 _test for VxIngest SUMS builders
 """
+
 import json
 import os
 import time

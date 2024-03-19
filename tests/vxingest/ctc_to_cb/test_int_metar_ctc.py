@@ -1,6 +1,7 @@
 """
 test for VxIngest CTC builders
 """
+
 import json
 import os
 import time

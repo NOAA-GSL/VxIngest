@@ -1,6 +1,7 @@
 """
-    utility for comparing cfgrib data to wgrib2 data
+utility for comparing cfgrib data to wgrib2 data
 """
+
 import xarray as xr
 
 QUEUE_ELEMENT = "/opt/data/grib2_to_cb/input_files/2125214000000"

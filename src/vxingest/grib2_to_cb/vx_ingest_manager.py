@@ -33,6 +33,7 @@ if an output directory was specified.
 Copyright 2019 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of
 Colorado, NOAA/OAR/ESRL/GSD
 """
+
 import logging
 import sys
 import time

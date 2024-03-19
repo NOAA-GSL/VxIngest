@@ -9,6 +9,7 @@ Usage: The LoadBackupIngestDocs -f backup_file -s server
 Copyright 2019 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of
 Colorado, NOAA/OAR/ESRL/GSD
 """
+
 import argparse
 import json
 import sys

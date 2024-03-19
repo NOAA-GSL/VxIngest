@@ -22,11 +22,12 @@ export TZ="UTC0"
 
 
 function usage {
-  echo "Usage $0 -c credentials-file -l load directory -t temp_dir -m metrics_directory"
+  echo "Usage $0 -c credentials-file -l load directory -t temp_dir -m metrics_directory [-n]"
   echo "The credentials-file specifies cb_host, cb_user, and cb_password."
   echo "The load directory is where the program will look for the tar files"
   echo "The temp_dir directory is where the program will unbundle the tar files (in uniq temporary subdirs)"
   echo "The metrics directory is where the scraper will place the metrics"
+  echo "the optional parameter -n will prevent running the metrics scraper (used for re-running import archives)"
   echo "This script expects to execute inside the VxIngest directory"
   echo "This script expects to be run as user amb-verif"
   failed_import_count=$((failed_import_count + 1))
@@ -36,6 +37,7 @@ success_import_count=0
 failed_import_count=0
 success_scrape_count=0
 failed_scrape_count=0
+scrape="true"
 
 function import_archive {
   # import the data
@@ -46,7 +48,7 @@ function import_archive {
   f=$1
   archive_dir=$2
   temp_dir=$3
-
+  scrape=$4
   start_epoch=$(date +%s)
   t_dir=$(mktemp -d --tmpdir=${temp_dir})
   if [[ ! -d "${t_dir}" ]]; then
@@ -123,14 +125,16 @@ function import_archive {
   fi
   stop_epoch=$(date +%s)
   # run the scraper
-  sleep 2 # eventually consistent data - give it a little time
-  echo "RUNNING - scripts/VXingest_utilities/scrape_metrics.sh -c ${credentials_file} -b ${start_epoch} -e ${stop_epoch} -l ${log_file} -d ${metrics_dir}"
-  scripts/VXingest_utilities/scrape_metrics.sh -c ${credentials_file} -b ${start_epoch} -e ${stop_epoch} -l ${log_file} -d ${metrics_dir}
-  exit_code=$?
-  if [[ "${exit_code}" -ne "0" ]]; then
-    failed_scrape_count=$((failed_scrape_count + 1))
-  else
-    success_scrape_count=$((success_scrape_count + 1))
+  if [ scrape == "true" ]; then
+    sleep 2 # eventually consistent data - give it a little time
+    echo "RUNNING - scripts/VXingest_utilities/scrape_metrics.sh -c ${credentials_file} -b ${start_epoch} -e ${stop_epoch} -l ${log_file} -d ${metrics_dir}"
+    scripts/VXingest_utilities/scrape_metrics.sh -c ${credentials_file} -b ${start_epoch} -e ${stop_epoch} -l ${log_file} -d ${metrics_dir}
+    exit_code=$?
+    if [[ "${exit_code}" -ne "0" ]]; then
+      failed_scrape_count=$((failed_scrape_count + 1))
+    else
+      success_scrape_count=$((success_scrape_count + 1))
+    fi
   fi
   echo "removing temp dir ${t_dir}/*"
   rm -rf ${t_dir}
@@ -138,8 +142,18 @@ function import_archive {
 } # end import_archive
 
 # main
+# do not allow more than 5 processes (10 by ps) to run simultaneously
+# since they are started by cron, if a lot of reruns are moved into the xfer directory
+# at once it is possible to get multiple cronjobs trying to process the files simultaneously.
+# If there are already 5 jobs running, don't allow another to start.
+running_jobs=$(ps -elf | grep run-import | grep -v grep | wc -l)
+if [ $running_jobs -gt 10 ]; then
+	echo "too many jobs running - refusing this one"
+	exit 1
+fi
+ 
 start=$(date +%s)
-while getopts 'c:l:t:m:' param; do
+while getopts 'c:l:t:m:n' param; do
   case "${param}" in
   c)
     credentials_file=${OPTARG}
@@ -183,6 +197,10 @@ while getopts 'c:l:t:m:' param; do
       usage
     fi
     ;;
+  n)
+    # do not run the scraper
+    scrape="false"
+    ;;
   *)
     echo "ERROR: wrong parameter, I don't do ${param}"
     usage
@@ -222,15 +240,16 @@ fi
 
 ls -1 ${load_dir}/*.gz | while read f; do
   # lock the archive
-  if [[ -f "${f}.lock" ]]; then
+  if { set -C; 2>/dev/null >"${f}.lock"; }; then
+    # set a trap in case of some unsexpected exit in import_archive
+    trap "rm -f ${f}.lock" EXIT
+  else
     echo "skipping ${f} - it is being processed"
     continue
-  else
-    touch "${f}.lock"
-    import_archive $f $archive_dir $temp_dir
-    # unlock the archive (${f} should have already been archived)
-    rm "${f}.lock"
   fi
+  import_archive $f $archive_dir $temp_dir $scrape
+  # unlock the archive (${f} should have already been archived)
+  rm "${f}.lock"
 done
 
 # update metadata  - currently disabled

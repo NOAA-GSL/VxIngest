@@ -1,0 +1,8 @@
+# Format application code with Ruff format
+13a7d64e1d65476c7461685eced12c98eacb750d
+
+# Format test suite with Ruff format
+aa25cc755663f733d3b8061cba939e3e3ea1a259
+
+# Update Ruff to 0.3.3 and their 2024.2 style
+dfb7f2579678705d234e974cb44baa57898367b0

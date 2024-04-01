@@ -11,7 +11,7 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.11"
 pyyaml = "^6.0.1"
-xarray = "^2024.2.0"
+xarray = "^2024.3.0"
 netcdf4 = "^1.6.5"
 cfgrib = "^0.9.10.4"
 couchbase = "^4.2.0"

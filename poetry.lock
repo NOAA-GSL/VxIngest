@@ -96,13 +96,13 @@ pycparser = "*"
 
 [[package]]
 name = "cfgrib"
-version = "0.9.10.4"
+version = "0.9.11.0"
 description = "Python interface to map GRIB files to the NetCDF Common Data Model following the CF Convention using ecCodes."
 optional = false
-python-versions = ">=3.6"
+python-versions = ">=3.7"
 files = [
-    {file = "cfgrib-0.9.10.4-py3-none-any.whl", hash = "sha256:563416811cd53a861acf47998ef21769accba641b1715d2af4d7e165c4868beb"},
-    {file = "cfgrib-0.9.10.4.tar.gz", hash = "sha256:b490078192aa13ec89c77296110355521442325866b16a996f4b3cf421542909"},
+    {file = "cfgrib-0.9.11.0-py3-none-any.whl", hash = "sha256:87a77fbe3708f1a0507585f6def5bd4847a986a165829397a663f5030b6e55d6"},
+    {file = "cfgrib-0.9.11.0.tar.gz", hash = "sha256:b2e1e030a53d9ef8028145943c1560c90b3bc324891766f02905a1d714434a1c"},
 ]
 
 [package.dependencies]
@@ -1461,4 +1461,4 @@ viz = ["matplotlib", "nc-time-axis", "seaborn"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "a85cff0af63483f3f3c226b7cd90644e12ac4fd0eee56af1eb1f75af85ac40a0"
+content-hash = "00082a625d62ae56abea9f02f78c31d4058b886910d1fd2de94c1a3df5199d8b"

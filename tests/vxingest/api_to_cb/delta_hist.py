@@ -9,6 +9,7 @@ History Log:  Initial version
 
 Usage: python delta_hist.py input_file
 """
+
 import argparse
 import sys
 import plotly.express as px

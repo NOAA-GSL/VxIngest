@@ -56,7 +56,9 @@ def setup_connection():
         _vx_ingest.credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
         _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
         _vx_ingest.connect_cb()
-        _vx_ingest.load_spec['ingest_document_ids'] = _vx_ingest.collection.get("JOB:V01:METAR:NETCDF:OBS").content["ingest_document_ids"]
+        _vx_ingest.load_spec["ingest_document_ids"] = _vx_ingest.collection.get(
+            "JOB:V01:METAR:NETCDF:OBS"
+        ).content["ingest_document_ids"]
         return _vx_ingest
     except Exception as _e:  # pylint:disable=broad-except
         assert False, f"test_credentials_and_load_spec Exception failure: {_e}"
@@ -380,9 +382,7 @@ def test_handle_station():
         # find the rec_num of the stationName ZBAA
         for i in range(rec_num_length):
             if (
-                str(
-                    nc.chartostring(_builder.ncdf_data_set["stationName"][i])
-                )  # pylint: disable=no-member
+                str(nc.chartostring(_builder.ncdf_data_set["stationName"][i]))  # pylint: disable=no-member
                 == "ZBAA"
             ):  # pylint:disable=no-member
                 break
@@ -415,7 +415,7 @@ def test_handle_station():
         result = _cluster.query(
             " ".join(
                 (
-                   f"""
+                    f"""
             SELECT METAR.*
             From `{vx_ingest.cb_credentials['bucket']}`.{vx_ingest.cb_credentials['scope']}.{vx_ingest.cb_credentials['collection']}
             WHERE type = 'MD'

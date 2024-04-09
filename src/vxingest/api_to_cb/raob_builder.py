@@ -76,11 +76,9 @@ class RaobObsBuilder(ApiBuilder):  # pylint: disable=too-many-instance-attribute
         self.template = None
         self.subset = None
 
-
     @abc.abstractmethod
     def read_data_from_api(self):
-        """read data from the api and load it into a dictionary structure
-        """
+        """read data from the api and load it into a dictionary structure"""
         return
 
     def initialize_document_map(self):
@@ -151,7 +149,6 @@ class RaobObsBuilder(ApiBuilder):  # pylint: disable=too-many-instance-attribute
                 str(_e),
             )
             return None
-
 
     def kelvin_to_farenheight(self, params_dict):
         """Converts kelvin to farenheight performing any translations that are necessary
@@ -316,7 +313,6 @@ class RaobObsBuilder(ApiBuilder):  # pylint: disable=too-many-instance-attribute
                 str(_e),
             )
 
-
     def handle_station(self, params_dict):
         """
         This method uses the station name in the params_dict
@@ -391,13 +387,13 @@ class RaobObsBuilder(ApiBuilder):  # pylint: disable=too-many-instance-attribute
                         fcst_valid_epoch
                         <= self.stations[station_index]["geo"][geo_index]["firstTime"]
                     ):
-                        self.stations[station_index]["geo"][geo_index][
-                            "firstTime"
-                        ] = fcst_valid_epoch
+                        self.stations[station_index]["geo"][geo_index]["firstTime"] = (
+                            fcst_valid_epoch
+                        )
                     else:
-                        self.stations[station_index]["geo"][geo_index][
-                            "lastTime"
-                        ] = fcst_valid_epoch
+                        self.stations[station_index]["geo"][geo_index]["lastTime"] = (
+                            fcst_valid_epoch
+                        )
                 else:
                     # This station requires a new geo because there are no matching locations i.e. the location has changed
                     requires_new_geo = True
@@ -424,56 +420,60 @@ class RaobObsBuilder(ApiBuilder):  # pylint: disable=too-many-instance-attribute
             )
             return ""
 
+
 class RaobsGslObsBuilder(RaobObsBuilder):
     """
-        This builder creates a set of V01 obs documents using the API interface
-        to the GSL RAOBS.
-        The GSL API is called for all stations and all levels at a specified valid time.
-        The specified valid Time is passed in to the builder in the load_spec.
-        The returned data is processed and added to a raob_data dictionary. The raob_data
-        is keyed by level since the valid time is already known. The level must be interolated
-        to the standard levels used by GSL. The format of the data returned from the API is
-        described here https://ruc.noaa.gov/raobs/fsl_format-new.html. This data structure looks
-        like.....     1          2          3          4          5          6           7
- LINTYP
-                                header lines
-    254        HOUR        DAY      MONTH       YEAR    (blank)     (blank)
-      1       WBAN#       WMO#        LAT D      LON D     ELEV       RTIME
-      2       HYDRO       MXWD      TROPL      LINES     TINDEX      SOURCE
-      3     (blank)      STAID    (blank)    (blank)      SONDE     WSUNITS
-                                data lines
-      4..8
-      9    PRESSURE     HEIGHT       TEMP      DEWPT   WIND DIR    WIND SPD
-LINTYP: type of identification line
-        254 = indicates a new sounding in the output file
-          1 = station identification line
-          2 = sounding checks line
-          3 = station identifier and other indicators line
-          4 = mandatory level
-          5 = significant level
-          6 = wind level (PPBB) (GTS or merged data)
-          7 = tropopause level (GTS or merged data)
-          8 = maximum wind level (GTS or merged data)
-          9 = surface level
-There is not a mandatory level (type 4) for all of the standard GSL levels desired,
-therefore the non mandatory levels must be interpolated into the GSL standard levels.
-The interpolation is simple, first the standard level is bracketed and the closest data
-level above or below is taken to be the standard level.
+            This builder creates a set of V01 obs documents using the API interface
+            to the GSL RAOBS.
+            The GSL API is called for all stations and all levels at a specified valid time.
+            The specified valid Time is passed in to the builder in the load_spec.
+            The returned data is processed and added to a raob_data dictionary. The raob_data
+            is keyed by level since the valid time is already known. The level must be interolated
+            to the standard levels used by GSL. The format of the data returned from the API is
+            described here https://ruc.noaa.gov/raobs/fsl_format-new.html. This data structure looks
+            like.....     1          2          3          4          5          6           7
+     LINTYP
+                                    header lines
+        254        HOUR        DAY      MONTH       YEAR    (blank)     (blank)
+          1       WBAN#       WMO#        LAT D      LON D     ELEV       RTIME
+          2       HYDRO       MXWD      TROPL      LINES     TINDEX      SOURCE
+          3     (blank)      STAID    (blank)    (blank)      SONDE     WSUNITS
+                                    data lines
+          4..8
+          9    PRESSURE     HEIGHT       TEMP      DEWPT   WIND DIR    WIND SPD
+    LINTYP: type of identification line
+            254 = indicates a new sounding in the output file
+              1 = station identification line
+              2 = sounding checks line
+              3 = station identifier and other indicators line
+              4 = mandatory level
+              5 = significant level
+              6 = wind level (PPBB) (GTS or merged data)
+              7 = tropopause level (GTS or merged data)
+              8 = maximum wind level (GTS or merged data)
+              9 = surface level
+    There is not a mandatory level (type 4) for all of the standard GSL levels desired,
+    therefore the non mandatory levels must be interpolated into the GSL standard levels.
+    The interpolation is simple, first the standard level is bracketed and the closest data
+    level above or below is taken to be the standard level.
 
-        :param ingest_document: the document from the ingest document
-        :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
-        :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
-        """
+            :param ingest_document: the document from the ingest document
+            :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
+            :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
+    """
+
     def __init__(self, load_spec, ingest_document):
         RaobObsBuilder.__init__(self, load_spec, ingest_document)
 
+
 class RaobsPrepBufrObsBuilder(RaobObsBuilder):
     """
-        This builder creates a set of V01 obs documents using the API interface to PrepBufr.
-        :param ingest_document: the document from the ingest document
-        :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
-        :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
-        """
+    This builder creates a set of V01 obs documents using the API interface to PrepBufr.
+    :param ingest_document: the document from the ingest document
+    :param cluster: - a Couchbase cluster object, used for N1QL queries (QueryService)
+    :param collection: - essentially a couchbase connection object, used to get documents by id (DataService)
+    """
+
     def __init__(self, load_spec, ingest_document):
         RaobObsBuilder.__init__(self, load_spec, ingest_document)
 
@@ -492,79 +492,88 @@ class RaobsPrepBufrObsBuilder(RaobObsBuilder):
         req_url = f"""https://ruc.noaa.gov/raobs/intl/GetRaobs.cgi?shour={hour}z+ONLY&
                     ltype=All+Levels&wunits=Tenths+of+Meters%2FSecond&bdate={begin_date}&edate={end_date}&
                     access=All+Sites&view=NO&osort=Station+Series+Sort&oformat=FSL+format+%28ASCII+text%29"""
-        _r=requests.get(req_url)
+        _r = requests.get(req_url)
         for _l in _r.iter_lines():
             parts = _l.decode("utf-8").split()
             line_type = parts[0]
 
-                    # 254 = indicates a new sounding in the output file
-                    # 1 = station identification line
-                    # 2 = sounding checks line
-                    # 3 = station identifier and other indicators line
-                    # 4 = mandatory level
-                    # 5 = significant level
-                    # 6 = wind level (PPBB) (GTS or merged data)
-                    # 7 = tropopause level (GTS or merged data)
-                    # 8 = maximum wind level (GTS or merged data)
-                    # 9 = surface level
-                    # 254   HOUR        DAY      MONTH       YEAR    (blank)     (blank)
-                    # 1     WBAN#       WMO#        LAT D      LON D     ELEV       RTIME
-                    # 2     HYDRO       MXWD      TROPL      LINES     TINDEX      SOURCE
-                    # 3     (blank)      STAID    (blank)    (blank)      SONDE     WSUNITS
-                    #                             data lines
-                    #         PRESSURE     HEIGHT       TEMP      DEWPT   WIND DIR    WIND SPD
-                    # 4,5,6,7,8,9
+            # 254 = indicates a new sounding in the output file
+            # 1 = station identification line
+            # 2 = sounding checks line
+            # 3 = station identifier and other indicators line
+            # 4 = mandatory level
+            # 5 = significant level
+            # 6 = wind level (PPBB) (GTS or merged data)
+            # 7 = tropopause level (GTS or merged data)
+            # 8 = maximum wind level (GTS or merged data)
+            # 9 = surface level
+            # 254   HOUR        DAY      MONTH       YEAR    (blank)     (blank)
+            # 1     WBAN#       WMO#        LAT D      LON D     ELEV       RTIME
+            # 2     HYDRO       MXWD      TROPL      LINES     TINDEX      SOURCE
+            # 3     (blank)      STAID    (blank)    (blank)      SONDE     WSUNITS
+            #                             data lines
+            #         PRESSURE     HEIGHT       TEMP      DEWPT   WIND DIR    WIND SPD
+            # 4,5,6,7,8,9
 
             if line_type == "254":
-                    new_record = {"STATION_ID":{"hour":parts[1], "day":parts[2], "month":parts[3],"year":parts[4]}}
+                new_record = {
+                    "STATION_ID": {
+                        "hour": parts[1],
+                        "day": parts[2],
+                        "month": parts[3],
+                        "year": parts[4],
+                    }
+                }
             elif line_type == "1":
-                   new_record["SOUNDING_CHECKS"] = {
-                        "WBAN": parts[1],
-                        "WMOID": parts[2],
-                        "LAT": parts[3],
-                        "LON": parts[4],
-                        "ELEVATION": parts[5],
-                        "RTIME": parts[6]
-                    }
+                new_record["SOUNDING_CHECKS"] = {
+                    "WBAN": parts[1],
+                    "WMOID": parts[2],
+                    "LAT": parts[3],
+                    "LON": parts[4],
+                    "ELEVATION": parts[5],
+                    "RTIME": parts[6],
+                }
             elif line_type == "2":
-                    new_record["STATION_IDENTIFICATION"]={
-                        "HYDRO": parts[1],
-                        "MXWD": parts[2],
-                        "TROPL": parts[3],
-                        "LINES": parts[4],
-                        "TINDEX": parts[5],
-                        "SOURCE": parts[6]
-                    }
+                new_record["STATION_IDENTIFICATION"] = {
+                    "HYDRO": parts[1],
+                    "MXWD": parts[2],
+                    "TROPL": parts[3],
+                    "LINES": parts[4],
+                    "TINDEX": parts[5],
+                    "SOURCE": parts[6],
+                }
             elif line_type == "3":
-                    new_record["STATION_IDENTIFIER"] = {
-                        "STAID": parts[2],
-                        "SONDE": parts[5],
-                        "WSUNITS": parts[6]
-                    }
-            elif line_type in ["4","5","6","7","8","9"]:
-                    if line_type == "4":
-                        value = "MANDATORY_LEVEL"
-                    elif line_type == "5":
-                        value = "SIGNIFICANT_LEVEL"
-                    elif line_type == "6":
-                        value = "WIND_LEVEL"
-                    elif line_type == "7":
-                        value = "TROPOPAUSE_LEVEL"
-                    elif line_type == "8":
-                        value = "MAXIMUM_WIND_LEVEL"
-                    elif line_type == "9":
-                        value = "SURFACE_LEVEL"
+                new_record["STATION_IDENTIFIER"] = {
+                    "STAID": parts[2],
+                    "SONDE": parts[5],
+                    "WSUNITS": parts[6],
+                }
+            elif line_type in ["4", "5", "6", "7", "8", "9"]:
+                if line_type == "4":
+                    value = "MANDATORY_LEVEL"
+                elif line_type == "5":
+                    value = "SIGNIFICANT_LEVEL"
+                elif line_type == "6":
+                    value = "WIND_LEVEL"
+                elif line_type == "7":
+                    value = "TROPOPAUSE_LEVEL"
+                elif line_type == "8":
+                    value = "MAXIMUM_WIND_LEVEL"
+                elif line_type == "9":
+                    value = "SURFACE_LEVEL"
 
-                    new_record[value]={
-                        "PRESSURE": parts[1],
-                        "HEIGHT": parts[2],
-                        "TEMP": parts[3],
-                        "DEWPT": parts[4],
-                        "WIND_DIR": parts[5],
-                        "WIND_SPD": parts[6],
-                    }
+                new_record[value] = {
+                    "PRESSURE": parts[1],
+                    "HEIGHT": parts[2],
+                    "TEMP": parts[3],
+                    "DEWPT": parts[4],
+                    "WIND_DIR": parts[5],
+                    "WIND_SPD": parts[6],
+                }
             else:
-                raise Exception(f"RAOB_GSL_BUILDER: invalid line type:{line_type} for line:{parts}" )
+                raise Exception(
+                    f"RAOB_GSL_BUILDER: invalid line type:{line_type} for line:{parts}"
+                )
         # match data to stations
         # load data to obs_datazA
         return self.obs_data

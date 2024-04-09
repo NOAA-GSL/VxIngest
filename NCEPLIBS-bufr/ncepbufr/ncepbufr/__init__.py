@@ -1,9 +1,11 @@
-import _bufrlib
-import random
 import bisect
-import numpy as np
-from .bufr_mnemonics import *
 import os
+import random
+
+import _bufrlib
+import numpy as np
+
+from .bufr_mnemonics import *
 
 __version__ = "1.1.1"
 __bufrlib_version__ = _bufrlib.bvers().rstrip()

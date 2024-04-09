@@ -1,6 +1,7 @@
 """
-    integration tests for netcdf
+integration tests for netcdf
 """
+
 import os
 from glob import glob
 from pathlib import Path
@@ -16,6 +17,7 @@ from netcdf_to_cb.run_ingest_threads import VXIngest
 integration tests for netcdf
 """
 
+
 def setup_connection():
     """test setup"""
     try:
@@ -23,7 +25,9 @@ def setup_connection():
         _vx_ingest.credentials_file = os.environ["HOME"] + "/adb-cb1-credentials"
         _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
         _vx_ingest.connect_cb()
-        _vx_ingest.load_spec['ingest_document_ids'] = _vx_ingest.collection.get("JOB:V01:METAR:NETCDF:OBS").content["ingest_document_ids"]
+        _vx_ingest.load_spec["ingest_document_ids"] = _vx_ingest.collection.get(
+            "JOB:V01:METAR:NETCDF:OBS"
+        ).content["ingest_document_ids"]
         return _vx_ingest
     except Exception as _e:  # pylint:disable=broad-except
         assert False, f"test_credentials_and_load_spec Exception failure: {_e}"

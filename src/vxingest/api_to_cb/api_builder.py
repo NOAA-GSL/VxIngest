@@ -19,6 +19,7 @@ from builder_common.builder_utilities import convert_to_iso
 from builder_common.builder_utilities import initialize_data_array
 from builder_common.builder import Builder
 
+
 #  ApiBuilder← RaobObsBuilder ← RaobsGslObsBuilder
 class ApiBuilder(Builder):  # pylint disable=too-many-instance-attributes
     """parent class for API builders"""
@@ -51,8 +52,7 @@ class ApiBuilder(Builder):  # pylint disable=too-many-instance-attributes
 
     @abc.abstractmethod
     def read_data_from_api(self):
-        """read data from the api and load it into a dictionary structure
-        """
+        """read data from the api and load it into a dictionary structure"""
         return
 
     def derive_id(self, **kwargs):
@@ -174,8 +174,9 @@ class ApiBuilder(Builder):  # pylint disable=too-many-instance-attributes
         try:
             if key == "id":
                 an_id = self.derive_id(
-                    template_id=self.template["id"], fcst_valid_time=fcst_valid_time,
-                    level=level
+                    template_id=self.template["id"],
+                    fcst_valid_time=fcst_valid_time,
+                    level=level,
                 )
                 if not an_id in doc:
                     doc["id"] = an_id
@@ -184,7 +185,9 @@ class ApiBuilder(Builder):  # pylint disable=too-many-instance-attributes
                 # process an embedded dictionary
                 tmp_doc = copy.deepcopy(self.template[key])
                 for sub_key in tmp_doc.keys():
-                    tmp_doc = self.handle_key(tmp_doc, fcst_valid_time, level, sub_key)  # recursion
+                    tmp_doc = self.handle_key(
+                        tmp_doc, fcst_valid_time, level, sub_key
+                    )  # recursion
                 doc[key] = tmp_doc
             if (
                 not isinstance(doc[key], dict)
@@ -193,7 +196,9 @@ class ApiBuilder(Builder):  # pylint disable=too-many-instance-attributes
             ):
                 doc[key] = self.handle_named_function(doc[key], fcst_valid_time, level)
             else:
-                doc[key] = self.translate_template_item(doc[key], fcst_valid_time, level)
+                doc[key] = self.translate_template_item(
+                    doc[key], fcst_valid_time, level
+                )
             return doc
         except Exception as _e:  # pylint:disable=broad-except
             logging.exception(
@@ -304,9 +309,9 @@ class ApiBuilder(Builder):  # pylint disable=too-many-instance-attributes
         # noinspection PyBroadException
         try:
             # read the api for all data for this valid fcst hour.
-            self.bucket = self.load_spec['cb_connection']['bucket']
-            self.scope = self.load_spec['cb_connection']['scope']
-            self.collection = self.load_spec['cb_connection']['collection']
+            self.bucket = self.load_spec["cb_connection"]["bucket"]
+            self.scope = self.load_spec["cb_connection"]["scope"]
+            self.collection = self.load_spec["cb_connection"]["collection"]
             self.obs_data = self.read_data_from_api()
             if len(self.stations) == 0:
                 stmnt = f"""SELECT {self.subset}.*

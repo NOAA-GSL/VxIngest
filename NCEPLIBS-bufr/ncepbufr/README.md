@@ -26,7 +26,7 @@ To download ...
 
 ```bash
 
-workdir=~/something
+workdir=~/something  (where you want to install NCEPLIBS-bufr)
 mkdir ${workdir}
 
 mkdir ${workdir}/NCEPLIBS
@@ -53,17 +53,30 @@ make install
 ctest --verbose --output-on-failure --rerun-failed
 ```
 
-The python package is now installed in ${workdir}/NCEPLIBS-bufr-develop/build/install/lib/python3.12/site-packages/ncepbufr
+Make sure the tests pass!
 
-and the required static library is now ${workdir}/NCEPLIBS-bufr-develop/build/install/lib/python3.12/site-packages/_bufrlib.cpython-312-darwin.so
+## Copy Python Package Artifacts and Static Library to Project Area
 
-These must be copied into this directory
+The python package is now installed in ${workdir}/NCEPLIBS/NCEPLIBS-bufr-develop/build/install/lib/python3.12/site-packages/ncepbufr
+and the required static library is now ${workdir}/NCEPLIBS/NCEPLIBS-bufr-develop/build/install/lib/python3.12/site-packages/_bufrlib.cpython-312-darwin.so
+
+These must be copied into the VxIngest/NCEPLIBS-bufr directory. The VxIngest dirctory is the directory that the VxIngest repo was cloned into.
 
 ```bash
-cd .../VxIngest/NCEPLIBS-bufr
-cp ${workdir}/NCEPLIBS/NCEPLIBS-bufr-develop/build/install/lib/python3.12/site-packages/_bufrlib.cpython-312-darwin.so lib
-cp -a ${workdir}/NCEPLIBS/NCEPLIBS-bufr-develop/build/install/lib/python3.12/site-packages/ncepbufr/* ncepbufr
+cd <VxIngest-clone-dir>/NCEPLIBS-bufr
+cp ${workdir}/NCEPLIBS/NCEPLIBS-bufr-develop/build/install/lib/python3.12/site-packages/_bufrlib.cpython-312-darwin.so ncepbufr
+cp -a ${workdir}/NCEPLIBS/NCEPLIBS-bufr-develop/build/install/lib/python3.12/site-packages/ncepbufr ncepbufr
+```
 
-## python wheel
+## Build Python Wheel
 
 Now we have a static library dependency in .../VxIngest/NCEPLIBS-bufr/lib and a python package in ncepbufr. We can treat these as dependencies to this build. These will be referenced in the top level pyproject.toml
+
+You must have poetry installed. See [poetry](https://python-poetry.org/docs/).
+
+```bash
+cd <VxIngest-clone-dir>/NCEPLIBS-bufr/ncepbufr
+rm poetry.lock; poetry env remove --all; poetry build; poetry install; pip list
+```
+
+You should see the ncepbufr package listed in the pip list output.

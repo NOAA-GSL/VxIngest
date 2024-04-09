@@ -12,6 +12,8 @@ include = ["_bufrlib.cpython-312-darwin.so"]
 
 [tool.poetry.dependencies]
 python = "^3.12"
+numpy = "^1"
+netcdf4 = "^1"
 
 [build-system]
 requires = ["poetry-core"]

@@ -6,21 +6,23 @@ Copyright 2019 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of
 Colorado, NOAA/OAR/ESRL/GSL
 """
 
+import abc
 import calendar
 import copy
 import cProfile
-import logging
 import datetime as dt
+import logging
 import os
-import abc
 import time
-import requests
-from numpy import ma
 from pstats import Stats
-from builder_common.builder_utilities import convert_to_iso
-from builder_common.builder_utilities import truncate_round
+
+import requests
 from api_to_cb.api_builder import ApiBuilder
+from numpy import ma
+
 from builder_common.builder import Builder
+from builder_common.builder_utilities import convert_to_iso, truncate_round
+
 
 class RaobObsBuilder(ApiBuilder):  # pylint: disable=too-many-instance-attributes
     """

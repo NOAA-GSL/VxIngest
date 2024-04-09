@@ -10,6 +10,48 @@ These programs require python3, and couchbase sdk 3.0 minimum (see [couchbase sd
 
 In the test directory [README](test/README.md) you will find instructions for setting up the environment and for running the tests.
 
+## NCEPBUFRLIB
+
+This code relies on the NCEP BUFRLIB libraries that enable reading of PREPBUFR files.
+The repo is [NCEPLIBS-bufr](https://github.com/NOAA-EMC/NCEPLIBS-bufr)
+This builds all the fortran stuff and the python wrappers. You do have to make sure
+you have gfortran installed on the build platform, for example on my mac... brew install gfortran
+You may also have to install cmake ... brew install cmake
+and you can always install python 3.12 with ... brew install python@3.12
+This build is following the git workflow for mac. ...
+
+[mac workflow](https://github.com/NOAA-EMC/NCEPLIBS-bufr/blob/develop/.github/workflows/MacOS.yml)
+
+There are other workflows i.e. linux, intel, etc.
+[workflows](https://github.com/NOAA-EMC/NCEPLIBS-bufr/blob/develop/.github/workflows)
+
+To download ...
+[download](https://github.com/NOAA-EMC/NCEPLIBS-bufr/archive/refs/heads/develop.zip)
+
+mkdir NCEPLIBS-bufr-develop/
+cd NCEPLIBS-bufr-develop/
+unzip ~/Downloads/NCEPLIBS-bufr-develop.zip
+
+Create and use a 3.12 python venv
+python -V. (should show Python 3.12.2)
+python -m venv .venv-3.12
+. .venv-3.12/bin/activate
+
+pip3 install numpy
+pip3 install meson
+pip3 install ninja
+pip3 install netCDF4
+pip3 install protobuf
+
+mkdir build
+cd build
+cmake -DCMAKE_INSTALL_PREFIX=./install -DENABLE_PYTHON=ON ..
+make -j2 VERBOSE=1
+make install
+ctest --verbose --output-on-failure --rerun-failed
+
+
+pip install wheelfile
 ## Approach
 
 These programs use a JOB document from the couchbase database to retrieve which ingest templates are to be used, a credentials file to provide database authentication, command line parameters for run time options, and the associated ingest template documents from the database that are specified in the JOB document.

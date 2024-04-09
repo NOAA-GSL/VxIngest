@@ -1,0 +1,6 @@
+#!/Users/randy.pierce/VxIngest/NCEPLIBS-bufr/.venv-3.12/bin/python
+import sys
+from vxingest.main import run_ingest
+
+if __name__ == '__main__':
+    sys.exit(run_ingest())

@@ -47,8 +47,6 @@ if [ $? -ne 0 ]; then
 fi
 
 
-# set arch and version"
-arch=$(uname -m)
 # NOTE: We are using the develop version for now because none of the releases support python12 yet.
 # When a release is made that supports python 3.12, we can switch to that. FIXME
 #NCEPLIBSbufr_version="12.0.1"
@@ -69,6 +67,10 @@ if [ ${pver} != "3_12" ]; then
     echo "Wrong python version - should be 3.12.x";
     exit 1
 fi
+
+# get the platform
+platform=$(python -c "import sysconfig;print(sysconfig.get_platform())")
+
 # create venv
 python -m venv .venv-3.12
 # activate venv
@@ -117,7 +119,7 @@ pip list
 
 # rename the wheel NOTE: This is a hack to get around the fact that poetry doesn't
 # seem to know how to specify the build tags properly. FIXME when it can
-dst_name_tmp=$(ls -1 dist/*.whl | sed "s/py3/py${pver}/" | sed "s/any/${arch}/")
+dst_name_tmp=$(ls -1 dist/*.whl | sed "s/py3/py${pver}/" | sed "s/any/${platform}/")
 dst_name=$(basename ${dst_name_tmp})
 # copy the wheel to the dist directory
 wheel=$(ls -1 dist/*.whl)

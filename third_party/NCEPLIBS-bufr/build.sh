@@ -103,7 +103,7 @@ libdir="lib"
 if [ $platform -eq "linux_x86_64" ]; then
     libdir="lib64"
 fi
-cd ${tmp_workdir}/NCEPLIBS-bufr-${NCEPLIBSbufr_version}/build/install/lib/python3.12/site-packages
+cd ${tmp_workdir}/NCEPLIBS-bufr-${NCEPLIBSbufr_version}/build/install/${libdir}/python3.12/site-packages
 cp -a ${VxIngest_root_dir}/third_party/NCEPLIBS-bufr/ncepbufr/* .
 
 # check for poetry

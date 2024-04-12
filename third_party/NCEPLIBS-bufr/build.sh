@@ -98,6 +98,11 @@ then
 fi
 
 # Now the poetry parts must be copied into the ${tmp_workdir} to enable the poetry build
+# linux_x86_64 appears to want to put all this lib stuf under lib64 not lib
+libdir="lib"
+if [ $platform -eq "linux_x86_64" ]; then
+    libdir="lib64"
+fi
 cd ${tmp_workdir}/NCEPLIBS-bufr-${NCEPLIBSbufr_version}/build/install/lib/python3.12/site-packages
 cp -a ${VxIngest_root_dir}/third_party/NCEPLIBS-bufr/ncepbufr/* .
 

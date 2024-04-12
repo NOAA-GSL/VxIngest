@@ -25,6 +25,28 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+
+wget -V
+if [ $? -ne 0 ]; then
+    echo "You do not appear to have wget installed. You must have wget installed."
+    exit 1
+fi
+
+
+unzip -v
+if [ $? -ne 0 ]; then
+    echo "You do not appear to have unzip installed. You must have unzip installed."
+    exit 1
+fi
+
+
+tar --version
+if [ $? -ne 0 ]; then
+    echo "You do not appear to have tar installed. You must have tar installed."
+    exit 1
+fi
+
+
 # set arch and version"
 arch=$(uname -m)
 # NOTE: We are using the develop version for now because none of the releases support python12 yet.

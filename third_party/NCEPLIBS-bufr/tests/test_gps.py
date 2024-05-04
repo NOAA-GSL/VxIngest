@@ -1,4 +1,3 @@
-from __future__ import print_function
 import ncepbufr
 
 hdrstr ='YEAR MNTH DAYS HOUR MINU PCCF ELRC SAID PTID GEODU'
@@ -36,8 +35,10 @@ while bufr.advance() == 0:
                 freq = data1b[m,k]
                 bend = data1b[m+2,k]
                 # look for zero frequency bending angle ob
-                if int(freq) == 0: break
+                if int(freq) == 0:
+                    break
             print(k,rlat,rlon,height,ref,bend)
     # only loop over first 6 subsets
-    if bufr.msg_counter == 6: break
+    if bufr.msg_counter == 6:
+        break
 bufr.close()

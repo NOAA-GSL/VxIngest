@@ -23,8 +23,8 @@ prometheus-client = "^0.20.0"
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.0"
 types-pyyaml = "^6.0.12.20240311"
-ruff = "^0.4.2"
-coverage = "^7.5.0"
+ruff = "^0.4.3"
+coverage = "^7.5.1"
 
 [build-system]
 requires = ["poetry-core"]

@@ -47,7 +47,7 @@ class Builder:
 
     def create_data_file_id(self, subset, file_type, origin_type, file_name):
         """
-        This method creates a metar grib_to_cb datafile id from the parameters
+        This method creates a datafile id from the parameters
         """
         try:
             base_name = Path(file_name).name

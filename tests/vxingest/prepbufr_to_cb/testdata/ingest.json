@@ -1,0 +1,50 @@
+{
+    "builder_type": "PrepbufrRaobsObsBuilderV01",
+    "docType": "ingest",
+    "subDocType": "prepbufr",
+    "id": "MD:V01:RAOB:obs:ingest:prepbufr",
+    "subType": "obs",
+    "subset": "RAOB",
+    "template": {
+        "data": {
+            "*stationName": {
+                "temperature": "&kelvin_to_fahrenheit|*temperature",
+                "dewpoint": "&kelvin_to_fahrenheit|*dewpoint",
+                "relative_humidity": "*relative_humidity",
+                "specific_humidity": "*specific_humidity",
+                "pressure": "*pressure",
+                "height": "*height",
+                "wind_speed": "&meterspersecond_to_milesperhour|*wind_speed",
+                "U-Wind": "&meterspersecond_to_milesperhour|*U-wind",
+                "V-Wind": "&meterspersecond_to_milesperhour|*V-wind",
+                "wind_direction": "*wind_direction",
+                "name": "&handle_station|*stationName"
+            }
+        },
+        "units": {
+                "temperature": "deg F",
+                "dewpoint": "deg F",
+                "relative_humidity": "percent",
+                "specific_humidity": "m/kg",
+                "pressure": "mb",
+                "height": "meters",
+                "wind_speed": "mph",
+                "U-Wind": "mph",
+                "V-Wind": "mph",
+                "wind_direction": "degrees"
+            },
+
+        "level": "*level",
+        "dataSourceId": "GDAS",
+        "docType": "obs",
+        "subDocType": "prepbufr",
+        "fcstValidISO": "&get_valid_time_iso",
+        "fcstValidEpoch": "&get_valid_time_epoch",
+        "id": "DD:V01:RAOB:obs:prepbufr:*level:&get_valid_time_epoch",
+        "subset": "RAOB",
+        "type": "DD",
+        "version": "V01"
+    },
+    "type": "MD",
+    "version": "V01"
+}

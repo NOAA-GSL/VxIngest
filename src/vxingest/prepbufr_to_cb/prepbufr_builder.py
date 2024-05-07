@@ -9,6 +9,7 @@ Colorado, NOAA/OAR/ESRL/GSL
 import abc
 import copy
 import cProfile
+import datetime
 import logging
 import math
 from pathlib import Path
@@ -29,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 #  ApiBuilder← RaobObsBuilder ← RaobsGslObsBuilder
-class PrepbufrBuilder(Builder):  # pylint disable=too-many-instance-attributes
+class PrepbufrBuilder(Builder):
     """parent class for API builders"""
 
     def __init__(self, load_spec, ingest_document):
@@ -74,7 +75,7 @@ class PrepbufrBuilder(Builder):  # pylint disable=too-many-instance-attributes
         """
         try:
             template_id = kwargs["template_id"]
-            fcst_time = kwargs["valid_fcst_time"]
+            fcst_time = self.fcst_valid_epoch
             parts = template_id.split(":")
             new_parts = []
             for part in parts:
@@ -88,7 +89,7 @@ class PrepbufrBuilder(Builder):  # pylint disable=too-many-instance-attributes
                 new_parts.append(value)
             new_id = ":".join(new_parts)
             return new_id
-        except Exception as _e:  # pylint:disable=broad-except
+        except Exception as _e:
             logging.exception("ApiBuilder.derive_id: Exception  error: %s")
             return None
 
@@ -119,47 +120,63 @@ class PrepbufrBuilder(Builder):  # pylint disable=too-many-instance-attributes
                     else:
                         value = variable.replace("*" + _ri, str(value))
             return value
-        except Exception as _e:  # pylint: disable=broad-except
+        except Exception as _e:
             logging.error(
                 "CtcBuilder.translate_template_item: Exception  error: %s", str(_e)
             )
             return None
+    def get_mandatory_levels(self):
+        """
+        This method gets the mandatory levels for the raw data set.
+        :return: the mandatory levels
+        """
+        bottom = round(self.raw_obs_data["pressure"][0]/10)*10 - 10
+        # round bottom to nearest 10 mb?
+        top = round(self.raw_obs_data["pressure"][-1]/10)*10
+        return [bottom + 10 * i for i in range(bottom, top, 10)]
 
     def handle_document(self):
         """
-        This routine processes the complete document (essentially a complete bufr file)
-        :return: The modified document_map
+                This routine processes the complete document (essentially a complete bufr file)
+                which includes a new document for each mandatory level
+                :return: The modified document_map
+                The document map should be a dictionary keyed by the document id
+                and each document id should look like DD:V01:RAOB:obs:prepbufr:500:1625097600
+
+                where the type is "DD", the version is "V01", the subset is "RAOB", the docType is "obs",
+                the docSubType is "prepbufr", the level is "500 (in mb)", and the valid time epoch is "1625097600".
+
+                Each Document shall have a data dictionary that is keyed by the station name. The data section is defined by
+                the template in the ingest document.
         """
         # noinspection PyBroadException
         try:
             new_document = copy.deepcopy(self.template)
-            message_data_size = self.ncdf_data_set.dimensions["recNum"].size
-            if message_data_size == 0:
-                return
             # make a copy of the template, which will become the new document
             # once all the translations have occurred
             new_document = initialize_data_array(new_document)
-            for message in range(message_data_size):
+            mandatory_levels = self.get_mandatory_levels()
+            for _ml in mandatory_levels:
                 for key in self.template:
                     if key == "data":
                         new_document = self.handle_data(
-                            doc=new_document, message=message
+                            doc=new_document, mandatory_level = _ml
                         )
                         continue
-                    new_document = self.handle_key(new_document, message, key)
-            # put document into document map
-            if new_document["id"]:
-                logging.info(
-                    "NetcdfBuilder.handle_document - adding document %s",
-                    new_document["id"],
-                )
-                self.document_map[new_document["id"]] = new_document
-            else:
-                logging.info(
-                    "NetcdfBuilder.handle_document - cannot add document with key %s",
-                    str(new_document["id"]),
-                )
-        except Exception as _e:  # pylint:disable=broad-except
+                    new_document = self.handle_key(new_document, _ml, key)
+                # put new document into document map
+                if new_document["id"]:
+                    logging.info(
+                        "NetcdfBuilder.handle_document - adding document %s",
+                        new_document["id"],
+                    )
+                    self.document_map[new_document["id"]] = new_document
+                else:
+                    logging.info(
+                        "NetcdfBuilder.handle_document - cannot add document with key %s",
+                        str(new_document["id"]),
+                    )
+        except Exception as _e:
             logging.error(
                 "NetcdfBuilder.handle_document: Exception instantiating builder: %s error: %s",
                 self.__class__.__name__,
@@ -167,7 +184,7 @@ class PrepbufrBuilder(Builder):  # pylint disable=too-many-instance-attributes
             )
             raise _e
 
-    def handle_key(self, doc, fcst_valid_time, level, key):
+    def handle_key(self, doc, level, key):
         """
         This routine handles keys by substituting
         the data that correspond to the key into the values
@@ -181,8 +198,7 @@ class PrepbufrBuilder(Builder):  # pylint disable=too-many-instance-attributes
         try:
             if key == "id":
                 an_id = self.derive_id(
-                    template_id=self.template["id"],
-                    fcst_valid_time=fcst_valid_time,
+                    template_id = self.template["id"],
                     level=level,
                 )
                 if an_id not in doc:
@@ -193,7 +209,7 @@ class PrepbufrBuilder(Builder):  # pylint disable=too-many-instance-attributes
                 tmp_doc = copy.deepcopy(self.template[key])
                 for sub_key in tmp_doc:
                     tmp_doc = self.handle_key(
-                        tmp_doc, fcst_valid_time, level, sub_key
+                        tmp_doc, level, sub_key
                     )  # recursion
                 doc[key] = tmp_doc
             if (
@@ -201,13 +217,15 @@ class PrepbufrBuilder(Builder):  # pylint disable=too-many-instance-attributes
                 and isinstance(doc[key], str)
                 and doc[key].startswith("&")
             ):
-                doc[key] = self.handle_named_function(doc[key], fcst_valid_time, level)
+                doc[key] = self.handle_named_function(
+                    doc[key], level
+                )
             else:
                 doc[key] = self.translate_template_item(
-                    doc[key], fcst_valid_time, level
+                    doc[key], level
                 )
             return doc
-        except Exception as _e:  # pylint:disable=broad-except
+        except Exception as _e:
             logging.exception(
                 "%s ApiBuilder.handle_key: Exception in builder",
                 self.__class__.__name__,
@@ -240,7 +258,7 @@ class PrepbufrBuilder(Builder):  # pylint disable=too-many-instance-attributes
                 dict_params[_p[1:]] = self.translate_template_item(_p, message)
             # call the named function using getattr
             replace_with = getattr(self, func)(dict_params)
-        except Exception as _e:  # pylint:disable=broad-except
+        except Exception as _e:
             logging.exception(
                 "%s handle_named_function: %s params %s: Exception instantiating builder:",
                 self.__class__.__name__,
@@ -272,7 +290,7 @@ class PrepbufrBuilder(Builder):  # pylint disable=too-many-instance-attributes
                         value = self.handle_named_function(value, message)
                     else:
                         value = self.translate_template_item(value, message)
-                except Exception as _e:  # pylint:disable=broad-except
+                except Exception as _e:
                     value = None
                     logging.warning(
                         "%s Builder.handle_data - value is None",
@@ -290,12 +308,23 @@ class PrepbufrBuilder(Builder):  # pylint disable=too-many-instance-attributes
                 )
             self.load_data(doc, data_key, data_elem)
             return doc
-        except Exception as _e:  # pylint:disable=broad-except
+        except Exception as _e:
             logging.exception(
                 "%s handle_data: Exception instantiating builder",
                 self.__class__.__name__,
             )
         return doc
+
+    def create_raw_data_id(self):
+        """
+        This method creates a raw data id from the parameters
+        """
+        try:
+            an_id = f"RD:{self.subset}:RAW:{self.fcst_valid_epoch}"
+            return an_id
+        except Exception as _e:
+            logging.exception("%s create_raw_data_id", self.__class__.__name__)
+            return None
 
     def build_document(self, queue_element):
         """This is the entry point for the Builders from the ingestManager.
@@ -304,14 +333,16 @@ class PrepbufrBuilder(Builder):  # pylint disable=too-many-instance-attributes
         To process this raob_data object we need to iterate the data and process the station
         name along with all the other variables in the template.
         Args:
-            queue_element - an ingest document id
+            queue_element - a prepbufr file name
         Returns:
             [dict]: document
 
-        1) read the file to get all the obs data
-        2) load the data into a dict by level and station
-        3) post process the data to interpolate the levels
-        4) handle_document for each station/level
+        1) read the prepbufr file to get all the obs data into a raw data dict interpolating missing heights with the hypsometric equation for thickness.
+        2) add the raw data to the document map
+        2) interpolate the data into mandatory 10mb levels
+        see https://docs.google.com/document/d/1-L-1FMKGDRXNGmAZhdZb3_vZT41kOWte8ufqd2c_CvQ/edit?usp=sharing
+        For each level interpolate the data to the mandatory levels, if necessary and build a document for each level
+        that has all the data for that level. Add the document to the document map.
         """
         # noinspection PyBroadException
         try:
@@ -339,6 +370,7 @@ class PrepbufrBuilder(Builder):  # pylint disable=too-many-instance-attributes
             )
             if self.do_profiling:
                 with cProfile.Profile() as _pr:
+                    # derive and add the documents (one per mandatory level) to the document map with profiling
                     self.handle_document()
                     with Path.open("profiling_stats.txt", "w") as stream:
                         stats = Stats(_pr, stream=stream)
@@ -347,18 +379,21 @@ class PrepbufrBuilder(Builder):  # pylint disable=too-many-instance-attributes
                         stats.dump_stats("profiling_stats.prof")
                         stats.print_stats()
             else:
+                # derive and add the documents (one per mandatory level) to the document map without profiling
                 self.handle_document()
-            # pylint: disable=assignment-from-no-return
             document_map = self.get_document_map()
-            data_file_id = self.create_data_file_id(
-                self.subset, "netcdf", "madis", queue_element
-            )
+            # add the datafile doc to the document map
+            data_file_id = self.create_data_file_id(self.subset, "GDAS", "prepbufr", queue_element)
             data_file_doc = self.build_datafile_doc(
-                file_name=queue_element, data_file_id=data_file_id, origin_type="madis"
+                file_name=queue_element, data_file_id=data_file_id, origin_type="GDAS"
             )
-            document_map[data_file_doc["id"]] = data_file_doc
+            document_map[data_file_id] = data_file_doc
+            # add the raw data doc to the document map
+            raw_data_id = self.create_raw_data_id()
+            raw_data_doc = self.build_raw_data_doc(raw_data_id)
+            document_map[raw_data_id] = raw_data_doc
             return document_map
-        except Exception as _e:  # pylint:disable=broad-except
+        except Exception as _e:
             logging.exception(
                 "%s: Exception with builder build_document: file_name: %s",
                 self.__class__.__name__,
@@ -411,30 +446,6 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         relative_humidity_from_specific_humidity(pressure, temperature, specific_humidity)  all pint.Quantity
         relative_humidity_from_specific_humidity(1013.25 * units.hPa, 30 * units.degC, 18/1000).to('percent')
         """
-        # try:
-        #     p = pressure.filled(fill_value=math.nan) if ma.isarray(pressure) else ma.array([pressure])
-        #     t = temperature.filled(fill_value=math.nan) if ma.isarray(temperature) else ma.array([temperature])
-        #     sh = specific_humidity.filled(fill_value=math.nan) if ma.isarray(specific_humidity) else ma.array([specific_humidity])
-        # except Exception as _e:  # pylint:disable=broad-except
-        #     logging.error(
-        #         f"PrepbufrRaobsObsBuilderV01.get_relative_humidity: Exception error: {_e}"
-        #     )
-        #     return ma.array([], fill_value=math.nan)
-        # if ((ma.size(p) == 1 and math.isnan(p)) or
-        #     (ma.size(t) == 1 and math.isnan(t)) or
-        #     (ma.size(sh) == 1 and math.isnan(sh))
-        # ):
-        #     return ma.array([None], fill_value=math.nan)
-        # rh = []
-        # for i in range(len(p)):
-        #     if (math.isnan(p[i]) or
-        #         math.isnan(t[i]) or
-        #         math.isnan(sh[i])
-        #     ):
-        #         _rh = None
-        #     else:
-        # if the pressure, temperature, or specific_humidity are totally masked
-        # or the shape is () - it is a scalar - I don't know what to do
         if (
             (
                 not ma.isMaskedArray(pressure)
@@ -502,7 +513,7 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         original_height_mask = height.mask
         # calculate the thickness for each layer and update the masked array
         # if the height is totally masked or the shape is () - it is a scalar - I don't know what to do
-        if ma.all(ma.is_masked(height)) or height.shape == ():
+        if height.mask.all() or height.shape == ():
             return height, original_height_mask
         # interpolate the heights
         # start at the bottom and work up
@@ -537,16 +548,14 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                 while (
                     i < j
                 ):  # remember i is the bottom masked layer and j is the next layer above that has data
-                    height[i] = (
-                        # does this need to be added to the height of the layer below?
-                        _height.magnitude + height[i - 1]
-                        if i > 0
-                        else _height.magnitude
-                    )  # assigning a valid value to height[i] unmasks that value
+                    height[i] = round(_height.magnitude,1)
+                    # assigning a valid value to height[i] unmasks that value
+                    # does this need to be added to the height of the layer below?
+                    # i.e. _height.magnitude + height[i - 1]
                     # go to the next one
                     i = i + 1
             else:
-                i = i + 1  # this one wsa not masked so go to the next one
+                i = i + 1  # this one was not masked so go to the next one
         return height, original_height_mask
 
     def read_data_from_bufr(self, bufr, template):
@@ -640,6 +649,20 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                             data[field][0] = bufr_data[i]
         return data
 
+    def get_fcst_valid_epoch_from_msg(self, bufr):
+        """this method gets the forecast valid epoch from the message
+
+        Args:
+            bufr (_type_): _description_
+
+        Returns:
+            int: epoch representing the date
+        """
+        date_str = bufr.msg_date  # date is a datetime object i.e. 2024041012 is 2024-04-10 12:00:00
+        _dt = datetime.datetime.strptime(str(date_str), "%Y%m%d%H")
+        _epoch = int(_dt.strftime("%s"))
+        return _epoch
+
     def read_data_from_file(self, queue_element, templates):
         """read data from the prepbufr file, filter messages for appropriate ones,
         and load them raw into a raw dictionary structure. Use hypsometric equation to
@@ -652,26 +675,38 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         creates a self raw document_map
         """
         bufr = ncepbufr.open(queue_element)
-        raw_data = {}
-        while bufr.advance() == 0:  # loop over messages.
+        raw_data = []
+        # loop over messages, each new subset is a new station. Each subset has all the recorded levels for that station.
+        while bufr.advance() == 0:
             if bufr.msg_type != "ADPUPA":
                 continue
             # see load subset https://github.com/NOAA-EMC/NCEPLIBS-bufr/blob/a8108e591c6cb1e21ddc7ddb6715df1b3801fff8/python/ncepbufr/__init__.py#L389
+            # we use the bufr.msg_date to get the forecast valid epoch for the entire message
+            self.fcst_valid_epoch = self.get_fcst_valid_epoch_from_msg(bufr)
             while bufr.load_subset() == 0:  # loop over subsets in message.
+                subset_data = {}
                 # read the header data
                 header_data = self.read_data_from_bufr(bufr, templates["header"])
-                raw_data[header_data["station_id"]] = {}
-                raw_data[header_data["station_id"]]["header"] = header_data
+                # if we already have data for this station - skip it
+                subset_data["station_id"] = header_data["station_id"]
+                subset_data["fcst_valid_epoch"] = self.fcst_valid_epoch
+                subset_data["header"] = header_data
                 # read the q_marker data
                 q_marker_data = self.read_data_from_bufr(bufr, templates["q_marker"])
-                raw_data[header_data["station_id"]]["q_marker"] = q_marker_data
+                subset_data["q_marker"] = q_marker_data
                 # read the obs_err data
                 obs_err_data = self.read_data_from_bufr(bufr, templates["obs_err"])
-                raw_data[header_data["station_id"]]["obs_err"] = obs_err_data
+                subset_data["obs_err"] = obs_err_data
                 # read the obs data
                 obs_data = self.read_data_from_bufr(bufr, templates["obs_data"])
-                raw_data[header_data["station_id"]]["obs_data"] = obs_data
+                subset_data["obs_data"] = obs_data
+                raw_data.append(subset_data)
         bufr.close()
+        same_time_rows = []
+        for rd in raw_data:
+            station_ids = [o["station_id"] for o in raw_data if o["station_id"] == rd["station_id"]]
+            if len(station_ids) > 1:
+                same_time_rows.append(rd["station_id"])
         return raw_data
 
     def build_datafile_doc(self, file_name, data_file_id, origin_type):
@@ -688,15 +723,35 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
             "mtime": mtime,
             "subset": self.subset,
             "type": "DF",
-            "fileType": "netcdf",
+            "fileType": "prepbufr",
             "originType": origin_type,
             "loadJobId": self.load_spec["load_job_doc"]["id"],
-            "dataSourceId": "madis3",
+            "dataSourceId": "NCEP",
             "url": file_name,
             "projection": "lambert_conformal_conic",
             "interpolation": "nearest 4 weighted average",
         }
         return df_doc
+
+
+    def create_raw_data_id(self):
+         return f"DD:{self.subset}:RAW_OBS:GDAS:prepbufr:V01:{self.fcst_valid_epoch}"
+
+    def build_raw_data_doc(self, raw_data_id):
+        rd_doc = {
+            "id": raw_data_id,
+            "type": "DD",
+            "docType": "RAW_OBS",
+            "subset": self.subset,
+            "dataSourceId": "GDAS",
+            "fcstValidISO": self.get_valid_time_iso(),
+            "fcstValidEpoch": self.get_valid_time_epoch(),
+            "version": "V01",
+            "fileType": "prepbufr",
+            "originType": "GDAS",
+            "data": self.raw_obs_data,
+        }
+        return rd_doc
 
     def initialize_document_map(self):
         """
@@ -724,7 +779,7 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
     def load_data(self, doc, key, element):
         """
         This method adds an observation to the data dict -
-        in fact we use a dict to hold data elems to ensure
+        in fact we use a dict to hold data elements to ensure
         the data elements are unique per station name.
         Using a map ensures that the last
         entry in the netcdf file is the one that gets captured.
@@ -772,7 +827,7 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         return None
 
     def kelvin_to_fahrenheit(self, params_dict):
-        """Converts kelvin to farenheight performing any translations that are necessary
+        """Converts kelvin to fahrenheit performing any translations that are necessary
         Args:
             params_dict (dict): named function parameters
         Returns:
@@ -785,7 +840,7 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
             return value
         except Exception as _e:
             logger.error(
-                "%s handle_data: Exception in named function kelvin_to_farenheight:  error: %s",
+                "%s handle_data: Exception in named function kelvin_to_fahrenheit:  error: %s",
                 self.__class__.__name__,
                 str(_e),
             )
@@ -895,3 +950,36 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                 str(params_dict),
             )
             return ""
+
+    def get_valid_time_iso(self):
+        """
+        This routine returns the valid time epoch converted to an iso string
+        """
+        # convert the file name to an epoch using the mask
+        try:
+            epoch = self.fcst_valid_epoch
+            iso = convert_to_iso(epoch)
+            return iso
+        except Exception as _e:
+            logger.error(
+                "%s : Exception in named function derive_valid_time_iso:  error: %s",
+                self.__class__.__name__,
+                str(_e),
+            )
+        return None
+
+    def get_valid_time_epoch(self):
+        """
+        This routine returns the valid time epoch
+        """
+        # convert the file name to an epoch using the mask
+        try:
+            epoch = self.fcst_valid_epoch
+            return int(epoch)
+        except Exception as _e:
+            logger.error(
+                "%s : Exception in named function derive_valid_time_epoch:  error: %s",
+                self.__class__.__name__,
+                str(_e),
+            )
+        return None

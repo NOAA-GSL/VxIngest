@@ -1,10 +1,13 @@
 {
+    "type": "MD",
+    "version": "V01",
     "builder_type": "PrepbufrRaobsObsBuilderV01",
     "docType": "ingest",
     "subDocType": "prepbufr",
     "id": "MD:V01:RAOB:obs:ingest:prepbufr",
     "subType": "obs",
     "subset": "RAOB",
+    "mnemonic_mapping": "MD:V01:RAOB:ingest:mnemonic_mapping:prepbufr",
     "template": {
         "data": {
             "*stationName": {
@@ -22,18 +25,17 @@
             }
         },
         "units": {
-                "temperature": "deg F",
-                "dewpoint": "deg F",
-                "relative_humidity": "percent",
-                "specific_humidity": "m/kg",
-                "pressure": "mb",
-                "height": "meters",
-                "wind_speed": "mph",
-                "U-Wind": "mph",
-                "V-Wind": "mph",
-                "wind_direction": "degrees"
-            },
-
+            "temperature": "deg F",
+            "dewpoint": "deg F",
+            "relative_humidity": "percent",
+            "specific_humidity": "m/kg",
+            "pressure": "mb",
+            "height": "meters",
+            "wind_speed": "mph",
+            "U-Wind": "mph",
+            "V-Wind": "mph",
+            "wind_direction": "degrees"
+        },
         "level": "*level",
         "dataSourceId": "GDAS",
         "docType": "obs",
@@ -44,7 +46,5 @@
         "subset": "RAOB",
         "type": "DD",
         "version": "V01"
-    },
-    "type": "MD",
-    "version": "V01"
+    }
 }

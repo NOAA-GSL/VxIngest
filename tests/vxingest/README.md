@@ -42,7 +42,7 @@ Note that this currently (as of 1/2024) disables most of the tests.
 
 For now, you'll need test resources from: https://drive.google.com/drive/folders/18YY74S8w2S0knKQRN-QxZdnfRjKxDN69?usp=drive_link unpacked to `/opt/data` in order to run the test suite.
 
-Each test directory also has a `testdata` directory that contains other test data that's checked into the repo. Ideally, we could add our test data here before we switch to generating it. 
+Each test directory also has a `testdata` directory that contains other test data that's checked into the repo. Ideally, we could add our test data here before we switch to generating it.
 
 ## tests
 
@@ -52,7 +52,7 @@ There are two kinds of tests in each test directory.
 - unit - tests are named like grib2_to_cb/test/test_unit_metar_model_grib.py
 
 Notice the ***test_int_*** and the ***test_unit*** in the names.
-Unit tests are relatively independent, require minimal external test data, and run quickly. These tests are for testing methods or functions independantly. Integration tests require external data and configuration, are not independant, and may be very long running. These tests are for testing a working system, or components of a working system that are interacting.
+Unit tests are relatively independent, require minimal external test data, and run quickly. These tests are for testing methods or functions independently. Integration tests require external data and configuration, are not independent, and may be very long running. These tests are for testing a working system, or components of a working system that are interacting.
 
 ## vscode
 

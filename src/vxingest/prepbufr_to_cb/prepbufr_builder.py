@@ -57,7 +57,7 @@ class PrepbufrBuilder(Builder):
         self.collection = None
 
     @abc.abstractmethod
-    def read_data_from_file(self, queue_element):
+    def read_data_from_file(self, queue_element, templates):
         """read data from the prepbufr file, filter messages for appropriate ones,
         and load them raw into a dictionary structure, so that they can be post processed
         for interpolations."""
@@ -125,29 +125,30 @@ class PrepbufrBuilder(Builder):
                 "CtcBuilder.translate_template_item: Exception  error: %s", str(_e)
             )
             return None
+
     def get_mandatory_levels(self):
         """
         This method gets the mandatory levels for the raw data set.
         :return: the mandatory levels
         """
-        bottom = round(self.raw_obs_data["pressure"][0]/10)*10 - 10
+        bottom = round(self.raw_obs_data["pressure"][0] / 10) * 10 - 10
         # round bottom to nearest 10 mb?
-        top = round(self.raw_obs_data["pressure"][-1]/10)*10
+        top = round(self.raw_obs_data["pressure"][-1] / 10) * 10
         return [bottom + 10 * i for i in range(bottom, top, 10)]
 
     def handle_document(self):
         """
-                This routine processes the complete document (essentially a complete bufr file)
-                which includes a new document for each mandatory level
-                :return: The modified document_map
-                The document map should be a dictionary keyed by the document id
-                and each document id should look like DD:V01:RAOB:obs:prepbufr:500:1625097600
+        This routine processes the complete document (essentially a complete bufr file)
+        which includes a new document for each mandatory level
+        :return: The modified document_map
+        The document map should be a dictionary keyed by the document id
+        and each document id should look like DD:V01:RAOB:obs:prepbufr:500:1625097600
 
-                where the type is "DD", the version is "V01", the subset is "RAOB", the docType is "obs",
-                the docSubType is "prepbufr", the level is "500 (in mb)", and the valid time epoch is "1625097600".
+        where the type is "DD", the version is "V01", the subset is "RAOB", the docType is "obs",
+        the docSubType is "prepbufr", the level is "500 (in mb)", and the valid time epoch is "1625097600".
 
-                Each Document shall have a data dictionary that is keyed by the station name. The data section is defined by
-                the template in the ingest document.
+        Each Document shall have a data dictionary that is keyed by the station name. The data section is defined by
+        the template in the ingest document.
         """
         # noinspection PyBroadException
         try:
@@ -160,7 +161,7 @@ class PrepbufrBuilder(Builder):
                 for key in self.template:
                     if key == "data":
                         new_document = self.handle_data(
-                            doc=new_document, mandatory_level = _ml
+                            doc=new_document, mandatory_level=_ml
                         )
                         continue
                     new_document = self.handle_key(new_document, _ml, key)
@@ -198,7 +199,7 @@ class PrepbufrBuilder(Builder):
         try:
             if key == "id":
                 an_id = self.derive_id(
-                    template_id = self.template["id"],
+                    template_id=self.template["id"],
                     level=level,
                 )
                 if an_id not in doc:
@@ -208,22 +209,16 @@ class PrepbufrBuilder(Builder):
                 # process an embedded dictionary
                 tmp_doc = copy.deepcopy(self.template[key])
                 for sub_key in tmp_doc:
-                    tmp_doc = self.handle_key(
-                        tmp_doc, level, sub_key
-                    )  # recursion
+                    tmp_doc = self.handle_key(tmp_doc, level, sub_key)  # recursion
                 doc[key] = tmp_doc
             if (
                 not isinstance(doc[key], dict)
                 and isinstance(doc[key], str)
                 and doc[key].startswith("&")
             ):
-                doc[key] = self.handle_named_function(
-                    doc[key], level
-                )
+                doc[key] = self.handle_named_function(doc[key], level)
             else:
-                doc[key] = self.translate_template_item(
-                    doc[key], level
-                )
+                doc[key] = self.translate_template_item(doc[key], level)
             return doc
         except Exception as _e:
             logging.exception(
@@ -351,7 +346,8 @@ class PrepbufrBuilder(Builder):
             self.scope = self.load_spec["cb_connection"]["scope"]
             # collection is set to "RAOB" in the run_ingest
             self.collection = self.load_spec["cb_connection"]["collection"]
-            self.raw_obs_data = self.read_data_from_file(queue_element)
+            templates = {}
+            self.raw_obs_data = self.read_data_from_file(queue_element, templates)
             if len(self.stations) == 0:
                 stmnt = f"""SELECT {self.subset}.*
                     FROM `{self.bucket}`.{self.scope}.{self.collection}
@@ -383,7 +379,9 @@ class PrepbufrBuilder(Builder):
                 self.handle_document()
             document_map = self.get_document_map()
             # add the datafile doc to the document map
-            data_file_id = self.create_data_file_id(self.subset, "GDAS", "prepbufr", queue_element)
+            data_file_id = self.create_data_file_id(
+                self.subset, "GDAS", "prepbufr", queue_element
+            )
             data_file_doc = self.build_datafile_doc(
                 file_name=queue_element, data_file_id=data_file_id, origin_type="GDAS"
             )
@@ -548,7 +546,7 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                 while (
                     i < j
                 ):  # remember i is the bottom masked layer and j is the next layer above that has data
-                    height[i] = round(_height.magnitude,1)
+                    height[i] = round(_height.magnitude, 1)
                     # assigning a valid value to height[i] unmasks that value
                     # does this need to be added to the height of the layer below?
                     # i.e. _height.magnitude + height[i - 1]
@@ -568,41 +566,7 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         :param bufr: the bufr file
         :template: a dictionary of header keys with their corresponding mnemonics and intended types
         refer to https://www.emc.ncep.noaa.gov/emc/pages/infrastructure/bufrlib/tables/bufrtab_tableb.html
-        example:
-        hdr_template={
-            "station_id": {"mnemonic":"SID","intent":"str"},
-            "lon": {"mnemonic":"XOB", "intent":"float"},
-            "lat": {"mnemonic":"YOB", "intent":"float"},
-            "obs-cycle_time": {"mnemonic":"DHR", "intent":"float"},
-            "station_type": {"mnemonic":"TYP", "intent":"int"},
-            "elevation": {"mnemonic":"ELV", "intent":"float"},
-            "report_type": {"mnemonic":"T29", "intent":"int"}
-        }
-        q_marker_template = {
-            "pressure_q_marker": {"mnemonic":"PQM","type":int},
-            "specific_humidity_q_marker": {"mnemonic":"QQM","type":int},
-            "temperature_q_marker": {"mnemonic":"TQM","type":int},
-            "height_q_marker": {"mnemonic":"ZQM","type": int},
-            "u_v_wind_q_marker": {"mnemonic":"WQM", "type":int},
-        }
-        obs_err_template = {
-            "pressure_obs_err": {"mnemonic":"POE","type": float},
-            "relative_humidity_obs_err": {"mnemonic":"QOE","type": float},
-            "temperature_obs_err": {"mnemonic":"TOE","type": float},
-            "winds_obs_err": {"mnemonic":"WOE","type": float},
-        }
-        obs_data_template = {
-                "temperature": "TOB",
-                "dewpoint": "TDO",
-                "rh": "RHO",
-                "specific_humidity": "QOB",
-                "pressure": "POB",
-                "height": "ZOB",
-                "wind_speed": "FFO",
-                "U-Wind": "UOB",
-                "V-Wind": "VOB",
-                "wind_direction": "DDO",
-            }
+        example: see prepbufr_raob_template.json
 
         :return: the data
         """
@@ -613,6 +577,7 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         for i, mnemonic in enumerate(mnemonics):
             field = [k for k, v in template.items() if v["mnemonic"] == mnemonic]
             if field[0] == "rh":
+                # need to get some specific fields to calculate the relative humidity
                 rh_index = mnemonics.index("RHO")
                 pressure_index = mnemonics.index("POB")
                 temperature_index = mnemonics.index("TOB")
@@ -625,6 +590,7 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                 )
             else:
                 if field[0] == "height":
+                    # need to get some specific fields to interpolate the height
                     height_index = mnemonics.index("ZOB")
                     pressure_index = mnemonics.index("POB")
                     temperature_index = mnemonics.index("TOB")
@@ -640,9 +606,16 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                 else:
                     match template[field[0]]["intent"]:
                         case "int":
-                            data[field[0]] = bufr_data[i]
+                            if not ma.isMaskedArray(bufr_data[i]):
+                                data[field[0]] = int(bufr_data[i])
+                            else:
+                                data[field[0]] = bufr_data[i].astype(int)
+
                         case "float":
-                            data[field[0]] = bufr_data[i]
+                            if not ma.isMaskedArray(bufr_data[i]):
+                                data[field[0]] = round(bufr_data[i],3)
+                            else:
+                                data[field[0]] = bufr_data[i].round(3)
                         case "str":
                             data[field[0]] = str(bufr_data[i], encoding="utf-8").strip()
                         case _:
@@ -658,7 +631,9 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         Returns:
             int: epoch representing the date
         """
-        date_str = bufr.msg_date  # date is a datetime object i.e. 2024041012 is 2024-04-10 12:00:00
+        date_str = (
+            bufr.msg_date
+        )  # date is a datetime object i.e. 2024041012 is 2024-04-10 12:00:00
         _dt = datetime.datetime.strptime(str(date_str), "%Y%m%d%H")
         _epoch = int(_dt.strftime("%s"))
         return _epoch
@@ -673,9 +648,12 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
             queue_element: the file name to read
         Transformations: 1) pressure to height 2) temperature to dewpoint 3) meters per second to miles per hour
         creates a self raw document_map
+        NOTE: for report_type see https://www.emc.ncep.noaa.gov/emc/pages/infrastructure/bufrlib/tables/CodeFlag_0_STDv41_LOC7.html#055007
+        120 - MASS REPORT - Rawinsonde
+        220 - WIND REPORT - Rawinsonde
         """
         bufr = ncepbufr.open(queue_element)
-        raw_data = []
+        raw_data = {}
         # loop over messages, each new subset is a new station. Each subset has all the recorded levels for that station.
         while bufr.advance() == 0:
             if bufr.msg_type != "ADPUPA":
@@ -689,6 +667,7 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                 header_data = self.read_data_from_bufr(bufr, templates["header"])
                 # if we already have data for this station - skip it
                 subset_data["station_id"] = header_data["station_id"]
+                subset_data["report_type"] = round(header_data["report_type"])
                 subset_data["fcst_valid_epoch"] = self.fcst_valid_epoch
                 subset_data["header"] = header_data
                 # read the q_marker data
@@ -700,13 +679,12 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                 # read the obs data
                 obs_data = self.read_data_from_bufr(bufr, templates["obs_data"])
                 subset_data["obs_data"] = obs_data
-                raw_data.append(subset_data)
+                raw_data[subset_data["station_id"]] = raw_data.get(subset_data["station_id"], {})
+                raw_data[subset_data["station_id"]][subset_data["report_type"]] = raw_data[subset_data["station_id"]].get(subset_data["report_type"], {})
+                raw_data[subset_data["station_id"]][subset_data["report_type"]] = (
+                    subset_data
+                )
         bufr.close()
-        same_time_rows = []
-        for rd in raw_data:
-            station_ids = [o["station_id"] for o in raw_data if o["station_id"] == rd["station_id"]]
-            if len(station_ids) > 1:
-                same_time_rows.append(rd["station_id"])
         return raw_data
 
     def build_datafile_doc(self, file_name, data_file_id, origin_type):
@@ -733,9 +711,8 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         }
         return df_doc
 
-
     def create_raw_data_id(self):
-         return f"DD:{self.subset}:RAW_OBS:GDAS:prepbufr:V01:{self.fcst_valid_epoch}"
+        return f"DD:{self.subset}:RAW_OBS:GDAS:prepbufr:V01:{self.fcst_valid_epoch}"
 
     def build_raw_data_doc(self, raw_data_id):
         rd_doc = {

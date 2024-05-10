@@ -78,8 +78,8 @@ def test_read_header(mock_header_bufr):
 
     # Assert the expected values
     assert header_data["station_id"] == "SID123"
-    assert header_data["lon"] == 45.6789
-    assert header_data["lat"] == -123.4567
+    assert header_data["lon"] == 45.679
+    assert header_data["lat"] == -123.457
     assert header_data["obs-cycle_time"] == 0.5
     assert header_data["station_type"] == 1
     assert header_data["elevation"] == 100.0
@@ -124,10 +124,10 @@ def test_interpolate_heights():
     )
 
     # Define the test data
-    height = np.array([1000, 2000, np.nan, 4000, np.nan, 6000])
-    pressure = np.array([1000, 900, 800, 700, 600, 500])
-    temperature = np.array([20, 15, 10, 5, 0, -5])
-    specific_humidity = np.array([50, 60, 70, 80, 90, 100])
+    height = ma.asarray([1000, 2000, np.nan, 4000, np.nan, 6000])
+    pressure = ma.asarray([1000, 900, 800, 700, 600, 500])
+    temperature = ma.asarray([20, 15, 10, 5, 0, -5])
+    specific_humidity = ma.asarray([50, 60, 70, 80, 90, 100])
 
     # Call the interpolate_heights method
     interpolated_height = builder.interpolate_heights(height, pressure, temperature, specific_humidity)
@@ -135,9 +135,9 @@ def test_interpolate_heights():
     # Assert the expected interpolated heights
     assert interpolated_height[0][0] == 1000.0
     assert interpolated_height[0][1] == 2000.0
-    assert ma.is_masked(interpolated_height[0][2])
+    assert not ma.is_masked(interpolated_height[0][2])
     assert interpolated_height[0][3] == 4000.0
-    assert ma.is_masked(interpolated_height[0][4])
+    assert not ma.is_masked(interpolated_height[0][4])
     assert interpolated_height[0][5] == 6000.0
 
 

@@ -1,0 +1,131 @@
+{
+    "header": {
+        "station_id": {
+            "mnemonic": "SID",
+            "intent": "str"
+        },
+        "lon": {
+            "mnemonic": "XOB",
+            "intent": "float"
+        },
+        "lat": {
+            "mnemonic": "YOB",
+            "intent": "float"
+        },
+        "obs-cycle_time": {
+            "mnemonic": "DHR",
+            "intent": "float"
+        },
+        "elevation": {
+            "mnemonic": "ELV",
+            "intent": "float"
+        },
+        "data_dump_report_type": {
+            "TYP": 220,
+            "mnemonic": "T29",
+            "intent": "int"
+        },
+        "report_type": {
+            "mnemonic": "TYP",
+            "intent": "int"
+        }
+    },
+    "q_marker": {
+        "pressure_q_marker": {
+            "mnemonic": "PQM",
+            "intent": "int"
+        },
+        "specific_humidity_q_marker": {
+            "mnemonic": "QQM",
+            "intent": "int"
+        },
+        "temperature_q_marker": {
+            "mnemonic": "TQM",
+            "intent": "int"
+        },
+        "height_q_marker": {
+            "mnemonic": "ZQM",
+            "intent": "int"
+        },
+        "u_v_wind_q_marker": {
+            "mnemonic": "WQM",
+            "intent": "int"
+        },
+        "wind_speed_q_marker": {
+            "mnemonic": "SOB",
+            "intent": "int"
+        },
+        "wind_direction_q_marker": {
+            "mnemonic": "DFP",
+            "intent": "int"
+        },
+        "u_v_component_wind_q_marker": {
+            "mnemonic": "WPC",
+            "intent": "int"
+        }
+    },
+    "obs_err": {
+        "pressure_obs_err": {
+            "mnemonic": "POE",
+            "intent": "float"
+        },
+        "height_obs_err": {
+            "mnemonic": "ZOE",
+            "intent": "float"
+        },
+        "relative_humidity_obs_err": {
+            "mnemonic": "QOE",
+            "intent": "float"
+        },
+        "temperature_obs_err": {
+            "mnemonic": "TOE",
+            "intent": "float"
+        },
+        "winds_obs_err": {
+            "mnemonic": "WOE",
+            "intent": "float"
+        }
+    },
+    "obs_data": {
+        "temperature": {
+            "mnemonic": "TOB",
+            "intent": "float"
+        },
+        "dewpoint": {
+            "mnemonic": "TDO",
+            "intent": "float"
+        },
+        "rh": {
+            "mnemonic": "RHO",
+            "intent": "float"
+        },
+        "specific_humidity": {
+            "mnemonic": "QOB",
+            "intent": "float"
+        },
+        "pressure": {
+            "mnemonic": "POB",
+            "intent": "float"
+        },
+        "height": {
+            "mnemonic": "ZOB",
+            "intent": "float"
+        },
+        "wind_speed": {
+            "mnemonic": "FFO",
+            "intent": "float"
+        },
+        "U-Wind": {
+            "mnemonic": "UOB",
+            "intent": "float"
+        },
+        "V-Wind": {
+            "mnemonic": "VOB",
+            "intent": "float"
+        },
+        "wind_direction": {
+            "mnemonic": "DDO",
+            "intent": "float"
+        }
+    }
+}

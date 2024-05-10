@@ -1,4 +1,12 @@
 {
+    "type": "MD",
+    "subset": "RAOB",
+    "version": "V01",
+    "docType": "ingest_mapping",
+    "subDocType": "prepbufr",
+    "subType": "obs",
+    "dataSourceId": "GDAS",
+    "id": "MD:V01:RAOB:ingest:mnemonic_mapping:prepbufr",
     "header": {
         "station_id": {
             "mnemonic": "SID",

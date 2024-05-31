@@ -170,12 +170,16 @@ class VXIngest(CommonVxIngest):
             # put the real credentials into the load_spec
             logger.info("getting cb_credentials")
             self.cb_credentials = self.get_credentials(self.load_spec)
+            # override the collection because these are RAOB documents with subset 'RAOB'
+            self.load_spec["cb_credentials"]["collection"] = "RAOB"
+            self.cb_credentials["collection"] = "RAOB"
             # establish connections to cb, collection
             self.connect_cb()
             logger.info("connected to cb")
-            collection = "RAOB"  # override the collection because these are RAOB documents with subset 'RAOB'
             bucket = self.load_spec["cb_connection"]["bucket"]
             scope = self.load_spec["cb_connection"]["scope"]
+            # get the collection from the cb_connection
+            collection = self.load_spec["cb_connection"]["collection"]
             # load the ingest document ids into the load_spec (this might be redundant)
             ingest_document_result = self.collection.get(self.job_document_id)
             ingest_document = ingest_document_result.content_as[dict]

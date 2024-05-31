@@ -6,6 +6,11 @@
     "subDocType": "prepbufr",
     "subType": "obs",
     "dataSourceId": "GDAS",
+    "bufr_msg_type": "ADPUPA",
+    "bufr_report_types": [
+        120,
+        220
+    ],
     "id": "MD:V01:RAOB:ingest:mnemonic_mapping:prepbufr",
     "header": {
         "station_id": {

@@ -167,7 +167,7 @@ class NetcdfBuilder(Builder):
             if rec_num_data_size == 0:
                 return
             # make a copy of the template, which will become the new document
-            # once all the translations have occured
+            # once all the translations have occurred
             new_document = initialize_data_array(new_document)
             for rec_num in range(rec_num_data_size):
                 for key in self.template:
@@ -325,7 +325,7 @@ class NetcdfBuilder(Builder):
         """This is the entry point for the NetcfBuilders from the ingestManager.
         These documents are id'd by fcstValidEpoch. The data section is an array
         each element of which contains variable data and a station name. To process this
-        file we need to itterate the document by recNum and process the station name along
+        file we need to iterate the document by recNum and process the station name along
         with all the other variables in the template.
         Args:
             file_name (str): the name of the file being processed

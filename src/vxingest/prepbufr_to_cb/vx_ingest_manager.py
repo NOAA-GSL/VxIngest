@@ -39,7 +39,7 @@ import sys
 import time
 
 from vxingest.builder_common.ingest_manager import CommonVxIngestManager
-from vxingest.netcdf_to_cb import netcdf_builder as my_builder
+from vxingest.prepbufr_to_cb import prepbufr_builder as my_builder
 
 # Get a logger with this module's name to help with debugging
 logger = logging.getLogger(__name__)
@@ -62,7 +62,7 @@ class VxIngestManager(CommonVxIngestManager):
     from the file_name_queue.  The builders use the template to create documents for
     each filename and put them into the document map.
 
-    When all of the result set entries for a file are processed, the IngestManager upserts
+    When all of the result set entries for a file are processed, the IngestManager upsert
     the document(s) to couchbase, or writes to an output directory and retrieves a new filename from
     the queue and starts over.
 

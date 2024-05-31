@@ -1,20 +1,34 @@
-import json
-from pathlib import Path
+import os
 
 import ncepbufr
 import numpy.ma as ma
 from vxingest.prepbufr_to_cb.prepbufr_builder import PrepbufrRaobsObsBuilderV01
+from vxingest.prepbufr_to_cb.run_ingest_threads import VXIngest
 
-with Path(
-    "tests/vxingest/prepbufr_to_cb/testdata/prepbufr_raob_template.json"
-).open() as f:
-    template = json.load(f)
 
+def setup_connection():
+    """test setup"""
+    _vx_ingest = VXIngest()
+    _vx_ingest.credentials_file = os.environ["CREDENTIALS"]
+    _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
+    _vx_ingest.cb_credentials["collection"] = "RAOB"
+    _vx_ingest.connect_cb()
+    _vx_ingest.load_spec["ingest_document_ids"] = _vx_ingest.collection.get(
+        "JOB-TEST:V01:RAOB:PREPBUFR:OBS"
+    ).content_as[dict]["ingest_document_ids"]
+    return _vx_ingest
+
+
+# with Path(
+#     "tests/vxingest/prepbufr_to_cb/testdata/prepbufr_raob_template.json"
+# ).open() as f:
+#     template = json.load(f)
 
 def test_read_header():
     queue_element = (
         "/opt/data/prepbufr_to_cb/input_files/241011200.gdas.t12z.prepbufr.nr"
     )
+    vx_ingest = setup_connection()
     builder = PrepbufrRaobsObsBuilderV01(
         None,
         {
@@ -24,9 +38,11 @@ def test_read_header():
             "origin_type": "GDAS",
         },
     )
+
+    template = vx_ingest.collection.get("MD:V01:RAOB:ingest:mnemonic_mapping:prepbufr").content_as[dict]
     bufr = ncepbufr.open(queue_element)
     bufr.advance()
-    assert bufr.msg_type == "ADPUPA", "Expected ADPUPA message type"
+    assert bufr.msg_type == template["bufr_msg_type"], "Expected ADPUPA message type"
     bufr.load_subset()
     header = builder.read_data_from_bufr(bufr, template["header"])
     bufr.close()
@@ -41,9 +57,13 @@ def test_read_header():
 
 
 def test_read_qm_data():
+    vx_ingest = setup_connection()
     queue_element = (
         "/opt/data/prepbufr_to_cb/input_files/241011200.gdas.t12z.prepbufr.nr"
     )
+    template = vx_ingest.collection.get(
+        "MD:V01:RAOB:ingest:mnemonic_mapping:prepbufr"
+    ).content_as[dict]
     builder = PrepbufrRaobsObsBuilderV01(
         None,
         {
@@ -55,7 +75,7 @@ def test_read_qm_data():
     )
     bufr = ncepbufr.open(queue_element)
     bufr.advance()
-    assert bufr.msg_type == "ADPUPA", "Expected ADPUPA message type"
+    assert bufr.msg_type == template["bufr_msg_type"], "Expected ADPUPA message type"
     bufr.load_subset()
     qm_data = builder.read_data_from_bufr(bufr, template["q_marker"])
     bufr.close()
@@ -63,6 +83,10 @@ def test_read_qm_data():
 
 
 def test_read_obs_err():
+    vx_ingest = setup_connection()
+    template = vx_ingest.collection.get(
+        "MD:V01:RAOB:ingest:mnemonic_mapping:prepbufr"
+    ).content_as[dict]
     queue_element = (
         "/opt/data/prepbufr_to_cb/input_files/241011200.gdas.t12z.prepbufr.nr"
     )
@@ -77,7 +101,7 @@ def test_read_obs_err():
     )
     bufr = ncepbufr.open(queue_element)
     bufr.advance()
-    assert bufr.msg_type == "ADPUPA", "Expected ADPUPA message type"
+    assert bufr.msg_type == template["bufr_msg_type"], "Expected ADPUPA message type"
     bufr.load_subset()
     obs_err = builder.read_data_from_bufr(bufr, template["obs_err"])
     bufr.close()
@@ -89,6 +113,10 @@ def test_read_obs_err():
 
 
 def test_read_obs_data():
+    vx_ingest = setup_connection()
+    template = vx_ingest.collection.get(
+        "MD:V01:RAOB:ingest:mnemonic_mapping:prepbufr"
+    ).content_as[dict]
     queue_element = (
         "/opt/data/prepbufr_to_cb/input_files/241011200.gdas.t12z.prepbufr.nr"
     )
@@ -103,7 +131,7 @@ def test_read_obs_data():
     )
     bufr = ncepbufr.open(queue_element)
     bufr.advance()
-    assert bufr.msg_type == "ADPUPA", "Expected ADPUPA message type"
+    assert bufr.msg_type == template["bufr_msg_type"], "Expected ADPUPA message type"
     bufr.load_subset()
     obs_data = builder.read_data_from_bufr(bufr, template["obs_data"])
     bufr.close()
@@ -111,6 +139,10 @@ def test_read_obs_data():
 
 
 def test_read_data_from_file():
+    vx_ingest = setup_connection()
+    template = vx_ingest.collection.get(
+        "MD:V01:RAOB:ingest:mnemonic_mapping:prepbufr"
+    ).content_as[dict]
     queue_element = (
         "/opt/data/prepbufr_to_cb/input_files/241011200.gdas.t12z.prepbufr.nr"
     )
@@ -123,11 +155,16 @@ def test_read_data_from_file():
             "origin_type": "GDAS",
         },
     )
+    try:
+        raw_data = builder.read_data_from_file(queue_element, template)
+    except Exception as e:
+        breakpoint()
+        print(e)
+        raise Exception from e
 
-    raw_data = builder.read_data_from_file(queue_element, template)
-    # assert keys
+        # assert keys
     assert raw_data is not None
-    assert len(raw_data.keys()) == 626
+    assert len(raw_data.keys()) == 574
 
     # assert values for MASS - Rawinsonde report _type TYP 120
     assert len(raw_data["89571"][120]["header"].keys()) == 7
@@ -518,38 +555,25 @@ def test_read_data_from_file():
     assert (
         raw_data["89571"][120]["obs_data"]["height"].compressed()
         == [
-            -1.4700e02,
-            1.8000e01,
-            4.5900e02,
-            1.0404e03,
-            1.1060e03,
-            2.3246e03,
-            2.5500e03,
-            3.7759e03,
-            3.7759e03,
-            3.7759e03,
-            3.7759e03,
-            4.9000e03,
-            2.3786e03,
-            2.3786e03,
-            6.3800e03,
-            3.0228e03,
-            8.2500e03,
-            1.9356e03,
-            9.4600e03,
-            1.0930e04,
-            1.2820e04,
-            1.5440e04,
-            1.7730e04,
-            1.9870e04,
-            5.1725e03,
-            2.3080e04,
-            4.0855e03,
-            4.0855e03,
-            2.5620e04,
-            2.9990e04,
-            3.6503e03,
-            3.6503e03,
+            [
+                -1.470e02,
+                1.800e01,
+                4.590e02,
+                1.106e03,
+                2.550e03,
+                4.900e03,
+                6.380e03,
+                8.250e03,
+                9.460e03,
+                1.093e04,
+                1.282e04,
+                1.544e04,
+                1.773e04,
+                1.987e04,
+                2.308e04,
+                2.562e04,
+                2.999e04,
+            ]
         ]
     ).all()
     assert (

@@ -292,6 +292,12 @@ class PrepbufrBuilder(Builder):
                     for variable in raw_obs_data[station][report]["obs_data"]:
                         # create masked array for the variable with ALL the mandatory levels
                         # though the levels below the bottom level and above the top level will be masked
+                        if report == 120 and "wind" in variable.lower():
+                            # skip this one - it is handled in the 220 report
+                            continue
+                        if report == 220 and "wind" not in variable.lower():
+                            # skip this one - it is handled in the 120 report
+                            continue
                         if variable not in interpolated_data[station][report]["data"]:
                             interpolated_data[station][report]["data"][variable] = (
                                 ma.empty(shape=(len(mandatory_levels),))
@@ -1153,8 +1159,12 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                     logger.debug(
                         f"{subset_data["station_id"]}, {subset_data["report_type"]}"
                     )
-                    obs_data = self.read_data_from_bufr(bufr, templates["obs_data"])
+                    # use the template for the specific report type to read the obs data
+                    obs_data = self.read_data_from_bufr(
+                        bufr, templates["obs_data_" + str(header_data["report_type"])]
+                    )
                     subset_data["obs_data"] = obs_data
+
                     raw_bufr_data[subset_data["station_id"]] = raw_bufr_data.get(
                         subset_data["station_id"], {}
                     )

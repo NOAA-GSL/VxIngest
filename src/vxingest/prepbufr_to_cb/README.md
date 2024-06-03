@@ -14,6 +14,26 @@ a list of metadata documents (might be just one). These documents define how the
 The 'MD:V01:RAOB:obs:ingest:prepbufr' value is the id of a couchbase metadata document.
 This document MUST exist on the couchbase cluster defined by cb_host in an associated credentials file (the name of which is provided as a command line parameter) and MUST be readable by the cb_user.
 
+NOTE: These are a couple of really useful queries ...
+
+```sql
+WITH k AS ("89062.0")
+SELECT r.data.[k].height
+FROM vxdata._default.RAOB AS r
+WHERE r.data.[k].height != "--"
+```
+
+and
+
+```sql
+WITH k AS ("89062.0")
+SELECT r.data.[k].height
+FROM vxdata._default.RAOB AS r USE KEYS "DD:V01:RAOB:obs:prepbufr:240:1712772000"
+WHERE r.data.[k].height = "--"
+```
+
+See [issue](https://www.couchbase.com/forums/t/querying-a-map-of-maps-with-a-dynamic-key/30019)
+
 ## stations
 
 The station documents in the RAOB collection are RAOB stations. They all have ids like "MD:V01:RAOB:station:1001".

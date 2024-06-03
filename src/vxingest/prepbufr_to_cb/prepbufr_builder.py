@@ -1,5 +1,5 @@
 """
-Program Name: Class ApiBuilder.py
+Program Name: Class PrepbufrBuilder.py
 Contact(s): Randy Pierce
 History Log:  Initial version
 Copyright 2019 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of
@@ -39,10 +39,10 @@ class AllMaskedException(Exception):
 
 #  ApiBuilder← RaobObsBuilder ← RaobsGslObsBuilder
 class PrepbufrBuilder(Builder):
-    """parent class for API builders"""
+    """parent class for Prepbufr builders"""
 
     def __init__(self, load_spec, ingest_document):
-        # api builders do not init the ingest_document. That happens in build_document
+        #  builders do not init the ingest_document. That happens in build_document
         super().__init__(load_spec, ingest_document)
 
         self.load_spec = load_spec
@@ -169,11 +169,11 @@ class PrepbufrBuilder(Builder):
                         value = variable.replace("*" + _ri, convert_to_iso(value))
                     else:
                         value = variable.replace("*" + _ri, str(value))
-                    try:  # make sure we have a number, if possible
-                        value = float(value)
+                    try:  # make sure we have a number, if possible - except for stationNames
+                        if "stationName" not in _ri:
+                            value = float(value)
                     except ValueError:
                         return value
-
             return value
         except Exception as _e:
             logging.error(

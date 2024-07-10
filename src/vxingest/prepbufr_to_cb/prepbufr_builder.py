@@ -7,12 +7,14 @@ Colorado, NOAA/OAR/ESRL/GSL
 """
 
 import abc
+import collections
 import contextlib
 import copy
 import cProfile
 import datetime
 import logging
 import math
+import pathlib
 from pathlib import Path
 from pstats import Stats
 
@@ -24,7 +26,6 @@ from metpy.units import units
 from vxingest.builder_common.builder import Builder
 from vxingest.builder_common.builder_utilities import (
     convert_to_iso,
-    initialize_data_array,
 )
 
 # Get a logger with this module's name to help with debugging
@@ -128,7 +129,7 @@ class PrepbufrBuilder(Builder):
         replacements = []
         # noinspection PyBroadException
         try:
-            level_idx = self.get_mandatory_levels().index(level)
+            #level_idx = self.get_mandatory_levels().index(level)
             if isinstance(variable, str):
                 replacements = variable.split("*")[1:]
             # this is a literal, doesn't need to be returned
@@ -142,36 +143,39 @@ class PrepbufrBuilder(Builder):
                     # this is the place where it happens
                     # we need to find the value in the raw_obs_data
                     # looking in report_type 120 for non wind data
-                    # and in report_type 220 for wind data
-                    if "stationName" in _ri:
-                        value = stationName
-                    else:
-                        if "wind" in _ri.lower():
-                            # look in report_type 220
-                            if not self.interpolated_data[stationName][220]["data"]:
-                                # this one has no data
-                                value = None
-                            else:
-                                value = self.interpolated_data[stationName][220][
-                                    "data"
-                                ][_ri][level_idx]
+                    # and in report_type 220 for wind data.
+
+                    if _ri == "stationName":
+                        return stationName
+                    if "wind" in _ri.lower():
+                        # look in report_type 220
+                        if not self.interpolated_data[stationName][220]["data"]:
+                            # this one has no data
+                            value = None
                         else:
-                            # look in report_type 120
-                            if not self.interpolated_data[stationName][120]["data"]:
-                                # this one has no data
+                            try:
+                                value = self.interpolated_data[stationName][220]["data"][_ri][level]
+                            except KeyError as _ke:
+                                # this level doesn't exist for this variable
                                 value = None
-                            else:
-                                value = self.interpolated_data[stationName][120][
-                                    "data"
-                                ][_ri][level_idx]
-                            # convert each station value to iso if necessary
+                    else:
+                        # look in report_type 120
+                        if not self.interpolated_data[stationName][120]["data"]:
+                            # this one has no data
+                            return None
+                        else:
+                            try:
+                                value = self.interpolated_data[stationName][120]["data"][_ri][level]
+                            except KeyError as _ke:
+                                # this level doesn't exist for this variable
+                                return None
+                        # convert each station value to iso if necessary
                     if _ri.startswith("{ISO}"):
                         value = variable.replace("*" + _ri, convert_to_iso(value))
                     else:
                         value = variable.replace("*" + _ri, str(value))
                     try:  # make sure we have a number, if possible - except for stationNames
-                        if "stationName" not in _ri:
-                            value = float(value)
+                        value = float(value)
                     except ValueError:
                         return value
             return value
@@ -206,11 +210,25 @@ class PrepbufrBuilder(Builder):
                 nearest_higher_pressure_index
             ]
             nearest_lower_pressure = obs_data["pressure"][nearest_lower_pressure_index]
-            fact = (float)(
-                (math.log(nearest_higher_pressure) - math.log(wanted_pressure_level_mb))
-                / (math.log(nearest_higher_pressure) - math.log(nearest_lower_pressure))
-            )
-
+            try:
+                fact = (float)(
+                    (
+                        math.log(nearest_higher_pressure)
+                        - math.log(wanted_pressure_level_mb)
+                    )
+                    / (
+                        math.log(nearest_higher_pressure)
+                        - math.log(nearest_lower_pressure)
+                    )
+                )
+            except Exception as _e1:
+                if not isinstance(_e1, ZeroDivisionError):
+                    # don't log divide by zero (two adjacent levels with same)
+                    logging.error(
+                        "PrepBufrBuilder.interpolate_variable_for_level: Exception  error: %s",
+                        str(_e1),
+                    )
+                return ma.masked
             if variable == "wind_direction":  # if it is a wind_direction do this
                 # interpolates wind directions in the range 0 - 359 degrees
                 if (
@@ -254,7 +272,8 @@ class PrepbufrBuilder(Builder):
                     return ma.masked
                 else:
                     value = next_higher_pressure_variable_value + fact * (
-                        nearest_lower_pressure - next_lower_pressure_variable_value
+                        next_higher_pressure_variable_value
+                        - next_lower_pressure_variable_value
                     )
                     return value
         except Exception as _e:
@@ -283,7 +302,7 @@ class PrepbufrBuilder(Builder):
                             interpolated_data[station][report]["data"] = {}
                     if not isinstance(
                         raw_obs_data[station][report]["obs_data"]["pressure"],
-                        ma.core.MaskedArray,
+                        list,
                     ):
                         # I cannot process this station - there is no array of pressure data
                         del interpolated_data[station]
@@ -295,74 +314,46 @@ class PrepbufrBuilder(Builder):
                         if report == 120 and "wind" in variable.lower():
                             # skip this one - it is handled in the 220 report
                             continue
-                        if report == 220 and "wind" not in variable.lower():
-                            # skip this one - it is handled in the 120 report
+                        if (
+                            report == 220
+                            and variable.lower() != "pressure"
+                            and "wind" not in variable.lower()
+                        ):
+                            # skip this one - it is handled in the 120 report - except for pressure
                             continue
                         if variable not in interpolated_data[station][report]["data"]:
-                            interpolated_data[station][report]["data"][variable] = (
-                                ma.empty(shape=(len(mandatory_levels),))
-                            )
-                        if (
-                            raw_obs_data[station][report]["obs_data"][variable].shape
-                            == (0,)
-                            or raw_obs_data[station][report]["obs_data"][variable].shape
-                            == ()
-                            or raw_obs_data[station][report]["obs_data"][
-                                variable
-                            ].mask.all()
-                        ):
-                            interpolated_data[station][report]["data"][variable] = (
-                                ma.empty(shape=(len(mandatory_levels),))
-                            )
-                            # can't do this, there is no raw data for this variable - create a masked array of the proper shape
+                            interpolated_data[station][report]["data"][variable] = {}
+                        if raw_obs_data[station][report]["obs_data"][variable] is None or len(raw_obs_data[station][report]["obs_data"][variable]) == 0:
+                            # can't do this, there is no raw data for this variable
                             continue
                         # now we can interpolate the levels for each variable
-                        for level_i, level in enumerate(mandatory_levels):
+                        for level in mandatory_levels:
                             # find the nearest higher and lower pressure to this level
-                            # find the nearest raw_obs_data pressure level
-                            diff_arr = np.absolute(
-                                raw_obs_data[station][report]["obs_data"][
-                                    "pressure"
-                                ].data
-                                - level
-                            )
-                            nearest_i = diff_arr.argmin()
-                            nearest_pressure = raw_obs_data[station][report][
+                            p_arr = np.asarray(raw_obs_data[station][report]["obs_data"]["pressure"])
+                            if level > p_arr.max() or level < p_arr.min():
+                                # this level is outside the range of the data - have to skip it
+                                continue
+                            nearest_higher_pressure = p_arr[p_arr >= level].min()
+                            nearest_higher_i = raw_obs_data[station][report]["obs_data"][
+                                "pressure"
+                            ].index(nearest_higher_pressure)
+                            nearest_lower = p_arr[p_arr <= level].max()
+                            nearest_lower_i = raw_obs_data[station][report][
                                 "obs_data"
-                            ]["pressure"][nearest_i]
-                            if nearest_pressure == level:
-                                # do not interpolate - this one is on the mandatory level
-                                interpolated_data[station][report]["data"][variable][
-                                    level_i
-                                ] = raw_obs_data[station][report]["obs_data"][variable][
-                                    nearest_i
-                                ]
+                            ]["pressure"].index(nearest_lower)
+
+                            if nearest_higher_i == nearest_lower_i:
+                                # this is the level we want - it matches the mandatory level
+                                interpolated_data[station][report]["data"][variable][level] = raw_obs_data[station][report]["obs_data"][variable][nearest_lower_i]
+                                continue
+                            # interpolate these values
+                            if nearest_higher_i >= 0:
+                                nearest_higher_pressure_index = nearest_higher_i
+                                nearest_lower_pressure_index = nearest_higher_i + 1
                             else:
-                                # interpolate these values
-                                if (
-                                    nearest_i == 0
-                                    or nearest_i
-                                    == len(
-                                        raw_obs_data[station][report]["obs_data"][
-                                            "pressure"
-                                        ]
-                                    )
-                                    - 1
-                                ):
-                                    # there is no higher or lower pressure level - have to mask this one
-                                    interpolated_data[station][report]["data"][
-                                        variable
-                                    ][level_i] = ma.masked
-                                    continue
-                                if nearest_i >= 0:
-                                    nearest_higher_pressure_index = nearest_i
-                                    nearest_lower_pressure_index = nearest_i + 1
-                                else:
-                                    nearest_higher_pressure_index = nearest_i - 1
-                                    nearest_lower_pressure_index = nearest_i
-                                interpolated_data[station][report]["data"][variable][
-                                    level_i
-                                ] = self.interpolate_variable_for_level(
+                                nearest_higher_pressure_index = nearest_higher_i - 1
+                                nearest_lower_pressure_index = nearest_higher_i
+                            interpolated_data[station][report]["data"][variable][level] = self.interpolate_variable_for_level(
                                     variable,
                                     nearest_higher_pressure_index,
                                     nearest_lower_pressure_index,
@@ -397,53 +388,28 @@ class PrepbufrBuilder(Builder):
         """
         # noinspection PyBroadException
         try:
-            if "level" in self.template:
-                # this is a multilevel template. We need to process each level in mandatory levels.
-                for level in self.get_mandatory_levels():
-                    new_document = copy.deepcopy(self.template)
-                    # make a copy of the template, which will become the new document
-                    # once all the translations have occurred
-                    # set the level right away (it is needed for the handle_data)
-                    # clean out the data template from the data portion of the newDocument
-                    new_document["data"] = {}
-                    new_document["level"] = level
-                    for key in self.template:
-                        if key == "level":
-                            continue
-                        if key == "data":
-                            try:
-                                new_document = self.handle_data(level, doc=new_document)
-                            except AllMaskedException as _ame:
-                                # this data is all masked at this level. Cannot use this document.
-                                continue
-                        # handle the key for this level that isn't data and isn't level
-                        # level is the same for all the variables and all the stations
-                        # variables will be handled in the data section for every station
-                        new_document = self.handle_key(new_document, level, key)
-                        # put new document into document map
-                        if new_document["id"]:
-                            logging.info(
-                                "PrepbufrBuilder.handle_document - adding document %s",
-                                new_document["id"],
-                            )
-                            self.document_map[new_document["id"]] = new_document
-                        else:
-                            logging.info(
-                                "PrepbufrBuilder.handle_document - cannot add document with key %s",
-                                str(new_document["id"]),
-                            )
-                            self.document_map[new_document["id"]] = new_document
-            else:
+            for level in self.get_mandatory_levels():
                 new_document = copy.deepcopy(self.template)
                 # make a copy of the template, which will become the new document
                 # once all the translations have occurred
-                new_document = initialize_data_array(new_document)
+                # set the level right away (it is needed for the handle_data)
+                # clean out the data template from the data portion of the newDocument
+                new_document["data"] = {}
                 for key in self.template:
-                    if key == "data":
-                        new_document = self.handle_data(level, doc=new_document)
+                    if key == "level":
+                        new_document["level"] = level
                         continue
-                    # stationName not needed, this is not a 'data' section key
-                    new_document = self.handle_key(level, new_document, key)
+                    if key == "data":
+                        try:
+                            self.handle_data(level, doc=new_document)
+                        except AllMaskedException as _ame:
+                            # this data is all masked at this level. Cannot use this document.
+                            break
+                        continue
+                    # handle the key for this level that isn't data and isn't level
+                    # level is the same for all the variables and all the stations
+                    # variables will be handled in the data section for every station
+                    new_document = self.handle_key(new_document, level, key)
                     # put new document into document map
                     if new_document["id"]:
                         logging.info(
@@ -456,6 +422,7 @@ class PrepbufrBuilder(Builder):
                             "PrepbufrBuilder.handle_document - cannot add document with key %s",
                             str(new_document["id"]),
                         )
+                        self.document_map[new_document["id"]] = new_document
         except Exception as _e:
             logging.error(
                 "PrepbufrBuilder.handle_document: Exception instantiating builder: %s error: %s",
@@ -486,14 +453,21 @@ class PrepbufrBuilder(Builder):
                 if an_id not in doc:
                     doc["id"] = an_id
                 return doc
-            if key == "*stationName":
-                doc[key] = stationName
-                return doc
             if isinstance(doc[key], dict):
                 # process an embedded dictionary
-                tmp_doc = copy.deepcopy(self.template[key])
+                # find the key in the template and process it (might not be a key in the top level of the template)
+                if key in self.template:
+                    val = self.template[key]
+                else:
+                    for k in self.template:
+                        if key in self.template[k]:
+                            val = self.template[k][key]
+                            break
+                tmp_doc = copy.deepcopy(val)
                 for sub_key in tmp_doc:
-                    tmp_doc = self.handle_key(tmp_doc, level, sub_key)  # recursion
+                    tmp_doc = self.handle_key(
+                        tmp_doc, level, sub_key, stationName
+                    )  # recursion
                 doc[key] = tmp_doc
             if (
                 not isinstance(doc[key], dict)
@@ -584,69 +558,40 @@ class PrepbufrBuilder(Builder):
         """
         try:
             doc = kwargs["doc"]
-            data_elem = {}
             for _station_name in self.interpolated_data:
-                level_index = self.get_mandatory_levels().index(level)
-                data_elem["stationName"] = _station_name
-                data_key = next(iter(self.template["data"]))
-                data_template = self.template["data"][data_key]
+                data_elem = {}
+                data_template = self.template["data"]["*stationName"]
                 try:
-                    all_masked = True
-                    for key in data_template:
-                        report_type = 220 if "wind" in key.lower() else 120
-                        # don't use non data keys (like stationName) as a test for masking
-                        if key in self.interpolated_data[_station_name][report_type][
-                            "data"
-                        ] and not ma.is_masked(
-                            self.interpolated_data[_station_name][report_type]["data"][
-                                key
-                            ][level_index]
-                        ):
-                            # we actually have un-masked data so we will process this station
-                            all_masked = False
-                            break
-                    if all_masked is True:
-                        # don't use this document for this level - all the data is masked
-                        raise AllMaskedException("All values are masked")
-                    for key in data_template:
+                    for _data_key in data_template:
                         try:
-                            value = data_template[key]
+                            value = data_template[_data_key]
                             # values can be null...
-                            if value and value.startswith("&"):
-                                value = self.handle_named_function(
+                            if (
+                                value
+                                and not isinstance(value, dict)
+                                and value.startswith("&")
+                            ):
+                                replace_value = self.handle_named_function(
                                     _station_name, level, value
                                 )
                             else:
-                                value = self.translate_template_item(
+                                replace_value = self.translate_template_item(
                                     _station_name, level, value
                                 )
+                            data_elem[_data_key] = replace_value
                         except ValueError as _ve:
                             # this was logged already - dont log it again
                             raise _ve
                         except Exception as _e:
-                            value = None
+                            replace_value = None
                             logging.warning(
                                 "%s Builder.handle_data - value is None",
                                 self.__class__.__name__,
                             )
                             raise _e  # probably cannot use this document - throw it away
-                        data_elem[key] = value
-                    if data_key.startswith("&"):
-                        data_key = self.handle_named_function(
-                            _station_name, level, data_key
-                        )
-                    else:
-                        data_key = self.translate_template_item(
-                            _station_name, level, data_key
-                        )
-                    if data_key is None:
-                        logging.warning(
-                            "%s Builder.handle_data - _data_key is None",
-                            self.__class__.__name__,
-                        )
-                    doc["data"][data_key] = data_elem
                 except ValueError as _ve:
                     continue  # do not use this one - we didn't have enough data to create a new station document
+                doc["data"][_station_name] = data_elem
             return doc
         except AllMaskedException as _ame:
             raise _ame
@@ -841,15 +786,24 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         self.interpolated_data = {}
         self.mandatory_levels = []
         self.station_reference = {}
-        # self.print_debug_report = False
-        self.print_debug_report = True
+
+        self.print_debug_station_report = False
+        # self.print_debug_station_report = True
         self.report_file = None
-        if self.print_debug_report:
+        self.report_station_file_name = "/tmp/station_report.txt"
+        if self.print_debug_station_report:
             with contextlib.suppress(OSError):
-                Path("/tmp/report.txt").unlink()
-            print("debug report is in /tmp/report.txt")
+                Path(self.station_report_file_name).unlink()
+            print(f"debug station report is in {self.station_report_file_name}")
         # self.do_profiling = True  # set to True to enable build_document profiling
         self.do_profiling = False  # set to True to enable build_document profiling
+
+        self.write_data_for_debug_station = None  # used for debugging
+        self.current_station = None  # used for debugging
+
+    # used for debugging - mostly for setting breakpoints
+    def set_write_data_for_debug_station(self, station):
+        self.write_data_for_debug_station = station
 
     def get_mandatory_levels(self):
         """
@@ -877,41 +831,16 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         relative_humidity_from_specific_humidity(1013.25 * units.hPa, 30 * units.degC, 18/1000).to('percent')
         """
         try:
-            if (
-                (
-                    not ma.isMaskedArray(pressure)
-                    or ma.all(ma.is_masked(pressure))
-                    or pressure.shape == ()
+            _relative_humidity = (
+                metpy.calc.relative_humidity_from_specific_humidity(
+                    pressure * units.hPa,
+                    temperature * units.degC,
+                    specific_humidity * units("mg/kg"),
                 )
-                or (
-                    not ma.isMaskedArray(temperature)
-                    or ma.all(ma.is_masked(temperature))
-                    or temperature.shape == ()
-                )
-                or (
-                    not ma.isMaskedArray(specific_humidity)
-                    or ma.all(ma.is_masked(specific_humidity))
-                    or specific_humidity.shape == ()
-                )
-            ):
-                _ret_array = np.full(temperature.shape, np.nan)
-                _mask = np.full(temperature.shape, True)
-                return ma.masked_array(_ret_array, mask=_mask)
-            sh_data = specific_humidity.data
-            # this is a HACK! - the specific humidity data is sometimes 1000
-            # and the metpy function has a divide by zero RuntimeWarning when it is 1000!
-            if 1000 in sh_data:
-                sh_idx = np.where(sh_data == 1000)
-                sh_data[sh_idx] = 999
-            _relative_humidity = metpy.calc.relative_humidity_from_specific_humidity(
-                pressure.data * units.hPa,
-                temperature.data * units.degC,
-                sh_data / 1000,
-            ).to("percent")
-            # make a masked array
-            return ma.masked_array(
-                data=_relative_humidity, mask=False, fill_value=math.nan
+                .to("percent")
+                .to_tuple()[0]
             )
+            return _relative_humidity
         except Exception as _e:
             logger.error(
                 "PrepBufrBuilder.get_relative_humidity: Exception  error: %s", str(_e)
@@ -967,7 +896,7 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
             # first - calculate the mixing ratio from the specific humidity for the entire array
             try:
                 _mixing_ratio = metpy.calc.mixing_ratio_from_specific_humidity(
-                    specific_humidity
+                    specific_humidity * units("mg/kg")
                 ).to("g/kg")
             except Exception as _e:
                 logger.error(
@@ -1019,6 +948,145 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
             )
             return height, original_height_mask
 
+    def get_data_from_bufr_for_field(
+        self,
+        events,
+        bufr_data,
+        mnemonic_index,
+        event_value=None,
+        mnemonic=None,
+    ):
+        """
+        This method gets the value from the bufr data at the index for the specific field
+        :param events: Bool - whether the bufr has events or not
+        :param bufr_data: the bufr data
+        :param mnemonic_index: the field index (variable index)
+        :return: If events are False the variable value will be read from the bufr_data at the mnemonic_index.
+        If events are True the variable value will be read from the bufr_data at the mnemonic_index and the event dimension
+        will be used to find the value that corresponds to the event_value that is passed in, e.g. 1 is 'Initial' and 8 is 'Virtual'
+        see https://www.emc.ncep.noaa.gov/mmb/data_processing/table_local_await-val.htm#0-12-247
+        An event_value of None will cause the value of the first event to be returned, regardless of the events actual value.
+
+        example:
+        as an example consider the following bufr data decoded from a prepbufr file 241570000.gdas.t00z.prepbufr.nr which
+        is the 0 hour UTC readings for the GDAS data set from 2024 June 5th.
+        The data was loaded in read_data_from_file with bufr = ncepbufr.open(queue_element), bufr.load_subset(), and bufr.advance().
+        In this routine the data for a subset is read with the following code...
+        For example purposes consider using two different read_subset calls, one for events-False and one for events=True.
+        bdne = bufr.read_subset(mnemonics_str, events=False).squeeze()
+        bdwe = bufr.read_subset(mnemonics_str, events=True).squeeze()
+        consider the following mnemonics_str for debugging purposes
+        - no events mnemonics_str = 'TOB TDO RHO QOB POB ZOB' (temp, dewpoint, relative humidity, specific humidity, pressure, height)
+        - with events mnemonics_str = 'TOB TPC TDO RHO QOB QPC POB PPC ZOB ZPC' (temp, temp program code, dewpoint, relative humidity, specific humidity, specific humidity program code, pressure, pressure program code, height, height program code)
+
+        bdne=bufr.read_subset('TOB TDO RHO QOB POB ZOB', events=False)
+        bdwe=bufr.read_subset('TOB TPC TDO RHO QOB QPC POB PPC ZOB ZPC', events=True)
+        bdne.shape
+         (6, 43)
+        > bdwe.shape
+         (6, 43, 255)
+        bdne is a masked array for the temperature TOB i.e. the first mnemonic i.e. variable_index==0. There are 43 elements i.e. levels
+        > bdne[0]
+          masked_array(data=[--, --, --, 26.8, 25.200000000000003, 16.7,
+          11.200000000000001, -4.4, -5.4, -12.200000000000001,
+           ....,
+          -51.7, -49.1],
+          mask=[ True,  True,  True, False, False, False, False, False,
+          .....,
+           False, False, False],
+           fill_value=100000000000.0)
+        the 26th element is -76.7 degrees C
+        > bdne[0][26]
+        -76.7
+        bdwe is a masked array for the temperature TOB i.e. the first mnemonic. There are 43 elements i.e. levels, and an additional element for each of 255 potential events.
+         > bdwe.shape
+         (6, 43, 255)
+        there are two events for the 26th level and all the others are masked
+        > bdwe[0][26].count()
+         2
+        for this example the first event is 0 and the second event is 1 and the corresponding data values are identical
+        > bdwe[0][26][0]
+        -76.7
+        > bdwe[0][26][1]
+        -76.7
+        > bdwe[0][26][2]
+        masked
+        to get all the first event pressures...
+        > [i[0] for i in bdwe[6]]
+        > [1000.0, 925.0, 850.0, 773.0, 772.0, 700.0, 654.0, 515.0, 500.0, 440.0, 431.0, 428.0, 400.0, 383.0, 342.0, 329.0, 326.0, 320.0, 300.0, 264.0, 250.0, 208.0, 200.0, 185.0, 150.0, 149.0, 100.0, 97.5, 71.9, 70.0, 68.60000000000001, 64.4, 56.6, 50.0, 42.300000000000004, 36.5, 32.300000000000004, 30.900000000000002, 30.0, 25.3, 22.3, 20.0, 16.7]
+        to get all the second event pressures (note that all but the first two are masked)...
+        > i[1] for i in bdwe[6]]
+        [1000.0, 925.0, masked, masked, masked, masked, masked, masked, masked, masked, masked, masked, masked, masked, masked, masked, masked, masked, masked, masked, masked, masked, masked, masked, masked, masked, masked, masked, masked, masked, masked, masked, masked, masked, masked, masked, masked, masked, masked, masked, masked, masked, masked]
+        to find the index of the 500 mb level (it is the ninth element - index 8) ...
+        [i[0] for i in bdwe[6]].index(500)
+        8
+        so to find the temperature that corresponds to the pressure level 500 mb use the index 8...
+        > bdwe[0][8][0]
+        -5.4     (this is the first event value)
+        bdwe[0][8][1]
+        -6.1000000000000005 (this is the second event value)
+        now to find out what the temperature event program code is for the first or second event use the TPC value i.e. 1 ...
+        > bdwe[1][8][0]
+        The program event code table is at https://www.emc.ncep.noaa.gov/mmb/data_processing/table_local_await-val.htm#0-12-247
+          8.0    (from the code table we know that this is the temperature event program code for Virtual Temp)
+        > bdwe[1][8][1]
+          1.0    (from the code table we know that this is the temperature event program code for Initial Temp reading)
+        So the initial temp reading is -6.1 degrees C - bdwe[0][8][1] and the virtual temp is -5.4 degrees C - bdwe[0][8][0]
+
+        For some of the templates the events variable will be set to false and for others it will be set to true.
+        For those set to true we will look for the initial (event program code value == 1) data values not the virtual ones.
+        For those set to false we will look for the first data value.
+
+        """
+        if not ma.isMaskedArray(bufr_data[mnemonic_index]):
+            return bufr_data[mnemonic_index]
+        if events is False or event_value is None:
+            # don't consider events just return the data for the field
+            if len(bufr_data[mnemonic_index].shape) > 1:
+                return [i[0] for i in bufr_data[mnemonic_index].filled()]
+            else:
+                if bufr_data[mnemonic_index].shape == ():
+                    return [bufr_data[mnemonic_index].item()]
+                return [i for i in bufr_data[mnemonic_index].tolist()]
+        else:
+            # have to consider events
+            # go through each level and find the value that corresponds to the event_value
+            for level_index in range(0, bufr_data.shape[1]):
+                if bufr_data[mnemonic_index][level_index].shape == ():  # scalar
+                    return [bufr_data[mnemonic_index][level_index].item()]
+                if len(bufr_data[mnemonic_index][level_index].compressed()) == 1:
+                    # ignore the events, there is only one event anyway, just return the filled list.
+                    # This deserves explanation. The bufr data is a 3-d array with the first dimension being the variable
+                    # the second dimension being the level and the third dimension being the event. If there is only one event
+                    # then the third dimension is not necessary and the data is filled.
+                    return [i[0] for i in bufr_data[mnemonic_index].filled()]
+                # now we have multiple events and we have to consider them so find the index of the expected event_value
+                try:
+                    _event_value_found = False
+                    for e_index in range(0, bufr_data.shape[2]):
+                        if bufr_data[mnemonic_index][level_index][1] is ma.masked:
+                            # do not consider masked data
+                            continue
+                        if (
+                            bufr_data[mnemonic_index][level_index][e_index]
+                            == event_value
+                        ):
+                            _event_value_found = True
+                            break
+                        # using the event value index find all the correct values
+                    if _event_value_found is True:
+                        return [i[e_index] for i in bufr_data[mnemonic_index].filled()]
+                    else:
+                        logger.info(
+                            f"PrepBufrBuilder.get_data_from_bufr_for_field: event_value not found for mnemonic {mnemonic}",
+                        )
+                        return [i[0] for i in bufr_data[mnemonic_index].filled()]
+                except IndexError as _ie:
+                    logger.error(
+                        f"PrepBufrBuilder.get_data_from_bufr_for_field: IndexError for mnemonic {mnemonic}",
+                    )
+                    return [i[0] for i in bufr_data[mnemonic_index].filled()]
+
     def read_data_from_bufr(self, bufr, template):
         """
         This method reads the data from the bufr file according to a provided template.
@@ -1031,69 +1099,243 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         refer to https://www.emc.ncep.noaa.gov/emc/pages/infrastructure/bufrlib/tables/bufrtab_tableb.html
         example: see prepbufr_raob_template.json
 
-        :return: the data
+        :return: a data object: each key is a field name and the value is the data array (not masked) for that field
         """
         # see read_subset https://github.com/NOAA-EMC/NCEPLIBS-bufr/blob/a8108e591c6cb1e21ddc7ddb6715df1b3801fff8/python/ncepbufr/__init__.py#L449
-        mnemonics = [o["mnemonic"] for o in template.values()]
-        bufr_data = bufr.read_subset(" ".join(mnemonics)).squeeze()
+        mnemonicsSet = set()  # using a set to eliminate duplicates
+        for o in template.values():
+            if isinstance(o, dict):
+                mnemonicsSet.add(o["mnemonic"])
+        mnemonics = list(mnemonicsSet)
+        mnemonics_str = " ".join(mnemonics)
+        events = template["events"] is True
+        # see https://github.com/NOAA-EMC/NCEPLIBS-bufr/blob/a8108e591c6cb1e21ddc7ddb6715df1b3801fff8/python/ncepbufr/__init__.py#L449
+        # for reference on read_subset
+        # if `events=True`, `ufbevn` is used to read prepbufr "events", and a 3-d array is returned.
+        # The shape of the (events=False) array is `(nm,nlevs)`, where where `nm` is the number of elements in the specified
+        # mnemonics string, and `nlevs` is the number of levels in the report.
+        # If `events=True`, a 3rd dimension representing the prepbufr event codes is added giving a shape of `(nm,nlevs,events)`. The
+        # 'events' has the same length as the number of events in the report and has the values of the event program codes, provided
+        # that event program code mnemonics are provided in the mnemonic list. If there are no event
+        # program codes in the mnemonics list, the events dimension is masked, the values of the data mnemonic are present but you cannot determine which
+        # event program code applies to which event or which data value.
+        bufr_data = bufr.read_subset(mnemonics_str, events=events).squeeze()
+        if "SID" in mnemonics:
+            station_id = str(
+                bufr_data[mnemonics.index("SID")], encoding="utf-8"
+            ).strip()
+            self.current_station = station_id
         data = {}
-        for i, mnemonic in enumerate(mnemonics):
+        for mnemonic_index, mnemonic in enumerate(mnemonics):
             try:
-                field = [k for k, v in template.items() if v["mnemonic"] == mnemonic]
-                if field[0] == "relative_humidity":
+                field = [
+                    k
+                    for k, v in template.items()
+                    if isinstance(v, dict) and mnemonic == v["mnemonic"]
+                ][0]
+                event_value = template[field].get("event_value", None)
+                if field == "relative_humidity":
                     # need to get some specific fields to calculate the relative humidity
-                    relative_humidity_index = mnemonics.index("RHO")
-                    pressure_index = mnemonics.index("POB")
-                    temperature_index = mnemonics.index("TOB")
-                    specific_humidity_index = mnemonics.index("QOB")
-                    data[field[0]] = self.get_relative_humidity(
-                        bufr_data[
-                            relative_humidity_index
-                        ],  # relative_humidity - sometimes is missing
-                        bufr_data[pressure_index],  # pressure
-                        bufr_data[temperature_index],  # temperature
-                        bufr_data[specific_humidity_index],  # specific_humidity
+                    relative_humidity = self.get_data_from_bufr_for_field(
+                        events,
+                        bufr_data,
+                        mnemonics.index(mnemonic),
+                        mnemonic=mnemonic,
+                        event_value=event_value,
+                    )
+                    pressure_mnemonic = template["pressure"]["mnemonic"]
+                    pressure_event_value = template["pressure"]["event_value"]
+                    pressure = self.get_data_from_bufr_for_field(
+                        events,
+                        bufr_data,
+                        mnemonics.index(pressure_mnemonic),
+                        mnemonic=pressure_mnemonic,
+                        event_value=pressure_event_value,
+                    )
+                    temperature_mnemonic = template["temperature"]["mnemonic"]
+                    temperature_event_value = template["temperature"]["event_value"]
+                    temperature = self.get_data_from_bufr_for_field(
+                        events,
+                        bufr_data,
+                        mnemonics.index(temperature_mnemonic),
+                        event_value=temperature_event_value,
+                        mnemonic=temperature_mnemonic,
+                    )
+                    specific_humidity_mnemonic = template["specific_humidity"][
+                        "mnemonic"
+                    ]
+                    specific_humidity_event_value = template["specific_humidity"][
+                        "event_value"
+                    ]
+                    specific_humidity = self.get_data_from_bufr_for_field(
+                        events,
+                        bufr_data,
+                        mnemonics.index(specific_humidity_mnemonic),
+                        event_value=specific_humidity_event_value,
+                        mnemonic=specific_humidity_mnemonic,
+                    )
+                    data[field] = self.get_relative_humidity(
+                        relative_humidity,  # relative_humidity - sometimes is missing
+                        pressure,
+                        temperature,
+                        specific_humidity,
                     )
                 else:
-                    if field[0] == "height":
+                    if field == "height":
                         # need to get some specific fields to interpolate the height
-                        height_index = mnemonics.index("ZOB")
-                        pressure_index = mnemonics.index("POB")
-                        temperature_index = mnemonics.index("TOB")
-                        specific_humidity_index = mnemonics.index("QOB")
-                        data[field[0]], _original_mask = self.interpolate_heights(
-                            bufr_data[
-                                height_index
-                            ],  # height - fields are sometimes missing
-                            bufr_data[pressure_index],  # pressure
-                            bufr_data[temperature_index],  # temperature
-                            bufr_data[specific_humidity_index],  # specific_humidity
+                        height = self.get_data_from_bufr_for_field(
+                            events,
+                            bufr_data,
+                            mnemonics.index(mnemonic),
+                            event_value=event_value,
+                            mnemonic=mnemonic,
+                        )
+                        pressure_mnemonic = template["pressure"]["mnemonic"]
+                        pressure_event_value = template["pressure"]["event_value"]
+                        pressure = self.get_data_from_bufr_for_field(
+                            events,
+                            bufr_data,
+                            mnemonics.index(pressure_mnemonic),
+                            mnemonic=pressure_mnemonic,
+                            event_value=pressure_event_value,
+                        )
+                        temperature_mnemonic = template["temperature"]["mnemonic"]
+                        temperature_event_value = template["temperature"]["event_value"]
+                        temperature = self.get_data_from_bufr_for_field(
+                            events,
+                            bufr_data,
+                            mnemonics.index(temperature_mnemonic),
+                            event_value=temperature_event_value,
+                            mnemonic=temperature_mnemonic,
+                        )
+                        specific_humidity_mnemonic = template["specific_humidity"]["mnemonic"]
+                        specific_humidity_event_value = template["specific_humidity"]["event_value"]
+                        specific_humidity = self.get_data_from_bufr_for_field(
+                            events,
+                            bufr_data,
+                            mnemonics.index(specific_humidity_mnemonic),
+                            event_value=specific_humidity_event_value,
+                            mnemonic=specific_humidity_mnemonic,
+                        )
+                        data[field], _original_mask = self.interpolate_heights(
+                            height,
+                            pressure,
+                            temperature,
+                            specific_humidity,
                         )
                     else:
-                        match template[field[0]]["intent"]:
-                            case "int":
-                                if not ma.isMaskedArray(bufr_data[i]):
-                                    data[field[0]] = int(bufr_data[i])
-                                else:
-                                    data[field[0]] = bufr_data[i].astype(int)
-
-                            case "float":
-                                if not ma.isMaskedArray(bufr_data[i]):
-                                    data[field[0]] = round(bufr_data[i], 3)
-                                else:
-                                    data[field[0]] = bufr_data[i].round(3)
-                            case "str":
-                                data[field[0]] = str(
-                                    bufr_data[i], encoding="utf-8"
-                                ).strip()
-                            case _:
-                                data[field][0] = bufr_data[i]
+                        data[field] = self.get_data_from_bufr_for_type_field(
+                            template,
+                            events,
+                            bufr_data,
+                            mnemonic_index,
+                            mnemonic,
+                            field,
+                            event_value,
+                        )
             except Exception as _e:
                 logger.error(
                     "PrepBufrBuilder.read_data_from_bufr: Exception  error: %s", str(_e)
                 )
-                data[field[0]] = None
+                data[field] = None
         return data
+
+    def get_data_from_bufr_for_type_field(
+        self,
+        template,
+        events,
+        bufr_data,
+        mnemonic_index,
+        mnemonic,
+        field,
+        event_value,
+    ):
+        data = []
+        try:
+            match template[field]["intent"]:
+                case "int":
+                    try:
+                        b_data = self.get_data_from_bufr_for_field(
+                            events,
+                            bufr_data,
+                            mnemonic_index,
+                            event_value=event_value,
+                            mnemonic=mnemonic,
+                        )
+                        if not isinstance(
+                            b_data, collections.abc.Sequence
+                        ) and not isinstance(b_data, np.ndarray):
+                            return int(b_data)
+                        else:
+                            if ma.isMaskedArray(b_data):
+                                return b_data.astype(int)
+                            else:
+                                return [
+                                    int(i) if i is not None else None for i in b_data
+                                ]
+                    except Exception as _e:
+                        logger.error(
+                            "PrepBufrBuilder.get_data_from_bufr_for_type_field: Exception  error: %s",
+                            str(_e),
+                        )
+                        return None
+                case "float":
+                    try:
+                        b_data = self.get_data_from_bufr_for_field(
+                            events,
+                            bufr_data,
+                            mnemonic_index,
+                            event_value=event_value,
+                            mnemonic=mnemonic,
+                        )
+                        if not isinstance(
+                            b_data, collections.abc.Sequence
+                        ) and not isinstance(b_data, np.ndarray):
+                            data = round(b_data, 3)
+                        else:
+                            if ma.isMaskedArray(b_data):
+                                data = b_data.round(3)
+                            else:
+                                data = [
+                                    round(i, 3)
+                                    if i is not None and i is not ma.masked
+                                    else None
+                                    for i in b_data
+                                ]
+                    except Exception as _e:
+                        logger.error(
+                            "PrepBufrBuilder.get_data_from_bufr_for_type_field: Exception  error: %s",
+                            str(_e),
+                        )
+                        data = None
+                case "str":
+                    try:
+                        data = str(
+                            self.get_data_from_bufr_for_field(
+                                events,
+                                bufr_data,
+                                mnemonic_index,
+                                event_value=event_value,
+                                mnemonic=mnemonic,
+                            ),
+                            encoding="utf-8",
+                        ).strip()
+                    except Exception as _e:
+                        logger.error(
+                            "PrepBufrBuilder.get_data_from_bufr_for_type_field: Exception  error: %s",
+                            str(_e),
+                        )
+                        data = None
+                case _:
+                    data = bufr_data[mnemonic_index]
+        except Exception as _e:
+            logger.error(
+                "PrepBufrBuilder.get_data_from_bufr_for_type_field: Exception  error: %s",
+                str(_e),
+            )
+            return None
+        return data
+
 
     def get_fcst_valid_epoch_from_msg(self, bufr):
         """this method gets the forecast valid epoch from the message
@@ -1119,7 +1361,7 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
          using weighted logarithmic interpolation.
         Args:
             queue_element: the file name to read
-        Transformations: 1) pressure to height 2) temperature to dewpoint 3) meters per second to miles per hour
+        Transformations: 1) pressure to height 2) temperature to dewpoint 3) knots to meters per second
         creates a self raw document_map
         NOTE: for report_type see https://www.emc.ncep.noaa.gov/emc/pages/infrastructure/bufrlib/tables/CodeFlag_0_STDv41_LOC7.html#055007
         120 - MASS REPORT - Rawinsonde
@@ -1140,13 +1382,14 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                     # read the header data
                     header_data = self.read_data_from_bufr(bufr, templates["header"])
                     # only save report types that are in the template
+                    # if we already have data for this station - skip it
                     if header_data["report_type"] not in templates["bufr_report_types"]:
                         continue
-                    # if we already have data for this station - skip it
                     subset_data["station_id"] = header_data["station_id"]
                     subset_data["report_type"] = round(header_data["report_type"])
                     subset_data["fcst_valid_epoch"] = self.fcst_valid_epoch
                     subset_data["header"] = header_data
+
                     # read the q_marker data
                     q_marker_data = self.read_data_from_bufr(
                         bufr, templates["q_marker"]
@@ -1258,6 +1501,76 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
 
         return None
 
+    def knots_to_meters_per_second(self, params_dict):
+        """Converts knots to meters per second performing any translations that are necessary
+        Args:
+            params_dict (dict): named function parameters
+        Returns:
+            float: value converted from knots to meters per second
+        """
+        try:
+            value = next(iter(params_dict.items()))[1]
+            # value might have been masked (there is probably a better way to deal with this)
+            if value == "--" or value == "" or value == "None" or value is None:
+                return None
+            else:
+                value = round(float(value) * 0.5144444444, 4)
+            return value
+        except Exception as _e:
+            logger.error(
+                "%s handle_data: Exception in named function knots_to_meters_per_second:  error: %s",
+                self.__class__.__name__,
+                str(_e),
+            )
+            return None
+
+    def celsius_to_fahrenheit(self, params_dict):
+        """Converts celsius to fahrenheit performing any translations that are necessary
+        Args:
+            params_dict (dict): named function parameters
+        Returns:
+            [type]: [description]
+        """
+
+        try:
+            value = next(iter(params_dict.items()))[1]
+            # value might have been masked (there is probably a better way to deal with this)
+            if value == "--" or value == "" or value == "None" or value is None:
+                return None
+            else:
+                value = float(value) * 1.8 + 32
+            return value
+        except Exception as _e:
+            logger.error(
+                "%s handle_data: Exception in named function celsius_to_fahrenheit:  error: %s",
+                self.__class__.__name__,
+                str(_e),
+            )
+            return None
+
+    def mg_per_kg_to_g_per_kg(self, params_dict):
+        """Converts mg per kg to g per kg performing any translations that are necessary
+        Args:
+            params_dict (dict): named function parameters
+        Returns:
+            [type]: [description]
+        """
+        try:
+            value = next(iter(params_dict.items()))[1]
+            # value might have been masked (there is probably a better way to deal with this)
+            if value == "--" or value == "" or value == "None" or value is None:
+                return None
+            else:
+                value = float(value) / 1000
+            return value
+        except Exception as _e:
+            logger.error(
+                "%s handle_data: Exception in named function mg_per_kg_to_g_per_kg:  error: %s",
+                self.__class__.__name__,
+                str(_e),
+            )
+            return None
+
     def kelvin_to_fahrenheit(self, params_dict):
         """Converts kelvin to fahrenheit performing any translations that are necessary
         Args:
@@ -1309,25 +1622,15 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         try:
             station_id = params_dict["stationName"]
             level = params_dict["level"]
-            highest_interpolated_level = self.interpolated_data[station_id][120][
-                "data"
-            ]["pressure"].compressed()[0]
             fcst_valid_epoch = self.raw_obs_data[station_id][120]["fcst_valid_epoch"]
             header = self.raw_obs_data[station_id][120]["header"]
-            an_id = None
-        except Exception as _e:
-            logger.error(
-                "%s handle_station: Exception in handle_station:  error: %s station_id: %s header: %s",
-                self.__class__.__name__,
-                str(_e),
-                station_id,
-                header,
+            highest_interpolated_level = max(
+                list(self.interpolated_data[station_id][120]["data"]["pressure"].keys())
             )
-            raise ValueError("bad data in handle_station") from _e
-        if level != highest_interpolated_level:
-            # we don't need to process the station except at the highest interpolated level
-            return header["station_id"]
-        try:
+            an_id = None
+            if level != highest_interpolated_level:
+                # we don't need to process the station except at the highest interpolated level
+                return station_id
             # process the station to see if the geo is correct etc.
             elev = header["elevation"]
             lat = header["lat"]
@@ -1383,8 +1686,8 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                     # The highest level is actually the highest pressure, the closest to the ground,
                     # apparently sometimes the pressure data is not an array!
 
-                    if self.print_debug_report:
-                        self.write_dbg_rpt(
+                    if self.print_debug_station_report:
+                        self.write_dbg_station_rpt(
                             params_dict,
                             station_id,
                             header,
@@ -1411,7 +1714,7 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                 self.stations[station_index]["updateTime"] = fcst_valid_epoch
                 an_id = self.stations[station_index]["id"]
                 self.document_map[an_id] = self.stations[station_index]
-            return params_dict["stationName"]
+            return station_id
         except ValueError as _e:
             logger.info(
                 "%s PrepbufrRaobsObsBuilderV01.handle_station: Exception bad wmoid in handle_station: params: %s",
@@ -1428,7 +1731,7 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
             )
             raise _e
 
-    def write_dbg_rpt(
+    def write_dbg_station_rpt(
         self,
         params_dict,
         station_id,
@@ -1450,12 +1753,12 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         :param station: the station
         :param highest_interpolated_level: the highest interpolated level
         :return: None
-        The output is a file in /tmp/report.txt that will be overwritten each time this is used.
+        The output is a file in {self.station+report_file_name} that will be overwritten each time this is used.
         The output is a series of lines that show the differences between the station and the raob data, with
         the particular columns separated by a space.
         You can grep and sort the output to get more specific views of the data.
         for example:
-            grep  header /tmp/report.txt | sort -n -k 15     (sort numerically on the 15th space separated column)
+            grep  header /tmp/station_report.txt | sort -n -k 15     (sort numerically on the 15th space separated column)
             ... will show the header data sorted by the distance of the station to the raob data.
             NOTE: to get data directly from the prepbufr file for comparison you can use the following:
             cd ...VxIngest
@@ -1465,30 +1768,34 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         """
         try:
             if self.report_file is None:
-                self.report_file = open("/tmp/report.txt", "a")
-            self.report_file.write("------\n")
-            self.report_file.write(
-                f"""geo:{station["geo"]} wmoid:{station["wmoid"]} currentYear:{station["currentYear"]} raob-lat:{lat} raob-lon:{lon} raob-elev:{elev}\n"""
-            )
-            self.report_file.write(
-                f"""header: station_id:{header["station_id"]} h-lat:{header["lat"]} h-lon:{header["lon"]} h-elev:{header["elevation"]} station-lat:{station["geo"][-1]["lat"]} station-lon:{station["geo"][-1]["lon"]} station-elev:{station["geo"][-1]["elev"]}"""
-                + f""" highest_interpolated_level:{highest_interpolated_level} level-diff:{round(abs(params_dict["level"] - highest_interpolated_level),4)}"""
-                + f""" lat-diff:{round(abs(lat - station["geo"][0]["lat"]),4)} lon-diff:{round(abs(lon - station["geo"][0]["lon"]),4)} elev-diff:{round(abs(elev - station["geo"][0]["elev"]),4)}"""
-                + f""" distance_km {round(math.dist([lat, lon], [station["geo"][0]["lat"], station["geo"][0]["lon"]]) * 111,4)}\n"""
-            )
-            self.report_file.write("observation pressures:")
-            op_str = []
-            for n in self.raw_obs_data[station_id][120]["obs_data"][
-                "pressure"
-            ].compressed():
-                op_str.append(f"{str(n)} ")
-            self.report_file.write(f""" {op_str} \n""")
+                with pathlib.Path(self.station_report_file_name).open(
+                    "a"
+                ) as report_file:
+                    self.report_file = report_file
+                    self.report_file.write("------\n")
+                    self.report_file.write(
+                        f"""geo:{station["geo"]} wmoid:{station["wmoid"]} currentYear:{station["currentYear"]} raob-lat:{lat} raob-lon:{lon} raob-elev:{elev}\n"""
+                    )
+                    self.report_file.write(
+                        f"""header: station_id:{header["station_id"]} h-lat:{header["lat"]} h-lon:{header["lon"]} h-elev:{header["elevation"]} station-lat:{station["geo"][-1]["lat"]} station-lon:{station["geo"][-1]["lon"]} station-elev:{station["geo"][-1]["elev"]}"""
+                        + f""" highest_interpolated_level:{highest_interpolated_level} level-diff:{round(abs(params_dict["level"] - highest_interpolated_level),4)}"""
+                        + f""" lat-diff:{round(abs(lat - station["geo"][0]["lat"]),4)} lon-diff:{round(abs(lon - station["geo"][0]["lon"]),4)} elev-diff:{round(abs(elev - station["geo"][0]["elev"]),4)}"""
+                        + f""" distance_km {round(math.dist([lat, lon], [station["geo"][0]["lat"], station["geo"][0]["lon"]]) * 111,4)}\n"""
+                    )
+                    self.report_file.write("observation pressures:")
+                    op_str = []
+                op_str = []
+                for n in self.raw_obs_data[station_id][120]["obs_data"][
+                    "pressure"
+                ].compressed():
+                    op_str.append(f"{str(n)} ")
+                self.report_file.write(f""" {op_str} \n""")
 
-            self.report_file.write("interpolated pressures:")
-            op_str = []
-            for n in self.interpolated_data[station_id][120]["data"]["pressure"]:
-                op_str.append(f"{str(n)} ")
-            self.report_file.write(f""" {op_str} \n""")
+                self.report_file.write("interpolated pressures:")
+                op_str = []
+                for n in self.interpolated_data[station_id][120]["data"]["pressure"]:
+                    op_str.append(f"{str(n)} ")
+                self.report_file.write(f""" {op_str} \n""")
         except Exception as _e:
             logger.error(
                 "%s PrepbufrRaobsObsBuilderV01.print_dbg_rpt: Exception  error: %s",

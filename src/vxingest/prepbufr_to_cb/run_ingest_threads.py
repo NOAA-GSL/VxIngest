@@ -150,6 +150,9 @@ class VXIngest(CommonVxIngest):
         self.cluster = None
         self.ingest_document_id = None
         self.ingest_document = None
+        self.write_data_for_station = None
+        self.write_data_for_level = None
+
         super().__init__()
 
     def runit(self, args, log_queue: Queue, log_configurer: Callable[[Queue], None]):
@@ -246,6 +249,8 @@ class VXIngest(CommonVxIngest):
                     self.output_dir,
                     log_queue,  # Queue to pass logging messages back to the main process on
                     log_configurer,  # Config function to set up the logger in the multiprocess Process
+                    write_data_for_station=self.write_data_for_station,
+                    write_data_for_level=self.write_data_for_level,
                 )
                 ingest_manager_list.append(ingest_manager_thread)
                 ingest_manager_thread.start()

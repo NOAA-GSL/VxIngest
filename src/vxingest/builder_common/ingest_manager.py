@@ -13,7 +13,7 @@ from multiprocessing import Process
 from pathlib import Path
 
 # This pyproj import has to remain here in order to enforce the
-# order of loading of the pyproj and cocuhbase libraries.  If ipyproj is loaded after
+# order of loading of the pyproj and couchbase libraries.  If ipyproj is loaded after
 # the couchbase library, it will cause a segmentation fault.
 # pyproj is used by the grib2_to_cb IngestManger and supporting
 # test code. The root cause of this is Couchbase. This incompatibility is supposed to be fixed
@@ -38,9 +38,9 @@ class CommonVxIngestManager(Process):
     The builders use the template to create documents for
     each filename and put them into the document map.
 
-    When all of the result set entries for a file are processed, the IngestManager upserts
-    the document(s) to couchbase, or writes to an output directory and retrieves a new filename from
-    the queue and starts over.
+    When all of the result set entries for a file are processed, the IngestManager will upsert
+    the document(s) to couchbase, or write to an output directory and retrieve a new filename from
+    the queue and start over.
 
     Each builder is kept in an object pool so that they do not need to be re instantiated.
     When the queue has been emptied the IngestManager closes its connections

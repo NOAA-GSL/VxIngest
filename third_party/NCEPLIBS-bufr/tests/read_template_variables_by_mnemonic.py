@@ -19,7 +19,7 @@ while bufr.advance() == 0:  # loop over messages.
             "specific_humidity":"QOB",
             "pressure":"POB",
             "height:":"ZOB",
-            "wind_speed":"FFO",
+            "wind_speed":"SOB",
             "U-Wind":"UOB",
             "V-Wind":"VOB",
             "wind_direction":"DDO",

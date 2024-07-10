@@ -100,7 +100,7 @@ def test_read_obs_err(mock_err_bufr):
         "pressure_obs_err": {"mnemonic":"POB", "intent":"float"},
         "relative_humidity_obs_err": {"mnemonic":"RHO", "intent":"float"},
         "temperature_obs_err": {"mnemonic":"TOB", "intent":"float"},
-        "winds_obs_err": {"mnemonic":"FFO", "intent":"float"},
+        "winds_obs_err": {"mnemonic":"SOB", "intent":"float"},
     }
     # Call the read_obs_err method with the mock bufr object
     obs_err_data = builder.read_data_from_bufr(mock_err_bufr, obs_err_template)
@@ -160,7 +160,7 @@ def test_read_obs_data(mock_obs_bufr):
         "specific_humidity": {"mnemonic": "QOB", "intent": "float"},
         "pressure": {"mnemonic": "POB", "intent": "float"},
         "height": {"mnemonic": "ZOB", "intent": "float"},
-        "wind_speed": {"mnemonic": "FFO", "intent": "float"},
+        "wind_speed": {"mnemonic": "SOB", "intent": "float"},
         "U-Wind": {"mnemonic": "UOB", "intent": "float"},
         "V-Wind": {"mnemonic": "VOB", "intent": "float"},
         "wind_direction": {"mnemonic": "DDO", "intent": "float"},

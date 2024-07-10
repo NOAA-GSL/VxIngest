@@ -96,7 +96,7 @@ class GribModelBuilderV01(GribBuilder):
 
     def get_document_map(self):
         """
-        Retrive the in-memory document map.
+        Retrieve the in-memory document map.
         In case there are leftovers we have to process them first using handle_document.
         Returns:
             map(dict): the document_map
@@ -137,7 +137,7 @@ class GribModelBuilderV01(GribBuilder):
         """
         # This is the original 'C' algorithm for calculating ceiling from grib (trying to remain faithful to the original algorithm)
         # Notice that the result values are divided from meters by tens of meters i.e. 60000 is 6000 feet
-        # in the original algorythm but the code here does no such thing.
+        # in the original algorithm but the code here does no such thing.
         # if(ceil_msl < -1000 ||
         #    ceil_msl > 1e10) {
         #   /* printf("setting ceil_agl for x/y %d/%d from %0f to 6000\n",xi,yj,ceil_msl); */
@@ -219,11 +219,11 @@ class GribModelBuilderV01(GribBuilder):
 
     def handle_surface_pressure(self, params_dict):
         """
-        translate all the pressures(one per station location) to milibars
+        translate all the pressures(one per station location) to millibars
         """
         pressures = []
         for _v, v_intrp_pressure in list(params_dict.values())[0]:
-            # Convert from pascals to milibars
+            # Convert from pascals to millibars
             pressures.append(float(v_intrp_pressure) / 100)
         return pressures
 
@@ -259,12 +259,12 @@ class GribModelBuilderV01(GribBuilder):
             )
         return rh_interpolated_values
 
-    def kelvin_to_farenheight(self, params_dict):
+    def kelvin_to_fahrenheit(self, params_dict):
         """
         param:params_dict expects {'station':{},'*variable name':variable_value}
         Used for temperature and dewpoint
         """
-        # Convert each station value from Kelvin to Farenheit
+        # Convert each station value from Kelvin to Fahrenheit
         tempf_values = []
         for _v, v_intrp_tempf in list(params_dict.values())[0]:
             tempf_values.append(
@@ -287,7 +287,7 @@ class GribModelBuilderV01(GribBuilder):
         Returns:
             [int]: translated wind speed
         """
-        # interpolated value cannot use rounded gridpoints
+        # interpolated value cannot use rounded gridpoint
         if self.ds_translate_item_variables_map["10 metre U wind component"] is None:
             return None
 
@@ -353,7 +353,7 @@ class GribModelBuilderV01(GribBuilder):
             )
             x_gridpoint = station["geo"][geo_index]["x_gridpoint"]
             y_gridpoint = station["geo"][geo_index]["y_gridpoint"]
-            # interpolated value cannot use rounded gridpoints
+            # interpolated value cannot use rounded gridpoint
             uwind_ms.append(self.interp_grid_box(u_values, y_gridpoint, x_gridpoint))
         # vwind_message = self.grbs.select(name="10 metre V wind component")[0]
         v_values = self.ds_translate_item_variables_map[
@@ -416,7 +416,7 @@ class GribModelBuilderV01(GribBuilder):
             )
             x_gridpoint = station["geo"][geo_index]["x_gridpoint"]
             y_gridpoint = station["geo"][geo_index]["y_gridpoint"]
-            # interpolated value cannot use rounded gridpoints
+            # interpolated value cannot use rounded gridpoint
             uwind_ms.append(
                 (float)(self.interp_grid_box(u_values, y_gridpoint, x_gridpoint))
             )
@@ -459,15 +459,17 @@ class GribModelBuilderV01(GribBuilder):
         values = self.ds_translate_item_variables_map[
             "2 metre specific humidity"
         ].values
-        spfh = []
+        specific_humidity = []
         for station in self.domain_stations:
             geo_index = get_geo_index(
                 self.ds_translate_item_variables_map["fcst_valid_epoch"], station["geo"]
             )
             x_gridpoint = station["geo"][geo_index]["x_gridpoint"]
             y_gridpoint = station["geo"][geo_index]["y_gridpoint"]
-            spfh.append((float)(self.interp_grid_box(values, y_gridpoint, x_gridpoint)))
-        return spfh
+            specific_humidity.append(
+                (float)(self.interp_grid_box(values, y_gridpoint, x_gridpoint))
+            )
+        return specific_humidity
 
     def handle_vegetation_type(self, params_dict):
         """returns the vegetation type for this document
@@ -558,3 +560,58 @@ class GribModelBuilderV01(GribBuilder):
             int: forecast length
         """
         return (int)(self.ds_translate_item_variables_map["fcst_len"])
+
+
+class RaobModelNativeBuilderV01(GribModelBuilderV01):
+    """This is the builder for model data that is ingested from grib2 NATIVE levels files.
+    It is a concrete builder specifically for the model raob data that are organized based
+    on the models preset vertical levels. This varies quite a bit from model to model
+    and is dependent on the configuration set up before the model runs.
+    This builder is a subclass of the GribModelBuilderV01 class.
+    The primary differences in these two classes are the handlers that derive the pressure level.
+    The pressure level needs to be interpolated according to a specific algorithm.
+
+    Args:
+        load_spec (Object): The load spec used to init the parent
+        ingest_document (Object): the ingest document
+        number_stations (int, optional): the maximum number of stations to process (for debugging). Defaults to sys.maxsize.
+    """
+
+    def __init__(
+        self,
+        load_spec,
+        ingest_document,
+        number_stations=sys.maxsize,
+    ):
+        GribModelBuilderV01.__init__(
+            self,
+            load_spec,
+            ingest_document,
+            number_stations=sys.maxsize,
+        )
+
+
+class RaobModelPressureLevelBuilderV01(GribModelBuilderV01):
+    """This is the builder for model data that is ingested from grib2 PRESSURE level files.
+    It is a concrete builder specifically for the model raob data that are organized
+    by isobaric level (pressure). While they can differ from model to model, these levels
+    are mainly standardized below 100 mb to every 25 mb.
+    This builder is a subclass of the GribModelBuilderV01 class.
+    Args:
+        load_spec (Object): The load spec used to init the parent
+        ingest_document (Object): the ingest document
+        number_stations (int, optional): the maximum number of stations to process (for debugging). Defaults to sys.maxsize.
+    """
+
+    def __init__(
+        self,
+        load_spec,
+        ingest_document,
+        number_stations=sys.maxsize,
+    ):
+        GribModelBuilderV01.__init__(
+            self,
+            load_spec,
+            ingest_document,
+            number_stations=sys.maxsize,
+        )

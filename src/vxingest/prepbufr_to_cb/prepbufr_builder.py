@@ -840,7 +840,7 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                 .to("percent")
                 .to_tuple()[0]
             )
-            return _relative_humidity
+            return _relative_humidity.tolist()
         except Exception as _e:
             logger.error(
                 "PrepBufrBuilder.get_relative_humidity: Exception  error: %s", str(_e)

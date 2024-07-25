@@ -86,8 +86,8 @@ class VxIngestManager(CommonVxIngestManager):
         output_dir,
         logging_queue,
         logging_configurer,
-        write_data_for_station=None,  # used for debugging
-        write_data_for_level=None,  # used for debugging
+        write_data_for_station_list=None,  # used for debugging
+        write_data_for_levels=None,  # used for debugging
     ):
         """constructor for VxIngestManager
         Args:
@@ -111,8 +111,8 @@ class VxIngestManager(CommonVxIngestManager):
         self.cluster = None
         self.collection = None
         self.output_dir = output_dir
-        self.write_data_for_debug_station = write_data_for_station
-        self.write_data_for_debug_level = write_data_for_level
+        self.write_data_for_debug_station_list = write_data_for_station_list
+        self.write_data_for_debug_levels = write_data_for_levels
 
         super().__init__(
             self.thread_name,
@@ -123,263 +123,233 @@ class VxIngestManager(CommonVxIngestManager):
             logging_configurer,
         )
 
-        if self.write_data_for_debug_station:
+        if self.write_data_for_debug_station_list:
             self.debug_station_file = None
             self.debug_station_file_name = (
-                f"/tmp/debug_data_for_station_{self.write_data_for_debug_station}.txt"
+                f"/tmp/debug_data_for_stations_{str(int(time.time()))}.txt"
             )
             with contextlib.suppress(OSError):
                 Path(self.debug_station_file_name).unlink()
             print(
-                f"debug data for station {self.write_data_for_debug_station}  is in {self.debug_station_file_name}"
+                f"debug data for stations {str(self.write_data_for_debug_station_list)}  is in {self.debug_station_file_name}"
             )
+
+    def get_my_result_final(self, my_sql, i0, i1):
+        """get the result from the object, returning None if it isn't there"""
+        try:
+            return str(my_sql[i0][i1])
+        except Exception as _ignore:
+            return None
 
     def write_data_for_debug(self, builder, document_map):
         """
-        write the raw data and interpolated for a specific station for debugging purposes
+        write the raw data and interpolated for a specific set of stations for debugging purposes
         """
-        if self.debug_station_file is None:
-            with pathlib.Path(self.debug_station_file_name).open(
-                "a"
-            ) as self.debug_station_file:
-                self.debug_station_file.write("------\n")
+        try:
+            if self.debug_station_file is None:
+                with pathlib.Path(self.debug_station_file_name).open(
+                    "a"
+                ) as self.debug_station_file:
+                    self.debug_station_file.write("------\n")
 
-                # MASS report type 120 raw_obs_data
-                self.debug_station_file.write("MASS report type 120 raw_obs_data\n")
-                pb_raw_obs_data_120 = builder.raw_obs_data[
-                    self.write_data_for_debug_station
-                ][120]["obs_data"]
-                raw_level_index_120 = pb_raw_obs_data_120["pressure"].index(
-                    self.write_data_for_debug_level
-                )
-                for variable in sorted(list(pb_raw_obs_data_120.keys())):
-                    self.debug_station_file.write(
-                        f"{variable}: {pb_raw_obs_data_120[variable][raw_level_index_120]}\n"
-                    )
+                    for station in self.write_data_for_debug_station_list:
+                        self.debug_station_file.write(f""" station: {station}\n\n""")
 
-                # WIND report type 220 raw_obs_data
-                self.debug_station_file.write("\nWIND report type 220 raw_obs_data\n")
-                pb_raw_obs_data_220 = builder.raw_obs_data[
-                    self.write_data_for_debug_station
-                ][220]["obs_data"]
-                raw_level_index_220 = pb_raw_obs_data_220["pressure"].index(
-                    self.write_data_for_debug_level
-                )
-                for variable in sorted(list(pb_raw_obs_data_220.keys())):
-                    self.debug_station_file.write(
-                        f"{variable}: {pb_raw_obs_data_220[variable][raw_level_index_220]}\n"
-                    )
+                        pb_raw_obs_data_120 = builder.raw_obs_data[station][120][
+                            "obs_data"
+                        ]
+                        pb_raw_obs_data_220 = builder.raw_obs_data[station][220][
+                            "obs_data"
+                        ]
+                        pb_interpolated_120 = builder.interpolated_data[station][120][
+                            "data"
+                        ]
+                        pb_interpolated_220 = builder.interpolated_data[station][220][
+                            "data"
+                        ]
 
-                # interpolated data
-                # MASS report type 120 interpolated data
-                self.debug_station_file.write(
-                    "\nMASS report type 120 interpolated data\n"
-                )
-                pb_interpolated_120 = builder.interpolated_data[
-                    self.write_data_for_debug_station
-                ][120]["data"]
-                #intrp_level_index_120 = pb_interpolated_120["pressure"].index(self.write_data_for_debug_level)
-                for variable in sorted(list(pb_interpolated_120.keys())):
-                    self.debug_station_file.write(
-                        f"{variable}: {pb_interpolated_120[variable][self.write_data_for_debug_level]}\n"
-                    )
+                        for level in self.write_data_for_debug_levels:
+                            # MASS report type 120 raw_obs_data
+                            self.debug_station_file.write(
+                                f"MASS report type 120 raw_obs_data for station:{station} and level:{level}\n"
+                            )
+                            if level in pb_raw_obs_data_120["pressure"]:
+                                raw_level_index_120 = pb_raw_obs_data_120[
+                                    "pressure"
+                                ].index(level)
+                                for variable in sorted(
+                                    list(pb_raw_obs_data_120.keys())
+                                ):
+                                    self.debug_station_file.write(
+                                        f"level:{level} {variable}: {pb_raw_obs_data_120[variable][raw_level_index_120]}\n"
+                                    )
 
-                # interpolated data
-                # WIND report type 220 interpolated data
-                self.debug_station_file.write(
-                    "\nWIND report type 220 interpolated data\n"
-                )
-                pb_interpolated_220 = builder.interpolated_data[
-                    self.write_data_for_debug_station
-                ][220]["data"]
-                #intrp_level_index_220 = pb_interpolated_220["pressure"].index(self.write_data_for_debug_level)
-                for variable in sorted(list(pb_interpolated_220.keys())):
-                    self.debug_station_file.write(
-                        f"{variable}: {builder.interpolated_data[self.write_data_for_debug_station][220]["data"][variable][self.write_data_for_debug_level]}\n"
-                    )
+                            # WIND report type 220 raw_obs_data
+                            self.debug_station_file.write(
+                               f"\nWIND report type 220 raw_obs_data for station:{station} and level:{level}\n"
+                            )
+                            if level in pb_raw_obs_data_220["pressure"]:
+                                raw_level_index_220 = pb_raw_obs_data_220[
+                                    "pressure"
+                                ].index(level)
+                                for variable in sorted(
+                                    list(pb_raw_obs_data_220.keys())
+                                ):
+                                    self.debug_station_file.write(
+                                        f"level:{level} {variable}: {pb_raw_obs_data_220[variable][raw_level_index_220]}\n"
+                                    )
 
-                # write station data
-                r = re.compile("DD:V01:RAOB:obs:prepbufr:500:.*")
-                key = list(filter(r.match, document_map.keys()))[0]
-                pb_final = document_map[key]["data"][self.write_data_for_debug_station]
-                self.debug_station_file.write("\n")
-                self.debug_station_file.write(
-                    json.dumps(
-                        pb_final,
-                        indent=2,
-                    )
-                )
-                date = document_map[key]["fcstValidISO"].split("T")[0]
-                stmnt_final = f'select wmoid,press,z,t,dp,rh,wd,ws from ruc_ua_pb.RAOB where date = "{date}"  and  press = {self.write_data_for_debug_level} and wmoid = "{self.write_data_for_debug_station}";'
-                _mysql_db = mysql.connector.connect(
-                    host=self.load_spec["_mysql_host"], user=self.load_spec["_mysql_user"], password=self.load_spec["_mysql_pwd"]
-                )
-                my_cursor = _mysql_db.cursor()
-                my_cursor.execute(stmnt_final)
-                my_result_final = my_cursor.fetchall()
+                            # interpolated data
+                            # MASS report type 120 interpolated data
+                            self.debug_station_file.write(f"\nMASS report type 120 interpolated data station:{station} level:{level}\n")
+                            if level in pb_interpolated_120["pressure"]:
+                                for variable in sorted(list(pb_interpolated_120.keys())):
+                                    self.debug_station_file.write(
+                                        f"level:{level} {variable}: {pb_interpolated_120[variable].get(level, None)}\n"
+                                    )
 
-                table = [
-                    [
-                        "source",
-                        "press",
-                        "temperature",
-                        "dewpoint",
-                        "relative_humidity",
-                        "specific_humidity",
-                        "height",
-                        "wind speed",
-                        "wind direction,",
-                        "U-Wind",
-                        "V-Wind",
-                    ],
-                    [
-                        "pb_raw_obs",
-                        pb_raw_obs_data_120["pressure"][raw_level_index_120],
-                        pb_raw_obs_data_120["temperature"][raw_level_index_120],
-                        pb_raw_obs_data_120["dewpoint"][raw_level_index_120],
-                        pb_raw_obs_data_120["relative_humidity"][raw_level_index_120],
-                        pb_raw_obs_data_120["specific_humidity"][raw_level_index_120],
-                        pb_raw_obs_data_120["height"][raw_level_index_120],
-                        pb_raw_obs_data_220["wind_speed"][raw_level_index_220],
-                        pb_raw_obs_data_220["wind_direction"][raw_level_index_220],
-                        pb_raw_obs_data_220["U-Wind"][raw_level_index_220],
-                        pb_raw_obs_data_220["V-Wind"][raw_level_index_220],
-                    ],
-                    [
-                        "pb_interpolated",
-                        pb_interpolated_120["pressure"][
-                            self.write_data_for_debug_level
-                        ],
-                        pb_interpolated_120["temperature"][
-                            self.write_data_for_debug_level
-                        ],
-                        pb_interpolated_120["dewpoint"][
-                            self.write_data_for_debug_level
-                        ],
-                        pb_interpolated_120["relative_humidity"][
-                            self.write_data_for_debug_level
-                        ],
-                        pb_interpolated_120["specific_humidity"][
-                            self.write_data_for_debug_level
-                        ],
-                        pb_interpolated_120["height"][self.write_data_for_debug_level],
-                        pb_interpolated_220["wind_speed"][
-                            self.write_data_for_debug_level
-                        ],
-                        pb_interpolated_220["wind_direction"][
-                            self.write_data_for_debug_level
-                        ],
-                        pb_interpolated_220["U-Wind"][self.write_data_for_debug_level],
-                        pb_interpolated_220["V-Wind"][self.write_data_for_debug_level],
-                    ],
-                    [
-                        "pb_final",
-                        pb_final["pressure"],
-                        pb_final["temperature"],
-                        pb_final["dewpoint"],
-                        pb_final["relative_humidity"],
-                        pb_final["specific_humidity"],
-                        pb_final["height"],
-                        pb_final["wind_speed"],
-                        pb_final["wind_direction"],
-                        pb_final["U-Wind"],
-                        pb_final["V-Wind"],
-                    ],
-                    [
-                        # wmoid,press,z,t,dp,rh,wd,ws
-                        "mysql_final",
-                        my_result_final[0][1],
-                        my_result_final[0][3],
-                        my_result_final[0][4],
-                        my_result_final[0][5],
-                        "--",
-                        my_result_final[0][2],
-                        my_result_final[0][7],
-                        my_result_final[0][6],
-                        "--",
-                        "--",
-                    ],
-                ]
+                            # interpolated data
+                            # WIND report type 220 interpolated data
+                            self.debug_station_file.write(
+                                f"\nWIND report type 220 interpolated data station:{station} level:{level}\n"
+                            )
+                            if level in pb_interpolated_220["pressure"]:
+                                for variable in sorted(list(pb_interpolated_220.keys())):
+                                    self.debug_station_file.write(
+                                        f"level:{level} {variable}: {builder.interpolated_data[station][220]["data"][variable].get(level, None)}\n"
+                                    )
 
+                            # write station data
+                            self.debug_station_file.write(
+                                f"\ndocument_map data for station:{station} level:{level}\n"
+                            )
+                            r = re.compile(f"DD:V01:RAOB:obs:prepbufr:{level}:.*")
+                            key = list(filter(r.match, document_map.keys()))[0]
+                            pb_final = document_map[key]["data"][station]
+                            self.debug_station_file.write("\n")
+                            self.debug_station_file.write(
+                                json.dumps(
+                                    pb_final,
+                                    indent=2,
+                                )
+                            )
+                            date = document_map[key]["fcstValidISO"].split("T")[0]
+                            stmnt_mysql = f'select wmoid,press,z,t,dp,rh,wd,ws from ruc_ua_pb.RAOB where date = "{date}"  and  press = {level} and wmoid = "{station}";'
+                            _mysql_db = mysql.connector.connect(
+                                host=self.load_spec["_mysql_host"],
+                                user=self.load_spec["_mysql_user"],
+                                password=self.load_spec["_mysql_pwd"],
+                            )
+                            my_cursor = _mysql_db.cursor()
+                            my_cursor.execute(stmnt_mysql)
+                            my_result_final = my_cursor.fetchall()
 
-                self.debug_station_file.write("\nCOMPARE THE DATA\n")
-                self.debug_station_file.write(
-                    tabulate(table, headers="firstrow", tablefmt="fancy_grid")
-                )
-                self.debug_station_file.write("\n------\n")
-                self.debug_station_file.write("Sql Statements\n")
-                self.debug_station_file.write(
-                    f"{stmnt_final}\n"
-                )
+                            table = [
+                                [
+                                    "source",
+                                    "press",
+                                    "temperature",
+                                    "dewpoint",
+                                    "relative_humidity",
+                                    "specific_humidity",
+                                    "height",
+                                    "wind speed",
+                                    "wind direction,",
+                                    "U-Wind",
+                                    "V-Wind",
+                                ],
+                                [
+                                    "pb_raw_obs",
+                                    pb_raw_obs_data_120["pressure"][
+                                        raw_level_index_120
+                                    ],
+                                    pb_raw_obs_data_120["temperature"][
+                                        raw_level_index_120
+                                    ],
+                                    pb_raw_obs_data_120["dewpoint"][
+                                        raw_level_index_120
+                                    ],
+                                    pb_raw_obs_data_120["relative_humidity"][
+                                        raw_level_index_120
+                                    ],
+                                    pb_raw_obs_data_120["specific_humidity"][
+                                        raw_level_index_120
+                                    ],
+                                    pb_raw_obs_data_120["height"][raw_level_index_120],
+                                    pb_raw_obs_data_220["wind_speed"][
+                                        raw_level_index_220
+                                    ],
+                                    pb_raw_obs_data_220["wind_direction"][
+                                        raw_level_index_220
+                                    ],
+                                    pb_raw_obs_data_220["U-Wind"][raw_level_index_220],
+                                    pb_raw_obs_data_220["V-Wind"][raw_level_index_220],
+                                ],
+                                [
+                                    "pb_interpolated",
+                                    pb_interpolated_120["pressure"].get(level, None),
+                                    pb_interpolated_120["temperature"].get(level, None),
+                                    pb_interpolated_120["dewpoint"].get(level, None),
+                                    pb_interpolated_120["relative_humidity"].get(
+                                        level, None
+                                    ),
+                                    pb_interpolated_120["specific_humidity"].get(
+                                        level, None
+                                    ),
+                                    pb_interpolated_120["height"].get(level, None),
+                                    pb_interpolated_220["wind_speed"].get(level, None),
+                                    pb_interpolated_220["wind_direction"].get(
+                                        level, None
+                                    ),
+                                    pb_interpolated_220["U-Wind"].get(level, None),
+                                    pb_interpolated_220["V-Wind"].get(level, None),
+                                ],
+                                [
+                                    "pb_final",
+                                    pb_final["pressure"],
+                                    pb_final["temperature"],
+                                    pb_final["dewpoint"],
+                                    pb_final["relative_humidity"],
+                                    pb_final["specific_humidity"],
+                                    pb_final["height"],
+                                    pb_final["wind_speed"],
+                                    pb_final["wind_direction"],
+                                    pb_final["U-Wind"],
+                                    pb_final["V-Wind"],
+                                ],
+                                [
+                                    # wmoid,press,z,t,dp,rh,wd,ws
+                                    "mysql_final",
+                                    self.get_my_result_final(my_result_final, 0, 1),
+                                    self.get_my_result_final(my_result_final, 0, 3),
+                                    self.get_my_result_final(my_result_final, 0, 4),
+                                    self.get_my_result_final(my_result_final, 0, 5),
+                                    "--",
+                                    self.get_my_result_final(my_result_final, 0, 2),
+                                    self.get_my_result_final(my_result_final, 0, 7),
+                                    self.get_my_result_final(my_result_final, 0, 6),
+                                    "--",
+                                    "--",
+                                ],
+                            ]
 
-                self.debug_station_file.write("------\n")
+                            self.debug_station_file.write("\nCOMPARE THE DATA\n")
+                            self.debug_station_file.write(
+                                tabulate(
+                                    table, headers="firstrow", tablefmt="fancy_grid"
+                                )
+                            )
+                            self.debug_station_file.write("\n------\n")
+                            self.debug_station_file.write("Sql Statements\n")
+                            self.debug_station_file.write(f"{stmnt_mysql}\n")
+                            self.debug_station_file.write("------\n")
 
-                self.debug_station_file.write("""
-                    units for mysql final table
-                    mysql> show create table ruc_ua_pb.RAOB;
-                    | d'aRAOB  | CREATE TABLE `RAOB` (
-                    `wmoid` mediumint(8) unsigned NOT NULL DEFAULT '0',
-                    `date` date NOT NULL DEFAULT '0000-00-00',
-                    `hour` tinyint(4) NOT NULL DEFAULT '0',
-                    `fcst_len` tinyint(4) DEFAULT NULL COMMENT 'always null for RAOBs',
-                    `press` smallint(5) unsigned NOT NULL DEFAULT '0' COMMENT 'in mb',
-                    `z` smallint(5) unsigned DEFAULT NULL COMMENT 'null now allowed, in m',
-                    `t` mediumint(9) DEFAULT NULL COMMENT 'in hundredths of a degree C',
-                    `dp` mediumint(9) DEFAULT NULL COMMENT 'in hundredths of a degree C',
-                    `rh` tinyint(3) unsigned DEFAULT NULL COMMENT 'wrt water, in percent',
-                    `wd` smallint(5) unsigned DEFAULT NULL COMMENT 'wind direction in degrees true',
-                    `ws` mediumint(8) unsigned DEFAULT NULL COMMENT 'wind speed in hundredths of m/s',
-                    `version` tinyint(4) DEFAULT NULL,
-                    UNIQUE KEY `u` (`wmoid`,`date`,`hour`,`press`),
-                    KEY `date` (`date`,`hour`),
-                    KEY `press` (`press`,`wmoid`,`date`,`hour`)
-                    ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-                    \n\n""")
-
-                stmnt = "select obs_data_120, obs_data_220 FROM vxdata._default.RAOB as vx USE KEYS ['MD:V01:RAOB:ingest:mnemonic_mapping:prepbufr']"
-                mnemonics = list(self.load_spec["cluster"].query(stmnt))[0]
-                self.debug_station_file.write("\n------\n")
-                self.debug_station_file.write("mnemonics:\n")
-                self.debug_station_file.write(
-                    json.dumps(
-                        mnemonics,
-                        indent=2,
-                    )
-                )
-
-                self.debug_station_file.write(""" \n\n
-                    PrepBufr Units...
-                    refer to https://www.emc.ncep.noaa.gov/mmb/data_processing/prepbufr.doc/table_1.htm
-                    prepbufr units
-                    "obs_data_120":
-                        "temperature":  "mnemonic": "TOB"  DEGREES C
-                        "dewpoint": "mnemonic": "TDO",i  DEGREES C
-                        "relative_humidity": "mnemonic": "RHO"  - not found
-                        "specific_humidity": "mnemonic": "QOB" MG/KG
-                        "pressure": "mnemonic": "POB"  MB
-                        "height": "mnemonic": "ZOB" METERS
-                    "obs_data_220":
-                        "pressure": "mnemonic": "POB"  MB
-                        "wind_speed": "mnemonic": "FFO" KNOTS
-                        "U-Wind": "mnemonic": "UOB"  METERS/SEC
-                        "V-Wind": "mnemonic": "VOB"  METERS/SEC
-                        "wind_direction": "mnemonic": "DDO"  DEGREES TRUE\n
-                    prepbufr event program codes
-                    0-07-247 - PPC
-                    PREPBUFR: Pressure event program code
-                    0-10-247 - ZPC
-                    PREPBUFR: Height event program code
-                    0-11-219 - DFP
-                    PREPBUFR: Wind direction/speed (DDO/FFO) event program code
-                    0-11-241 - WPC
-                    PREPBUFR: u-, v-component wind (UOB/VOB) event program code
-                    0-12-247 - TPC
-                    PREPBUFR: Temperature (TOB) event program code
-                    0-13-247 - QPC
-                    PREPBUFR: Specific humidity event program code \n\n
-
-        """)
-                self.debug_station_file.flush()
+                    self.debug_station_file.flush()
+        except Exception as _e:
+            logger.exception(
+                "%s: *** Error in IngestManager run write_data_for_debug ***",
+                self.thread_name,
+            )
 
     def set_builder_name(self, queue_element):
         """
@@ -424,10 +394,12 @@ class VxIngestManager(CommonVxIngestManager):
             else:
                 builder_class = getattr(my_builder, self.ingest_type_builder_name)
                 builder = builder_class(self.load_spec, self.ingest_document)
-                builder.set_write_data_for_debug_station(self.write_data_for_debug_station)
+                builder.set_write_data_for_debug_station_list(
+                    self.write_data_for_debug_station_list
+                )
                 self.builder_map[self.ingest_type_builder_name] = builder
             document_map = builder.build_document(queue_element)
-            if self.write_data_for_debug_station:
+            if self.write_data_for_debug_station_list:
                 self.write_data_for_debug(builder, document_map)
 
             if self.output_dir:

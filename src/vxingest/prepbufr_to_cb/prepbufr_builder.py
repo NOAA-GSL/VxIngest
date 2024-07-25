@@ -73,6 +73,9 @@ class PrepbufrBuilder(Builder):
         for interpolations."""
         return
 
+    def is_a_number(self, v):
+        return isinstance(v, (int, float)) and not math.isnan(v) and v is not ma.masked
+
     def derive_id(self, **kwargs):
         """
         This is a private method to derive a document id from the current valid_fcst_time and level.
@@ -129,7 +132,7 @@ class PrepbufrBuilder(Builder):
         replacements = []
         # noinspection PyBroadException
         try:
-            #level_idx = self.get_mandatory_levels().index(level)
+            # level_idx = self.get_mandatory_levels().index(level)
             if isinstance(variable, str):
                 replacements = variable.split("*")[1:]
             # this is a literal, doesn't need to be returned
@@ -154,7 +157,15 @@ class PrepbufrBuilder(Builder):
                             value = None
                         else:
                             try:
-                                value = self.interpolated_data[stationName][220]["data"][_ri][level]
+                                value = (
+                                    self.interpolated_data[stationName][220]["data"][
+                                        _ri
+                                    ][level]
+                                    if self.interpolated_data[stationName][220]["data"][
+                                        _ri
+                                    ]
+                                    else None
+                                )
                             except KeyError as _ke:
                                 # this level doesn't exist for this variable
                                 value = None
@@ -165,7 +176,16 @@ class PrepbufrBuilder(Builder):
                             return None
                         else:
                             try:
-                                value = self.interpolated_data[stationName][120]["data"][_ri][level]
+                                value = (
+                                    self.interpolated_data[stationName][120]["data"][
+                                        _ri
+                                    ][level]
+                                    if self.interpolated_data[stationName][120]["data"][
+                                        _ri
+                                    ]
+                                    else None
+                                )
+
                             except KeyError as _ke:
                                 # this level doesn't exist for this variable
                                 return None
@@ -228,14 +248,13 @@ class PrepbufrBuilder(Builder):
                         "PrepBufrBuilder.interpolate_variable_for_level: Exception  error: %s",
                         str(_e1),
                     )
-                return ma.masked
+                return None
             if variable == "wind_direction":  # if it is a wind_direction do this
                 # interpolates wind directions in the range 0 - 359 degrees
-                if (
-                    nearest_lower_pressure is ma.masked
-                    or nearest_higher_pressure is ma.masked
+                if not self.is_a_number(nearest_lower_pressure) or not self.is_a_number(
+                    nearest_higher_pressure
                 ):
-                    return ma.masked
+                    return None
                 else:
                     next_higher_pressure_direction = obs_data["wind_direction"][
                         nearest_higher_pressure_index
@@ -265,26 +284,28 @@ class PrepbufrBuilder(Builder):
                 next_lower_pressure_variable_value = obs_data[variable][
                     nearest_lower_pressure_index
                 ]
-                if (
-                    next_higher_pressure_variable_value is ma.masked
-                    or next_lower_pressure_variable_value is ma.masked
-                ):
-                    return ma.masked
+                if not self.is_a_number(
+                    next_higher_pressure_variable_value
+                ) or not self.is_a_number(next_lower_pressure_variable_value):
+                    return None
                 else:
                     value = next_higher_pressure_variable_value + fact * (
-                        next_higher_pressure_variable_value
-                        - next_lower_pressure_variable_value
+                        abs(
+                            next_higher_pressure_variable_value
+                            - next_lower_pressure_variable_value
+                        )
                     )
                     return value
         except Exception as _e:
             logging.error(
                 "PrepBufrBuilder.interpolate_level: Exception  error: %s", str(_e)
             )
-            return ma.masked
+            return None
 
     def interpolate_data(self, raw_obs_data):
-        """fill in the missing mandatory levels with interpolated data
-            using the log difference interpolation method.
+        """fill in the mandatory levels with interpolated data using the log difference interpolation method.
+        For each pressure level in the mandatory levels, find the nearest higher and lower pressure levels
+        and interpolate the data for each variable at the mandatory level. Set the pressure level to the mandatory level.
         Args:
             raw_data (): this is the raw data from the prepbufr file with missing heights having been interpolated
             using the hypsometric equation for thickness.
@@ -323,47 +344,74 @@ class PrepbufrBuilder(Builder):
                             continue
                         if variable not in interpolated_data[station][report]["data"]:
                             interpolated_data[station][report]["data"][variable] = {}
-                        if raw_obs_data[station][report]["obs_data"][variable] is None or len(raw_obs_data[station][report]["obs_data"][variable]) == 0:
+                        if (
+                            raw_obs_data[station][report]["obs_data"][variable] is None
+                            or len(raw_obs_data[station][report]["obs_data"][variable])
+                            == 0
+                        ):
                             # can't do this, there is no raw data for this variable
+                            interpolated_data[station][report]["data"][variable] = None
                             continue
                         # now we can interpolate the levels for each variable
                         for level in mandatory_levels:
                             # find the nearest higher and lower pressure to this level
-                            p_arr = np.asarray(raw_obs_data[station][report]["obs_data"]["pressure"])
+                            p_arr = np.asarray(
+                                raw_obs_data[station][report]["obs_data"]["pressure"]
+                            )
                             if level > p_arr.max() or level < p_arr.min():
                                 # this level is outside the range of the data - have to skip it
+                                interpolated_data[station][report]["data"][variable][
+                                    level
+                                ] = None
                                 continue
                             nearest_higher_pressure = p_arr[p_arr >= level].min()
-                            nearest_higher_i = raw_obs_data[station][report]["obs_data"][
-                                "pressure"
-                            ].index(nearest_higher_pressure)
-                            nearest_lower = p_arr[p_arr <= level].max()
-                            nearest_lower_i = raw_obs_data[station][report][
+                            nearest_higher_i = raw_obs_data[station][report][
                                 "obs_data"
-                            ]["pressure"].index(nearest_lower)
+                            ]["pressure"].index(nearest_higher_pressure)
+                            nearest_lower_pressure = p_arr[p_arr <= level].max()
+                            nearest_lower_i = raw_obs_data[station][report]["obs_data"][
+                                "pressure"
+                            ].index(nearest_lower_pressure)
 
-                            if nearest_higher_i == nearest_lower_i:
+                            if (
+                                nearest_higher_i == nearest_lower_i
+                                and nearest_higher_pressure == level
+                            ):
                                 # this is the level we want - it matches the mandatory level
-                                interpolated_data[station][report]["data"][variable][level] = raw_obs_data[station][report]["obs_data"][variable][nearest_lower_i]
+                                interpolated_data[station][report]["data"][variable][
+                                    level
+                                ] = raw_obs_data[station][report]["obs_data"][variable][
+                                    nearest_lower_i
+                                ]
                                 continue
-                            # interpolate these values
-                            if nearest_higher_i >= 0:
-                                nearest_higher_pressure_index = nearest_higher_i
-                                nearest_lower_pressure_index = nearest_higher_i + 1
-                            else:
-                                nearest_higher_pressure_index = nearest_higher_i - 1
-                                nearest_lower_pressure_index = nearest_higher_i
-                            interpolated_data[station][report]["data"][variable][level] = self.interpolate_variable_for_level(
+                            # have to interpolate the data for this variable and level
+                            try:
+                                interpolated_data[station][report]["data"][variable][
+                                    level
+                                ] = self.interpolate_variable_for_level(
                                     variable,
-                                    nearest_higher_pressure_index,
-                                    nearest_lower_pressure_index,
+                                    nearest_higher_i,
+                                    nearest_lower_i,
                                     raw_obs_data[station][report]["obs_data"],
                                     level,
                                 )
+                            except Exception as _e:
+                                logging.error(
+                                    "PrepBufrBuilder.interpolate_data: Exception  error: %s",
+                                    str(_e),
+                                )
+                                interpolated_data[station][report]["data"][variable][
+                                    level
+                                ] = None
         except Exception as _e:
             logging.error(
                 "PrepBufrBuilder.interpolate_data: Exception  error: %s", str(_e)
             )
+        # set the pressure levels to the mandatory levels now that the data has all been interpolated to mandatory levels
+        for station in raw_obs_data:
+            for report in raw_obs_data[station]:
+                for _l in mandatory_levels:
+                    interpolated_data[station][report]["data"]["pressure"][_l] = _l
         return interpolated_data
 
     def handle_document(self):
@@ -698,11 +746,6 @@ class PrepbufrBuilder(Builder):
                     "PrepBufrBuilder.build_document: Exception  error: %s", str(_e)
                 )
                 return {}
-            except RuntimeWarning as rw:
-                logger.error(
-                    "PrepBufrBuilder.build_document: RuntimeWarning  error: %s", str(rw)
-                )
-                return {}
             if len(self.stations) == 0:
                 stmnt = f"""SELECT {self.subset}.*
                     FROM `{bucket}`.{scope}.{collection}
@@ -741,10 +784,10 @@ class PrepbufrBuilder(Builder):
                 file_name=queue_element, data_file_id=data_file_id, origin_type="GDAS"
             )
             document_map[data_file_doc["id"]] = data_file_doc
-            # add the raw data doc to the document map
-            raw_data_id = self.create_raw_data_id()
-            raw_data_doc = self.build_raw_data_doc(raw_data_id)
-            document_map[raw_data_doc["id"]] = raw_data_doc
+            # add the raw data doc to the document map - NO! - the raw data exceeds 20MB
+            # raw_data_id = self.create_raw_data_id()
+            # raw_data_doc = self.build_raw_data_doc(raw_data_id)
+            # document_map[raw_data_doc["id"]] = raw_data_doc
             return document_map
         except Exception as _e:
             logger.exception(
@@ -798,12 +841,12 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         # self.do_profiling = True  # set to True to enable build_document profiling
         self.do_profiling = False  # set to True to enable build_document profiling
 
-        self.write_data_for_debug_station = None  # used for debugging
+        self.write_data_for_debug_station_list = None  # used for debugging
         self.current_station = None  # used for debugging
 
     # used for debugging - mostly for setting breakpoints
-    def set_write_data_for_debug_station(self, station):
-        self.write_data_for_debug_station = station
+    def set_write_data_for_debug_station_list(self, station_list):
+        self.write_data_for_debug_station_list = station_list
 
     def get_mandatory_levels(self):
         """
@@ -815,48 +858,59 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
             self.mandatory_levels = list(range(1010, 10, -10))
         return self.mandatory_levels
 
-    def get_relative_humidity(
-        self, relative_humidity, pressure, temperature, specific_humidity
-    ):
+    def get_relative_humidity(self, pressure, temperature, specific_humidity):
         """
         This method calculates the relative humidity from the specific humidity, if necessary
-        :param relative_humidity: the relative humidity data - sometimes is not present
-        :param pressure: the pressure data
-        :param temperature: the temperature data
-        :param specific_humidity: the specific humidity data
+        :param pressure: the pressure data (list)
+        :param temperature: the temperature data (list)
+        :param specific_humidity: the specific humidity data (list)
         :return: the relative humidity data
 
         example:
+        The list parameters must be converted to masked arrays.
         relative_humidity_from_specific_humidity(pressure, temperature, specific_humidity)  all pint.Quantity
         relative_humidity_from_specific_humidity(1013.25 * units.hPa, 30 * units.degC, 18/1000).to('percent')
         """
         try:
-            _relative_humidity = (
-                metpy.calc.relative_humidity_from_specific_humidity(
-                    pressure * units.hPa,
-                    temperature * units.degC,
-                    specific_humidity * units("mg/kg"),
+            if pressure is None or temperature is None or specific_humidity is None:
+                # cannot process this
+                return None
+            relative_humidity = [
+                None
+                if p is ma.masked or t is ma.masked or s is ma.masked
+                else metpy.calc.relative_humidity_from_specific_humidity(
+                    p * units.hPa,
+                    t * units.degC,
+                    s * units("mg/kg"),
                 )
                 .to("percent")
                 .to_tuple()[0]
-            )
-            return _relative_humidity.tolist()
+                for p, t, s in zip(pressure, temperature, specific_humidity)
+            ]
+            return relative_humidity
         except Exception as _e:
             logger.error(
                 "PrepBufrBuilder.get_relative_humidity: Exception  error: %s", str(_e)
             )
-            _ret_array = np.full(temperature.shape, np.nan)
-            _mask = np.full(temperature.shape, True)
-            return ma.masked_array(_ret_array, mask=_mask)
+            return None
 
     def interpolate_heights(self, height, pressure, temperature, specific_humidity):
         """
-        This method interpolates the heights that are missing in the height data
-        using the hypsometric thickness equation
-        :param height: the height data
-        :return: the heights nd_array
+        This method interpolates the heights using the hypsometric thickness equation.
+        There is the possibility that a height value is missing for a given pressure level.
+        There is the assumption that the pressure levels are more correct than the heights.
+        We will use the highest pressure level as the bottom and the lowest pressure level as the top,
+        making sure that the temperature, pressure, and mixing_ratio lists are all homogeneous.
+        Using that data we will use the metpy.calc.thickness_hydrostatic to calculate the thickness of each layer
+        adding it to the previous height to get the interpolated height.
 
-        examples:
+        :param height: list of float - the height data (may have elements that are ma.masked or None) in meters.
+        :param pressure: list of float - the pressure data atmospheric profile in units.hPa.
+        :param temperature: list of float - the temperature data atmospheric profile in units.degC.
+        :param specific_humidity - list of float - the specific_humidity atmospheric profile in units("mg/kg").
+        :return: the interpolated heights nd_array (in meters) or None if the interpolation fails.
+
+        examples: (from https://unidata.github.io/MetPy/latest/api/generated/metpy.calc.thickness_hydrostatic.html)
 
         mixing ratio from specific humidity:
             sh = [4.77, 12.14, 6.16, 15.29, 12.25] * units('g/kg')
@@ -881,92 +935,124 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
             mpcalc.thickness_hydrostatic(p[layer], T[layer])
             <Quantity(5755.94719, 'meter')>
         """
+        if height is None:
+            # if there aren't any heights I don't know what to do. It needs a starting point at least.
+            return None
         try:
-            # if the height is not a masked array - make it one
-            if not ma.isMaskedArray(height):
-                height = ma.masked_invalid(height)
-            # save the original height mask in the raw data
-            original_height_mask = height.mask
-            # calculate the thickness for each layer and update the masked array
-            # if the height is totally masked or the shape is () - it is a scalar - I don't know what to do
-            if ma.is_masked(height) or height.mask.all() or height.shape == ():
-                return height, original_height_mask
-            # interpolate the heights
-            # start at the bottom and work up
-            # first - calculate the mixing ratio from the specific humidity for the entire array
-            try:
-                _mixing_ratio = metpy.calc.mixing_ratio_from_specific_humidity(
-                    specific_humidity * units("mg/kg")
-                ).to("g/kg")
-            except Exception as _e:
-                logger.error(
-                    "PrepBufrBuilder.interpolate_heights: Exception  error: %s", str(_e)
-                )
-                return height, original_height_mask
-
-            # now determine the missing layers
-
+            # don't use invalid data at the top or bottom of the profile
+            # if any of the needed values are invalid make them all math.nan at that position.
+            # Make invalid values math.nan because the metpy.calc routine likes them that way.
             i = 0
-            len(height)
-            while i < len(height):  # iterate the masked heights
-                if ma.is_masked(height[i]) or math.isnan(height[i]):
-                    # get the height from the hydrostatic thickness using the layer below and the next layer above that has data
-                    # what is the next layer above that has data?
-                    j = i + 1
-                    while j < len(height) and ma.is_masked(height[j]):
-                        j = j + 1
-                    # now height[i-1] (or height[0]) is the layer below that has data i.e. the bottom
-                    # and height[j] is the next layer above that has data i.e. the top
-                    top = j if j < len(height) else len(height) - 1
-                    bottom = 0 if i == 0 else i - 1
-                    p = pressure.data * units.hPa
-                    t = temperature.data * units.degC
-                    mr = _mixing_ratio.data * units.dimensionless
-                    layer = (pressure <= pressure[bottom]) & (pressure >= pressure[top])
-                    _height = metpy.calc.thickness_hydrostatic(
-                        pressure=p[layer],
-                        temperature=t[layer],
-                        mixing_ratio=mr[layer],
-                        molecular_weight_ratio=0.6219569100577033,
-                    )
-                    while (
-                        i < j
-                    ):  # remember i is the bottom masked layer and j is the next layer above that has data
-                        height[i] = round(_height.magnitude, 1)
-                        # assigning a valid value to height[i] unmasks that value
-                        # does this need to be added to the height of the layer below?
-                        # i.e. _height.magnitude + height[i - 1]
-                        # go to the next one
-                        i = i + 1
+            while not (
+                self.is_a_number(pressure[i])
+                and self.is_a_number(temperature[i])
+                and self.is_a_number(specific_humidity[i])
+            ):
+                temperature[i] = math.nan
+                pressure[i] = math.nan
+                specific_humidity[i] = math.nan
+                i = i + 1
+            _first_bottom_i = i
+            i = len(pressure) - 1
+            while not (
+                self.is_a_number(pressure[i])
+                and self.is_a_number(temperature[i])
+                and self.is_a_number(specific_humidity[i])
+            ):
+                temperature[i] = math.nan
+                pressure[i] = math.nan
+                specific_humidity[i] = math.nan
+                i = i - 1
+            _last_top_i = i
+
+            # create pint.Quantity sequences for the data
+            sh = [
+                s if s is not ma.masked else math.nan for s in specific_humidity
+            ] * units("mg/kg")
+            mr = metpy.calc.mixing_ratio_from_specific_humidity(sh).to("g/kg")
+            p = [p1 if p1 is not ma.masked else math.nan for p1 in pressure] * units.hPa
+            t = [
+                t1 if t1 is not ma.masked else math.nan for t1 in temperature
+            ] * units.degC
+            h = [h1 if h1 is not ma.masked else math.nan for h1 in height] * units.meter
+
+            # now determine the layer by finding the bottom valid pressure that has corresponding valid data for
+            # temperature, pressure, and mixing ratio.
+            _bottom_i = _first_bottom_i
+            _top_i = _bottom_i + 1
+            while _top_i < _last_top_i:
+                while math.isnan(pressure[_top_i]):
+                    _top_i = _top_i + 1
+                layer = (p <= pressure[_bottom_i] * units.hPa) & (
+                    p >= pressure[_top_i] * units.hPa
+                )
+                _thickness = metpy.calc.thickness_hydrostatic(
+                    p[layer],
+                    t[layer],
+                    mr[layer],
+                    molecular_weight_ratio=0.6219569100577033,
+                )
+                if not self.is_a_number(_thickness.magnitude):
+                    # Could not derive the thickness from the hypsometric equation
+                    if self.is_a_number(height[_top_i]):
+                        # The provided height is valid - so use that
+                        h[_top_i] = height[_top_i] * units.meter
+                    else:
+                        # cannot do anything - the derived thickness is invalid and so is the provided
+                        # radiosonde height - so invalidate this level
+                        h[_top_i] = math.nan
                 else:
-                    i = i + 1  # this one was not masked so go to the next one
-            return height, original_height_mask
-        except RuntimeWarning as rw:
+                    # Thickness is valid - could derive the thickness from the hypsometric equation
+                    # check the previous derived height - is it a valid number?
+                    if self.is_a_number(h[_top_i - 1].magnitude):
+                        # The previous derived height was also valid so use the previous derived height as a base reference
+                        # for adding to the thickness
+                        h[_top_i] = _thickness + h[_top_i - 1]
+                    else:
+                        # the previous derived height is not a valid number - is the previous provided (radiosonde) height?
+                        if self.is_a_number(height[_top_i - 1]):
+                            # The previous provided (radiosonde) height is valid - so
+                            # use it as a base reference for adding to the thickness
+                            h[_top_i] = _thickness + height[_top_i - 1] * units.meter
+                        else:
+                            # we have a valid thickness but no valid valid base reference for
+                            # the height to add to the thickness
+                            # so we have to invalidate this height
+                            h[_top_i] = math.nan
+                _bottom_i = _top_i
+                _top_i = _top_i + 1
+            return [_h1 if self.is_a_number(_h1) else None for _h1 in list(h.magnitude)]
+        except Exception as _e1:
             logger.error(
                 "PrepBufrBuilder.interpolate_heights: RuntimeWarning  error: %s",
-                str(rw),
+                str(_e1),
             )
-            return height, original_height_mask
+            return None
 
     def get_data_from_bufr_for_field(
         self,
         events,
         bufr_data,
-        mnemonic_index,
-        event_value=None,
+        mnemonics,
         mnemonic=None,
+        event_program_code_mnemonics=None,
+        event_program_code_mnemonic=None,
+        event_value=None,
     ):
         """
         This method gets the value from the bufr data at the index for the specific field
         :param events: Bool - whether the bufr has events or not
         :param bufr_data: the bufr data
-        :param mnemonic_index: the field index (variable index)
+        :param mnemonics: the variable mnemonic list
+        :param mnemonic: the specific mnemonic
+        :param event_value: the specific event value
         :return: If events are False the variable value will be read from the bufr_data at the mnemonic_index.
         If events are True the variable value will be read from the bufr_data at the mnemonic_index and the event dimension
         will be used to find the value that corresponds to the event_value that is passed in, e.g. 1 is 'Initial' and 8 is 'Virtual'
         see https://www.emc.ncep.noaa.gov/mmb/data_processing/table_local_await-val.htm#0-12-247
         An event_value of None will cause the value of the first event to be returned, regardless of the events actual value.
-
+        An event_value is the value of the corresponding event program code at the event index. The event program code is the
+        value for the event_program_code mnemonic.
         example:
         as an example consider the following bufr data decoded from a prepbufr file 241570000.gdas.t00z.prepbufr.nr which
         is the 0 hour UTC readings for the GDAS data set from 2024 June 5th.
@@ -1038,54 +1124,121 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         For those set to false we will look for the first data value.
 
         """
+        mnemonic_index = mnemonics.index(mnemonic)
+        if (
+            event_program_code_mnemonic is not None
+            and event_program_code_mnemonics is not None
+            and event_program_code_mnemonic in event_program_code_mnemonics
+        ):
+            event_program_code_mnemonic_index = len(
+                mnemonics
+            ) + event_program_code_mnemonics.index(event_program_code_mnemonic)
+        else:
+            event_program_code_mnemonic_index = None
+        # if it isn't a masked array just return the data
         if not ma.isMaskedArray(bufr_data[mnemonic_index]):
             return bufr_data[mnemonic_index]
-        if events is False or event_value is None:
+        # if it is all masked return None
+        if np.ma.array(bufr_data[mnemonic_index]).mask.all():
+            return None
+        # do we need to check for events
+        if (
+            events is False
+            or event_value is None
+            or event_program_code_mnemonic is None
+            or event_program_code_mnemonic_index is None
+        ):
             # don't consider events just return the data for the field
+            if len(bufr_data[mnemonic_index].shape) == 1:
+                return [
+                    i if i is not ma.masked else None for i in bufr_data[mnemonic_index]
+                ]
             if len(bufr_data[mnemonic_index].shape) > 1:
-                return [i[0] for i in bufr_data[mnemonic_index].filled()]
+                return [i[0] for i in bufr_data[mnemonic_index]]
             else:
+                # not multidimensional
                 if bufr_data[mnemonic_index].shape == ():
                     return [bufr_data[mnemonic_index].item()]
-                return [i for i in bufr_data[mnemonic_index].tolist()]
         else:
-            # have to consider events
+            # need to consider events
             # go through each level and find the value that corresponds to the event_value
+            # use the event program code mnemonic to find the index of the desired event program code value
+            # then for each level use that index to find the correct value for the variable
+            bufr_data_for_mnemonic = bufr_data[mnemonic_index].copy()
             for level_index in range(0, bufr_data.shape[1]):
                 if bufr_data[mnemonic_index][level_index].shape == ():  # scalar
                     return [bufr_data[mnemonic_index][level_index].item()]
-                if len(bufr_data[mnemonic_index][level_index].compressed()) == 1:
-                    # ignore the events, there is only one event anyway, just return the filled list.
+                if (
+                    len(
+                        bufr_data[event_program_code_mnemonic_index][
+                            level_index
+                        ].compressed()
+                    )
+                    == 1
+                ):
+                    # ignore the events, there is only one event anyway, just return like there weren't events.
                     # This deserves explanation. The bufr data is a 3-d array with the first dimension being the variable
                     # the second dimension being the level and the third dimension being the event. If there is only one event
-                    # then the third dimension is not necessary and the data is filled.
-                    return [i[0] for i in bufr_data[mnemonic_index].filled()]
-                # now we have multiple events and we have to consider them so find the index of the expected event_value
+                    # then the third dimension is irrelevant.
+                    bufr_data_for_mnemonic[level_index] = bufr_data[mnemonic_index][
+                        level_index
+                    ]
+                    continue
                 try:
+                    # now we have multiple events so we have to consider them - so find the index of the expected event_value
                     _event_value_found = False
                     for e_index in range(0, bufr_data.shape[2]):
-                        if bufr_data[mnemonic_index][level_index][1] is ma.masked:
-                            # do not consider masked data
+                        if (
+                            bufr_data[event_program_code_mnemonic_index][level_index][
+                                e_index
+                            ]
+                            is ma.masked
+                        ):
+                            # do not consider masked events - just use the bufr_data for the mnemonic
+                            bufr_data_for_mnemonic[level_index] = bufr_data[
+                                mnemonic_index
+                            ][level_index]
                             continue
                         if (
-                            bufr_data[mnemonic_index][level_index][e_index]
+                            bufr_data[event_program_code_mnemonic_index][level_index][
+                                e_index
+                            ]
                             == event_value
                         ):
                             _event_value_found = True
                             break
-                        # using the event value index find all the correct values
+                        # using the found event value index find all the correct variable values
                     if _event_value_found is True:
-                        return [i[e_index] for i in bufr_data[mnemonic_index].filled()]
+                        if (
+                            bufr_data[mnemonic_index][level_index][e_index]
+                            is not ma.masked
+                        ):
+                            bufr_data_for_mnemonic[level_index][0] = bufr_data[
+                                mnemonic_index
+                            ][level_index][e_index]
+                        else:
+                            # the one that matches the desired event code is masked!
+                            # have to use the 0th one
+                            bufr_data_for_mnemonic[level_index][0] = bufr_data[
+                                mnemonic_index
+                            ][level_index][0]
+
                     else:
                         logger.info(
                             f"PrepBufrBuilder.get_data_from_bufr_for_field: event_value not found for mnemonic {mnemonic}",
                         )
-                        return [i[0] for i in bufr_data[mnemonic_index].filled()]
+                        # could not find the desired event value - have to use the first one
+                        bufr_data_for_mnemonic[level_index][0] = bufr_data[
+                            mnemonic_index
+                        ][level_index][0]
                 except IndexError as _ie:
                     logger.error(
                         f"PrepBufrBuilder.get_data_from_bufr_for_field: IndexError for mnemonic {mnemonic}",
                     )
-                    return [i[0] for i in bufr_data[mnemonic_index].filled()]
+                    # bad data - return None
+                    return None
+            # return the data for the mnemonic converted to a list
+            return [i[0] for i in bufr_data_for_mnemonic]
 
     def read_data_from_bufr(self, bufr, template):
         """
@@ -1102,12 +1255,22 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         :return: a data object: each key is a field name and the value is the data array (not masked) for that field
         """
         # see read_subset https://github.com/NOAA-EMC/NCEPLIBS-bufr/blob/a8108e591c6cb1e21ddc7ddb6715df1b3801fff8/python/ncepbufr/__init__.py#L449
-        mnemonicsSet = set()  # using a set to eliminate duplicates
+        mnemonics = []
+        event_program_code_mnemonics = []
         for o in template.values():
             if isinstance(o, dict):
-                mnemonicsSet.add(o["mnemonic"])
-        mnemonics = list(mnemonicsSet)
+                mnemonics.append(o["mnemonic"])
+                # need to include the event program code mnemonics in the mnemonics string that is used to read the data
+                if (
+                    "event_program_code_mnemonic" in o
+                    and "event_program_code_mnemonic"
+                    not in event_program_code_mnemonics
+                ):
+                    event_program_code_mnemonics.append(
+                        o["event_program_code_mnemonic"]
+                    )
         mnemonics_str = " ".join(mnemonics)
+        event_program_code_mnemonics_str = " ".join(event_program_code_mnemonics)
         events = template["events"] is True
         # see https://github.com/NOAA-EMC/NCEPLIBS-bufr/blob/a8108e591c6cb1e21ddc7ddb6715df1b3801fff8/python/ncepbufr/__init__.py#L449
         # for reference on read_subset
@@ -1119,105 +1282,166 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         # that event program code mnemonics are provided in the mnemonic list. If there are no event
         # program codes in the mnemonics list, the events dimension is masked, the values of the data mnemonic are present but you cannot determine which
         # event program code applies to which event or which data value.
-        bufr_data = bufr.read_subset(mnemonics_str, events=events).squeeze()
+        all_mnemonics_str = mnemonics_str + " " + event_program_code_mnemonics_str
+        bufr_data = bufr.read_subset(all_mnemonics_str, events=events).squeeze()
         if "SID" in mnemonics:
             station_id = str(
                 bufr_data[mnemonics.index("SID")], encoding="utf-8"
             ).strip()
             self.current_station = station_id
         data = {}
-        for mnemonic_index, mnemonic in enumerate(mnemonics):
+        temperature = None
+        pressure = None
+        specific_humidity = None
+        for _mnemonic_index, mnemonic in enumerate(mnemonics):
             try:
+                # uncomment this for debugging - makes a good place for a breakpoint
+                # if 'temperature' in template:
+                #     print(f"station:{self.current_station} mnemonic:{mnemonic}\n")
                 field = [
                     k
                     for k, v in template.items()
                     if isinstance(v, dict) and mnemonic == v["mnemonic"]
                 ][0]
                 event_value = template[field].get("event_value", None)
+                event_program_code_mnemonic = template[field].get(
+                    "event_program_code_mnemonic", None
+                )
                 if field == "relative_humidity":
                     # need to get some specific fields to calculate the relative humidity
                     relative_humidity = self.get_data_from_bufr_for_field(
                         events,
                         bufr_data,
-                        mnemonics.index(mnemonic),
+                        mnemonics,
                         mnemonic=mnemonic,
+                        event_program_code_mnemonics=event_program_code_mnemonics,
+                        event_program_code_mnemonic=event_program_code_mnemonic,
                         event_value=event_value,
                     )
-                    pressure_mnemonic = template["pressure"]["mnemonic"]
-                    pressure_event_value = template["pressure"]["event_value"]
-                    pressure = self.get_data_from_bufr_for_field(
-                        events,
-                        bufr_data,
-                        mnemonics.index(pressure_mnemonic),
-                        mnemonic=pressure_mnemonic,
-                        event_value=pressure_event_value,
-                    )
-                    temperature_mnemonic = template["temperature"]["mnemonic"]
-                    temperature_event_value = template["temperature"]["event_value"]
-                    temperature = self.get_data_from_bufr_for_field(
-                        events,
-                        bufr_data,
-                        mnemonics.index(temperature_mnemonic),
-                        event_value=temperature_event_value,
-                        mnemonic=temperature_mnemonic,
-                    )
-                    specific_humidity_mnemonic = template["specific_humidity"][
-                        "mnemonic"
-                    ]
-                    specific_humidity_event_value = template["specific_humidity"][
-                        "event_value"
-                    ]
-                    specific_humidity = self.get_data_from_bufr_for_field(
-                        events,
-                        bufr_data,
-                        mnemonics.index(specific_humidity_mnemonic),
-                        event_value=specific_humidity_event_value,
-                        mnemonic=specific_humidity_mnemonic,
-                    )
-                    data[field] = self.get_relative_humidity(
-                        relative_humidity,  # relative_humidity - sometimes is missing
-                        pressure,
-                        temperature,
-                        specific_humidity,
-                    )
+                    if not pressure:
+                        pressure_mnemonic = template["pressure"]["mnemonic"]
+                        pressure_event_program_code_mnemonic = template["pressure"][
+                            "event_program_code_mnemonic"
+                        ]
+                        pressure_event_value = template["pressure"]["event_value"]
+                        pressure = self.get_data_from_bufr_for_field(
+                            events,
+                            bufr_data,
+                            mnemonics,
+                            mnemonic=pressure_mnemonic,
+                            event_program_code_mnemonics=event_program_code_mnemonics,
+                            event_program_code_mnemonic=pressure_event_program_code_mnemonic,
+                            event_value=pressure_event_value,
+                        )
+                    if not temperature:
+                        temperature_mnemonic = template["temperature"]["mnemonic"]
+                        temperature_event_program_code_mnemonic = template[
+                            "temperature"
+                        ]["event_program_code_mnemonic"]
+                        temperature_event_value = template["temperature"]["event_value"]
+                        temperature = self.get_data_from_bufr_for_field(
+                            events,
+                            bufr_data,
+                            mnemonics,
+                            mnemonic=temperature_mnemonic,
+                            event_program_code_mnemonics=event_program_code_mnemonics,
+                            event_program_code_mnemonic=temperature_event_program_code_mnemonic,
+                            event_value=temperature_event_value,
+                        )
+                    if not specific_humidity:
+                        specific_humidity_mnemonic = template["specific_humidity"][
+                            "mnemonic"
+                        ]
+                        specific_humidity_event_program_code_mnemonic = template[
+                            "specific_humidity"
+                        ]["event_program_code_mnemonic"]
+                        specific_humidity_event_value = template["specific_humidity"][
+                            "event_value"
+                        ]
+                        specific_humidity = self.get_data_from_bufr_for_field(
+                            events,
+                            bufr_data,
+                            mnemonics,
+                            mnemonic=specific_humidity_mnemonic,
+                            event_program_code_mnemonics=event_program_code_mnemonics,
+                            event_program_code_mnemonic=specific_humidity_event_program_code_mnemonic,
+                            event_value=specific_humidity_event_value,
+                        )
+                    if relative_humidity is not None:
+                        data[field] = [
+                            i if i is not ma.masked else None for i in relative_humidity
+                        ]
+                    else:
+                        data[field] = self.get_relative_humidity(
+                            pressure,
+                            temperature,
+                            specific_humidity,
+                        )
                 else:
                     if field == "height":
                         # need to get some specific fields to interpolate the height
                         height = self.get_data_from_bufr_for_field(
                             events,
                             bufr_data,
-                            mnemonics.index(mnemonic),
-                            event_value=event_value,
+                            mnemonics,
                             mnemonic=mnemonic,
+                            event_program_code_mnemonics=event_program_code_mnemonics,
+                            event_program_code_mnemonic=event_program_code_mnemonic,
+                            event_value=event_value,
                         )
-                        pressure_mnemonic = template["pressure"]["mnemonic"]
-                        pressure_event_value = template["pressure"]["event_value"]
-                        pressure = self.get_data_from_bufr_for_field(
-                            events,
-                            bufr_data,
-                            mnemonics.index(pressure_mnemonic),
-                            mnemonic=pressure_mnemonic,
-                            event_value=pressure_event_value,
-                        )
-                        temperature_mnemonic = template["temperature"]["mnemonic"]
-                        temperature_event_value = template["temperature"]["event_value"]
-                        temperature = self.get_data_from_bufr_for_field(
-                            events,
-                            bufr_data,
-                            mnemonics.index(temperature_mnemonic),
-                            event_value=temperature_event_value,
-                            mnemonic=temperature_mnemonic,
-                        )
-                        specific_humidity_mnemonic = template["specific_humidity"]["mnemonic"]
-                        specific_humidity_event_value = template["specific_humidity"]["event_value"]
-                        specific_humidity = self.get_data_from_bufr_for_field(
-                            events,
-                            bufr_data,
-                            mnemonics.index(specific_humidity_mnemonic),
-                            event_value=specific_humidity_event_value,
-                            mnemonic=specific_humidity_mnemonic,
-                        )
-                        data[field], _original_mask = self.interpolate_heights(
+                        if not pressure:
+                            pressure_mnemonic = template["pressure"]["mnemonic"]
+                            pressure_event_program_code_mnemonic = template["pressure"][
+                                "event_program_code_mnemonic"
+                            ]
+                            pressure_event_value = template["pressure"]["event_value"]
+                            pressure = self.get_data_from_bufr_for_field(
+                                events,
+                                bufr_data,
+                                mnemonics,
+                                mnemonic=pressure_mnemonic,
+                                event_program_code_mnemonics=event_program_code_mnemonics,
+                                event_program_code_mnemonic=pressure_event_program_code_mnemonic,
+                                event_value=pressure_event_value,
+                            )
+                        if not temperature:
+                            temperature_mnemonic = template["temperature"]["mnemonic"]
+                            temperature_event_program_code_mnemonic = template[
+                                "temperature"
+                            ]["event_program_code_mnemonic"]
+                            temperature_event_value = template["temperature"][
+                                "event_value"
+                            ]
+                            temperature = self.get_data_from_bufr_for_field(
+                                events,
+                                bufr_data,
+                                mnemonics,
+                                mnemonic=temperature_mnemonic,
+                                event_program_code_mnemonics=event_program_code_mnemonics,
+                                event_program_code_mnemonic=temperature_event_program_code_mnemonic,
+                                event_value=temperature_event_value,
+                            )
+                        if not specific_humidity:
+                            specific_humidity_mnemonic = template["specific_humidity"][
+                                "mnemonic"
+                            ]
+                            specific_humidity_event_program_code_mnemonic = template[
+                                "specific_humidity"
+                            ]["event_program_code_mnemonic"]
+                            specific_humidity_event_value = template[
+                                "specific_humidity"
+                            ]["event_value"]
+                            specific_humidity = self.get_data_from_bufr_for_field(
+                                events,
+                                bufr_data,
+                                mnemonics,
+                                mnemonic=specific_humidity_mnemonic,
+                                event_program_code_mnemonics=event_program_code_mnemonics,
+                                event_program_code_mnemonic=specific_humidity_event_program_code_mnemonic,
+                                event_value=specific_humidity_event_value,
+                            )
+                        # how many heights can be masked before this is a useless exercise?
+                        data[field] = self.interpolate_heights(
                             height,
                             pressure,
                             temperature,
@@ -1228,10 +1452,12 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                             template,
                             events,
                             bufr_data,
-                            mnemonic_index,
+                            mnemonics,
                             mnemonic,
                             field,
                             event_value,
+                            event_program_code_mnemonics=event_program_code_mnemonics,
+                            event_program_code_mnemonic=event_program_code_mnemonic,
                         )
             except Exception as _e:
                 logger.error(
@@ -1245,10 +1471,12 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         template,
         events,
         bufr_data,
-        mnemonic_index,
+        mnemonics,
         mnemonic,
         field,
         event_value,
+        event_program_code_mnemonics=None,
+        event_program_code_mnemonic=None,
     ):
         data = []
         try:
@@ -1258,21 +1486,23 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                         b_data = self.get_data_from_bufr_for_field(
                             events,
                             bufr_data,
-                            mnemonic_index,
-                            event_value=event_value,
+                            mnemonics,
                             mnemonic=mnemonic,
+                            event_program_code_mnemonics=event_program_code_mnemonics,
+                            event_program_code_mnemonic=event_program_code_mnemonic,
+                            event_value=event_value,
                         )
+                        if b_data is None:
+                            return None
                         if not isinstance(
                             b_data, collections.abc.Sequence
                         ) and not isinstance(b_data, np.ndarray):
                             return int(b_data)
                         else:
-                            if ma.isMaskedArray(b_data):
-                                return b_data.astype(int)
-                            else:
-                                return [
-                                    int(i) if i is not None else None for i in b_data
-                                ]
+                            # if ma.isMaskedArray(b_data):
+                            #     return b_data.astype(int)
+                            # else:
+                            return [int(i) if i is not None else None for i in b_data]
                     except Exception as _e:
                         logger.error(
                             "PrepBufrBuilder.get_data_from_bufr_for_type_field: Exception  error: %s",
@@ -1284,24 +1514,29 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                         b_data = self.get_data_from_bufr_for_field(
                             events,
                             bufr_data,
-                            mnemonic_index,
-                            event_value=event_value,
+                            mnemonics,
                             mnemonic=mnemonic,
+                            event_program_code_mnemonics=event_program_code_mnemonics,
+                            event_program_code_mnemonic=event_program_code_mnemonic,
+                            event_value=event_value,
                         )
+                        mnemonic_index = mnemonics.index(mnemonic)
+                        if b_data is None:
+                            return None
                         if not isinstance(
                             b_data, collections.abc.Sequence
                         ) and not isinstance(b_data, np.ndarray):
                             data = round(b_data, 3)
                         else:
-                            if ma.isMaskedArray(b_data):
-                                data = b_data.round(3)
-                            else:
-                                data = [
-                                    round(i, 3)
-                                    if i is not None and i is not ma.masked
-                                    else None
-                                    for i in b_data
-                                ]
+                            # if ma.isMaskedArray(b_data):
+                            #     data = b_data.round(3)
+                            # else:
+                            data = [
+                                round(i, 3)
+                                if i is not None and i is not ma.masked
+                                else None
+                                for i in b_data
+                            ]
                     except Exception as _e:
                         logger.error(
                             "PrepBufrBuilder.get_data_from_bufr_for_type_field: Exception  error: %s",
@@ -1314,9 +1549,11 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                             self.get_data_from_bufr_for_field(
                                 events,
                                 bufr_data,
-                                mnemonic_index,
-                                event_value=event_value,
+                                mnemonics,
                                 mnemonic=mnemonic,
+                                event_program_code_mnemonics=event_program_code_mnemonics,
+                                event_program_code_mnemonic=event_program_code_mnemonic,
+                                event_value=event_value,
                             ),
                             encoding="utf-8",
                         ).strip()
@@ -1335,7 +1572,6 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
             )
             return None
         return data
-
 
     def get_fcst_valid_epoch_from_msg(self, bufr):
         """this method gets the forecast valid epoch from the message

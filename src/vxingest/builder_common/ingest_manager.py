@@ -286,7 +286,7 @@ class CommonVxIngestManager(Process):
                     )
                     with Path(complete_file_name).open("w", encoding="utf-8") as _f:
                         # we need to write out a list of the values of the _document_map for cbimport
-                        json_data = json.dumps(list(document_map.values()))
+                        json_data = json.dumps(list(document_map.values()), indent=2)
                         _f.write(json_data)
                 except Exception as _e1:
                     logger.exception(

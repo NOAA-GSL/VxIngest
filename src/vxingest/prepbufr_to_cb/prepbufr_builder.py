@@ -549,7 +549,7 @@ class PrepbufrBuilder(Builder):
         named_function({field1:value1, field2:value2, ... field_n:value_n}) and the return value from named_function
         will be substituted into each level document.
         """
-        # noinspection PyBroadException
+
         func = None
         try:
             func = named_function_def.split("|")[0].replace("&", "")
@@ -650,64 +650,6 @@ class PrepbufrBuilder(Builder):
             )
         return doc
 
-    def create_raw_data_id(self):
-        """
-        This method will create a raw data id for the raw data document.
-        """
-        return f"DD:{self.subset}:RAW_OBS:GDAS:prepbufr:V01:{self.fcst_valid_epoch}"
-
-    def de_mask_raw_obs_data(self):
-        """
-        This method will convert the masked arrays in the raw_obs_data to lists.
-        """
-        raw_obs_data_de_masked = {}
-        for station in self.raw_obs_data:
-            raw_obs_data_de_masked[station] = {}
-            for report in self.raw_obs_data[station]:
-                raw_obs_data_de_masked[station][report] = {}
-                raw_obs_data_de_masked[station][report]["obs_data"] = {}
-                for variable in self.raw_obs_data[station][report]["obs_data"]:
-                    if isinstance(
-                        self.raw_obs_data[station][report]["obs_data"][variable],
-                        ma.core.MaskedArray,
-                    ):
-                        raw_obs_data_de_masked[station][report]["obs_data"][
-                            variable
-                        ] = self.raw_obs_data[station][report]["obs_data"][
-                            variable
-                        ].data.tolist()
-                    else:
-                        raw_obs_data_de_masked[station][report]["obs_data"][
-                            variable
-                        ] = self.raw_obs_data[station][report]["obs_data"][variable]
-        return raw_obs_data_de_masked
-
-    def build_raw_data_doc(self, raw_data_id):
-        """This method will build a raw data document for the prepbufr builder raw_obs_data.
-        The raw data document will contain the raw_obs_data that is read from the prepbufr file.
-        The raw_obs_data contains masked arrays which are not suitable for json serialization.
-        The masked arrays are converted to lists before being added to the raw data document.
-        Args:
-            raw_data_id (string): the id that will be used for the raw data document
-        Returns:
-            json: the raw data document
-        """
-        de_masked_data = self.de_mask_raw_obs_data()
-        rd_doc = {
-            "id": raw_data_id,
-            "type": "DD",
-            "docType": "RAW_OBS",
-            "subset": self.subset,
-            "dataSourceId": "GDAS",
-            "fcstValidISO": self.get_valid_time_iso(),
-            "fcstValidEpoch": self.get_valid_time_epoch(),
-            "version": "V01",
-            "fileType": "prepbufr",
-            "originType": "GDAS",
-            "data": de_masked_data,
-        }
-        return rd_doc
-
     def build_document(self, queue_element):
         """This is the entry point for the Builders from the ingestManager.
         These documents are id'd by fcstValidEpoch and level. The data section is a dictionary
@@ -784,10 +726,6 @@ class PrepbufrBuilder(Builder):
                 file_name=queue_element, data_file_id=data_file_id, origin_type="GDAS"
             )
             document_map[data_file_doc["id"]] = data_file_doc
-            # add the raw data doc to the document map - NO! - the raw data exceeds 20MB
-            # raw_data_id = self.create_raw_data_id()
-            # raw_data_doc = self.build_raw_data_doc(raw_data_id)
-            # document_map[raw_data_doc["id"]] = raw_data_doc
             return document_map
         except Exception as _e:
             logger.exception(
@@ -881,7 +819,7 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                 else metpy.calc.relative_humidity_from_specific_humidity(
                     p * units.hPa,
                     t * units.degC,
-                    s * units("mg/kg"),
+                    s / 1000 * units("g/kg"),
                 )
                 .to("percent")
                 .to_tuple()[0]
@@ -1293,6 +1231,7 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         temperature = None
         pressure = None
         specific_humidity = None
+        relative_humidity = None
         for _mnemonic_index, mnemonic in enumerate(mnemonics):
             try:
                 # uncomment this for debugging - makes a good place for a breakpoint
@@ -1499,9 +1438,6 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                         ) and not isinstance(b_data, np.ndarray):
                             return int(b_data)
                         else:
-                            # if ma.isMaskedArray(b_data):
-                            #     return b_data.astype(int)
-                            # else:
                             return [int(i) if i is not None else None for i in b_data]
                     except Exception as _e:
                         logger.error(
@@ -1528,9 +1464,6 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                         ) and not isinstance(b_data, np.ndarray):
                             data = round(b_data, 3)
                         else:
-                            # if ma.isMaskedArray(b_data):
-                            #     data = b_data.round(3)
-                            # else:
                             data = [
                                 round(i, 3)
                                 if i is not None and i is not ma.masked
@@ -1722,7 +1655,7 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         try:
             value = next(iter(params_dict.items()))[1]
             # value might have been masked (there is probably a better way to deal with this)
-            if value == "--" or value == "" or value == "None" or value is None:
+            if not self.is_a_number(value):
                 return None
             else:
                 value = (float(value) - 273.15) * 1.8 + 32
@@ -1747,7 +1680,7 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         try:
             value = next(iter(params_dict.items()))[1]
             # value might have been masked (there is probably a better way to deal with this)
-            if value == "--" or value == "" or value == "None" or value is None:
+            if not self.is_a_number(value):
                 return None
             else:
                 value = round(float(value) * 0.5144444444, 4)
@@ -1771,7 +1704,7 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         try:
             value = next(iter(params_dict.items()))[1]
             # value might have been masked (there is probably a better way to deal with this)
-            if value == "--" or value == "" or value == "None" or value is None:
+            if not self.is_a_number(value):
                 return None
             else:
                 value = float(value) * 1.8 + 32
@@ -1794,7 +1727,7 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         try:
             value = next(iter(params_dict.items()))[1]
             # value might have been masked (there is probably a better way to deal with this)
-            if value == "--" or value == "" or value == "None" or value is None:
+            if not self.is_a_number(value):
                 return None
             else:
                 value = float(value) / 1000
@@ -1817,7 +1750,7 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         try:
             value = next(iter(params_dict.items()))[1]
             # value might have been masked (there is probably a better way to deal with this)
-            if value == "--" or value == "" or value == "None" or value is None:
+            if not self.is_a_number(value):
                 return None
             else:
                 value = (float(value) - 273.15) * 1.8 + 32
@@ -1979,6 +1912,7 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         highest_interpolated_level,
     ):
         """
+        Used for debugging stations.
         This method writes a debug report to a file. You can turn this on by setting self.print_debug_report to True.
         :param params_dict: the params_dict
         :param station_id: the station_id

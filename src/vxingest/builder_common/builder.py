@@ -3,7 +3,10 @@ Builder - Parent class for all Builders
 """
 
 import logging
+import math
 from pathlib import Path
+
+import numpy.ma as ma
 
 
 class Builder:
@@ -56,3 +59,6 @@ class Builder:
         except Exception as _e:
             logging.exception("%s create_data_file_id", self.__class__.__name__)
             return None
+
+    def is_a_number(self, v):
+        return isinstance(v, (int, float)) and not math.isnan(v) and v is not ma.masked

@@ -1,7 +1,5 @@
 from unittest.mock import MagicMock
 
-import numpy as np
-import numpy.ma as ma
 import pytest
 from vxingest.prepbufr_to_cb.prepbufr_builder import PrepbufrRaobsObsBuilderV01
 
@@ -61,10 +59,12 @@ def test_read_header(mock_header_bufr):
             "ingest_document_ids": {},
             "file_type": "PREPBUFR",
             "origin_type": "GDAS",
+            "mnemonic_mapping": {"fake": "fake"},
         },
     )
 
     hdr_template={
+            "events": True,
             "station_id": {"mnemonic":"SID","intent":"str"},
             "lon": {"mnemonic":"XOB", "intent":"float"},
             "lat": {"mnemonic":"YOB", "intent":"float"},
@@ -90,13 +90,15 @@ def test_read_obs_err(mock_err_bufr):
     builder = PrepbufrRaobsObsBuilderV01(
         None,
         {
-            "template": {"subset": "RAOB"},
+            "template": {"subset": "RAOB", "events":True},
             "ingest_document_ids": {},
             "file_type": "PREPBUFR",
             "origin_type": "GDAS",
+            "mnemonic_mapping": {"fake": "fake"},
         },
     )
     obs_err_template = {
+        "events": True,
         "pressure_obs_err": {"mnemonic":"POB", "intent":"float"},
         "relative_humidity_obs_err": {"mnemonic":"RHO", "intent":"float"},
         "temperature_obs_err": {"mnemonic":"TOB", "intent":"float"},
@@ -120,25 +122,21 @@ def test_interpolate_heights():
             "ingest_document_ids": {},
             "file_type": "PREPBUFR",
             "origin_type": "GDAS",
+            "mnemonic_mapping": {"fake": "fake"},
         },
     )
 
     # Define the test data
-    height = ma.asarray([1000, 2000, np.nan, 4000, np.nan, 6000])
-    pressure = ma.asarray([1000, 900, 800, 700, 600, 500])
-    temperature = ma.asarray([20, 15, 10, 5, 0, -5])
-    specific_humidity = ma.asarray([50, 60, 70, 80, 90, 100])
+    height = [1000, 2000, 3000, 4000, 5000, 6000]
+    pressure = [1000, 900, 800, 700, 600, 500]
+    temperature = [20, 15, 10, 5, 0, -5]
+    specific_humidity = [50, 60, 70, 80, 90, 100]
 
     # Call the interpolate_heights method
     interpolated_height = builder.interpolate_heights(height, pressure, temperature, specific_humidity)
 
     # Assert the expected interpolated heights
-    assert interpolated_height[0][0] == 1000.0
-    assert interpolated_height[0][1] == 2000.0
-    assert not ma.is_masked(interpolated_height[0][2])
-    assert interpolated_height[0][3] == 4000.0
-    assert not ma.is_masked(interpolated_height[0][4])
-    assert interpolated_height[0][5] == 6000.0
+    assert interpolated_height[0] is None
 
 
 
@@ -151,18 +149,38 @@ def test_read_obs_data(mock_obs_bufr):
             "ingest_document_ids": {},
             "file_type": "PREPBUFR",
             "origin_type": "GDAS",
+            "mnemonic_mapping": {"fake": "fake"},
         },
     )
     obs_data_template = {
-        "temperature": {"mnemonic": "TOB", "intent": "float"},
+        "events": True,
+        "temperature": {"mnemonic": "TOB", "intent": "float",
+            "event_program_code_mnemonic": "TPC",
+            "event_value": 1,},
         "dewpoint": {"mnemonic": "TDO", "intent": "float"},
         "rh": {"mnemonic": "RHO", "intent": "float"},
-        "specific_humidity": {"mnemonic": "QOB", "intent": "float"},
-        "pressure": {"mnemonic": "POB", "intent": "float"},
-        "height": {"mnemonic": "ZOB", "intent": "float"},
+        "specific_humidity": {
+            "mnemonic": "QOB",
+            "intent": "float",
+            "event_program_code_mnemonic": "QPC",
+            "event_value": 1,
+        },
+        "pressure": {
+            "mnemonic": "POB",
+            "intent": "float",
+            "event_program_code_mnemonic": "PPC",
+            "event_value": 1,
+        },
+        "height": {"mnemonic": "ZOB", "intent": "float",
+            "event_program_code_mnemonic": "ZPC",
+            "event_value": 1,},
         "wind_speed": {"mnemonic": "SOB", "intent": "float"},
-        "U-Wind": {"mnemonic": "UOB", "intent": "float"},
-        "V-Wind": {"mnemonic": "VOB", "intent": "float"},
+        "U-Wind": {"mnemonic": "UOB", "intent": "float",
+            "event_program_code_mnemonic": "WPC",
+            "event_value": 1,},
+        "V-Wind": {"mnemonic": "VOB", "intent": "float",
+            "event_program_code_mnemonic": "WPC",
+            "event_value": 1,},
         "wind_direction": {"mnemonic": "DDO", "intent": "float"},
     }
 

@@ -73,9 +73,6 @@ class PrepbufrBuilder(Builder):
         for interpolations."""
         return
 
-    def is_a_number(self, v):
-        return isinstance(v, (int, float)) and not math.isnan(v) and v is not ma.masked
-
     def derive_id(self, **kwargs):
         """
         This is a private method to derive a document id from the current valid_fcst_time and level.
@@ -193,9 +190,13 @@ class PrepbufrBuilder(Builder):
                     if _ri.startswith("{ISO}"):
                         value = variable.replace("*" + _ri, convert_to_iso(value))
                     else:
-                        value = variable.replace("*" + _ri, str(value))
+                        value = (
+                            variable.replace("*" + _ri, str(value))
+                            if value is not None
+                            else None
+                        )
                     try:  # make sure we have a number, if possible - except for stationNames
-                        value = float(value)
+                        value = float(value) if value is not None else None
                     except ValueError:
                         return value
             return value
@@ -673,14 +674,12 @@ class PrepbufrBuilder(Builder):
             # read the api for all data for this valid fcst hour.
             bucket = self.load_spec["cb_connection"]["bucket"]
             scope = self.load_spec["cb_connection"]["scope"]
-            collection = self.load_spec["cb_connection"]["collection"]
             # collection is set to "RAOB" in the run_ingest
-            template_doc = (
-                self.load_spec["collection"]
-                .get("MD:V01:RAOB:ingest:mnemonic_mapping:prepbufr")
-                .content_as[dict]
+            collection = self.load_spec["cb_connection"]["collection"]
+            mnemonic_mapping = self.mnemonic_mapping
+            self.raw_obs_data = self.read_data_from_file(
+                queue_element, mnemonic_mapping
             )
-            self.raw_obs_data = self.read_data_from_file(queue_element, template_doc)
             try:
                 self.interpolated_data = self.interpolate_data(self.raw_obs_data)
             except Exception as _e:
@@ -762,6 +761,7 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         self.time = 0
         self.interpolated_time = 0
         self.template = ingest_document["template"]
+        self.mnemonic_mapping = ingest_document["mnemonic_mapping"]
         self.subset = self.template["subset"]
         self.raw_obs_data = {}
         self.interpolated_data = {}

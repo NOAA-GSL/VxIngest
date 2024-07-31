@@ -119,3 +119,237 @@ Central CONUS
 Southern CONUS
 Northwest CONUS
 Southern Plain
+
+## Ingest template
+The ingest template for prepbufr RAOBS is "MD:V01:RAOB:obs:ingest:prepbufr".
+It follows the same small Domain Specific Language (DSL) that all ingest templates follow. This is the template portion...
+
+```json
+"template": {
+    "data": {
+      "*stationName": {
+        "temperature": "*temperature",
+        "dewpoint": "*dewpoint",
+        "relative_humidity": "*relative_humidity",
+        "specific_humidity": "*specific_humidity",
+        "pressure": "*pressure",
+        "height": "*height",
+        "wind_speed": "&knots_to_meters_per_second|*wind_speed",
+        "U-Wind": "*U-Wind",
+        "V-Wind": "*V-Wind",
+        "wind_direction": "*wind_direction",
+        "stationName": "&handle_station|*stationName"
+      }
+    },
+        "units": {
+      "temperature": "deg F",
+      "dewpoint": "deg F",
+      "relative_humidity": "percent",
+      "specific_humidity": "m/kg",
+      "pressure": "mb",
+      "height": "meters",
+      "wind_speed": "mph",
+      "U-Wind": "mph",
+      "V-Wind": "mph",
+      "wind_direction": "degrees"
+    },
+    "level": "*level",
+    "dataSourceId": "GDAS",
+    "docType": "obs",
+    "subDocType": "prepbufr",
+    "fcstValidISO": "&get_valid_time_iso",
+    "fcstValidEpoch": "&get_valid_time_epoch",
+    "id": "DD:V01:RAOB:obs:prepbufr:*level:&get_valid_time_epoch",
+    "subset": "RAOB",
+    "type": "DD",
+    "version": "V01"
+  },
+  ```
+
+The variable names will not be found in any prepbufr file. They are the kind of variable names that we use in our Couchbase schema.
+To map those names into the prepbufr data there is another section in the ingest document - "mnemonic_mapping".
+For each element there is a mnemonic, and an intent. The mnemonic identifies the actual bufr mnemonic to be found in the prepbufr file.
+The intent indicates what data type the variable is to be translated into - str, float, or int. The events flag indicates whether
+the builder should consider event program types when decoding the field. If the events flag is True there must also be
+an "event_program_code_mnemonic" , and an "event_value". The event_program_code_mnemonic indicates what mnemonic the program code will be found under.
+The value indicates the desired value. For example for temperature...
+
+```json
+"temperature": {
+        "mnemonic": "TOB",                    the mnemonic for temperature
+        "event_program_code_mnemonic": "TPC", the associated event program code for temperature
+        "intent": "float",                    temperature should be decoded to a float
+        "event_value": 1                      the event program code that is desired is 1 (which is initial temperature, 8 would be virtual temp)
+      },
+```
+
+This way any of the voluminous data that is contained in a prepbufr RAOB file can be succinctly decoded.
+There are four sections of mappings.
+1 header        basic header data like lat, lon, and station name
+2 q_marker      quality data
+3 obs_err       observation error data
+4 obs_data_120  observation MASS data
+5 obs_data_220  observation WIND data
+
+```json
+  "mnemonic_mapping": {
+    "bufr_msg_type": "ADPUPA",   This is the subset type of interest - in this case radiosonde data
+    "bufr_report_types": [
+      120,                       This is the MASS report identifier. The MASS report contains variable data like temperature and dewpoint
+      220                        This is the WIND report
+    ],
+    "header": {                  This is the header section
+      "events": false,
+      "station_id": {
+        "mnemonic": "SID",       Station name
+        "intent": "str"
+      },
+      "lon": {
+        "mnemonic": "XOB",
+        "intent": "float"
+      },
+      "lat": {
+        "mnemonic": "YOB",
+        "intent": "float"
+      },
+      "obs-cycle_time": {
+        "mnemonic": "DHR",
+        "intent": "float"
+      },
+      "elevation": {
+        "mnemonic": "ELV",
+        "intent": "float"
+      },
+      "data_dump_report_type": {
+        "TYP": 220,
+        "mnemonic": "T29",
+        "intent": "int"
+      },
+      "report_type": {
+        "mnemonic": "TYP",
+        "intent": "int"
+      }
+    },
+    "q_marker": {
+      "events": false,
+      "pressure_q_marker": {
+        "mnemonic": "PQM",
+        "intent": "int"
+      },
+      "specific_humidity_q_marker": {
+        "mnemonic": "QQM",
+        "intent": "int"
+      },
+      "temperature_q_marker": {
+        "mnemonic": "TQM",
+        "intent": "int"
+      },
+      "height_q_marker": {
+        "mnemonic": "ZQM",
+        "intent": "int"
+      },
+      "u_v_wind_q_marker": {
+        "mnemonic": "WQM",
+        "intent": "int"
+      },
+      "wind_direction_q_marker": {
+        "mnemonic": "DFP",
+        "intent": "int"
+      },
+      "u_v_component_wind_q_marker": {
+        "mnemonic": "WPC",
+        "intent": "int"
+      }
+    },
+    "obs_err": {
+      "events": false,
+      "pressure_obs_err": {
+        "mnemonic": "POE",
+        "intent": "float"
+      },
+      "height_obs_err": {
+        "mnemonic": "ZOE",
+        "intent": "float"
+      },
+      "relative_humidity_obs_err": {
+        "mnemonic": "QOE",
+        "intent": "float"
+      },
+      "temperature_obs_err": {
+        "mnemonic": "TOE",
+        "intent": "float"
+      },
+      "winds_obs_err": {
+        "mnemonic": "WOE",
+        "intent": "float"
+      }
+    },
+    "obs_data_120": {
+      "events": true,
+      "temperature": {
+        "mnemonic": "TOB",
+        "event_program_code_mnemonic": "TPC",
+        "intent": "float",
+        "event_value": 1
+      },
+      "dewpoint": {
+        "mnemonic": "TDO",
+        "intent": "float",
+        "event_value": 1
+      },
+      "relative_humidity": {
+        "mnemonic": "RHO",
+        "intent": "float"
+      },
+      "specific_humidity": {
+        "mnemonic": "QOB",
+        "event_program_code_mnemonic": "QPC",
+        "intent": "float",
+        "event_value": 1
+      },
+      "pressure": {
+        "mnemonic": "POB",
+        "event_program_code_mnemonic": "PPC",
+        "intent": "float",
+        "event_value": 1
+      },
+      "height": {
+        "mnemonic": "ZOB",
+        "event_program_code_mnemonic": "ZPC",
+        "intent": "float",
+        "event_value": 1
+      }
+    },
+    "obs_data_220": {
+      "events": true,
+      "pressure": {
+        "mnemonic": "POB",
+        "event_program_code_mnemonic": "PPC",
+        "intent": "float",
+        "event_value": 1
+      },
+      "wind_speed": {
+        "mnemonic": "FFO",
+        "intent": "float"
+      },
+      "U-Wind": {
+        "mnemonic": "UOB",
+        "event_program_code_mnemonic": "WPC",
+        "intent": "float",
+        "event_value": 1
+      },
+      "V-Wind": {
+        "mnemonic": "VOB",
+        "event_program_code_mnemonic": "WPC",
+        "intent": "float",
+        "event_value": 1
+      },
+      "wind_direction": {
+        "mnemonic": "DDO",
+        "event_program_code_mnemonic": "DFP",
+        "intent": "float",
+        "event_value": 1
+      }
+    }
+  }
+  ```

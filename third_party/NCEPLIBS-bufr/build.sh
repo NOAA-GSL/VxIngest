@@ -68,17 +68,17 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# NOTE: We are using the develop version for now because none of the releases support python12 yet.
-# When a release is made that supports python 3.12, we can switch to that. FIXME
-# NCEPLIBSbufr_version="12.0.1"
+# NOTE: We were using the develop version for now because none of the releases support python12 yet.
+# Now that a release is made that supports python 3.12, we can switch to that.
+ NCEPLIBSbufr_version="12.1.0"
 # Use a specific sha for now - we know that one builds
-NCEPLIBSbufr_version="0d9834838df19879d5469c4c121f81d00eb13c66"
+#NCEPLIBSbufr_version="0d9834838df19879d5469c4c121f81d00eb13c66"
 tmp_workdir=$(mktemp -d)
 cd $tmp_workdir
-#wget https://github.com/NOAA-EMC/NCEPLIBS-bufr/archive/refs/tags/v${NCEPLIBSbufr_version}.tar.gz
-wget https://github.com/NOAA-EMC/NCEPLIBS-bufr/archive/${NCEPLIBSbufr_version}.zip
-#tar -xzf v${NCEPLIBSbufr_version}.tar.gz
-unzip ${NCEPLIBSbufr_version}.zip
+wget https://github.com/NOAA-EMC/NCEPLIBS-bufr/archive/refs/tags/v${NCEPLIBSbufr_version}.tar.gz
+#wget https://github.com/NOAA-EMC/NCEPLIBS-bufr/archive/${NCEPLIBSbufr_version}.zip
+tar -xzf v${NCEPLIBSbufr_version}.tar.gz
+#unzip ${NCEPLIBSbufr_version}.zip
 cd NCEPLIBS-bufr-${NCEPLIBSbufr_version}
 
 # Create and use a 3.12 python venv

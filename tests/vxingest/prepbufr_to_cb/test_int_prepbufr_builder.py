@@ -77,6 +77,7 @@ def assert_dicts_almost_equal(dict1, dict2, rel_tol=1e-09):
 
 @pytest.mark.integration()
 def test_one_thread_specify_file_pattern(tmp_path: Path):
+    """Note: this test takes a long time to run (few minutes)"""
     log_queue = Queue()
     vx_ingest = setup_connection()
     stations = [

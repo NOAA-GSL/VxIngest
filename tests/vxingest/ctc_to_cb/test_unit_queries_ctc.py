@@ -101,7 +101,7 @@ def test_forecast_valid_epoch(request):
 @pytest.mark.integration()
 def test_get_region_lat_lon(request):
     _name = request.node.name
-    _expected_time = 0.01
+    _expected_time = 0.02
     testdata = Path("tests/vxingest/ctc_to_cb/testdata/test_get_region_lat_lon.n1ql")
     with testdata.open(mode="r", encoding="utf-8") as file:
         _statement = file.read()

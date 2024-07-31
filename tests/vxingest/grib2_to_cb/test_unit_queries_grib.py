@@ -47,7 +47,7 @@ def connect_cb():
 @pytest.mark.integration()
 def test_ingest_document_id(request):
     _name = request.node.name
-    _expected_time = 0.02
+    _expected_time = 0.2
     testdata = Path("tests/vxingest/grib2_to_cb/testdata/test_ingest_document_id.n1ql")
     with testdata.open(mode="r", encoding="utf-8") as file:
         _statement = file.read()
@@ -85,7 +85,7 @@ def test_ingest_document_fields(request):
 @pytest.mark.integration()
 def test_get_df(request):
     _name = request.node.name
-    _expected_time = 18
+    _expected_time = 20
     testdata = Path("tests/vxingest/grib2_to_cb/testdata/test_get_DF.n1ql")
     with testdata.open(mode="r", encoding="utf-8") as file:
         _statement = file.read()

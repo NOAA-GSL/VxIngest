@@ -117,6 +117,25 @@ def parse_args(args):
         default="/tmp",
         help="Specify the output directory to put the json output files",
     )
+    # Set to produce a report for the following stations
+    # write_data_for_station_list = stations
+    parser.add_argument(
+        "-s",
+        "--stations_list",
+        type=list,
+        default=[],
+        help="Specify the list of stations to produce a report for",
+    )
+    # Set to produce a report for the following levels
+    # write_data_for_levels = [200, 300, 500, 700, 900]
+    parser.add_argument(
+        "-l",
+        "--levels_list",
+        type=list,
+        default=[],
+        help="Specify the list of levels to produce a report for",
+    )
+
     # get the command line arguments
     args = parser.parse_args(args)
     return args
@@ -169,6 +188,10 @@ class VXIngest(CommonVxIngest):
         self.job_document_id = args["job_id"].strip()
         if "file_pattern" in args:
             self.file_pattern = args["file_pattern"].strip()
+        if "stations_list" in args:
+            self.write_data_for_station_list = args["stations_list"]
+        if "levels_list" in args:
+            self.write_data_for_levels = args["levels_list"]
         try:
             # put the real credentials into the load_spec
             logger.info("getting cb_credentials")

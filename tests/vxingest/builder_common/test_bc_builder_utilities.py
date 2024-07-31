@@ -1,4 +1,6 @@
+import numpy.ma as ma
 import pytest
+from vxingest.builder_common.builder import Builder
 from vxingest.builder_common.builder_utilities import (
     convert_to_iso,
     get_geo_index,
@@ -73,3 +75,18 @@ def test_truncate_round():
     assert truncate_round(0.12345, 2) == 0.12
     assert truncate_round(0.12345, 1) == 0.1
     assert truncate_round(0.12345, 0) == 0.0
+
+
+def test_is_a_number():
+    # Create an instance of Builder
+    builder = Builder(None, None)
+    # Test with an integer
+    assert builder.is_a_number(10) is True
+    # Test with a float
+    assert builder.is_a_number(3.14) is True
+    # Test with NaN
+    assert builder.is_a_number(float("nan")) is False
+    # Test with masked value
+    assert builder.is_a_number(ma.masked) is False
+    # Test with a string
+    assert builder.is_a_number("123") is False

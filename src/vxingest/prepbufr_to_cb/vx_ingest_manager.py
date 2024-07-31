@@ -266,49 +266,83 @@ class VxIngestManager(CommonVxIngestManager):
                                 ],
                                 [
                                     "pb_raw_obs",
-                                    pb_raw_obs_data_120["pressure"][
-                                        raw_level_index_120
-                                    ] if pb_raw_obs_data_120["pressure"] is not None else None,
+                                    pb_raw_obs_data_120["pressure"][raw_level_index_120]
+                                    if pb_raw_obs_data_120["pressure"] is not None
+                                    else None,
                                     pb_raw_obs_data_120["temperature"][
                                         raw_level_index_120
-                                    ] if pb_raw_obs_data_120["temperature"] is not None else None,
+                                    ]
+                                    if pb_raw_obs_data_120["temperature"] is not None
+                                    else None,
                                     pb_raw_obs_data_120["dewpoint"][
                                         raw_level_index_120
                                     ],
                                     pb_raw_obs_data_120["relative_humidity"][
                                         raw_level_index_120
-                                    ] if pb_raw_obs_data_120["relative_humidity"] is not None else None,
+                                    ]
+                                    if pb_raw_obs_data_120["relative_humidity"]
+                                    is not None
+                                    else None,
                                     pb_raw_obs_data_120["specific_humidity"][
                                         raw_level_index_120
                                     ],
-                                    pb_raw_obs_data_120["height"][raw_level_index_120] if pb_raw_obs_data_120["height"] is not None else None,
+                                    pb_raw_obs_data_120["height"][raw_level_index_120]
+                                    if pb_raw_obs_data_120["height"] is not None
+                                    else None,
                                     pb_raw_obs_data_220["wind_speed"][
                                         raw_level_index_220
-                                    ] if pb_raw_obs_data_220["wind_speed"] is not None else None,
+                                    ]
+                                    if pb_raw_obs_data_220["wind_speed"] is not None
+                                    else None,
                                     pb_raw_obs_data_220["wind_direction"][
                                         raw_level_index_220
-                                    ] if pb_raw_obs_data_220["wind_direction"] is not None else None,
-                                    pb_raw_obs_data_220["U-Wind"][raw_level_index_220] if pb_raw_obs_data_220["U-Wind"] is not None else None,
-                                    pb_raw_obs_data_220["V-Wind"][raw_level_index_220] if pb_raw_obs_data_220["V-Wind"] is not None else None,
+                                    ]
+                                    if pb_raw_obs_data_220["wind_direction"] is not None
+                                    else None,
+                                    pb_raw_obs_data_220["U-Wind"][raw_level_index_220]
+                                    if pb_raw_obs_data_220["U-Wind"] is not None
+                                    else None,
+                                    pb_raw_obs_data_220["V-Wind"][raw_level_index_220]
+                                    if pb_raw_obs_data_220["V-Wind"] is not None
+                                    else None,
                                 ],
                                 [
                                     "pb_interpolated",
-                                    pb_interpolated_120["pressure"].get(level, None) if pb_interpolated_120["pressure"] is not None else None,
-                                    pb_interpolated_120["temperature"].get(level, None) if pb_interpolated_120["temperature"] is not None else None,
-                                    pb_interpolated_120["dewpoint"].get(level, None) if pb_interpolated_120["dewpoint"] is not None else None,
+                                    pb_interpolated_120["pressure"].get(level, None)
+                                    if pb_interpolated_120["pressure"] is not None
+                                    else None,
+                                    pb_interpolated_120["temperature"].get(level, None)
+                                    if pb_interpolated_120["temperature"] is not None
+                                    else None,
+                                    pb_interpolated_120["dewpoint"].get(level, None)
+                                    if pb_interpolated_120["dewpoint"] is not None
+                                    else None,
                                     pb_interpolated_120["relative_humidity"].get(
                                         level, None
-                                    ) if pb_interpolated_120["relative_humidity"] is not None else None,
+                                    )
+                                    if pb_interpolated_120["relative_humidity"]
+                                    is not None
+                                    else None,
                                     pb_interpolated_120["specific_humidity"].get(
                                         level, None
                                     ),
-                                    pb_interpolated_120["height"].get(level, None) if pb_interpolated_120["height"] is not None else None,
-                                    pb_interpolated_220["wind_speed"].get(level, None) if pb_interpolated_220["wind_speed"] is not None else None,
+                                    pb_interpolated_120["height"].get(level, None)
+                                    if pb_interpolated_120["height"] is not None
+                                    else None,
+                                    pb_interpolated_220["wind_speed"].get(level, None)
+                                    if pb_interpolated_220["wind_speed"] is not None
+                                    else None,
                                     pb_interpolated_220["wind_direction"].get(
                                         level, None
-                                    ) if pb_interpolated_220["wind_direction"] is not None else None,
-                                    pb_interpolated_220["U-Wind"].get(level, None) if pb_interpolated_220["U-Wind"] is not None else None,
-                                    pb_interpolated_220["V-Wind"].get(level, None) if pb_interpolated_220["V-Wind"] is not None else None,
+                                    )
+                                    if pb_interpolated_220["wind_direction"] is not None
+                                    else None,
+                                    pb_interpolated_220["U-Wind"].get(level, None)
+                                    if pb_interpolated_220["U-Wind"] is not None
+                                    else None,
+                                    pb_interpolated_220["V-Wind"].get(level, None)
+                                    if pb_interpolated_220["V-Wind"] is not None
+                                    else None,
                                 ],
                                 [
                                     "pb_final",

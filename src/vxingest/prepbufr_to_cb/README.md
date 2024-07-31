@@ -14,25 +14,18 @@ a list of metadata documents (might be just one). These documents define how the
 The 'MD:V01:RAOB:obs:ingest:prepbufr' value is the id of a couchbase metadata document.
 This document MUST exist on the couchbase cluster defined by cb_host in an associated credentials file (the name of which is provided as a command line parameter) and MUST be readable by the cb_user.
 
-NOTE: These are a couple of really useful queries ...
+The prepbufr ingest documents have an additional section "mnemonic_mapping" that serves the purpose of mapping prepbufr mnemonics to the variables used in
+the template DSL.
 
-```sql
-WITH k AS ("89062.0")
-SELECT r.data.[k].height
-FROM vxdata._default.RAOB AS r
-WHERE r.data.[k].height != "--"
-```
-
-and
-
-```sql
-WITH k AS ("89062.0")
-SELECT r.data.[k].height
-FROM vxdata._default.RAOB AS r USE KEYS "DD:V01:RAOB:obs:prepbufr:240:1712772000"
-WHERE r.data.[k].height = "--"
-```
-
+This issue demonstrates ways to make a query of a map of maps
 See [issue](https://www.couchbase.com/forums/t/querying-a-map-of-maps-with-a-dynamic-key/30019)
+For example:
+
+```SQL
+WITH ks AS (["70026",   "70026"])
+SELECT ARRAY r.data.[v] FOR v IN ks END AS station
+FROM vxdata._default.RAOB AS r USE KEYS "DD:V01:RAOB:obs:prepbufr:170:1717567200";
+```
 
 ## stations
 

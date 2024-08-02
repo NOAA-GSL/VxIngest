@@ -111,6 +111,9 @@ RUN apt-get update && apt-get upgrade -y && \
     apt-get install -y libopenjp2-7 libaec0 && \
     apt-get clean && rm -rf /var/lib/apt/lists/* 
 
+# Update the built in Python tooling
+RUN pip install --no-cache-dir --upgrade pip setuptools
+
 # Copy just the vxingest app
 COPY ./src/ /app/
 

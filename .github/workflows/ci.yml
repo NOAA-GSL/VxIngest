@@ -111,11 +111,11 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64
           push: true
-          # Use a cache to speed up builds
-          # Note: this may cause security issues if the apt updates are cached
-          # It may make more sense to build eccodes as its own image instead.
-          cache-from: type=registry,ref=ghcr.io/noaa-gsl/vxingest/cache/ingest:buildcache
-          cache-to: type=registry,ref=ghcr.io/noaa-gsl/vxingest/cache/ingest:buildcache,mode=max
+          # # Use a cache to speed up builds
+          # # Note: this may cause security issues if the apt updates are cached
+          # # It may make more sense to build eccodes as its own image instead.
+          # cache-from: type=registry,ref=ghcr.io/noaa-gsl/vxingest/cache/ingest:buildcache
+          # cache-to: type=registry,ref=ghcr.io/noaa-gsl/vxingest/cache/ingest:buildcache,mode=max
   build-import:
     name: Build Import image
     runs-on: ubuntu-latest

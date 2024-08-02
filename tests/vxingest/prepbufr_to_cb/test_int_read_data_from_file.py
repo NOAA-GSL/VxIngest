@@ -1,7 +1,7 @@
 import os
 
 import ncepbufr
-import numpy.ma as ma
+import pytest
 from vxingest.prepbufr_to_cb.prepbufr_builder import PrepbufrRaobsObsBuilderV01
 from vxingest.prepbufr_to_cb.run_ingest_threads import VXIngest
 
@@ -19,12 +19,7 @@ def setup_connection():
     return _vx_ingest
 
 
-# with Path(
-#     "tests/vxingest/prepbufr_to_cb/testdata/prepbufr_raob_template.json"
-# ).open() as f:
-#     template = json.load(f)
-
-
+@pytest.mark.integration()
 def test_read_header():
     queue_element = (
         "/opt/data/prepbufr_to_cb/input_files/241011200.gdas.t12z.prepbufr.nr"
@@ -55,6 +50,7 @@ def test_read_header():
     assert header["report_type"] == 120
 
 
+@pytest.mark.integration()
 def test_read_qm_data():
     vx_ingest = setup_connection()
     queue_element = (
@@ -77,6 +73,7 @@ def test_read_qm_data():
     assert qm_data is not None
 
 
+@pytest.mark.integration()
 def test_read_obs_err():
     vx_ingest = setup_connection()
     ingest_doc = vx_ingest.collection.get("MD:V01:RAOB:obs:ingest:prepbufr").content_as[
@@ -202,6 +199,7 @@ def test_read_obs_err():
     assert obs_err["winds_obs_err"] is None
 
 
+@pytest.mark.integration()
 def test_read_obs_data():
     vx_ingest = setup_connection()
     ingest_doc = vx_ingest.collection.get("MD:V01:RAOB:obs:ingest:prepbufr").content_as[

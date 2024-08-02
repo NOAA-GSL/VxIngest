@@ -467,7 +467,7 @@ class GribModelBuilderV01(GribBuilder):
             x_gridpoint = station["geo"][geo_index]["x_gridpoint"]
             y_gridpoint = station["geo"][geo_index]["y_gridpoint"]
             specific_humidity.append(
-                (float)(self.interp_grid_box(values, y_gridpoint, x_gridpoint))
+                float(self.interp_grid_box(values, y_gridpoint, x_gridpoint))
             )
         return specific_humidity
 

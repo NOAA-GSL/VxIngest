@@ -153,237 +153,243 @@ class VxIngestManager(CommonVxIngestManager):
                     self.debug_station_file.write("------\n")
 
                     for station in self.write_data_for_debug_station_list:
-                        self.debug_station_file.write(f""" station: {station}\n\n""")
+                        try:
+                            self.debug_station_file.write(f""" station: {station}\n\n""")
 
-                        pb_raw_obs_data_120 = builder.raw_obs_data[station][120][
-                            "obs_data"
-                        ]
-                        pb_raw_obs_data_220 = builder.raw_obs_data[station][220][
-                            "obs_data"
-                        ]
-                        pb_interpolated_120 = builder.interpolated_data[station][120][
-                            "data"
-                        ]
-                        pb_interpolated_220 = builder.interpolated_data[station][220][
-                            "data"
-                        ]
-
-                        for level in self.write_data_for_debug_levels:
-                            # MASS report type 120 raw_obs_data
-                            self.debug_station_file.write(
-                                f"MASS report type 120 raw_obs_data for station:{station} and level:{level}\n"
-                            )
-                            if level in pb_raw_obs_data_120["pressure"]:
-                                raw_level_index_120 = pb_raw_obs_data_120[
-                                    "pressure"
-                                ].index(level)
-                                for variable in sorted(
-                                    list(pb_raw_obs_data_120.keys())
-                                ):
-                                    self.debug_station_file.write(
-                                        f"level:{level} {variable}: {pb_raw_obs_data_120[variable][raw_level_index_120] if pb_raw_obs_data_120[variable] is not None else None}\n"
-                                    )
-
-                            # WIND report type 220 raw_obs_data
-                            self.debug_station_file.write(
-                                f"\nWIND report type 220 raw_obs_data for station:{station} and level:{level}\n"
-                            )
-                            if level in pb_raw_obs_data_220["pressure"]:
-                                raw_level_index_220 = pb_raw_obs_data_220[
-                                    "pressure"
-                                ].index(level)
-                                for variable in sorted(
-                                    list(pb_raw_obs_data_220.keys())
-                                ):
-                                    self.debug_station_file.write(
-                                        f"level:{level} {variable}: {pb_raw_obs_data_220[variable][raw_level_index_220] if pb_raw_obs_data_220[variable] is not None else None}\n"
-                                    )
-
-                            # interpolated data
-                            # MASS report type 120 interpolated data
-                            self.debug_station_file.write(
-                                f"\nMASS report type 120 interpolated data station:{station} level:{level}\n"
-                            )
-                            if level in pb_interpolated_120["pressure"]:
-                                for variable in sorted(
-                                    list(pb_interpolated_120.keys())
-                                ):
-                                    self.debug_station_file.write(
-                                        f"level:{level} {variable}: {pb_interpolated_120[variable].get(level, None) if pb_interpolated_120[variable] is not None else None}\n"
-                                    )
-
-                            # interpolated data
-                            # WIND report type 220 interpolated data
-                            self.debug_station_file.write(
-                                f"\nWIND report type 220 interpolated data station:{station} level:{level}\n"
-                            )
-                            if level in pb_interpolated_220["pressure"]:
-                                for variable in sorted(
-                                    list(pb_interpolated_220.keys())
-                                ):
-                                    self.debug_station_file.write(
-                                        f"level:{level} {variable}: {builder.interpolated_data[station][220]["data"][variable].get(level, None)}\n"
-                                    )
-
-                            # write station data
-                            self.debug_station_file.write(
-                                f"\ndocument_map data for station:{station} level:{level}\n"
-                            )
-                            r = re.compile(f"DD:V01:RAOB:obs:prepbufr:{level}:.*")
-                            key = list(filter(r.match, document_map.keys()))[0]
-                            pb_final = document_map[key]["data"][station]
-                            self.debug_station_file.write("\n")
-                            self.debug_station_file.write(
-                                json.dumps(
-                                    pb_final,
-                                    indent=2,
-                                )
-                            )
-                            date = document_map[key]["fcstValidISO"].split("T")[0]
-                            stmnt_mysql = f'select wmoid,press,z,t,dp,rh,wd,ws from ruc_ua_pb.RAOB where date = "{date}"  and  press = {level} and wmoid = "{station}";'
-                            _mysql_db = mysql.connector.connect(
-                                host=self.load_spec["_mysql_host"],
-                                user=self.load_spec["_mysql_user"],
-                                password=self.load_spec["_mysql_pwd"],
-                            )
-                            my_cursor = _mysql_db.cursor()
-                            my_cursor.execute(stmnt_mysql)
-                            my_result_final = my_cursor.fetchall()
-
-                            table = [
-                                [
-                                    "source",
-                                    "press",
-                                    "temperature",
-                                    "dewpoint",
-                                    "relative_humidity",
-                                    "specific_humidity",
-                                    "height",
-                                    "wind speed",
-                                    "wind direction,",
-                                    "U-Wind",
-                                    "V-Wind",
-                                ],
-                                [
-                                    "pb_raw_obs",
-                                    pb_raw_obs_data_120["pressure"][raw_level_index_120]
-                                    if pb_raw_obs_data_120["pressure"] is not None
-                                    else None,
-                                    pb_raw_obs_data_120["temperature"][
-                                        raw_level_index_120
-                                    ]
-                                    if pb_raw_obs_data_120["temperature"] is not None
-                                    else None,
-                                    pb_raw_obs_data_120["dewpoint"][
-                                        raw_level_index_120
-                                    ],
-                                    pb_raw_obs_data_120["relative_humidity"][
-                                        raw_level_index_120
-                                    ]
-                                    if pb_raw_obs_data_120["relative_humidity"]
-                                    is not None
-                                    else None,
-                                    pb_raw_obs_data_120["specific_humidity"][
-                                        raw_level_index_120
-                                    ],
-                                    pb_raw_obs_data_120["height"][raw_level_index_120]
-                                    if pb_raw_obs_data_120["height"] is not None
-                                    else None,
-                                    pb_raw_obs_data_220["wind_speed"][
-                                        raw_level_index_220
-                                    ]
-                                    if pb_raw_obs_data_220["wind_speed"] is not None
-                                    else None,
-                                    pb_raw_obs_data_220["wind_direction"][
-                                        raw_level_index_220
-                                    ]
-                                    if pb_raw_obs_data_220["wind_direction"] is not None
-                                    else None,
-                                    pb_raw_obs_data_220["U-Wind"][raw_level_index_220]
-                                    if pb_raw_obs_data_220["U-Wind"] is not None
-                                    else None,
-                                    pb_raw_obs_data_220["V-Wind"][raw_level_index_220]
-                                    if pb_raw_obs_data_220["V-Wind"] is not None
-                                    else None,
-                                ],
-                                [
-                                    "pb_interpolated",
-                                    pb_interpolated_120["pressure"].get(level, None)
-                                    if pb_interpolated_120["pressure"] is not None
-                                    else None,
-                                    pb_interpolated_120["temperature"].get(level, None)
-                                    if pb_interpolated_120["temperature"] is not None
-                                    else None,
-                                    pb_interpolated_120["dewpoint"].get(level, None)
-                                    if pb_interpolated_120["dewpoint"] is not None
-                                    else None,
-                                    pb_interpolated_120["relative_humidity"].get(
-                                        level, None
-                                    )
-                                    if pb_interpolated_120["relative_humidity"]
-                                    is not None
-                                    else None,
-                                    pb_interpolated_120["specific_humidity"].get(
-                                        level, None
-                                    ),
-                                    pb_interpolated_120["height"].get(level, None)
-                                    if pb_interpolated_120["height"] is not None
-                                    else None,
-                                    pb_interpolated_220["wind_speed"].get(level, None)
-                                    if pb_interpolated_220["wind_speed"] is not None
-                                    else None,
-                                    pb_interpolated_220["wind_direction"].get(
-                                        level, None
-                                    )
-                                    if pb_interpolated_220["wind_direction"] is not None
-                                    else None,
-                                    pb_interpolated_220["U-Wind"].get(level, None)
-                                    if pb_interpolated_220["U-Wind"] is not None
-                                    else None,
-                                    pb_interpolated_220["V-Wind"].get(level, None)
-                                    if pb_interpolated_220["V-Wind"] is not None
-                                    else None,
-                                ],
-                                [
-                                    "pb_final",
-                                    pb_final["pressure"],
-                                    pb_final["temperature"],
-                                    pb_final["dewpoint"],
-                                    pb_final["relative_humidity"],
-                                    pb_final["specific_humidity"],
-                                    pb_final["height"],
-                                    pb_final["wind_speed"],
-                                    pb_final["wind_direction"],
-                                    pb_final["U-Wind"],
-                                    pb_final["V-Wind"],
-                                ],
-                                [
-                                    # wmoid,press,z,t,dp,rh,wd,ws
-                                    "mysql_final",
-                                    self.get_my_result_final(my_result_final, 0, 1),
-                                    self.get_my_result_final(my_result_final, 0, 3),
-                                    self.get_my_result_final(my_result_final, 0, 4),
-                                    self.get_my_result_final(my_result_final, 0, 5),
-                                    "--",
-                                    self.get_my_result_final(my_result_final, 0, 2),
-                                    self.get_my_result_final(my_result_final, 0, 7),
-                                    self.get_my_result_final(my_result_final, 0, 6),
-                                    "--",
-                                    "--",
-                                ],
+                            pb_raw_obs_data_120 = builder.raw_obs_data[station][120][
+                                "obs_data"
+                            ]
+                            pb_raw_obs_data_220 = builder.raw_obs_data[station][220][
+                                "obs_data"
+                            ]
+                            pb_interpolated_120 = builder.interpolated_data[station][120][
+                                "data"
+                            ]
+                            pb_interpolated_220 = builder.interpolated_data[station][220][
+                                "data"
                             ]
 
-                            self.debug_station_file.write("\nCOMPARE THE DATA\n")
-                            self.debug_station_file.write(
-                                tabulate(
-                                    table, headers="firstrow", tablefmt="fancy_grid"
+                            for level in self.write_data_for_debug_levels:
+                                # MASS report type 120 raw_obs_data
+                                self.debug_station_file.write(
+                                    f"MASS report type 120 raw_obs_data for station:{station} and level:{level}\n"
                                 )
-                            )
-                            self.debug_station_file.write("\n------\n")
-                            self.debug_station_file.write("Sql Statements\n")
-                            self.debug_station_file.write(f"{stmnt_mysql}\n")
-                            self.debug_station_file.write("------\n")
+                                if level in pb_raw_obs_data_120["pressure"]:
+                                    raw_level_index_120 = pb_raw_obs_data_120[
+                                        "pressure"
+                                    ].index(level)
+                                    for variable in sorted(
+                                        list(pb_raw_obs_data_120.keys())
+                                    ):
+                                        self.debug_station_file.write(
+                                            f"level:{level} {variable}: {pb_raw_obs_data_120[variable][raw_level_index_120] if pb_raw_obs_data_120[variable] is not None else None}\n"
+                                        )
 
+                                # WIND report type 220 raw_obs_data
+                                self.debug_station_file.write(
+                                    f"\nWIND report type 220 raw_obs_data for station:{station} and level:{level}\n"
+                                )
+                                if level in pb_raw_obs_data_220["pressure"]:
+                                    raw_level_index_220 = pb_raw_obs_data_220[
+                                        "pressure"
+                                    ].index(level)
+                                    for variable in sorted(
+                                        list(pb_raw_obs_data_220.keys())
+                                    ):
+                                        self.debug_station_file.write(
+                                            f"level:{level} {variable}: {pb_raw_obs_data_220[variable][raw_level_index_220] if pb_raw_obs_data_220[variable] is not None else None}\n"
+                                        )
+
+                                # interpolated data
+                                # MASS report type 120 interpolated data
+                                self.debug_station_file.write(
+                                    f"\nMASS report type 120 interpolated data station:{station} level:{level}\n"
+                                )
+                                if level in pb_interpolated_120["pressure"]:
+                                    for variable in sorted(
+                                        list(pb_interpolated_120.keys())
+                                    ):
+                                        self.debug_station_file.write(
+                                            f"level:{level} {variable}: {pb_interpolated_120[variable].get(level, None) if pb_interpolated_120[variable] is not None else None}\n"
+                                        )
+
+                                # interpolated data
+                                # WIND report type 220 interpolated data
+                                self.debug_station_file.write(
+                                    f"\nWIND report type 220 interpolated data station:{station} level:{level}\n"
+                                )
+                                if level in pb_interpolated_220["pressure"]:
+                                    for variable in sorted(
+                                        list(pb_interpolated_220.keys())
+                                    ):
+                                        self.debug_station_file.write(
+                                            f"level:{level} {variable}: {builder.interpolated_data[station][220]["data"][variable].get(level, None)}\n"
+                                        )
+
+                                # write station data
+                                self.debug_station_file.write(
+                                    f"\ndocument_map data for station:{station} level:{level}\n"
+                                )
+                                r = re.compile(f"DD:V01:RAOB:obs:prepbufr:{level}:.*")
+                                key = list(filter(r.match, document_map.keys()))[0]
+                                pb_final = document_map[key]["data"][station]
+                                self.debug_station_file.write("\n")
+                                self.debug_station_file.write(
+                                    json.dumps(
+                                        pb_final,
+                                        indent=2,
+                                    )
+                                )
+                                date = document_map[key]["fcstValidISO"].split("T")[0]
+                                stmnt_mysql = f'select wmoid,press,z,t,dp,rh,wd,ws from ruc_ua_pb.RAOB where date = "{date}"  and  press = {level} and wmoid = "{station}";'
+                                _mysql_db = mysql.connector.connect(
+                                    host=self.load_spec["_mysql_host"],
+                                    user=self.load_spec["_mysql_user"],
+                                    password=self.load_spec["_mysql_pwd"],
+                                )
+                                my_cursor = _mysql_db.cursor()
+                                my_cursor.execute(stmnt_mysql)
+                                my_result_final = my_cursor.fetchall()
+
+                                table = [
+                                    [
+                                        "source",
+                                        "press",
+                                        "temperature",
+                                        "dewpoint",
+                                        "relative_humidity",
+                                        "specific_humidity",
+                                        "height",
+                                        "wind speed",
+                                        "wind direction,",
+                                        "U-Wind",
+                                        "V-Wind",
+                                    ],
+                                    [
+                                        "pb_raw_obs",
+                                        pb_raw_obs_data_120["pressure"][raw_level_index_120]
+                                        if pb_raw_obs_data_120["pressure"] is not None
+                                        else None,
+                                        pb_raw_obs_data_120["temperature"][
+                                            raw_level_index_120
+                                        ]
+                                        if pb_raw_obs_data_120["temperature"] is not None
+                                        else None,
+                                        pb_raw_obs_data_120["dewpoint"][
+                                            raw_level_index_120
+                                        ],
+                                        pb_raw_obs_data_120["relative_humidity"][
+                                            raw_level_index_120
+                                        ]
+                                        if pb_raw_obs_data_120["relative_humidity"]
+                                        is not None
+                                        else None,
+                                        pb_raw_obs_data_120["specific_humidity"][
+                                            raw_level_index_120
+                                        ],
+                                        pb_raw_obs_data_120["height"][raw_level_index_120]
+                                        if pb_raw_obs_data_120["height"] is not None
+                                        else None,
+                                        pb_raw_obs_data_220["wind_speed"][
+                                            raw_level_index_220
+                                        ]
+                                        if pb_raw_obs_data_220["wind_speed"] is not None
+                                        else None,
+                                        pb_raw_obs_data_220["wind_direction"][
+                                            raw_level_index_220
+                                        ]
+                                        if pb_raw_obs_data_220["wind_direction"] is not None
+                                        else None,
+                                        pb_raw_obs_data_220["U-Wind"][raw_level_index_220]
+                                        if pb_raw_obs_data_220["U-Wind"] is not None
+                                        else None,
+                                        pb_raw_obs_data_220["V-Wind"][raw_level_index_220]
+                                        if pb_raw_obs_data_220["V-Wind"] is not None
+                                        else None,
+                                    ],
+                                    [
+                                        "pb_interpolated",
+                                        pb_interpolated_120["pressure"].get(level, None)
+                                        if pb_interpolated_120["pressure"] is not None
+                                        else None,
+                                        pb_interpolated_120["temperature"].get(level, None)
+                                        if pb_interpolated_120["temperature"] is not None
+                                        else None,
+                                        pb_interpolated_120["dewpoint"].get(level, None)
+                                        if pb_interpolated_120["dewpoint"] is not None
+                                        else None,
+                                        pb_interpolated_120["relative_humidity"].get(
+                                            level, None
+                                        )
+                                        if pb_interpolated_120["relative_humidity"]
+                                        is not None
+                                        else None,
+                                        pb_interpolated_120["specific_humidity"].get(
+                                            level, None
+                                        ),
+                                        pb_interpolated_120["height"].get(level, None)
+                                        if pb_interpolated_120["height"] is not None
+                                        else None,
+                                        pb_interpolated_220["wind_speed"].get(level, None)
+                                        if pb_interpolated_220["wind_speed"] is not None
+                                        else None,
+                                        pb_interpolated_220["wind_direction"].get(
+                                            level, None
+                                        )
+                                        if pb_interpolated_220["wind_direction"] is not None
+                                        else None,
+                                        pb_interpolated_220["U-Wind"].get(level, None)
+                                        if pb_interpolated_220["U-Wind"] is not None
+                                        else None,
+                                        pb_interpolated_220["V-Wind"].get(level, None)
+                                        if pb_interpolated_220["V-Wind"] is not None
+                                        else None,
+                                    ],
+                                    [
+                                        "pb_final",
+                                        pb_final["pressure"],
+                                        pb_final["temperature"],
+                                        pb_final["dewpoint"],
+                                        pb_final["relative_humidity"],
+                                        pb_final["specific_humidity"],
+                                        pb_final["height"],
+                                        pb_final["wind_speed"],
+                                        pb_final["wind_direction"],
+                                        pb_final["U-Wind"],
+                                        pb_final["V-Wind"],
+                                    ],
+                                    [
+                                        # wmoid,press,z,t,dp,rh,wd,ws
+                                        "mysql_final",
+                                        self.get_my_result_final(my_result_final, 0, 1),
+                                        self.get_my_result_final(my_result_final, 0, 3),
+                                        self.get_my_result_final(my_result_final, 0, 4),
+                                        self.get_my_result_final(my_result_final, 0, 5),
+                                        "--",
+                                        self.get_my_result_final(my_result_final, 0, 2),
+                                        self.get_my_result_final(my_result_final, 0, 7),
+                                        self.get_my_result_final(my_result_final, 0, 6),
+                                        "--",
+                                        "--",
+                                    ],
+                                ]
+
+                                self.debug_station_file.write("\nCOMPARE THE DATA\n")
+                                self.debug_station_file.write(
+                                    tabulate(
+                                        table, headers="firstrow", tablefmt="fancy_grid"
+                                    )
+                                )
+                                self.debug_station_file.write("\n------\n")
+                                self.debug_station_file.write("Sql Statements\n")
+                                self.debug_station_file.write(f"{stmnt_mysql}\n")
+                                self.debug_station_file.write("------\n")
+                        except Exception as _e:
+                            logger.exception(
+                                "%s: *** Error in IngestManager station %s not found ***",
+                                self.thread_name, station,
+                            )
+                            continue
                     self.debug_station_file.flush()
         except Exception as _e:
             logger.exception(

@@ -127,7 +127,10 @@ def test_one_thread_specify_file_pattern(tmp_path: Path):
             "file_name_mask": "%y%j%H%M",  # only tests the first part of the file name i.e. 241011200.gdas.t12z.prepbufr.nr -> 241011200
             "output_dir": f"{tmp_path}",
             "threads": 1,
-            "file_pattern": "241570000*",  # specifically /opt/data/prepbufr_to_cb/input_files/241570000.gdas.t00z.prepbufr.nr
+            "file_pattern": "242130000*",  # specifically /opt/data/prepbufr_to_cb/input_files/242130000.gdas.t00z.prepbufr.nr,
+            # "file_pattern": "242131200*",  # specifically /opt/data/prepbufr_to_cb/input_files/242131200.gdas.t00z.prepbufr.nr,
+            # "file_pattern": "242121800*",  # specifically /opt/data/prepbufr_to_cb/input_files/242121800.gdas.t00z.prepbufr.nr,
+            # "file_pattern": "241570000*",  # specifically /opt/data/prepbufr_to_cb/input_files/241570000.gdas.t00z.prepbufr.nr,
         },
         log_queue,
         stub_worker_log_configurer,
@@ -149,7 +152,10 @@ def test_one_thread_specify_file_pattern(tmp_path: Path):
 
     # Test that we have one output file per input file
     input_path = Path("/opt/data/prepbufr_to_cb/input_files")
-    num_input_files = len(list(input_path.glob("241011200*")))
+    num_input_files = len(list(input_path.glob("242130000*")))
+    #num_input_files = len(list(input_path.glob("242131200*")))
+    #num_input_files = len(list(input_path.glob("242121800*")))
+    #num_input_files = len(list(input_path.glob("241011200*")))
     num_output_files = len(output_file_list)
     assert (
         num_output_files == num_input_files
@@ -163,29 +169,39 @@ def test_one_thread_specify_file_pattern(tmp_path: Path):
     obs_id = ""
     derived_obs = {}
     for item in derived_data:
-        if "docType" not in item:
-            continue
-        if item["docType"] == "station":
-            station_id = item["id"]
-            derived_station = item
-            retrieved_station = vx_ingest.collection.get(station_id).content_as[dict]
-            # make sure the updateTime is the same in both the derived and retrieved station
-            retrieved_station["updateTime"] = derived_station["updateTime"]
-            # make sure the firstTime and lastTime are the same in both the derived and retrieved station['geo']
-            retrieved_station["geo"][0]["firstTime"] = derived_station["geo"][0][
-                "firstTime"
-            ]
-            retrieved_station["geo"][0]["lastTime"] = derived_station["geo"][0][
-                "lastTime"
-            ]
-            assert f"derived station{station_id} does not equal retrieved station", (
-                derived_station == retrieved_station
-            )
+        try:
+            if "docType" not in item:
+                continue
+            if item["docType"] == "station":
+                station_id = item["id"]
+                derived_station = item
+                retrieved_station = vx_ingest.collection.get(station_id).content_as[dict]
+                # make sure the updateTime is the same in both the derived and retrieved station
+                retrieved_station["updateTime"] = derived_station["updateTime"]
+                # make sure the firstTime and lastTime are the same in both the derived and retrieved station['geo']
+                retrieved_station["geo"][0]["firstTime"] = derived_station["geo"][0][
+                    "firstTime"
+                ]
+                retrieved_station["geo"][0]["lastTime"] = derived_station["geo"][0][
+                    "lastTime"
+                ]
+                assert f"derived station{station_id} does not equal retrieved station", (
+                    derived_station == retrieved_station
+                )
+        except Exception as e:
+            print("failed:" + str(e))
+            print("station_id", station_id)
+            raise e
         else:
-            if item["docType"] == "obs":
-                obs_id = item["id"]
-                derived_obs = item
-                retrieved_obs = vx_ingest.collection.get(obs_id).content_as[dict]
-                assert_dicts_almost_equal(derived_obs, retrieved_obs)
+            try:
+                if item["docType"] == "obs":
+                    obs_id = item["id"]
+                    derived_obs = item
+                    retrieved_obs = vx_ingest.collection.get(obs_id).content_as[dict]
+                    assert_dicts_almost_equal(derived_obs, retrieved_obs)
+            except Exception as e:
+                print("failed:" + str(e))
+                print("obs_id", obs_id)
+                raise e
             else:
                 continue

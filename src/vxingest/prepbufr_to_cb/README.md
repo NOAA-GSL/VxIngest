@@ -184,11 +184,12 @@ The value indicates the desired value. For example for temperature...
 
 This way any of the voluminous data that is contained in a prepbufr RAOB file can be succinctly decoded.
 There are four sections of mappings.
-1 header        basic header data like lat, lon, and station name
-2 q_marker      quality data
-3 obs_err       observation error data
-4 obs_data_120  observation MASS data
-5 obs_data_220  observation WIND data
+
+1. `header`        basic header data like lat, lon, and station name
+2. `q_marker`      quality data
+3. `obs_err`       observation error data
+4. `obs_data_120`  observation MASS data
+5. `obs_data_220`  observation WIND data
 
 ```json
   "mnemonic_mapping": {

@@ -121,7 +121,7 @@ I'm only putting this here temporarily so that I don't lose it before it gets im
 
 ## Ingest template
 The ingest template for prepbufr RAOBS is "MD:V01:RAOB:obs:ingest:prepbufr".
-It follows the same small Domain Specific Language (DSL) that all ingest templates follow.
+It follows the same small Domain Specific Language (DSL) that all ingest templates follow. Refer to [this](https://github.com/NOAA-GSL/VxIngest/blob/main/mats_metadata_and_indexes/metadata_files/README.md) for a more complete description.
 
 ### Template DSL
 

@@ -33,6 +33,7 @@ from vxingest.log_config import (
 )
 from vxingest.netcdf_to_cb.run_ingest_threads import VXIngest as NetCDFIngest
 from vxingest.partial_sums_to_cb.run_ingest_threads import VXIngest as PartialSumsIngest
+from vxingest.prepbufr_to_cb.run_ingest_threads import VXIngest as PrepbufrRAOBIngest
 
 # Get a logger with this module's name to help with debugging
 logger = logging.getLogger(__name__)
@@ -80,6 +81,8 @@ def process_cli():
     -e - end epoch (optional)
     -f - file_pattern (optional)
     -t - threads (optional)
+    -- station_list (optional)
+    -- level_list (optional)
     """
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -157,6 +160,21 @@ def process_cli():
         default=determine_num_processes(),
         help=f"The number of threads to use. Default is {determine_num_processes()}.",
     )
+    parser.add_argument(
+        "--station_list",
+        type=list,
+        required=False,
+        default=[],
+        help="The list of station ids for a RAOB prepbufr diagnostic report. Default is [].",
+    )
+    parser.add_argument(
+        "--levels_list",
+        type=list,
+        required=False,
+        default=[],
+        help="The list of levels for a RAOB prepbufr diagnostic report. Default is [].",
+    )
+
     # get the command line arguments
     args = parser.parse_args()
     return args
@@ -452,6 +470,21 @@ def process_jobs(
                 try:
                     partial_sums_ingest = PartialSumsIngest()
                     partial_sums_ingest.runit(
+                        config,
+                        log_queue,
+                        log_configurer,
+                    )
+                except SystemExit as e:
+                    if e.code == 0:
+                        # Job succeeded
+                        job_succeeded = True
+                else:
+                    job_succeeded = True
+            case "prepbufr_raob":
+                # FIXME: Update calling code to raise instead of calling sys.exit
+                try:
+                    prepbufr_raob_ingest = PrepbufrRAOBIngest()
+                    prepbufr_raob_ingest.runit(
                         config,
                         log_queue,
                         log_configurer,

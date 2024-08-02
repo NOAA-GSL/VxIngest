@@ -72,9 +72,7 @@ This website describes the report types.
 
 We are assuming that the wind data are always in report 220 (which is WIND Report - Rawinsonde ) and the other variables are in report 120 - the MASS report. It's a little vague when it says "does not always contain" but if it doesn't contain both we have to mask the part that isn't present or through the whole station data away.
 
-```text
-    To begin with, a PREPBUFR file does not always contain, within each single data subset, the data for an entire report! Instead, for reports which contain mass (i.e. temperature, moisture, etc.) as well as wind (i.e. direction and speed, U and V component, etc.) data values, such data values are stored within two separate but adjacent (within the overall file) data subsets, where each related subset, quite obviously, contains the same report time, location, station identification, etc. information as the other, but where the "mass" subset contains the pressures and/or height levels at which "mass" data values occur, while the corresponding "wind" subset contains the levels at which "wind" data values occur. While it is true that this may, in some cases, cause the same pressure and/or height level to appear in both subsets, this separation is nonetheless maintained for historical reasons peculiar to NCEP. At any rate, the below program will actually merge all of the data from both subsets into a single, unified report in such cases, so that the final decoded output is clearer and more intuitive.
-```
+> To begin with, a PREPBUFR file does not always contain, within each single data subset, the data for an entire report! Instead, for reports which contain mass (i.e. temperature, moisture, etc.) as well as wind (i.e. direction and speed, U and V component, etc.) data values, such data values are stored within two separate but adjacent (within the overall file) data subsets, where each related subset, quite obviously, contains the same report time, location, station identification, etc. information as the other, but where the "mass" subset contains the pressures and/or height levels at which "mass" data values occur, while the corresponding "wind" subset contains the levels at which "wind" data values occur. While it is true that this may, in some cases, cause the same pressure and/or height level to appear in both subsets, this separation is nonetheless maintained for historical reasons peculiar to NCEP.
 
 The report types are described here [report_types](https://www.emc.ncep.noaa.gov/emc/pages/infrastructure/bufrlib/tables/CodeFlag_0_STDv41_LOC7.html#055007)
 
@@ -96,29 +94,30 @@ There is a base PrepbufrBuilder which has the generic code for reading a prepbuf
 ## Region list
 
 I'm only putting this here temporarily so that I don't lose it before it gets implemented.
-RUC domain
-RRFS North American domain
-Great Lakes
-Global (all lat/lon)
-Tropics (-20 <= lat <= +20)
-Southern Hemisphere (-80 <= lat < -20)
-Northern Hemisphere (+20 < lat <= +80)
-Arctic (lat >= +70) -- Might want to change this to lat >= 60N to match EMC?
-Antarctic (lat <= -70) -- Might want to change this to lat <= 60S to match EMC?
-Alaska
-Hawaii
-HRRR domain
-Eastern HRRR domain
-Western HRRR domain
-CONUS
-Eastern CONUS (lon <= 100W)
-Western CONUS (lon <= 100W)
-Northeastern CONUS
-Southeastern CONUS
-Central CONUS
-Southern CONUS
-Northwest CONUS
-Southern Plain
+
+* RUC domain
+* RRFS North American domain
+* Great Lakes
+* Global (all lat/lon)
+* Tropics (-20 <= lat <= +20)
+* Southern Hemisphere (-80 <= lat < -20)
+* Northern Hemisphere (+20 < lat <= +80)
+* Arctic (lat >= +70) -- Might want to change this to lat >= 60N to match EMC?
+* Antarctic (lat <= -70) -- Might want to change this to lat <= 60S to match EMC?
+* Alaska
+* Hawaii
+* HRRR domain
+* Eastern HRRR domain
+* Western HRRR domain
+* CONUS
+* Eastern CONUS (lon <= 100W)
+* Western CONUS (lon <= 100W)
+* Northeastern CONUS
+* Southeastern CONUS
+* Central CONUS
+* Southern CONUS
+* Northwest CONUS
+* Southern Plain
 
 ## Ingest template
 The ingest template for prepbufr RAOBS is "MD:V01:RAOB:obs:ingest:prepbufr".
@@ -185,11 +184,12 @@ The value indicates the desired value. For example for temperature...
 
 This way any of the voluminous data that is contained in a prepbufr RAOB file can be succinctly decoded.
 There are four sections of mappings.
-1 header        basic header data like lat, lon, and station name
-2 q_marker      quality data
-3 obs_err       observation error data
-4 obs_data_120  observation MASS data
-5 obs_data_220  observation WIND data
+
+1. `header`        basic header data like lat, lon, and station name
+2. `q_marker`      quality data
+3. `obs_err`       observation error data
+4. `obs_data_120`  observation MASS data
+5. `obs_data_220`  observation WIND data
 
 ```json
   "mnemonic_mapping": {

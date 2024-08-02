@@ -94,29 +94,30 @@ There is a base PrepbufrBuilder which has the generic code for reading a prepbuf
 ## Region list
 
 I'm only putting this here temporarily so that I don't lose it before it gets implemented.
-RUC domain
-RRFS North American domain
-Great Lakes
-Global (all lat/lon)
-Tropics (-20 <= lat <= +20)
-Southern Hemisphere (-80 <= lat < -20)
-Northern Hemisphere (+20 < lat <= +80)
-Arctic (lat >= +70) -- Might want to change this to lat >= 60N to match EMC?
-Antarctic (lat <= -70) -- Might want to change this to lat <= 60S to match EMC?
-Alaska
-Hawaii
-HRRR domain
-Eastern HRRR domain
-Western HRRR domain
-CONUS
-Eastern CONUS (lon <= 100W)
-Western CONUS (lon <= 100W)
-Northeastern CONUS
-Southeastern CONUS
-Central CONUS
-Southern CONUS
-Northwest CONUS
-Southern Plain
+
+* RUC domain
+* RRFS North American domain
+* Great Lakes
+* Global (all lat/lon)
+* Tropics (-20 <= lat <= +20)
+* Southern Hemisphere (-80 <= lat < -20)
+* Northern Hemisphere (+20 < lat <= +80)
+* Arctic (lat >= +70) -- Might want to change this to lat >= 60N to match EMC?
+* Antarctic (lat <= -70) -- Might want to change this to lat <= 60S to match EMC?
+* Alaska
+* Hawaii
+* HRRR domain
+* Eastern HRRR domain
+* Western HRRR domain
+* CONUS
+* Eastern CONUS (lon <= 100W)
+* Western CONUS (lon <= 100W)
+* Northeastern CONUS
+* Southeastern CONUS
+* Central CONUS
+* Southern CONUS
+* Northwest CONUS
+* Southern Plain
 
 ## Ingest template
 The ingest template for prepbufr RAOBS is "MD:V01:RAOB:obs:ingest:prepbufr".

@@ -103,7 +103,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build image and push
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           file: docker/ingest/Dockerfile
           context: .
@@ -149,7 +149,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build image and push
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           file: docker/import/Dockerfile
           context: .
@@ -165,7 +165,7 @@ jobs:
       - name: Extract SHORT_SHA
         run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
       - name: Scan image with Trivy
-        uses: aquasecurity/trivy-action@0.19.0
+        uses: aquasecurity/trivy-action@0.23.0
         with:
           image-ref: "ghcr.io/noaa-gsl/vxingest/ingest:sha-${{ env.SHORT_SHA }}"
           format: "sarif"
@@ -190,7 +190,7 @@ jobs:
       - name: Extract SHORT_SHA
         run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
       - name: Scan image with Trivy
-        uses: aquasecurity/trivy-action@0.19.0
+        uses: aquasecurity/trivy-action@0.23.0
         with:
           image-ref: "ghcr.io/noaa-gsl/vxingest/import:sha-${{ env.SHORT_SHA }}"
           format: "sarif"

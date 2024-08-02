@@ -11,20 +11,20 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.12"
 pyyaml = "^6.0.1"
-xarray = "^2024.3.0"
-netcdf4 = "^1.6.5"
-cfgrib = "^0.9.11.0"
-couchbase = "^4.2.0"
+xarray = "^2024.6.0"
+netcdf4 = "^1.7.1"
+cfgrib = "^0.9.13.0"
+couchbase = "^4.3.0"
 pyproj = "^3.6.1"
-numpy = "^1.26.4"
+numpy = "^2.0.0"
 metpy = "^1.6.2"
 prometheus-client = "^0.20.0"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.1.1"
+pytest = "^8.2.2"
 types-pyyaml = "^6.0.12.20240311"
-ruff = "^0.3.5"
-coverage = "^7.4.4"
+ruff = "^0.5.1"
+coverage = "^7.6.0"
 
 [build-system]
 requires = ["poetry-core"]

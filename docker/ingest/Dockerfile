@@ -7,9 +7,6 @@ FROM python:3.11-slim-bookworm AS eccodes
 
 ARG ECCODES_VER=2.32.1
 
-# Update the built in Python tooling
-RUN pip install --no-cache-dir --upgrade pip setuptools
-
 RUN apt-get update && \
     apt-get install -y curl wget && \
     apt-get install -y build-essential libssl-dev libnetcdff-dev libopenjp2-7-dev gfortran make unzip git cmake && \
@@ -43,6 +40,7 @@ RUN apt-get update && \
     apt-get install -y build-essential && \
     apt-get clean && rm -rf /var/lib/apt/lists/* 
 
+# Make sure the python tooling is up-to-date for when it's copied into the prod layer
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 RUN pip install --no-cache-dir poetry
 
@@ -84,6 +82,9 @@ ENV VERSION=${BUILDVER}
 
 LABEL version=${BUILDVER} code.branch=${COMMITBRANCH} code.commit=${COMMITSHA}
 
+# Update the image's built in Python tooling before we activate the virtual environment
+RUN pip install --no-cache-dir --upgrade pip setuptools
+
 # Activate the virtual environment
 ENV VIRTUAL_ENV=/app/.venv \
     PATH="/app/.venv/bin:$PATH"
@@ -113,9 +114,6 @@ RUN apt-get update && apt-get upgrade -y && \
     # Install runtime deps for the native eccodes library
     apt-get install -y libopenjp2-7 libaec0 && \
     apt-get clean && rm -rf /var/lib/apt/lists/* 
-
-# Update the built in Python tooling
-RUN pip install --no-cache-dir --upgrade pip setuptools
 
 # Copy just the vxingest app
 COPY ./src/ /app/

@@ -13,19 +13,19 @@ verbose = False  # this produces more readable output.
 while bufr.advance() == 0:  # loop over messages.
     if mnemonic == bufr.msg_type:
         vars = {
-            "temperature":"TOB",
-            "dewpoint":"TDO",
-            "rh":"RHO",
-            "specific_humidity":"QOB",
-            "pressure":"POB",
-            "height:":"ZOB",
-            "wind_speed":"SOB",
-            "U-Wind":"UOB",
-            "V-Wind":"VOB",
-            "wind_direction":"DDO",
+            "temperature": "TOB",
+            "dewpoint": "TDO",
+            "rh": "RHO",
+            "specific_humidity": "QOB",
+            "pressure": "POB",
+            "height:": "ZOB",
+            "wind_speed": "SOB",
+            "U-Wind": "UOB",
+            "V-Wind": "VOB",
+            "wind_direction": "DDO",
         }
         while bufr.load_subset() == 0:  # loop over subsets in message.
             for _v in vars:
-                val=bufr.read_subset(vars[_v]).squeeze()
+                val = bufr.read_subset(vars[_v]).squeeze()
                 print(f"{_v}: {val}")
 bufr.close()

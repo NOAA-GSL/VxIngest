@@ -154,7 +154,9 @@ class VxIngestManager(CommonVxIngestManager):
 
                     for station in self.write_data_for_debug_station_list:
                         try:
-                            self.debug_station_file.write(f""" station: {station}\n\n""")
+                            self.debug_station_file.write(
+                                f""" station: {station}\n\n"""
+                            )
 
                             pb_raw_obs_data_120 = builder.raw_obs_data[station][120][
                                 "obs_data"
@@ -162,12 +164,12 @@ class VxIngestManager(CommonVxIngestManager):
                             pb_raw_obs_data_220 = builder.raw_obs_data[station][220][
                                 "obs_data"
                             ]
-                            pb_interpolated_120 = builder.interpolated_data[station][120][
-                                "data"
-                            ]
-                            pb_interpolated_220 = builder.interpolated_data[station][220][
-                                "data"
-                            ]
+                            pb_interpolated_120 = builder.interpolated_data[station][
+                                120
+                            ]["data"]
+                            pb_interpolated_220 = builder.interpolated_data[station][
+                                220
+                            ]["data"]
 
                             for level in self.write_data_for_debug_levels:
                                 # MASS report type 120 raw_obs_data
@@ -267,13 +269,16 @@ class VxIngestManager(CommonVxIngestManager):
                                     ],
                                     [
                                         "pb_raw_obs",
-                                        pb_raw_obs_data_120["pressure"][raw_level_index_120]
+                                        pb_raw_obs_data_120["pressure"][
+                                            raw_level_index_120
+                                        ]
                                         if pb_raw_obs_data_120["pressure"] is not None
                                         else None,
                                         pb_raw_obs_data_120["temperature"][
                                             raw_level_index_120
                                         ]
-                                        if pb_raw_obs_data_120["temperature"] is not None
+                                        if pb_raw_obs_data_120["temperature"]
+                                        is not None
                                         else None,
                                         pb_raw_obs_data_120["dewpoint"][
                                             raw_level_index_120
@@ -287,7 +292,9 @@ class VxIngestManager(CommonVxIngestManager):
                                         pb_raw_obs_data_120["specific_humidity"][
                                             raw_level_index_120
                                         ],
-                                        pb_raw_obs_data_120["height"][raw_level_index_120]
+                                        pb_raw_obs_data_120["height"][
+                                            raw_level_index_120
+                                        ]
                                         if pb_raw_obs_data_120["height"] is not None
                                         else None,
                                         pb_raw_obs_data_220["wind_speed"][
@@ -298,12 +305,17 @@ class VxIngestManager(CommonVxIngestManager):
                                         pb_raw_obs_data_220["wind_direction"][
                                             raw_level_index_220
                                         ]
-                                        if pb_raw_obs_data_220["wind_direction"] is not None
+                                        if pb_raw_obs_data_220["wind_direction"]
+                                        is not None
                                         else None,
-                                        pb_raw_obs_data_220["U-Wind"][raw_level_index_220]
+                                        pb_raw_obs_data_220["U-Wind"][
+                                            raw_level_index_220
+                                        ]
                                         if pb_raw_obs_data_220["U-Wind"] is not None
                                         else None,
-                                        pb_raw_obs_data_220["V-Wind"][raw_level_index_220]
+                                        pb_raw_obs_data_220["V-Wind"][
+                                            raw_level_index_220
+                                        ]
                                         if pb_raw_obs_data_220["V-Wind"] is not None
                                         else None,
                                     ],
@@ -312,8 +324,11 @@ class VxIngestManager(CommonVxIngestManager):
                                         pb_interpolated_120["pressure"].get(level, None)
                                         if pb_interpolated_120["pressure"] is not None
                                         else None,
-                                        pb_interpolated_120["temperature"].get(level, None)
-                                        if pb_interpolated_120["temperature"] is not None
+                                        pb_interpolated_120["temperature"].get(
+                                            level, None
+                                        )
+                                        if pb_interpolated_120["temperature"]
+                                        is not None
                                         else None,
                                         pb_interpolated_120["dewpoint"].get(level, None)
                                         if pb_interpolated_120["dewpoint"] is not None
@@ -330,13 +345,16 @@ class VxIngestManager(CommonVxIngestManager):
                                         pb_interpolated_120["height"].get(level, None)
                                         if pb_interpolated_120["height"] is not None
                                         else None,
-                                        pb_interpolated_220["wind_speed"].get(level, None)
+                                        pb_interpolated_220["wind_speed"].get(
+                                            level, None
+                                        )
                                         if pb_interpolated_220["wind_speed"] is not None
                                         else None,
                                         pb_interpolated_220["wind_direction"].get(
                                             level, None
                                         )
-                                        if pb_interpolated_220["wind_direction"] is not None
+                                        if pb_interpolated_220["wind_direction"]
+                                        is not None
                                         else None,
                                         pb_interpolated_220["U-Wind"].get(level, None)
                                         if pb_interpolated_220["U-Wind"] is not None
@@ -387,7 +405,8 @@ class VxIngestManager(CommonVxIngestManager):
                         except Exception as _e:
                             logger.exception(
                                 "%s: *** Error in IngestManager station %s not found ***",
-                                self.thread_name, station,
+                                self.thread_name,
+                                station,
                             )
                             continue
                     self.debug_station_file.flush()

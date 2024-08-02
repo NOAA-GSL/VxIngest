@@ -45,7 +45,7 @@ logger = logging.getLogger(__name__)
 prom_registry = CollectorRegistry()
 
 # Use a gauge because we're doing 1 file per job run, a histogram could be more appropriate.
-# Note - if we used a historgram or summary, we could apply a decorator directly to the function we're interested in
+# Note - if we used a histogram or summary, we could apply a decorator directly to the function we're interested in
 prom_duration = Gauge(
     "run_ingest_duration",
     "The duration of an ingest run, in seconds",

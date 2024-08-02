@@ -153,9 +153,9 @@ def test_one_thread_specify_file_pattern(tmp_path: Path):
     # Test that we have one output file per input file
     input_path = Path("/opt/data/prepbufr_to_cb/input_files")
     num_input_files = len(list(input_path.glob("242130000*")))
-    #num_input_files = len(list(input_path.glob("242131200*")))
-    #num_input_files = len(list(input_path.glob("242121800*")))
-    #num_input_files = len(list(input_path.glob("241011200*")))
+    # num_input_files = len(list(input_path.glob("242131200*")))
+    # num_input_files = len(list(input_path.glob("242121800*")))
+    # num_input_files = len(list(input_path.glob("241011200*")))
     num_output_files = len(output_file_list)
     assert (
         num_output_files == num_input_files
@@ -175,7 +175,9 @@ def test_one_thread_specify_file_pattern(tmp_path: Path):
             if item["docType"] == "station":
                 station_id = item["id"]
                 derived_station = item
-                retrieved_station = vx_ingest.collection.get(station_id).content_as[dict]
+                retrieved_station = vx_ingest.collection.get(station_id).content_as[
+                    dict
+                ]
                 # make sure the updateTime is the same in both the derived and retrieved station
                 retrieved_station["updateTime"] = derived_station["updateTime"]
                 # make sure the firstTime and lastTime are the same in both the derived and retrieved station['geo']
@@ -185,9 +187,9 @@ def test_one_thread_specify_file_pattern(tmp_path: Path):
                 retrieved_station["geo"][0]["lastTime"] = derived_station["geo"][0][
                     "lastTime"
                 ]
-                assert f"derived station{station_id} does not equal retrieved station", (
-                    derived_station == retrieved_station
-                )
+                assert (
+                    f"derived station{station_id} does not equal retrieved station"
+                ), derived_station == retrieved_station
         except Exception as e:
             print("failed:" + str(e))
             print("station_id", station_id)

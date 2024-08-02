@@ -7,6 +7,9 @@ FROM python:3.11-slim-bookworm AS eccodes
 
 ARG ECCODES_VER=2.32.1
 
+# Update the built in Python tooling
+RUN pip install --no-cache-dir --upgrade pip setuptools
+
 RUN apt-get update && \
     apt-get install -y curl wget && \
     apt-get install -y build-essential libssl-dev libnetcdff-dev libopenjp2-7-dev gfortran make unzip git cmake && \

@@ -2,7 +2,6 @@ from unittest.mock import MagicMock
 
 import pytest
 from vxingest.prepbufr_to_cb.prepbufr_builder import (
-    PrepbufrBuilder,
     PrepbufrRaobsObsBuilderV01,
 )
 

@@ -840,6 +840,42 @@ files = [
 ]
 
 [[package]]
+name = "ncepbufr"
+version = "12.0.1"
+description = "packaging the ncepbufr library for use in python"
+optional = false
+python-versions = ">=3.12,<4.0"
+files = [
+    {file = "ncepbufr-12.0.1-py312-none-linux_x86_64.whl", hash = "sha256:e49691387a9ff8bfcc9bace47cee0d95668321ded1d6fb037c62da41e9498adf"},
+]
+
+[package.dependencies]
+netcdf4 = ">=1,<2"
+numpy = ">=2,<3"
+
+[package.source]
+type = "file"
+url = "third_party/NCEPLIBS-bufr/wheel_dist/ncepbufr-12.0.1-py312-none-linux_x86_64.whl"
+
+[[package]]
+name = "ncepbufr"
+version = "12.0.1"
+description = "packaging the ncepbufr library for use in python"
+optional = false
+python-versions = ">=3.12,<4.0"
+files = [
+    {file = "ncepbufr-12.0.1-py312-none-macosx_14_0_arm64.whl", hash = "sha256:ea958056a5bf20cbc70265187d33a70ca70fb9abe11b40489d99f90bf8b570b6"},
+]
+
+[package.dependencies]
+netcdf4 = ">=1,<2"
+numpy = ">=2,<3"
+
+[package.source]
+type = "file"
+url = "third_party/NCEPLIBS-bufr/wheel_dist/ncepbufr-12.0.1-py312-none-macosx_14_0_arm64.whl"
+
+[[package]]
 name = "netcdf4"
 version = "1.7.1.post1"
 description = "Provides an object-oriented python interface to the netCDF version 4 library"
@@ -1478,6 +1514,20 @@ files = [
 ]
 
 [[package]]
+name = "tabulate"
+version = "0.9.0"
+description = "Pretty-print tabular data"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "tabulate-0.9.0-py3-none-any.whl", hash = "sha256:024ca478df22e9340661486f85298cff5f6dcdba14f3813e8830015b9ed1948f"},
+    {file = "tabulate-0.9.0.tar.gz", hash = "sha256:0095b12bf5966de529c0feb1fa08671671b3368eec77d7ef7ab114be2c068b3c"},
+]
+
+[package.extras]
+widechars = ["wcwidth"]
+
+[[package]]
 name = "traitlets"
 version = "5.14.3"
 description = "Traitlets Python configuration system"
@@ -1569,4 +1619,4 @@ viz = ["matplotlib", "nc-time-axis", "seaborn"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "bea8f512ac64548c63352a854b61beb6bd697980f50c535faf82d7788082abb7"
+content-hash = "1d5b758000ac5dcd0b0e8a708cbf442c96c931589656b51f99bef3bdb910c54b"

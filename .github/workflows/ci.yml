@@ -111,11 +111,6 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64
           push: true
-          # Use a cache to speed up builds
-          # Note: this may cause security issues if the apt updates are cached
-          # It may make more sense to build eccodes as its own image instead.
-          cache-from: type=registry,ref=ghcr.io/noaa-gsl/vxingest/cache/ingest:buildcache
-          cache-to: type=registry,ref=ghcr.io/noaa-gsl/vxingest/cache/ingest:buildcache,mode=max
   build-import:
     name: Build Import image
     runs-on: ubuntu-latest
@@ -168,12 +163,23 @@ jobs:
         uses: aquasecurity/trivy-action@0.23.0
         with:
           image-ref: "ghcr.io/noaa-gsl/vxingest/ingest:sha-${{ env.SHORT_SHA }}"
+          format: "table" # Generate actionable output
+          ignore-unfixed: true
+          severity: "CRITICAL,HIGH"
+          exit-code: "1"
+        env:
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate Trivy output formatted for the GitHub Security tab
+        if: always()
+        uses: aquasecurity/trivy-action@0.23.0
+        with:
+          image-ref: "ghcr.io/noaa-gsl/vxingest/ingest:sha-${{ env.SHORT_SHA }}"
           format: "sarif"
           output: "trivy-ingest-results.sarif"
           ignore-unfixed: true
           severity: "CRITICAL,HIGH"
           limit-severities-for-sarif: true
-          exit-code: "1"
         env:
           TRIVY_USERNAME: ${{ github.actor }}
           TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
@@ -193,12 +199,23 @@ jobs:
         uses: aquasecurity/trivy-action@0.23.0
         with:
           image-ref: "ghcr.io/noaa-gsl/vxingest/import:sha-${{ env.SHORT_SHA }}"
+          format: "table" # Generate actionable output
+          ignore-unfixed: true
+          severity: "CRITICAL,HIGH"
+          # exit-code: "1" # FIXME: allow failures for now. Couchbase needs to update cbtools
+        env:
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate Trivy output formatted for the GitHub Security tab
+        if: always()
+        uses: aquasecurity/trivy-action@0.23.0
+        with:
+          image-ref: "ghcr.io/noaa-gsl/vxingest/import:sha-${{ env.SHORT_SHA }}"
           format: "sarif"
           output: "trivy-import-results.sarif"
           ignore-unfixed: true
           severity: "CRITICAL,HIGH"
           limit-severities-for-sarif: true
-          # exit-code: "1" # FIXME: allow failures for now. Couchbase needs to update cbtools
         env:
           TRIVY_USERNAME: ${{ github.actor }}
           TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}

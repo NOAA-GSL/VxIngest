@@ -20,6 +20,7 @@ numpy = "^2.0.0"
 metpy = "^1.6.2"
 prometheus-client = "^0.20.0"
 
+mysql-connector = "^2.2.9"
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.2"
 types-pyyaml = "^6.0.12.20240311"

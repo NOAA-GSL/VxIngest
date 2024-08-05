@@ -97,6 +97,10 @@ platform=$(echo ${platform} | tr '[:upper:]' '[:lower:]' | tr '-' '_' | tr '.' '
 python -m venv .venv-3.12
 # activate venv
 . .venv-3.12/bin/activate
+# add poetry to path
+PATH=$PATH:${HOME}/.local/bin
+# upgrade pip
+pip install --upgrade pip
 # set a trap to deactivate when the script exits
 trap "deactivate" EXIT
 

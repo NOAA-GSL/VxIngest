@@ -25,7 +25,7 @@ RUN apt-get update && \
 
 
 # The builder image, used for building the virtual environment
-FROM python:3.11-slim-bookworm AS builder
+FROM python:3.12-slim-bookworm AS builder
 
 COPY --from=eccodes /eccodes /usr/local
 

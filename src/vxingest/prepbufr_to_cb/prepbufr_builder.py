@@ -808,6 +808,20 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         The list parameters must be converted to masked arrays.
         relative_humidity_from_specific_humidity(pressure, temperature, specific_humidity)  all pint.Quantity
         relative_humidity_from_specific_humidity(1013.25 * units.hPa, 30 * units.degC, 18/1000).to('percent')
+
+        WOBUS values:
+        The legacy svpWobus value is derived from saturationVaporPressure and temperature using the Wobus formula.
+        It is provided here for reference only. The svpWobusRH will be included in the raw data.
+        static public float svpWobus(double tk) {
+            double tx = tk-273.15;
+            double pol = 0.99999683       + tx*(-0.90826951e-02 +
+                tx*(0.78736169e-04   + tx*(-0.61117958e-06 +
+                tx*(0.43884187e-08   + tx*(-0.29883885e-10 +
+                tx*(0.21874425e-12   + tx*(-0.17892321e-14 +
+                tx*(0.11112018e-16   + tx*(-0.30994571e-19)))))))));
+            double  esw_pascals = 6.1078/Math.pow(pol,8.) *100.;
+            return((float)esw_pascals);
+            }
         """
         try:
             if pressure is None or temperature is None or specific_humidity is None:
@@ -825,7 +839,41 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                 .to_tuple()[0]
                 for p, t, s in zip(pressure, temperature, specific_humidity)
             ]
-            return relative_humidity
+            rh_wobus = [
+                0.99999683
+                + t
+                * (
+                    -0.90826951e-02
+                    + t
+                    * (
+                        0.78736169e-04
+                        + t
+                        * (
+                            -0.61117958e-06
+                            + t
+                            * (
+                                0.43884187e-08
+                                + t
+                                * (
+                                    -0.29883885e-10
+                                    + t
+                                    * (
+                                        0.21874425e-12
+                                        + t
+                                        * (
+                                            -0.17892321e-14
+                                            + t
+                                            * (0.11112018e-16 + t * (-0.30994571e-19))
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+                for t in (temperature)
+            ]
+            return {relative_humidity: relative_humidity, rh_wobus: rh_wobus}
         except Exception as _e:
             logger.error(
                 "PrepBufrBuilder.get_relative_humidity: Exception  error: %s", str(_e)
@@ -1311,11 +1359,13 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                             i if i is not ma.masked else None for i in relative_humidity
                         ]
                     else:
-                        data[field] = self.get_relative_humidity(
+                        rh_vals = self.get_relative_humidity(
                             pressure,
                             temperature,
                             specific_humidity,
                         )
+                        data[field] = rh_vals["relative_humidity"]
+                        data["rh_wobus"] = rh_vals["rh_wobus"]
                 else:
                     if field == "height":
                         # need to get some specific fields to interpolate the height

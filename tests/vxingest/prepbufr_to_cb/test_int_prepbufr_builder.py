@@ -72,7 +72,7 @@ def assert_dicts_almost_equal(dict1, dict2, rel_tol=1e-09):
                     + str(dict2[key])
                 )
             except Exception as e:
-                print("failed:" + e)
+                print("failed:" + str(e))
 
 
 @pytest.mark.integration()

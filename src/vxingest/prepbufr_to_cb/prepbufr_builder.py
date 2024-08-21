@@ -149,7 +149,10 @@ class PrepbufrBuilder(Builder):
                         return stationName
                     if "wind" in _ri.lower():
                         # look in report_type 220
-                        if not self.interpolated_data[stationName][220]["data"]:
+                        if (
+                            220 not in self.interpolated_data[stationName]
+                            or not self.interpolated_data[stationName][220]["data"]
+                        ):
                             # this one has no data
                             value = None
                         else:
@@ -168,7 +171,10 @@ class PrepbufrBuilder(Builder):
                                 value = None
                     else:
                         # look in report_type 120
-                        if not self.interpolated_data[stationName][120]["data"]:
+                        if (
+                            120 not in self.interpolated_data[stationName]
+                            or not self.interpolated_data[stationName][120]["data"]
+                        ):
                             # this one has no data
                             return None
                         else:
@@ -232,7 +238,7 @@ class PrepbufrBuilder(Builder):
             ]
             nearest_lower_pressure = obs_data["pressure"][nearest_lower_pressure_index]
             try:
-                fact = (float)(
+                weight = (float)(
                     (
                         math.log(nearest_higher_pressure)
                         - math.log(wanted_pressure_level_mb)
@@ -256,28 +262,31 @@ class PrepbufrBuilder(Builder):
                     nearest_higher_pressure
                 ):
                     return None
+
+                next_higher_pressure_direction = obs_data["wind_direction"][
+                    nearest_higher_pressure_index
+                ]
+                next_lower_pressure_direction = obs_data["wind_direction"][
+                    nearest_lower_pressure_index
+                ]
+                if not self.is_a_number(
+                    next_lower_pressure_direction
+                ) or not self.is_a_number(next_higher_pressure_direction):
+                    return None
+
+                dir_dif = next_lower_pressure_direction - next_higher_pressure_direction
+                if dir_dif > 180:
+                    dir_dif -= 360
                 else:
-                    next_higher_pressure_direction = obs_data["wind_direction"][
-                        nearest_higher_pressure_index
-                    ]
-                    next_lower_pressure_direction = obs_data["wind_direction"][
-                        nearest_lower_pressure_index
-                    ]
-                    dir_dif = (
-                        next_lower_pressure_direction - next_higher_pressure_direction
-                    )
-                    if dir_dif > 180:
-                        dir_dif -= 360
-                    else:
-                        if dir_dif < -180:
-                            dir_dif += 360
-                    value = next_higher_pressure_direction + fact * (dir_dif)
-                    if value < 0:
-                        value += 360
-                    else:
-                        if value > 360:
-                            value -= 360
-                    return value
+                    if dir_dif < -180:
+                        dir_dif += 360
+                value = next_higher_pressure_direction + weight * (dir_dif)
+                if value < 0:
+                    value += 360
+                else:
+                    if value > 360:
+                        value -= 360
+                return value
             else:  # if it isn't a wind_direction do this
                 next_higher_pressure_variable_value = obs_data[variable][
                     nearest_higher_pressure_index
@@ -290,11 +299,9 @@ class PrepbufrBuilder(Builder):
                 ) or not self.is_a_number(next_lower_pressure_variable_value):
                     return None
                 else:
-                    value = next_higher_pressure_variable_value + fact * (
-                        abs(
-                            next_higher_pressure_variable_value
-                            - next_lower_pressure_variable_value
-                        )
+                    value = next_higher_pressure_variable_value + weight * (
+                        next_lower_pressure_variable_value
+                        - next_higher_pressure_variable_value
                     )
                     return value
         except Exception as _e:
@@ -314,6 +321,7 @@ class PrepbufrBuilder(Builder):
         """
         try:
             interpolated_data = {}
+            mandatory_levels = self.get_mandatory_levels()
             for station in raw_obs_data:
                 if station not in interpolated_data:
                     interpolated_data[station] = {}
@@ -322,14 +330,15 @@ class PrepbufrBuilder(Builder):
                         interpolated_data[station][report] = {}
                         if "data" not in interpolated_data[station][report]:
                             interpolated_data[station][report]["data"] = {}
-                    if not isinstance(
+                    if raw_obs_data[station][report][
+                        "obs_data"
+                    ] is None or not isinstance(
                         raw_obs_data[station][report]["obs_data"]["pressure"],
                         list,
                     ):
                         # I cannot process this station - there is no array of pressure data
                         del interpolated_data[station]
                         break
-                    mandatory_levels = self.get_mandatory_levels()
                     for variable in raw_obs_data[station][report]["obs_data"]:
                         # create masked array for the variable with ALL the mandatory levels
                         # though the levels below the bottom level and above the top level will be masked
@@ -365,11 +374,22 @@ class PrepbufrBuilder(Builder):
                                     level
                                 ] = None
                                 continue
-                            nearest_higher_pressure = p_arr[p_arr >= level].min()
+                            p_no_nan_arr = p_arr[~np.isnan(p_arr)]
+                            if level > p_no_nan_arr.max() or level < p_no_nan_arr.min():
+                                # this level is outside the range of the data - have to skip it
+                                interpolated_data[station][report]["data"][variable][
+                                    level
+                                ] = None
+                                continue
+                            nearest_higher_pressure = p_no_nan_arr[
+                                p_no_nan_arr >= level
+                            ].min()
                             nearest_higher_i = raw_obs_data[station][report][
                                 "obs_data"
                             ]["pressure"].index(nearest_higher_pressure)
-                            nearest_lower_pressure = p_arr[p_arr <= level].max()
+                            nearest_lower_pressure = p_no_nan_arr[
+                                p_no_nan_arr <= level
+                            ].max()
                             nearest_lower_i = raw_obs_data[station][report]["obs_data"][
                                 "pressure"
                             ].index(nearest_lower_pressure)
@@ -412,6 +432,8 @@ class PrepbufrBuilder(Builder):
         for station in raw_obs_data:
             for report in raw_obs_data[station]:
                 for _l in mandatory_levels:
+                    if station not in interpolated_data:
+                        continue
                     interpolated_data[station][report]["data"]["pressure"][_l] = _l
         return interpolated_data
 
@@ -796,6 +818,72 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
             self.mandatory_levels = list(range(1010, 10, -10))
         return self.mandatory_levels
 
+    def get_svpWobus(self, tx):
+        """_summary_
+            From legacy code: svpWobus
+            static public float svpWobus(double tk) {
+                double tx = tk-273.15;
+                double pol = 0.99999683       + tx*(-0.90826951e-02 +
+                    tx*(0.78736169e-04   + tx*(-0.61117958e-06 +
+                    tx*(0.43884187e-08   + tx*(-0.29883885e-10 +
+                    tx*(0.21874425e-12   + tx*(-0.17892321e-14 +
+                    tx*(0.11112018e-16   + tx*(-0.30994571e-19)))))))));
+                double  esw_pascals = 6.1078/Math.pow(pol,8.) *100.;
+                return((float)esw_pascals);
+                }
+
+        Args:
+            t (float): either temp or dewpoint in degC
+        """
+        tx = math.nan if tx is ma.masked else tx
+        _pol = 0.99999683 + tx * (
+            -0.90826951e-02
+            + tx
+            * (
+                0.78736169e-04
+                + tx
+                * (
+                    -0.61117958e-06
+                    + tx
+                    * (
+                        0.43884187e-08
+                        + tx
+                        * (
+                            -0.29883885e-10
+                            + tx
+                            * (
+                                0.21874425e-12
+                                + tx
+                                * (
+                                    -0.17892321e-14
+                                    + tx * (0.11112018e-16 + tx * (-0.30994571e-19))
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+        esw_pascals = 6.1078 / math.pow(_pol, 8.0) * 100.0
+        return esw_pascals
+
+    def get_relative_humidity_wobus(self, temperature, dewpoint):
+        """_summary_
+            From legacy code: svpWobusRH
+            rh[i] = svpWobus(tdk)/svpWobus(tk) * 100;  NOTE tdk is dewpoint and tk is temperature IN KELVIN
+            where tdk is the dewpoint and tk is the temperature.
+        Args:
+            temperature (list temp): list of temperatures degC
+            dewpoint (list dp): list of dewpoint  deg C
+        """
+        if temperature is None or dewpoint is None:
+            return None
+        else:
+            return [
+                round((self.get_svpWobus(dp) / self.get_svpWobus(t)) * 100, 4)
+                for dp, t in zip(dewpoint, temperature)
+            ]
+
     def get_relative_humidity(self, pressure, temperature, specific_humidity):
         """
         This method calculates the relative humidity from the specific humidity, if necessary
@@ -812,16 +900,6 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         WOBUS values:
         The legacy svpWobus value is derived from saturationVaporPressure and temperature using the Wobus formula.
         It is provided here for reference only. The svpWobusRH will be included in the raw data.
-        static public float svpWobus(double tk) {
-            double tx = tk-273.15;
-            double pol = 0.99999683       + tx*(-0.90826951e-02 +
-                tx*(0.78736169e-04   + tx*(-0.61117958e-06 +
-                tx*(0.43884187e-08   + tx*(-0.29883885e-10 +
-                tx*(0.21874425e-12   + tx*(-0.17892321e-14 +
-                tx*(0.11112018e-16   + tx*(-0.30994571e-19)))))))));
-            double  esw_pascals = 6.1078/Math.pow(pol,8.) *100.;
-            return((float)esw_pascals);
-            }
         """
         try:
             if pressure is None or temperature is None or specific_humidity is None:
@@ -839,48 +917,16 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                 .to_tuple()[0]
                 for p, t, s in zip(pressure, temperature, specific_humidity)
             ]
-            rh_wobus = [
-                0.99999683
-                + t
-                * (
-                    -0.90826951e-02
-                    + t
-                    * (
-                        0.78736169e-04
-                        + t
-                        * (
-                            -0.61117958e-06
-                            + t
-                            * (
-                                0.43884187e-08
-                                + t
-                                * (
-                                    -0.29883885e-10
-                                    + t
-                                    * (
-                                        0.21874425e-12
-                                        + t
-                                        * (
-                                            -0.17892321e-14
-                                            + t
-                                            * (0.11112018e-16 + t * (-0.30994571e-19))
-                                        )
-                                    )
-                                )
-                            )
-                        )
-                    )
-                )
-                for t in (temperature)
-            ]
-            return {relative_humidity: relative_humidity, rh_wobus: rh_wobus}
+            return relative_humidity
         except Exception as _e:
             logger.error(
                 "PrepBufrBuilder.get_relative_humidity: Exception  error: %s", str(_e)
             )
             return None
 
-    def interpolate_heights(self, height, pressure, temperature, specific_humidity):
+    def interpolate_heights_hypsometric(
+        self, height, pressure, temperature, specific_humidity
+    ):
         """
         This method interpolates the heights using the hypsometric thickness equation.
         There is the possibility that a height value is missing for a given pressure level.
@@ -967,6 +1013,12 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
             _bottom_i = _first_bottom_i
             _top_i = _bottom_i + 1
             while _top_i < _last_top_i:
+                if self.is_a_number(height[_top_i]):
+                    # we have a valid height - so use it
+                    h[_top_i] = height[_top_i] * units.meter
+                    _bottom_i = _top_i
+                    _top_i = _top_i + 1
+                    continue
                 while math.isnan(pressure[_top_i]):
                     _top_i = _top_i + 1
                 layer = (p <= pressure[_bottom_i] * units.hPa) & (
@@ -1019,11 +1071,10 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         self,
         events,
         bufr_data,
-        mnemonics,
+        mnemonics,  # mnemonics is a multidimensional np.array of variable, program_code, q_marker mnemonics
         mnemonic=None,
-        event_program_code_mnemonics=None,
-        event_program_code_mnemonic=None,
         event_value=None,
+        q_marker_keep_values=None,
     ):
         """
         This method gets the value from the bufr data at the index for the specific field
@@ -1110,17 +1161,19 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         For those set to false we will look for the first data value.
 
         """
-        mnemonic_index = mnemonics.index(mnemonic)
-        if (
-            event_program_code_mnemonic is not None
-            and event_program_code_mnemonics is not None
-            and event_program_code_mnemonic in event_program_code_mnemonics
-        ):
-            event_program_code_mnemonic_index = len(
-                mnemonics
-            ) + event_program_code_mnemonics.index(event_program_code_mnemonic)
-        else:
-            event_program_code_mnemonic_index = None
+        # _mnemonics = mnemonics[0]
+        # event_program_code_mnemonics = _mnemonics[1]
+        # q_marker_mnemonics = _mnemonics[2]
+
+        # have to remember that the mnemonics are a 3-d array with the first dimension being the variable,
+        # 2nd the event_program_code mnemonics, and 3rd the q_marker_mnemonics
+        # The bufr was read with a concatenation of these three arrays so the bufr data index for the variable mnemonic
+        # is offset by 0, the bufr data for the event_program_code mnemonic is offset by the length of the variable mnemonic array,
+        # and the bufr data q_marker_mnemonic index is offset by the length of the variable and event_program_code mnemonics.
+        # Those lengths should all be the same i.e. mnemonics.shape[0]. Missing elements in the event_program_code and q_marker mnemonics
+        # are None.
+
+        mnemonic_index = list(mnemonics[0]).index(mnemonic)
         # if it isn't a masked array just return the data
         if not ma.isMaskedArray(bufr_data[mnemonic_index]):
             return bufr_data[mnemonic_index]
@@ -1131,25 +1184,33 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         if (
             events is False
             or event_value is None
-            or event_program_code_mnemonic is None
-            or event_program_code_mnemonic_index is None
+            or mnemonics[1][mnemonic_index] is None
         ):
             # don't consider events just return the data for the field
             if len(bufr_data[mnemonic_index].shape) == 1:
+                # no events present
                 return [
                     i if i is not ma.masked else None for i in bufr_data[mnemonic_index]
                 ]
             if len(bufr_data[mnemonic_index].shape) > 1:
+                # there is an event dimension but we are ignoring it - just return the first event
                 return [i[0] for i in bufr_data[mnemonic_index]]
             else:
-                # not multidimensional
                 if bufr_data[mnemonic_index].shape == ():
+                    # this data is not multidimensional
                     return [bufr_data[mnemonic_index].item()]
         else:
-            # need to consider events
-            # go through each level and find the value that corresponds to the event_value
-            # use the event program code mnemonic to find the index of the desired event program code value
-            # then for each level use that index to find the correct value for the variable
+            # Need to consider events and q_markers.
+            # Go through each level and find the value that corresponds to the event_value,
+            # then use the event program code mnemonic to find the index of the desired event program code value,
+            # then use that event index to find the corresponding value for the variable. These bufr
+            # events should have the variable value, and the q_marker in the same event index.
+            # TODO USE SHAPE HERE!
+            event_program_code_mnemonic_index = len(mnemonics[0]) + mnemonic_index
+            q_marker_mnemonic_index = len(mnemonics[0]) * 2 + mnemonic_index
+            # Make a copy of the bufr_data for the mnemonic - the program will modify the data
+            # in the copy to reflect the correct event value and qualify it with the q_marker value
+            # the copy wont have multiple events, just the data for the correct event mnemonic value
             bufr_data_for_mnemonic = bufr_data[mnemonic_index].copy()
             for level_index in range(0, bufr_data.shape[1]):
                 if bufr_data[mnemonic_index][level_index].shape == ():  # scalar
@@ -1163,12 +1224,16 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                     == 1
                 ):
                     # ignore the events, there is only one event anyway, just return like there weren't events.
-                    # This deserves explanation. The bufr data is a 3-d array with the first dimension being the variable
+                    # This deserves explanation. The bufr data is a 3-d array with the first dimension being the variable (or q_marker)
                     # the second dimension being the level and the third dimension being the event. If there is only one event
                     # then the third dimension is irrelevant.
-                    bufr_data_for_mnemonic[level_index] = bufr_data[mnemonic_index][
-                        level_index
-                    ]
+                    bufr_data_for_mnemonic[level_index] = (
+                        bufr_data[mnemonic_index][level_index]
+                        if q_marker_keep_values is None
+                        or bufr_data[q_marker_mnemonic_index][level_index][0]
+                        in q_marker_keep_values
+                        else None
+                    )
                     continue
                 try:
                     # now we have multiple events so we have to consider them - so find the index of the expected event_value
@@ -1180,10 +1245,10 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                             ]
                             is ma.masked
                         ):
-                            # do not consider masked events - just use the bufr_data for the mnemonic
+                            # do not consider this masked event - just use the bufr_data for the mnemonic
                             bufr_data_for_mnemonic[level_index] = bufr_data[
                                 mnemonic_index
-                            ][level_index]
+                            ][level_index]  # is masked
                             continue
                         if (
                             bufr_data[event_program_code_mnemonic_index][level_index][
@@ -1193,30 +1258,36 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                         ):
                             _event_value_found = True
                             break
-                        # using the found event value index find all the correct variable values
+                    # using the found event value index find the correct value for this field and level
+                    # qualify the value by the corresponding q_marker value
+                    # if the q_marker value is not in the q_marker_keep_values then set the field value to None i.e. disqualified
                     if _event_value_found is True:
                         if (
                             bufr_data[mnemonic_index][level_index][e_index]
                             is not ma.masked
                         ):
-                            bufr_data_for_mnemonic[level_index][0] = bufr_data[
-                                mnemonic_index
-                            ][level_index][e_index]
-                        else:
-                            # the one that matches the desired event code is masked!
-                            # have to use the 0th one
-                            bufr_data_for_mnemonic[level_index][0] = bufr_data[
-                                mnemonic_index
-                            ][level_index][0]
-
+                            if (
+                                q_marker_keep_values is None
+                                or bufr_data[q_marker_mnemonic_index][level_index][
+                                    e_index
+                                ]
+                                in q_marker_keep_values
+                            ):
+                                # for the copy we only have one value for the mnemonic[level] so we can just set it
+                                # with the correct event value (lose the event dimension)
+                                bufr_data_for_mnemonic[level_index][0] = bufr_data[
+                                    mnemonic_index
+                                ][level_index][e_index]
+                            else:
+                                # the correct event value failed the q_marker test - gets a None for that level
+                                # This means the the interpolation will have to interpolate the value for this level
+                                bufr_data_for_mnemonic[level_index][0] = None
                     else:
                         logger.info(
                             f"PrepBufrBuilder.get_data_from_bufr_for_field: event_value not found for mnemonic {mnemonic}",
                         )
-                        # could not find the desired event value - have to use the first one
-                        bufr_data_for_mnemonic[level_index][0] = bufr_data[
-                            mnemonic_index
-                        ][level_index][0]
+                        # could not find the desired event value - return None
+                        bufr_data_for_mnemonic[level_index][0] = None
                 except IndexError as _ie:
                     logger.error(
                         f"PrepBufrBuilder.get_data_from_bufr_for_field: IndexError for mnemonic {mnemonic}",
@@ -1232,7 +1303,7 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         A template is a dict keyed by the desired field name with a value that is a
         dict with a mnemonic and an intent. The mnemonic is the bufr mnemonic for the field
         and the intent is the datatype of the field in the resulting data document.
-        For example station_id "SID" returns a float but the intent is str.
+        For example station_id "SID" often returns a float but the intent is str.
         :param bufr: the bufr file
         :template: a dictionary of header keys with their corresponding mnemonics and intended types
         refer to https://www.emc.ncep.noaa.gov/emc/pages/infrastructure/bufrlib/tables/bufrtab_tableb.html
@@ -1241,22 +1312,23 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         :return: a data object: each key is a field name and the value is the data array (not masked) for that field
         """
         # see read_subset https://github.com/NOAA-EMC/NCEPLIBS-bufr/blob/a8108e591c6cb1e21ddc7ddb6715df1b3801fff8/python/ncepbufr/__init__.py#L449
-        mnemonics = []
+        variable_mnemonics = []
         event_program_code_mnemonics = []
+        q_marker_mnemonics = []
         for o in template.values():
             if isinstance(o, dict):
-                mnemonics.append(o["mnemonic"])
-                # need to include the event program code mnemonics in the mnemonics string that is used to read the data
-                if (
-                    "event_program_code_mnemonic" in o
-                    and "event_program_code_mnemonic"
-                    not in event_program_code_mnemonics
-                ):
-                    event_program_code_mnemonics.append(
-                        o["event_program_code_mnemonic"]
-                    )
-        mnemonics_str = " ".join(mnemonics)
-        event_program_code_mnemonics_str = " ".join(event_program_code_mnemonics)
+                variable_mnemonics.append(o["mnemonic"])
+                event_program_code_mnemonics.append(
+                    o.get("event_program_code_mnemonic", "")
+                )
+                q_marker_mnemonics.append(o.get("q_marker_mnemonic", ""))
+        mnemonics = np.array(
+            (variable_mnemonics, event_program_code_mnemonics, q_marker_mnemonics),
+            dtype=str,
+        )
+        mnemonics_str = " ".join(
+            variable_mnemonics + event_program_code_mnemonics + q_marker_mnemonics
+        ).strip()
         events = template["events"] is True
         # see https://github.com/NOAA-EMC/NCEPLIBS-bufr/blob/a8108e591c6cb1e21ddc7ddb6715df1b3801fff8/python/ncepbufr/__init__.py#L449
         # for reference on read_subset
@@ -1268,175 +1340,134 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         # that event program code mnemonics are provided in the mnemonic list. If there are no event
         # program codes in the mnemonics list, the events dimension is masked, the values of the data mnemonic are present but you cannot determine which
         # event program code applies to which event or which data value.
-        all_mnemonics_str = mnemonics_str + " " + event_program_code_mnemonics_str
-        bufr_data = bufr.read_subset(all_mnemonics_str, events=events).squeeze()
-        if "SID" in mnemonics:
-            station_id = str(
-                bufr_data[mnemonics.index("SID")], encoding="utf-8"
-            ).strip()
-            self.current_station = station_id
+        # The q_marker_mnemonics are available to use to ignore values that are not valid.
+        bufr_data = bufr.read_subset(mnemonics_str, events=events).squeeze()
         data = {}
+        height = None
         temperature = None
         pressure = None
         specific_humidity = None
         relative_humidity = None
-        for _mnemonic_index, mnemonic in enumerate(mnemonics):
+        dewpoint = None
+        for mnemonic in variable_mnemonics:
             try:
                 # uncomment this for debugging - makes a good place for a breakpoint
                 # if 'temperature' in template:
                 #     print(f"station:{self.current_station} mnemonic:{mnemonic}\n")
-                field = [
-                    k
-                    for k, v in template.items()
-                    if isinstance(v, dict) and mnemonic == v["mnemonic"]
-                ][0]
-                event_value = template[field].get("event_value", None)
-                event_program_code_mnemonic = template[field].get(
-                    "event_program_code_mnemonic", None
-                )
-                if field == "relative_humidity":
-                    # need to get some specific fields to calculate the relative humidity
-                    relative_humidity = self.get_data_from_bufr_for_field(
-                        events,
-                        bufr_data,
-                        mnemonics,
-                        mnemonic=mnemonic,
-                        event_program_code_mnemonics=event_program_code_mnemonics,
-                        event_program_code_mnemonic=event_program_code_mnemonic,
-                        event_value=event_value,
-                    )
-                    if not pressure:
-                        pressure_mnemonic = template["pressure"]["mnemonic"]
-                        pressure_event_program_code_mnemonic = template["pressure"][
-                            "event_program_code_mnemonic"
-                        ]
-                        pressure_event_value = template["pressure"]["event_value"]
-                        pressure = self.get_data_from_bufr_for_field(
+                field = self.get_field_for_mnemonic(template, mnemonic)
+                match field:
+                    case "relative_humidity":
+                        pressure = self.get_raw_pressure(
+                            template,
+                            mnemonics,
                             events,
                             bufr_data,
-                            mnemonics,
-                            mnemonic=pressure_mnemonic,
-                            event_program_code_mnemonics=event_program_code_mnemonics,
-                            event_program_code_mnemonic=pressure_event_program_code_mnemonic,
-                            event_value=pressure_event_value,
-                        )
-                    if not temperature:
-                        temperature_mnemonic = template["temperature"]["mnemonic"]
-                        temperature_event_program_code_mnemonic = template[
-                            "temperature"
-                        ]["event_program_code_mnemonic"]
-                        temperature_event_value = template["temperature"]["event_value"]
-                        temperature = self.get_data_from_bufr_for_field(
-                            events,
-                            bufr_data,
-                            mnemonics,
-                            mnemonic=temperature_mnemonic,
-                            event_program_code_mnemonics=event_program_code_mnemonics,
-                            event_program_code_mnemonic=temperature_event_program_code_mnemonic,
-                            event_value=temperature_event_value,
-                        )
-                    if not specific_humidity:
-                        specific_humidity_mnemonic = template["specific_humidity"][
-                            "mnemonic"
-                        ]
-                        specific_humidity_event_program_code_mnemonic = template[
-                            "specific_humidity"
-                        ]["event_program_code_mnemonic"]
-                        specific_humidity_event_value = template["specific_humidity"][
-                            "event_value"
-                        ]
-                        specific_humidity = self.get_data_from_bufr_for_field(
-                            events,
-                            bufr_data,
-                            mnemonics,
-                            mnemonic=specific_humidity_mnemonic,
-                            event_program_code_mnemonics=event_program_code_mnemonics,
-                            event_program_code_mnemonic=specific_humidity_event_program_code_mnemonic,
-                            event_value=specific_humidity_event_value,
-                        )
-                    if relative_humidity is not None:
-                        data[field] = [
-                            i if i is not ma.masked else None for i in relative_humidity
-                        ]
-                    else:
-                        rh_vals = self.get_relative_humidity(
                             pressure,
+                        )
+                        temperature = self.get_raw_temperature(
+                            template,
+                            mnemonics,
+                            events,
+                            bufr_data,
                             temperature,
+                        )
+                        specific_humidity = self.get_raw_specific_humidity(
+                            template,
+                            mnemonics,
+                            events,
+                            bufr_data,
                             specific_humidity,
                         )
-                        data[field] = rh_vals["relative_humidity"]
-                        data["rh_wobus"] = rh_vals["rh_wobus"]
-                else:
-                    if field == "height":
-                        # need to get some specific fields to interpolate the height
-                        height = self.get_data_from_bufr_for_field(
+                        dewpoint = self.get_raw_dewpoint(
+                            template,
+                            mnemonics,
                             events,
                             bufr_data,
-                            mnemonics,
-                            mnemonic=mnemonic,
-                            event_program_code_mnemonics=event_program_code_mnemonics,
-                            event_program_code_mnemonic=event_program_code_mnemonic,
-                            event_value=event_value,
+                            dewpoint,
                         )
-                        if not pressure:
-                            pressure_mnemonic = template["pressure"]["mnemonic"]
-                            pressure_event_program_code_mnemonic = template["pressure"][
-                                "event_program_code_mnemonic"
-                            ]
-                            pressure_event_value = template["pressure"]["event_value"]
-                            pressure = self.get_data_from_bufr_for_field(
-                                events,
-                                bufr_data,
-                                mnemonics,
-                                mnemonic=pressure_mnemonic,
-                                event_program_code_mnemonics=event_program_code_mnemonics,
-                                event_program_code_mnemonic=pressure_event_program_code_mnemonic,
-                                event_value=pressure_event_value,
-                            )
-                        if not temperature:
-                            temperature_mnemonic = template["temperature"]["mnemonic"]
-                            temperature_event_program_code_mnemonic = template[
-                                "temperature"
-                            ]["event_program_code_mnemonic"]
-                            temperature_event_value = template["temperature"][
-                                "event_value"
-                            ]
-                            temperature = self.get_data_from_bufr_for_field(
-                                events,
-                                bufr_data,
-                                mnemonics,
-                                mnemonic=temperature_mnemonic,
-                                event_program_code_mnemonics=event_program_code_mnemonics,
-                                event_program_code_mnemonic=temperature_event_program_code_mnemonic,
-                                event_value=temperature_event_value,
-                            )
-                        if not specific_humidity:
-                            specific_humidity_mnemonic = template["specific_humidity"][
-                                "mnemonic"
-                            ]
-                            specific_humidity_event_program_code_mnemonic = template[
-                                "specific_humidity"
-                            ]["event_program_code_mnemonic"]
-                            specific_humidity_event_value = template[
-                                "specific_humidity"
-                            ]["event_value"]
-                            specific_humidity = self.get_data_from_bufr_for_field(
-                                events,
-                                bufr_data,
-                                mnemonics,
-                                mnemonic=specific_humidity_mnemonic,
-                                event_program_code_mnemonics=event_program_code_mnemonics,
-                                event_program_code_mnemonic=specific_humidity_event_program_code_mnemonic,
-                                event_value=specific_humidity_event_value,
-                            )
+                        relative_humidity = self.get_raw_relative_humidity(
+                            data, temperature, pressure, specific_humidity, dewpoint
+                        )
+                        data["relative_humidity"] = relative_humidity
+                    case "height":
+                        height = self.get_raw_height(
+                            template,
+                            mnemonics,
+                            events,
+                            bufr_data,
+                            height,
+                        )
+                        pressure = self.get_raw_pressure(
+                            template,
+                            mnemonics,
+                            events,
+                            bufr_data,
+                            pressure,
+                        )
+                        temperature = self.get_raw_temperature(
+                            template,
+                            mnemonics,
+                            events,
+                            bufr_data,
+                            temperature,
+                        )
+                        specific_humidity = self.get_raw_specific_humidity(
+                            template,
+                            mnemonics,
+                            events,
+                            bufr_data,
+                            specific_humidity,
+                        )
                         # how many heights can be masked before this is a useless exercise?
-                        data[field] = self.interpolate_heights(
+                        if (
+                            len(pressure) < 2
+                        ):  # cannot interpolate with less than 2 pressure levels - throw this away
+                            return None
+                        _interpolated_height = self.interpolate_heights_hypsometric(
                             height,
                             pressure,
                             temperature,
                             specific_humidity,
                         )
-                    else:
+                        data["height"] = _interpolated_height
+                    case "temperature":
+                        temperature = self.get_raw_temperature(
+                            template,
+                            mnemonics,
+                            events,
+                            bufr_data,
+                            temperature,
+                        )
+                        data["temperature"] = temperature
+                    case "pressure":
+                        pressure = self.get_raw_pressure(
+                            template,
+                            mnemonics,
+                            events,
+                            bufr_data,
+                            pressure,
+                        )
+                        data["pressure"] = pressure
+                    case "dewpoint":
+                        dewpoint = self.get_raw_dewpoint(
+                            template,
+                            mnemonics,
+                            events,
+                            bufr_data,
+                            dewpoint,
+                        )
+                        data["dewpoint"] = dewpoint
+                    case "specific_humidity":
+                        specific_humidity = self.get_raw_specific_humidity(
+                            template,
+                            mnemonics,
+                            events,
+                            bufr_data,
+                            specific_humidity,
+                        )
+                        data["specific_humidity"] = specific_humidity
+                    case _:
+                        event_value = template[field].get("event_value", None)
                         data[field] = self.get_data_from_bufr_for_type_field(
                             template,
                             events,
@@ -1445,15 +1476,139 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                             mnemonic,
                             field,
                             event_value,
-                            event_program_code_mnemonics=event_program_code_mnemonics,
-                            event_program_code_mnemonic=event_program_code_mnemonic,
                         )
+                        # capture the station_id for debugging
+                        if field == "station_id":
+                            self.current_station = data[field]
             except Exception as _e:
                 logger.error(
                     "PrepBufrBuilder.read_data_from_bufr: Exception  error: %s", str(_e)
                 )
                 data[field] = None
         return data
+
+    def get_field_for_mnemonic(self, template, mnemonic):
+        for k, v in template.items():
+            if isinstance(v, dict) and mnemonic == v["mnemonic"]:
+                return k
+        return k
+
+    def get_raw_height(
+        self,
+        template,
+        mnemonics,
+        events,
+        bufr_data,
+        height,
+    ):
+        if height is None:
+            # need to get some specific fields to interpolate the height
+            height_mnemonic = template["height"]["mnemonic"]
+            height_event_value = template["height"].get("event_value", None)
+            height_q_marker_keep_values = template["height"].get("q_marker_keep", None)
+
+            height = self.get_data_from_bufr_for_field(
+                events,
+                bufr_data,
+                mnemonics,
+                mnemonic=height_mnemonic,
+                event_value=height_event_value,
+                q_marker_keep_values=height_q_marker_keep_values,
+            )
+        return height
+
+    def get_raw_relative_humidity(
+        self, data, temperature, pressure, specific_humidity, dewpoint
+    ):
+        _rh = self.get_relative_humidity(
+            pressure,
+            temperature,
+            specific_humidity,
+        )
+        data["rh_wobus"] = self.get_relative_humidity_wobus(temperature, dewpoint)
+        return _rh
+
+    def get_raw_dewpoint(
+        self,
+        template,
+        mnemonics,
+        events,
+        bufr_data,
+        dewpoint,
+    ):
+        if dewpoint is None:
+            dewpoint_mnemonic = template["dewpoint"]["mnemonic"]
+            dewpoint_event_value = template["dewpoint"].get("event_value", None)
+            dewpoint = self.get_data_from_bufr_for_field(
+                events,
+                bufr_data,
+                mnemonics,
+                mnemonic=dewpoint_mnemonic,
+                event_value=dewpoint_event_value,
+            )
+        return dewpoint
+
+    def get_raw_specific_humidity(
+        self,
+        template,
+        mnemonics,
+        events,
+        bufr_data,
+        specific_humidity,
+    ):
+        if specific_humidity is None:
+            specific_humidity_mnemonic = template["specific_humidity"]["mnemonic"]
+            specific_humidity_event_value = template["specific_humidity"].get(
+                "event_value", None
+            )
+            specific_humidity = self.get_data_from_bufr_for_field(
+                events,
+                bufr_data,
+                mnemonics,
+                mnemonic=specific_humidity_mnemonic,
+                event_value=specific_humidity_event_value,
+            )
+        return specific_humidity
+
+    def get_raw_temperature(
+        self,
+        template,
+        mnemonics,
+        events,
+        bufr_data,
+        temperature,
+    ):
+        if temperature is None:
+            temperature_mnemonic = template["temperature"]["mnemonic"]
+            temperature_event_value = template["temperature"].get("event_value", None)
+            temperature = self.get_data_from_bufr_for_field(
+                events,
+                bufr_data,
+                mnemonics,
+                mnemonic=temperature_mnemonic,
+                event_value=temperature_event_value,
+            )
+        return temperature
+
+    def get_raw_pressure(
+        self,
+        template,
+        mnemonics,
+        events,
+        bufr_data,
+        pressure,
+    ):
+        if pressure is None:
+            pressure_mnemonic = template["pressure"]["mnemonic"]
+            pressure_event_value = template["pressure"].get("event_value", None)
+            pressure = self.get_data_from_bufr_for_field(
+                events,
+                bufr_data,
+                mnemonics,
+                mnemonic=pressure_mnemonic,
+                event_value=pressure_event_value,
+            )
+        return pressure
 
     def get_data_from_bufr_for_type_field(
         self,
@@ -1464,8 +1619,6 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         mnemonic,
         field,
         event_value,
-        event_program_code_mnemonics=None,
-        event_program_code_mnemonic=None,
     ):
         data = []
         try:
@@ -1477,9 +1630,10 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                             bufr_data,
                             mnemonics,
                             mnemonic=mnemonic,
-                            event_program_code_mnemonics=event_program_code_mnemonics,
-                            event_program_code_mnemonic=event_program_code_mnemonic,
                             event_value=event_value,
+                            q_marker_keep_values=template[field].get(
+                                "q_marker_keep", None
+                            ),
                         )
                         if b_data is None:
                             return None
@@ -1502,11 +1656,12 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                             bufr_data,
                             mnemonics,
                             mnemonic=mnemonic,
-                            event_program_code_mnemonics=event_program_code_mnemonics,
-                            event_program_code_mnemonic=event_program_code_mnemonic,
                             event_value=event_value,
+                            q_marker_keep_values=template[field].get(
+                                "q_marker_keep", None
+                            ),
                         )
-                        mnemonic_index = mnemonics.index(mnemonic)
+                        mnemonic_index = list(mnemonics[0]).index(mnemonic)
                         if b_data is None:
                             return None
                         if not isinstance(
@@ -1534,9 +1689,10 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                                 bufr_data,
                                 mnemonics,
                                 mnemonic=mnemonic,
-                                event_program_code_mnemonics=event_program_code_mnemonics,
-                                event_program_code_mnemonic=event_program_code_mnemonic,
                                 event_value=event_value,
+                                q_marker_keep_values=template[field].get(
+                                    "q_marker_keep", None
+                                ),
                             ),
                             encoding="utf-8",
                         ).strip()
@@ -1568,8 +1724,10 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         date_str = (
             bufr.msg_date
         )  # date is a datetime object i.e. 2024041012 is 2024-04-10 12:00:00
-        _dt = datetime.datetime.strptime(str(date_str), "%Y%m%d%H")
-        _epoch = int(_dt.strftime("%s"))
+        _dt = datetime.datetime.strptime(str(date_str), "%Y%m%d%H").replace(
+            tzinfo=datetime.timezone.utc
+        )
+        _epoch = int(_dt.timestamp())
         return _epoch
 
     def read_data_from_file(self, queue_element, templates):
@@ -1608,12 +1766,6 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                     subset_data["report_type"] = round(header_data["report_type"])
                     subset_data["fcst_valid_epoch"] = self.fcst_valid_epoch
                     subset_data["header"] = header_data
-
-                    # read the q_marker data
-                    q_marker_data = self.read_data_from_bufr(
-                        bufr, templates["q_marker"]
-                    )
-                    subset_data["q_marker"] = q_marker_data
                     # read the obs_err data
                     obs_err_data = self.read_data_from_bufr(bufr, templates["obs_err"])
                     subset_data["obs_err"] = obs_err_data
@@ -1622,6 +1774,7 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                         f"{subset_data["station_id"]}, {subset_data["report_type"]}"
                     )
                     # use the template for the specific report type to read the obs data
+                    # see https://www.emc.ncep.noaa.gov/emc/pages/infrastructure/bufrlib/tables/CodeFlag_0_STDv42_LOC7.html#007246
                     obs_data = self.read_data_from_bufr(
                         bufr, templates["obs_data_" + str(header_data["report_type"])]
                     )
@@ -1841,6 +1994,12 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         try:
             station_id = params_dict["stationName"]
             level = params_dict["level"]
+            if (
+                120 not in self.raw_obs_data[station_id]
+                or 220 not in self.raw_obs_data[station_id]
+            ):
+                # we don't need to process the station for lack of data
+                raise ValueError("bad wmoid in handle_station - no data")
             fcst_valid_epoch = self.raw_obs_data[station_id][120]["fcst_valid_epoch"]
             header = self.raw_obs_data[station_id][120]["header"]
             highest_interpolated_level = max(

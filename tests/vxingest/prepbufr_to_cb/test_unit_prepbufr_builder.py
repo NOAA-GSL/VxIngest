@@ -140,6 +140,34 @@ obs_data_template = {
 }
 
 
+def test_rh_interpolate_height():
+    # Create an instance of PrepbufrBuilder
+    builder = PrepbufrRaobsObsBuilderV01(
+        None,
+        {
+            "template": {"subset": "RAOB"},
+            "ingest_document_ids": {},
+            "file_type": "PREPBUFR",
+            "origin_type": "GDAS",
+            "mnemonic_mapping": obs_data_template,
+        },
+    )
+
+    # Define the test data
+    height = [1000, 2000, 3000, 4000, 5000, 6000]
+    pressure = [1000, 900, 800, 700, 600, 500]
+    temperature = [20, 15, 10, 5, 0, -5]
+    specific_humidity = [50, 60, 70, 80, 90, 100]
+
+    # Call the interpolate_heights method
+    interpolated_height = builder.interpolate_heights_hypsometric(
+        height, pressure, temperature, specific_humidity
+    )
+
+    # Assert the expected interpolated heights
+    assert interpolated_height[0] is None
+
+
 def test_read_header(mock_header_bufr):
     # Create an instance of PrepbufrBuilder
     builder = PrepbufrRaobsObsBuilderV01(
@@ -208,7 +236,7 @@ def test_interpolate_heights():
     specific_humidity = [50, 60, 70, 80, 90, 100]
 
     # Call the interpolate_heights method
-    interpolated_height = builder.interpolate_heights(
+    interpolated_height = builder.interpolate_heights_hypsometric(
         height, pressure, temperature, specific_humidity
     )
 

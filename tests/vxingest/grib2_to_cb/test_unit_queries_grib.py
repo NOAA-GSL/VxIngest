@@ -44,7 +44,7 @@ def connect_cb():
     return cb_connection
 
 
-@pytest.mark.integration()
+@pytest.mark.integration
 def test_ingest_document_id(request):
     _name = request.node.name
     _expected_time = 0.02
@@ -62,7 +62,7 @@ def test_ingest_document_id(request):
     ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
 
 
-@pytest.mark.integration()
+@pytest.mark.integration
 def test_ingest_document_fields(request):
     _name = request.node.name
     _expected_time = 0.01
@@ -82,7 +82,7 @@ def test_ingest_document_fields(request):
     ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
 
 
-@pytest.mark.integration()
+@pytest.mark.integration
 def test_get_df(request):
     _name = request.node.name
     _expected_time = 18
@@ -100,7 +100,7 @@ def test_get_df(request):
     ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
 
 
-@pytest.mark.integration()
+@pytest.mark.integration
 def test_get_stations(request):
     _name = request.node.name
     _expected_time = 1
@@ -118,7 +118,7 @@ def test_get_stations(request):
     ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
 
 
-@pytest.mark.integration()
+@pytest.mark.integration
 def test_get_model_by_fcst_valid_epoch(request):
     _name = request.node.name
     _expected_time = 1.2

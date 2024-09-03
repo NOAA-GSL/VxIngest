@@ -21,6 +21,7 @@ from multiprocessing import Queue
 from pathlib import Path
 
 import pytest
+
 from vxingest.netcdf_to_cb.run_ingest_threads import VXIngest
 
 
@@ -55,7 +56,7 @@ def assert_dicts_almost_equal(dict1, dict2, rel_tol=1e-09):
             ), f"Values for {key} do not match"
 
 
-@pytest.mark.integration()
+@pytest.mark.integration
 def test_one_thread_specify_file_pattern(tmp_path):
     log_queue = Queue()
     vx_ingest = VXIngest()
@@ -116,7 +117,7 @@ def test_one_thread_specify_file_pattern(tmp_path):
     assert_dicts_almost_equal(derived_obs, retrieved_obs)
 
 
-@pytest.mark.integration()
+@pytest.mark.integration
 def test_two_threads_spedicfy_file_pattern(tmp_path):
     """
     integration test for testing multithreaded capability
@@ -151,7 +152,7 @@ def test_two_threads_spedicfy_file_pattern(tmp_path):
     ), "number of output files is incorrect"
 
 
-@pytest.mark.integration()
+@pytest.mark.integration
 def test_one_thread_default(tmp_path):
     """This test will start one thread of the ingestManager and simply make sure it runs with no Exceptions.
     It will attempt to process any files that are in the input directory that match the file_name_mask.
@@ -188,7 +189,7 @@ def test_one_thread_default(tmp_path):
     ), "number of output files is incorrect"
 
 
-@pytest.mark.integration()
+@pytest.mark.integration
 def test_two_threads_default(tmp_path):
     """This test will start one thread of the ingestManager and simply make sure it runs with no Exceptions.
     It will attempt to process any files that are in the input directory that atch the file_name_mask.

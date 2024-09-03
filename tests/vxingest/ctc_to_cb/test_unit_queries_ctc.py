@@ -44,7 +44,7 @@ def connect_cb():
     return cb_connection
 
 
-@pytest.mark.integration()
+@pytest.mark.integration
 def test_epoch_fcstlen_model(request):
     _name = request.node.name
     _expected_time = 3.0
@@ -62,7 +62,7 @@ def test_epoch_fcstlen_model(request):
     ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
 
 
-@pytest.mark.integration()
+@pytest.mark.integration
 def test_epoch_fcstlen_obs(request):
     _name = request.node.name
     _expected_time = 0.2
@@ -80,7 +80,7 @@ def test_epoch_fcstlen_obs(request):
     ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
 
 
-@pytest.mark.integration()
+@pytest.mark.integration
 def test_forecast_valid_epoch(request):
     _name = request.node.name
     _expected_time = 6.0
@@ -98,7 +98,7 @@ def test_forecast_valid_epoch(request):
     ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
 
 
-@pytest.mark.integration()
+@pytest.mark.integration
 def test_get_region_lat_lon(request):
     _name = request.node.name
     _expected_time = 0.01
@@ -116,7 +116,7 @@ def test_get_region_lat_lon(request):
     ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
 
 
-@pytest.mark.integration()
+@pytest.mark.integration
 def test_get_stations(request):
     _name = request.node.name
     _expected_time = 3
@@ -134,7 +134,7 @@ def test_get_stations(request):
     ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
 
 
-@pytest.mark.integration()
+@pytest.mark.integration
 def test_get_threshold_descriptions(request):
     _name = request.node.name
     _expected_time = 0.6

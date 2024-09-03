@@ -17,6 +17,7 @@ from pstats import Stats
 
 from couchbase.exceptions import DocumentNotFoundException, TimeoutException
 from couchbase.search import GeoBoundingBoxQuery, SearchOptions
+
 from vxingest.builder_common.builder import Builder
 from vxingest.builder_common.builder_utilities import (
     convert_to_iso,

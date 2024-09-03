@@ -13,6 +13,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
+
 from vxingest.builder_common.builder_utilities import get_geo_index
 from vxingest.grib2_to_cb.grib_builder_parent import GribBuilder
 

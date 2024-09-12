@@ -826,6 +826,15 @@ class GribBuilder(Builder):
             document_map[data_file_doc["id"]] = data_file_doc
             self.delete_idx_file(queue_element)
             return document_map
+        except FileNotFoundError:
+            logger.error(
+                "%s: Exception with builder build_document: file_name: %s, error: file not found - skipping this file",
+                self.__class__.__name__,
+                queue_element,
+            )
+            # remove any idx file that may have been created
+            self.delete_idx_file(queue_element)
+            return {}
         except Exception as _e:
             logger.exception(
                 "%s: Exception with builder build_document: file_name: %s, exception %s",

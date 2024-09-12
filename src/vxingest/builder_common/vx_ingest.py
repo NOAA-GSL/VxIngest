@@ -199,7 +199,7 @@ class CommonVxIngest:
             df_full_names = [element["url"] for element in df_elements]
             if pathlib.Path(directory).exists() and pathlib.Path(directory).is_dir():
                 file_list = sorted(
-                    pathlib.Path(directory).glob(file_pattern), key=os.path.getmtime
+                    pathlib.Path(directory).glob(file_pattern), key=os.path.getmtime, reverse=True
                 )
                 for filename in file_list:
                     try:

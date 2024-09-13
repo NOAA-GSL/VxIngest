@@ -507,6 +507,8 @@ def run_ingest() -> None:
         log_queue,
         args.log_dir / f"all_logs-{runtime.strftime('%Y-%m-%dT%H:%M:%S%z')}.log",
     )
+    # set profiling output
+    os.environ["PROFILE_OUTPUT_DIR"] = args.log_dir
 
     logger.info("Getting credentials")
     creds = get_credentials(args.credentials_file)

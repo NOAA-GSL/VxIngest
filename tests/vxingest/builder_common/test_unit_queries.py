@@ -8,6 +8,8 @@ from couchbase.auth import PasswordAuthenticator
 from couchbase.cluster import Cluster
 from couchbase.options import ClusterOptions, ClusterTimeoutOptions, QueryOptions
 
+from vxingest.builder_common.vx_ingest import CommonVxIngest
+
 
 def connect_cb():
     """
@@ -41,6 +43,32 @@ def connect_cb():
         .collection(cb_connection["collection"])
     )
     return cb_connection
+
+
+@pytest.mark.integration
+def test_get_file_list(tmp_path):
+    vx_ingest = CommonVxIngest()
+    vx_ingest.credentials_file = os.environ["CREDENTIALS"]
+    vx_ingest.cb_credentials = vx_ingest.get_credentials(vx_ingest.load_spec)
+    vx_ingest.connect_cb()
+    testdata = Path("tests/vxingest/builder_common/testdata/get_file_list_grib2.n1ql")
+    with testdata.open(mode="r", encoding="utf-8") as file:
+        _statement = file.read()
+    with Path(tmp_path / "2128723000010").open("w") as f:
+        f.write("test")
+    with Path.open(Path(tmp_path / "2128723000020"), "w") as f:
+        f.write("test")
+    with Path.open(Path(tmp_path / "2128723000030"), "w") as f:
+        f.write("test")
+    with Path.open(Path(tmp_path, "2128723000040"), "w") as f:
+        f.write("test")
+
+    file_list = vx_ingest.get_file_list(
+        _statement, tmp_path, "21287230000[0123456789]?", "%y%j%H%f"
+    )
+    assert file_list is not None
+    assert len(file_list) > 0
+    assert file_list[3] > file_list[2], "file_list is not reverse sorted"
 
 
 @pytest.mark.integration

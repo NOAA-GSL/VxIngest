@@ -71,11 +71,11 @@ def test_get_file_list(request):
     file_list = vx_ingest.get_file_list(
         _statement, temp_dir_path, "21287230000[0123456789]?", "%y%j%H%f"
     )
-    assert file_list is not None, f"{request.node.name}: file_list is None"
-    assert len(file_list) > 0, f"{request.node.name}: file_list is empty"
+    assert file_list is not None
+    assert len(file_list) > 0
     assert (
         file_list[3] > file_list[2]
-    ), f"{request.node.name}: file_list is not reverse sorted"
+    ), "file_list is not reverse sorted"
 
 
 @pytest.mark.integration

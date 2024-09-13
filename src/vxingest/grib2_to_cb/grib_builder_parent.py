@@ -10,13 +10,13 @@ import copy
 import cProfile
 import logging
 import math
+import os
 import sys
 from pathlib import Path
 from pstats import Stats
 
 import pyproj
 import xarray as xr
-
 from vxingest.builder_common.builder import Builder
 from vxingest.builder_common.builder_utilities import (
     convert_to_iso,
@@ -51,6 +51,9 @@ class GribBuilder(Builder):
         self.ds_translate_item_variables_map = None
 
         # self.do_profiling = False - in super
+        self.do_profiling = os.getenv("PROFILE")
+        if self.do_profiling:
+            self.profile_output_path = os.getenv("PROFILE_OUTPUT_DIR")
         # set to True to enable build_document profiling
 
     def get_proj_params_from_string(self, proj_string):
@@ -799,13 +802,13 @@ class GribBuilder(Builder):
             if self.do_profiling:
                 with cProfile.Profile() as _pr:
                     self.handle_document()
-                    with Path("profiling_stats.txt").open(
+                    with Path(self.profile_output_path  /  "profiling_stats.txt").open(
                         "w", encoding="utf-8"
                     ) as stream:
                         stats = Stats(_pr, stream=stream)
                         stats.strip_dirs()
                         stats.sort_stats("time")
-                        stats.dump_stats("profiling_stats.prof")
+                        stats.dump_stats(self.profile_output_path / "profiling_stats.prof")
                         stats.print_stats()
             else:
                 self.handle_document()

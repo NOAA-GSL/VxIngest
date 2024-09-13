@@ -44,15 +44,14 @@ def connect_cb():
     )
     return cb_connection
 
-@ pytest.mark.integration
+
+@pytest.mark.integration
 def test_get_file_list(request):
     vx_ingest = VXIngest()
     vx_ingest.credentials_file = os.environ["CREDENTIALS"]
     vx_ingest.cb_credentials = vx_ingest.get_credentials(vx_ingest.load_spec)
     vx_ingest.connect_cb()
-    testdata = Path(
-        "tests/vxingest/builder_common/testdata/get_file_list_grib2.n1ql"
-    )
+    testdata = Path("tests/vxingest/builder_common/testdata/get_file_list_grib2.n1ql")
     with testdata.open(mode="r", encoding="utf-8") as file:
         _statement = file.read()
     temp_dir_path = "/tmp/vx_ingest"
@@ -72,7 +71,10 @@ def test_get_file_list(request):
     )
     assert file_list is not None, f"{request.node.name}: file_list is None"
     assert len(file_list) > 0, f"{request.node.name}: file_list is empty"
-    assert file_list[3] > file_list[2], f"{request.node.name}: file_list is not reverse sorted"
+    assert (
+        file_list[3] > file_list[2]
+    ), f"{request.node.name}: file_list is not reverse sorted"
+
 
 @pytest.mark.integration
 def test_stations_fcst_valid_epoch(request):

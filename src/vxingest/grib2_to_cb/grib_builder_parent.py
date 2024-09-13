@@ -802,13 +802,15 @@ class GribBuilder(Builder):
             if self.do_profiling:
                 with cProfile.Profile() as _pr:
                     self.handle_document()
-                    with Path(self.profile_output_path  /  "profiling_stats.txt").open(
+                    with Path(self.profile_output_path / "profiling_stats.txt").open(
                         "w", encoding="utf-8"
                     ) as stream:
                         stats = Stats(_pr, stream=stream)
                         stats.strip_dirs()
                         stats.sort_stats("time")
-                        stats.dump_stats(self.profile_output_path / "profiling_stats.prof")
+                        stats.dump_stats(
+                            self.profile_output_path / "profiling_stats.prof"
+                        )
                         stats.print_stats()
             else:
                 self.handle_document()

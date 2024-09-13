@@ -5,6 +5,7 @@ from unittest import mock
 import pytest
 import yaml
 from couchbase.cluster import Cluster
+
 from vxingest.main import (
     create_dirs,
     determine_num_processes,
@@ -54,7 +55,7 @@ def test_create_dirs(tmp_path):
         assert dir.exists()
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_cluster():
     """Test fixture to create a mock Couchbase Cluster object instance with a known return value"""
     mock_cluster = mock.create_autospec(Cluster, instance=True)

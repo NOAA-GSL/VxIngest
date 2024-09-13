@@ -17,6 +17,7 @@ from pstats import Stats
 
 from couchbase.exceptions import DocumentNotFoundException, TimeoutException
 from couchbase.search import GeoBoundingBoxQuery, SearchOptions
+
 from vxingest.builder_common.builder import Builder
 from vxingest.builder_common.builder_utilities import (
     convert_to_iso,
@@ -41,7 +42,7 @@ class CTCBuilder(Builder):
         geo.top_left.lon as tl_lon
     FROM `{self.bucket}`.{self.scope}.{self.collection}
     WHERE type="MD" and docType="region" and subset='COMMON' and version='V01' and name="ALL_HRRR"
-    use the boubnding box to select stations for the region
+    use the bounding box to select stations for the region
     [
         {
             "bottom_right": {

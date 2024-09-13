@@ -3,6 +3,7 @@ import os
 import pyproj
 import pytest
 import xarray as xr
+
 from vxingest.grib2_to_cb.run_ingest_threads import VXIngest
 
 
@@ -18,7 +19,7 @@ def setup_connection():
     return _vx_ingest
 
 
-@pytest.mark.integration()
+@pytest.mark.integration
 def test_proj():
     """test the proj"""
     vx_ingest = None

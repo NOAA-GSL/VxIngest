@@ -2,7 +2,6 @@ import os
 from multiprocessing import JoinableQueue
 
 import pytest
-
 from vxingest.partial_sums_to_cb.run_ingest_threads import VXIngest
 from vxingest.partial_sums_to_cb.vx_ingest_manager import VxIngestManager
 
@@ -30,7 +29,7 @@ def setup_ingest():
     return _vx_ingest, vx_ingest_manager
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_cb_connect_disconnect():
     """test the cb connect and close"""
     vx_ingest_manager = None
@@ -49,7 +48,7 @@ def test_cb_connect_disconnect():
             vx_ingest_manager.close_cb()
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_credentials_and_load_spec():
     """test the get_credentials and load_spec"""
     vx_ingest_manager = None
@@ -64,7 +63,7 @@ def test_credentials_and_load_spec():
             vx_ingest_manager.close_cb()
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_write_load_job_to_files(tmp_path):
     """test write the load job"""
     vx_ingest_manager = None
@@ -81,7 +80,7 @@ def test_write_load_job_to_files(tmp_path):
             vx_ingest_manager.close_cb()
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_build_load_job_doc(tmp_path):
     """test the build load job"""
     vx_ingest_manager = None

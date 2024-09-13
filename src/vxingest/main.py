@@ -23,7 +23,6 @@ from couchbase.options import (  # type: ignore
     QueryOptions,
 )
 from prometheus_client import CollectorRegistry, Counter, Gauge, write_to_textfile
-
 from vxingest.ctc_to_cb.run_ingest_threads import VXIngest as CTCIngest
 from vxingest.grib2_to_cb.run_ingest_threads import VXIngest as GRIBIngest
 from vxingest.log_config import (

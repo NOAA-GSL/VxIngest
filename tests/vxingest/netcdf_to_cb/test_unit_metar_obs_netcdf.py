@@ -10,7 +10,6 @@ import pytest
 from couchbase.mutation_state import MutationState
 from couchbase.n1ql import QueryScanConsistency
 from couchbase.options import QueryOptions
-
 from vxingest.netcdf_to_cb.netcdf_builder import NetcdfMetarObsBuilderV01
 from vxingest.netcdf_to_cb.run_ingest_threads import VXIngest
 
@@ -31,7 +30,7 @@ def setup_connection():
     return _vx_ingest
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_credentials_and_load_spec():
     """test the get_credentials and load_spec"""
     try:
@@ -43,7 +42,7 @@ def test_credentials_and_load_spec():
         vx_ingest.close_cb()
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_cb_connect_disconnect():
     """test the cb connect and close"""
     try:
@@ -58,7 +57,7 @@ def test_cb_connect_disconnect():
         vx_ingest.close_cb()
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_write_load_job_to_files(tmp_path):
     """test write the load job"""
     try:
@@ -74,7 +73,7 @@ def test_write_load_job_to_files(tmp_path):
         vx_ingest.close_cb()
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_build_load_job_doc(tmp_path):
     """test the build load job"""
     try:
@@ -92,7 +91,7 @@ def test_build_load_job_doc(tmp_path):
         vx_ingest.close_cb()
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_umask_value_transform():
     """test the derive_valid_time_epoch
     requires file_name which should match the format for grib2 hrr_ops files
@@ -136,7 +135,7 @@ def test_umask_value_transform():
         _nc.close()  # close returns memoryview
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_vxingest_get_file_list(tmp_path):
     """test the vxingest get_file_list sorting and filtering"""
     try:
@@ -219,7 +218,7 @@ def test_vxingest_get_file_list(tmp_path):
         vx_ingest.close_cb()
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_interpolate_time():
     """test the interpolate time routine in netcdf_builder"""
     vx_ingest = setup_connection()
@@ -269,7 +268,7 @@ def test_interpolate_time():
             ), f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_interpolate_time_iso():
     """test the interpolate time routine in netcdf_builder"""
     vx_ingest = setup_connection()
@@ -315,7 +314,7 @@ def test_interpolate_time_iso():
             ), f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_handle_station():
     """Tests the ability to add or update a station with these possibilities...
     1) The station is new and there is no station document that yet exists so
@@ -694,7 +693,7 @@ def assert_station(cluster, station_zbaa, builder):
         )
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_derive_valid_time_epoch():
     """test the derive_valid_time_epoch routine in netcdf_builder"""
     vx_ingest = setup_connection()
@@ -713,7 +712,7 @@ def test_derive_valid_time_epoch():
     ), f"derived epoch {derived_epoch} is not equal to 1636329600"
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_derive_valid_time_iso():
     """test the derive_valid_time_iso routine in netcdf_builder"""
     vx_ingest = setup_connection()

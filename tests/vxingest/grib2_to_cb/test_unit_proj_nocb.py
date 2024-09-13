@@ -3,7 +3,7 @@ import pytest
 import xarray as xr
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_proj_nocb():
     """test the proj"""
     ds_height_above_ground_2m = xr.open_dataset(

@@ -14,7 +14,6 @@ import yaml
 from couchbase.auth import PasswordAuthenticator
 from couchbase.cluster import Cluster
 from couchbase.options import ClusterOptions, ClusterTimeoutOptions
-
 from vxingest.ctc_to_cb import ctc_builder
 from vxingest.ctc_to_cb.run_ingest_threads import VXIngest
 
@@ -38,7 +37,7 @@ def stub_worker_log_configurer(queue: Queue):
     pass
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_check_fcst_valid_epoch_fcst_valid_iso():
     """
     integration test to check fcst_valid_epoch is derived correctly
@@ -84,7 +83,7 @@ def test_check_fcst_valid_epoch_fcst_valid_iso():
         assert (fve % 3600) == 0, "fcstValidEpoch is not at top of hour"
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_get_stations_geo_search():
     """
     Currently we know that there are differences between the geo search stations list and the legacy
@@ -289,7 +288,7 @@ def calculate_cb_ctc(
     return ctc
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_ctc_builder_ceiling_hrrr_ops_all_hrrr():
     """
     This test verifies that data is returned for each fcstLen and each threshold.
@@ -381,7 +380,7 @@ def test_ctc_builder_ceiling_hrrr_ops_all_hrrr():
                 continue
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_ctc_builder_visibility_hrrr_ops_all_hrrr():
     """
     This test verifies that data is returned for each fcstLen and each threshold.
@@ -473,7 +472,7 @@ def test_ctc_builder_visibility_hrrr_ops_all_hrrr():
                 continue
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_ctc_ceiling_data_hrrr_ops_all_hrrr():
     """
     This test is a comprehensive test of the ctcBuilder data. It will retrieve CTC documents
@@ -606,7 +605,7 @@ def test_ctc_ceiling_data_hrrr_ops_all_hrrr():
                 the derived CTC {field}: {_ctc_value} and caclulated CTC {field}: {_cb_ctc_value} values do not match"""
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_ctc_visibiltiy_data_hrrr_ops_all_hrrr():
     """
     This test is a comprehensive test of the ctcBuilder data. It will retrieve CTC documents

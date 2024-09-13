@@ -45,7 +45,7 @@ def connect_cb():
     return cb_connection
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_get_file_list(request):
     vx_ingest = VXIngest()
     vx_ingest.credentials_file = os.environ["CREDENTIALS"]
@@ -57,13 +57,13 @@ def test_get_file_list(request):
     temp_dir_path = "/tmp/vx_ingest"
     shutil.rmtree(temp_dir_path, ignore_errors=True)
     Path(temp_dir_path).mkdir(parents=True, exist_ok=True)
-    with Path(os.path.join(temp_dir_path, "2128723000010")).open("w") as f:
+    with Path(temp_dir_path / "2128723000010").open("w") as f:
         f.write("test")
-    with open(os.path.join(temp_dir_path, "2128723000020"), "w") as f:
+    with Path.open(Path(temp_dir_path / "2128723000020"), "w") as f:
         f.write("test")
-    with open(os.path.join(temp_dir_path, "2128723000030"), "w") as f:
+    with Path.open(Path(temp_dir_path / "2128723000030"), "w") as f:
         f.write("test")
-    with open(os.path.join(temp_dir_path, "2128723000040"), "w") as f:
+    with Path.open(Path(temp_dir_path, "2128723000040"), "w") as f:
         f.write("test")
 
     file_list = vx_ingest.get_file_list(
@@ -76,7 +76,7 @@ def test_get_file_list(request):
     ), f"{request.node.name}: file_list is not reverse sorted"
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_stations_fcst_valid_epoch(request):
     _expected_time = 10
     _name = request.node.name
@@ -96,7 +96,7 @@ def test_stations_fcst_valid_epoch(request):
     ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_stations_get_file_list_grib2(request):
     _expected_time = 16
     _name = request.node.name
@@ -114,7 +114,7 @@ def test_stations_get_file_list_grib2(request):
     ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_stations_get_file_list_netcdf(request):
     _expected_time = 5
     _name = request.node.name
@@ -132,7 +132,7 @@ def test_stations_get_file_list_netcdf(request):
     ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_metar_count(request):
     _expected_time = 0.05
     _name = request.node.name

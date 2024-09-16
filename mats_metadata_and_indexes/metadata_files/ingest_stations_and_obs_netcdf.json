@@ -15,10 +15,10 @@
       "data": {
         "*stationName": {
           "Ceiling": "&ceiling_transform|*skyCover,*skyLayerBase",
-          "DewPoint": "&kelvin_to_farenheight|*dewpoint",
+          "DewPoint": "&kelvin_to_fahrenheit|*dewpoint",
           "Reported Time": "&umask_value_transform|*timeObs",
           "Surface Pressure": "&handle_pressure|*altimeter",
-          "Temperature": "&kelvin_to_farenheight|*temperature",
+          "Temperature": "&kelvin_to_fahrenheit|*temperature",
           "Visibility": "&handle_visibility|*visibility",
           "WD": "&umask_value_transform|*windDir",
           "WS": "&meterspersecond_to_milesperhour|*windSpeed",
@@ -66,10 +66,10 @@
       "data": {
         "*stationName": {
           "Ceiling": "&ceiling_transform|*skyCover,*skyLayerBase",
-          "DewPoint": "&kelvin_to_farenheight|*dewpoint",
+          "DewPoint": "&kelvin_to_fahrenheit|*dewpoint",
           "Reported Time": "&umask_value_transform|*timeObs",
           "Surface Pressure": "&handle_pressure|*altimeter",
-          "Temperature": "&kelvin_to_farenheight|*temperature",
+          "Temperature": "&kelvin_to_fahrenheit|*temperature",
           "Visibility": "&handle_visibility|*visibility",
           "WD": "&umask_value_transform|*windDir",
           "WS": "&meterspersecond_to_milesperhour|*windSpeed",
@@ -98,7 +98,6 @@
     "type": "MD",
     "version": "V01"
   },
-
   {
     "builder_type": "NetcdfMetarLegacyObsBuilderV01",
     "validTimeInterval": 3600,
@@ -115,10 +114,10 @@
       "data": {
         "*stationName": {
           "Ceiling": "&ceiling_transform|*skyCover,*skyLayerBase",
-          "DewPoint": "&kelvin_to_farenheight|*dewpoint",
+          "DewPoint": "&kelvin_to_fahrenheit|*dewpoint",
           "Reported Time": "&umask_value_transform|*timeObs",
           "Surface Pressure": "&handle_pressure|*altimeter",
-          "Temperature": "&kelvin_to_farenheight|*temperature",
+          "Temperature": "&kelvin_to_fahrenheit|*temperature",
           "Visibility": "&handle_visibility|*visibility",
           "WD": "&umask_value_transform|*windDir",
           "WS": "&meterspersecond_to_milesperhour|*windSpeed",

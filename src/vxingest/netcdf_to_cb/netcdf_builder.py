@@ -593,7 +593,7 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
             logger.error("ceiling_transform stacktrace %s", str(traceback.format_exc()))
             return None
 
-    def kelvin_to_farenheight(self, params_dict):
+    def kelvin_to_fahrenheit(self, params_dict):
         """Converts kelvin to farenheight performing any translations that are necessary
         Args:
             params_dict (dict): named function parameters
@@ -607,7 +607,7 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
             return value
         except Exception as _e:
             logger.error(
-                "%s handle_data: Exception in named function kelvin_to_farenheight:  error: %s",
+                "%s handle_data: Exception in named function kelvin_to_fahrenheit:  error: %s",
                 self.__class__.__name__,
                 str(_e),
             )

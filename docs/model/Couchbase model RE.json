@@ -12729,7 +12729,7 @@
                                             "primaryKey": false,
                                             "GUID": "ec41d74d-b6b0-11ec-9edf-eb8bb4011ddc",
                                             "required": true,
-                                            "sample": "&kelvin_to_farenheight|*2 metre dewpoint temperature",
+                                            "sample": "&kelvin_to_fahrenheit|*2 metre dewpoint temperature",
                                             "error": {}
                                         },
                                         {
@@ -12751,7 +12751,7 @@
                                             "primaryKey": false,
                                             "GUID": "ec41d751-b6b0-11ec-9edf-eb8bb4011ddc",
                                             "required": true,
-                                            "sample": "&kelvin_to_farenheight|*2 metre temperature",
+                                            "sample": "&kelvin_to_fahrenheit|*2 metre temperature",
                                             "error": {}
                                         },
                                         {

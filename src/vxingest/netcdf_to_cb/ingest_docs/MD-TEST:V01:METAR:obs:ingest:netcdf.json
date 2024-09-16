@@ -17,7 +17,7 @@
         "DewPoint": "&dewpoint_transform:*dewpoint",
         "Reported Time": "*timeObs",
         "Surface Pressure": "*altimeter",
-        "Temperature": "&kelvin_to_farenheight:*temperature",
+        "Temperature": "&kelvin_to_fahrenheit:*temperature",
         "Visibility": "&meters_to_miles:*visibility",
         "WD": "*windDir",
         "WS": "&meterspersecond_to_milesperhour:*windSpeed",

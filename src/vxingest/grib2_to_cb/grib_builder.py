@@ -97,7 +97,7 @@ class GribModelBuilderV01(GribBuilder):
 
     def get_document_map(self):
         """
-        Retrive the in-memory document map.
+        Retrieve the in-memory document map.
         In case there are leftovers we have to process them first using handle_document.
         Returns:
             map(dict): the document_map
@@ -138,7 +138,7 @@ class GribModelBuilderV01(GribBuilder):
         """
         # This is the original 'C' algorithm for calculating ceiling from grib (trying to remain faithful to the original algorithm)
         # Notice that the result values are divided from meters by tens of meters i.e. 60000 is 6000 feet
-        # in the original algorythm but the code here does no such thing.
+        # in the original algorithm but the code here does no such thing.
         # if(ceil_msl < -1000 ||
         #    ceil_msl > 1e10) {
         #   /* printf("setting ceil_agl for x/y %d/%d from %0f to 6000\n",xi,yj,ceil_msl); */
@@ -191,8 +191,10 @@ class GribModelBuilderV01(GribBuilder):
                 ):
                     ceil_msl_values.append(60000)
                 else:
-                    ceil_msl_values.append(ceil_var_values[y_gridpoint, x_gridpoint])
-
+                    # convert to np.float64 because np.float32 is not json serializable
+                    ceil_msl_values.append(
+                        np.float64(ceil_var_values[y_gridpoint, x_gridpoint])
+                    )
             ceil_agl = []
             # determine the ceil_agl values for each station
             for i, _station in enumerate(self.domain_stations):
@@ -220,11 +222,11 @@ class GribModelBuilderV01(GribBuilder):
 
     def handle_surface_pressure(self, params_dict):
         """
-        translate all the pressures(one per station location) to milibars
+        translate all the pressures(one per station location) to millibars
         """
         pressures = []
         for _v, v_intrp_pressure in list(params_dict.values())[0]:
-            # Convert from pascals to milibars
+            # Convert from pascals to millibars
             pressures.append(float(v_intrp_pressure) / 100)
         return pressures
 
@@ -260,12 +262,12 @@ class GribModelBuilderV01(GribBuilder):
             )
         return rh_interpolated_values
 
-    def kelvin_to_farenheight(self, params_dict):
+    def kelvin_to_fahrenheit(self, params_dict):
         """
         param:params_dict expects {'station':{},'*variable name':variable_value}
         Used for temperature and dewpoint
         """
-        # Convert each station value from Kelvin to Farenheit
+        # Convert each station value from Kelvin to Fahrenheit
         tempf_values = []
         for _v, v_intrp_tempf in list(params_dict.values())[0]:
             tempf_values.append(
@@ -288,7 +290,7 @@ class GribModelBuilderV01(GribBuilder):
         Returns:
             [int]: translated wind speed
         """
-        # interpolated value cannot use rounded gridpoints
+        # interpolated value cannot use rounded grid points
         if self.ds_translate_item_variables_map["10 metre U wind component"] is None:
             return None
 
@@ -354,7 +356,7 @@ class GribModelBuilderV01(GribBuilder):
             )
             x_gridpoint = station["geo"][geo_index]["x_gridpoint"]
             y_gridpoint = station["geo"][geo_index]["y_gridpoint"]
-            # interpolated value cannot use rounded gridpoints
+            # interpolated value cannot use rounded grid points
             uwind_ms.append(self.interp_grid_box(u_values, y_gridpoint, x_gridpoint))
         # vwind_message = self.grbs.select(name="10 metre V wind component")[0]
         v_values = self.ds_translate_item_variables_map[
@@ -417,7 +419,7 @@ class GribModelBuilderV01(GribBuilder):
             )
             x_gridpoint = station["geo"][geo_index]["x_gridpoint"]
             y_gridpoint = station["geo"][geo_index]["y_gridpoint"]
-            # interpolated value cannot use rounded gridpoints
+            # interpolated value cannot use rounded grid points
             uwind_ms.append(
                 (float)(self.interp_grid_box(u_values, y_gridpoint, x_gridpoint))
             )

@@ -31,10 +31,10 @@ be certain that it already exists or you must create it.
     "data": {
       "*stationName": {
         "Ceiling": "&ceiling_transform|*skyCover,*skyLayerBase",
-        "DewPoint": "&kelvin_to_farenheight|*dewpoint",
+        "DewPoint": "&kelvin_to_fahrenheit|*dewpoint",
         "Reported Time": "&umask_value_transform|*timeObs",
         "Surface Pressure": "&handle_pressure|*altimeter",
-        "Temperature": "&kelvin_to_farenheight|*temperature",
+        "Temperature": "&kelvin_to_fahrenheit|*temperature",
         "Visibility": "&handle_visibility|*visibility",
         "WD": "&umask_value_transform|*windDir",
         "WS": "&meterspersecond_to_milesperhour|*windSpeed",

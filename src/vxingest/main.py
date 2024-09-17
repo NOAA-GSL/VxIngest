@@ -23,6 +23,7 @@ from couchbase.options import (  # type: ignore
     QueryOptions,
 )
 from prometheus_client import CollectorRegistry, Counter, Gauge, write_to_textfile
+
 from vxingest.ctc_to_cb.run_ingest_threads import VXIngest as CTCIngest
 from vxingest.grib2_to_cb.run_ingest_threads import VXIngest as GRIBIngest
 from vxingest.log_config import (
@@ -539,6 +540,8 @@ def run_ingest() -> None:
         log_queue,
         args.log_dir / f"all_logs-{runtime.strftime('%Y-%m-%dT%H:%M:%S%z')}.log",
     )
+    # set profiling output
+    os.environ["PROFILE_OUTPUT_DIR"] = str(args.log_dir)
 
     logger.info("Getting credentials")
     creds = get_credentials(args.credentials_file)

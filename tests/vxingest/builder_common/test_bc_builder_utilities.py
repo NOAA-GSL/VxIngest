@@ -1,6 +1,6 @@
 import numpy.ma as ma
 import pytest
-from vxingest.builder_common.builder import Builder
+
 from vxingest.builder_common.builder_utilities import (
     convert_to_iso,
     get_geo_index,

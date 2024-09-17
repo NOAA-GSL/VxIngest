@@ -13,6 +13,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
+
 from vxingest.builder_common.builder_utilities import get_geo_index
 from vxingest.grib2_to_cb.grib_builder_parent import GribBuilder
 
@@ -190,8 +191,10 @@ class GribModelBuilderV01(GribBuilder):
                 ):
                     ceil_msl_values.append(60000)
                 else:
-                    ceil_msl_values.append(ceil_var_values[y_gridpoint, x_gridpoint])
-
+                    # convert to np.float64 because np.float32 is not json serializable
+                    ceil_msl_values.append(
+                        np.float64(ceil_var_values[y_gridpoint, x_gridpoint])
+                    )
             ceil_agl = []
             # determine the ceil_agl values for each station
             for i, _station in enumerate(self.domain_stations):
@@ -287,7 +290,7 @@ class GribModelBuilderV01(GribBuilder):
         Returns:
             [int]: translated wind speed
         """
-        # interpolated value cannot use rounded gridpoint
+        # interpolated value cannot use rounded grid points
         if self.ds_translate_item_variables_map["10 metre U wind component"] is None:
             return None
 
@@ -353,7 +356,7 @@ class GribModelBuilderV01(GribBuilder):
             )
             x_gridpoint = station["geo"][geo_index]["x_gridpoint"]
             y_gridpoint = station["geo"][geo_index]["y_gridpoint"]
-            # interpolated value cannot use rounded gridpoint
+            # interpolated value cannot use rounded grid points
             uwind_ms.append(self.interp_grid_box(u_values, y_gridpoint, x_gridpoint))
         # vwind_message = self.grbs.select(name="10 metre V wind component")[0]
         v_values = self.ds_translate_item_variables_map[
@@ -416,7 +419,7 @@ class GribModelBuilderV01(GribBuilder):
             )
             x_gridpoint = station["geo"][geo_index]["x_gridpoint"]
             y_gridpoint = station["geo"][geo_index]["y_gridpoint"]
-            # interpolated value cannot use rounded gridpoint
+            # interpolated value cannot use rounded grid points
             uwind_ms.append(
                 (float)(self.interp_grid_box(u_values, y_gridpoint, x_gridpoint))
             )

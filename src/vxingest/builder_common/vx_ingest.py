@@ -198,6 +198,7 @@ class CommonVxIngest:
             df_elements = list(result)
             df_full_names = [element["url"] for element in df_elements]
             if pathlib.Path(directory).exists() and pathlib.Path(directory).is_dir():
+                # the file list is sorted by getmtime so that the oldest files are processed first
                 file_list = sorted(
                     pathlib.Path(directory).glob(file_pattern), key=os.path.getmtime
                 )

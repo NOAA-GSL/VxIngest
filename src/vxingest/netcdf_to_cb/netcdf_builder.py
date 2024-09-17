@@ -22,6 +22,7 @@ import netCDF4 as nc
 import numpy.ma as ma
 from metpy.calc import relative_humidity_from_dewpoint, wind_components
 from metpy.units import units
+
 from vxingest.builder_common.builder import Builder
 from vxingest.builder_common.builder_utilities import (
     convert_to_iso,
@@ -381,6 +382,14 @@ class NetcdfBuilder(Builder):
             )
             document_map[data_file_doc["id"]] = data_file_doc
             return document_map
+
+        except FileNotFoundError:
+            logger.error(
+                "%s: Exception with builder build_document: file_name: %s, error: file not found - skipping this file",
+                self.__class__.__name__,
+                queue_element,
+            )
+            return {}
         except Exception as _e:
             logger.exception(
                 "%s: Exception with builder build_document: file_name: %s",
@@ -584,7 +593,7 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
             logger.error("ceiling_transform stacktrace %s", str(traceback.format_exc()))
             return None
 
-    def kelvin_to_farenheight(self, params_dict):
+    def kelvin_to_fahrenheit(self, params_dict):
         """Converts kelvin to farenheight performing any translations that are necessary
         Args:
             params_dict (dict): named function parameters
@@ -598,7 +607,7 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
             return value
         except Exception as _e:
             logger.error(
-                "%s handle_data: Exception in named function kelvin_to_farenheight:  error: %s",
+                "%s handle_data: Exception in named function kelvin_to_fahrenheit:  error: %s",
                 self.__class__.__name__,
                 str(_e),
             )

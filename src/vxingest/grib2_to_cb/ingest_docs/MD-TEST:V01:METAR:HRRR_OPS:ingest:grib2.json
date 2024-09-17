@@ -14,9 +14,9 @@
     "data": {
       "&getName": {
         "Ceiling": "&handle_ceiling",
-        "DewPoint": "&kelvin_to_farenheight|*2 metre dewpoint temperature",
+        "DewPoint": "&kelvin_to_fahrenheit|*2 metre dewpoint temperature",
         "Surface Pressure": "&handle_surface_pressure|*Surface pressure",
-        "Temperature": "&kelvin_to_farenheight|*2 metre temperature",
+        "Temperature": "&kelvin_to_fahrenheit|*2 metre temperature",
         "Visibility": "&handle_visibility|*Visibility",
         "RH": "&handle_RH|*2 metre relative humidity",
         "WD": "&handle_wind_direction",

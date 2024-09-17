@@ -40,6 +40,7 @@ RUN apt-get update && \
     apt-get install -y build-essential && \
     apt-get clean && rm -rf /var/lib/apt/lists/* 
 
+# Make sure the python tooling is up-to-date for when it's copied into the prod layer
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 RUN pip install --no-cache-dir poetry
 
@@ -80,6 +81,9 @@ ENV COMMIT=${COMMITSHA}
 ENV VERSION=${BUILDVER}
 
 LABEL version=${BUILDVER} code.branch=${COMMITBRANCH} code.commit=${COMMITSHA}
+
+# Update the image's built in Python tooling before we activate the virtual environment
+RUN pip install --no-cache-dir --upgrade pip setuptools
 
 # Activate the virtual environment
 ENV VIRTUAL_ENV=/app/.venv \

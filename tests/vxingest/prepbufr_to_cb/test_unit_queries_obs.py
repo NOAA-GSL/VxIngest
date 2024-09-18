@@ -13,7 +13,6 @@ def connect_cb():
     """
     create a couchbase connection and maintain the collection and cluster objects.
     """
-
     credentials_file = os.environ["CREDENTIALS"]
     assert (
         Path(credentials_file).is_file() is True
@@ -44,11 +43,33 @@ def connect_cb():
     return cb_connection
 
 
-@pytest.mark.integration
-def test_epoch_fcstlen_model(request):
+@pytest.mark.integration()
+def test_ingest_document_id(request):
     _name = request.node.name
-    _expected_time = 3.0
-    testdata = Path("tests/vxingest/ctc_to_cb/testdata/test_epoch_fcstLen_model.n1ql")
+    _expected_time = 0.005
+    testdata = Path("tests/vxingest/netcdf_to_cb/testdata/test_ingest_document_id.n1ql")
+    with testdata.open(mode="r", encoding="utf-8") as file:
+        _statement = file.read()
+    result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
+    # have to read the rows before we can get to the metadata as of couchbase 4.1
+    _rows = list(result.rows())
+    metadata = result.metadata()
+    metrics = metadata.metrics()
+    elapsed_time = metrics.elapsed_time()
+    print(f"{_name}: elapsed_time is {elapsed_time}")
+    assert result is not None, "{_name}: result is None"
+    assert (
+        elapsed_time.total_seconds() < _expected_time
+    ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
+
+
+@pytest.mark.integration()
+def test_ingest_document_fields(request):
+    _name = request.node.name
+    _expected_time = 0.005
+    testdata = Path(
+        "tests/vxingest/netcdf_to_cb/testdata/test_ingest_document_fields.n1ql"
+    )
     with testdata.open(mode="r", encoding="utf-8") as file:
         _statement = file.read()
     result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
@@ -62,65 +83,11 @@ def test_epoch_fcstlen_model(request):
     ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
 
 
-@pytest.mark.integration
-def test_epoch_fcstlen_obs(request):
-    _name = request.node.name
-    _expected_time = 0.2
-    testdata = Path("tests/vxingest/ctc_to_cb/testdata/test_epoch_fcstLen_obs.n1ql")
-    with testdata.open(mode="r", encoding="utf-8") as file:
-        _statement = file.read()
-    result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
-    # have to read the rows before we can get to the metadata as of couchbase 4.1
-    _rows = list(result.rows())
-    elapsed_time = result.metadata().metrics().elapsed_time().total_seconds()
-    print(f"{_name}: elapsed_time is {elapsed_time}")
-    assert result is not None, "{_name}: result is None"
-    assert (
-        elapsed_time < _expected_time
-    ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
-
-
-@pytest.mark.integration
-def test_forecast_valid_epoch(request):
-    _name = request.node.name
-    _expected_time = 6.0
-    testdata = Path("tests/vxingest/ctc_to_cb/testdata/test_forecast_valid_epoch.n1ql")
-    with testdata.open(mode="r", encoding="utf-8") as file:
-        _statement = file.read()
-    result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
-    # have to read the rows before we can get to the metadata as of couchbase 4.1
-    _rows = list(result.rows())
-    elapsed_time = result.metadata().metrics().elapsed_time().total_seconds()
-    print(f"{_name}: elapsed_time is {elapsed_time}")
-    assert result is not None, "{_name}: result is None"
-    assert (
-        elapsed_time < _expected_time
-    ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
-
-
-@pytest.mark.integration
-def test_get_region_lat_lon(request):
-    _name = request.node.name
-    _expected_time = 0.02
-    testdata = Path("tests/vxingest/ctc_to_cb/testdata/test_get_region_lat_lon.n1ql")
-    with testdata.open(mode="r", encoding="utf-8") as file:
-        _statement = file.read()
-    result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
-    # have to read the rows before we can get to the metadata as of couchbase 4.1
-    _rows = list(result.rows())
-    elapsed_time = result.metadata().metrics().elapsed_time().total_seconds()
-    print(f"{_name}: elapsed_time is {elapsed_time}")
-    assert result is not None, "{_name}: result is None"
-    assert (
-        elapsed_time < _expected_time
-    ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
-
-
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_get_stations(request):
     _name = request.node.name
-    _expected_time = 3
-    testdata = Path("tests/vxingest/ctc_to_cb/testdata/test_get_stations.n1ql")
+    _expected_time = 0.01
+    testdata = Path("tests/vxingest/netcdf_to_cb/testdata/test_get_stations.n1ql")
     with testdata.open(mode="r", encoding="utf-8") as file:
         _statement = file.read()
     result = connect_cb()["cluster"].query(_statement, QueryOptions(metrics=True))
@@ -134,12 +101,12 @@ def test_get_stations(request):
     ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
 
 
-@pytest.mark.integration
-def test_get_threshold_descriptions(request):
+@pytest.mark.integration()
+def test_get_obs_by_fcst_valid_epoch(request):
     _name = request.node.name
-    _expected_time = 0.6
+    _expected_time = 1
     testdata = Path(
-        "tests/vxingest/ctc_to_cb/testdata/test_get_threshold_descriptions.n1ql"
+        "tests/vxingest/netcdf_to_cb/testdata/test_get_obs_by_fcstValidEpoch.n1ql"
     )
     with testdata.open(mode="r", encoding="utf-8") as file:
         _statement = file.read()

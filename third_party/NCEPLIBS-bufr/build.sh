@@ -1,12 +1,12 @@
 #!/bin/bash
 set -euo pipefail
 # NOTE:
-# The embedded NCEPLIBS-bufr build depends on a bufr-12.0.1.tgz file that is served from the
+# The embedded NCEPLIBS-bufr build depends on a bufr-12.1.0.tgz file that is served from the
 # EMC's internal web server. This file may not always be available. If you are unable to
-# build the NCEPLIBS-bufr package, you can download the bufr-12.0.1.tgz file from
+# build the NCEPLIBS-bufr package, you can download the bufr-12.1.0.tgz file from
 # https://drive.google.com/file/d/1ZyQsJ77j9yFKJG9nR87zejOBPKFasShl/view?usp=sharing
 # and explode it in a local directory, then pass the "local_test"  option to this build script.
-# For example: build.sh local_test /path/to/bufr-12.0.1 (exploded test data directory)
+# For example: build.sh local_test /path/to/bufr-12.1.0 (exploded test data directory)
 
 VxIngest_root_dir=$(git rev-parse --show-toplevel)
 ret=$?
@@ -25,7 +25,7 @@ local_test=false
 # Check for the local_test option
 if [ "${1:-}" == "local_test" ]; then
     if [ -z "${2:-}" ]; then
-        echo "The local_test option requires a path to the exploded test data from the bufr-12.0.1.tgz file."
+        echo "The local_test option requires a path to the exploded test data from the bufr-12.1.0.tgz file."
         exit 1
     fi
     bufr_test_dir=$2
@@ -68,17 +68,17 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# NOTE: We are using the develop version for now because none of the releases support python12 yet.
-# When a release is made that supports python 3.12, we can switch to that. FIXME
-# NCEPLIBSbufr_version="12.0.1"
+# NOTE: We were using the develop version for now because none of the releases support python12 yet.
+# Now that a release is made that supports python 3.12, we can switch to that.
+ NCEPLIBSbufr_version="12.1.0"
 # Use a specific sha for now - we know that one builds
-NCEPLIBSbufr_version="0d9834838df19879d5469c4c121f81d00eb13c66"
+#NCEPLIBSbufr_version="0d9834838df19879d5469c4c121f81d00eb13c66"
 tmp_workdir=$(mktemp -d)
 cd $tmp_workdir
-#wget https://github.com/NOAA-EMC/NCEPLIBS-bufr/archive/refs/tags/v${NCEPLIBSbufr_version}.tar.gz
-wget https://github.com/NOAA-EMC/NCEPLIBS-bufr/archive/${NCEPLIBSbufr_version}.zip
-#tar -xzf v${NCEPLIBSbufr_version}.tar.gz
-unzip ${NCEPLIBSbufr_version}.zip
+wget https://github.com/NOAA-EMC/NCEPLIBS-bufr/archive/refs/tags/v${NCEPLIBSbufr_version}.tar.gz
+#wget https://github.com/NOAA-EMC/NCEPLIBS-bufr/archive/${NCEPLIBSbufr_version}.zip
+tar -xzf v${NCEPLIBSbufr_version}.tar.gz
+#unzip ${NCEPLIBSbufr_version}.zip
 cd NCEPLIBS-bufr-${NCEPLIBSbufr_version}
 
 # Create and use a 3.12 python venv
@@ -97,6 +97,10 @@ platform=$(echo ${platform} | tr '[:upper:]' '[:lower:]' | tr '-' '_' | tr '.' '
 python -m venv .venv-3.12
 # activate venv
 . .venv-3.12/bin/activate
+# add poetry to path
+PATH=$PATH:${HOME}/.local/bin
+# upgrade pip
+pip install --upgrade pip
 # set a trap to deactivate when the script exits
 trap "deactivate" EXIT
 

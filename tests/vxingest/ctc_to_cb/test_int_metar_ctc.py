@@ -294,7 +294,7 @@ def test_ctc_builder_ceiling_hrrr_ops_all_hrrr():
     """
     This test verifies that data is returned for each fcstLen and each threshold.
     It can be used to debug the builder by putting a specific epoch for first_epoch.
-    By default it will build all unbuilt CTC objects and put them into the output folder.
+    By default it will build all un-built CTC objects and put them into the output folder.
     Then it takes the last output json file and loads that file.
     Then the test derives the same CTC.
     It calculates the CTC using couchbase data for input.
@@ -306,11 +306,11 @@ def test_ctc_builder_ceiling_hrrr_ops_all_hrrr():
 
     credentials_file = os.environ["CREDENTIALS"]
     job_id = "JOB-TEST:V01:METAR:CTC:CEILING:MODEL:OPS"
-    outdir = Path("/opt/data/ctc_to_cb/hrrr_ops/ceiling/output")
-    if not outdir.exists():
+    _outdir = Path("/opt/data/ctc_to_cb/hrrr_ops/ceiling/output")
+    if not _outdir.exists():
         # Create a new directory because it does not exist
-        outdir.mkdir(parents=True)
-    files = outdir.glob("*.json")
+        _outdir.mkdir(parents=True)
+    files = _outdir.glob("*.json")
     for _f in files:
         Path(_f).unlink()
     log_queue = Queue()
@@ -320,7 +320,7 @@ def test_ctc_builder_ceiling_hrrr_ops_all_hrrr():
         {
             "job_id": job_id,
             "credentials_file": credentials_file,
-            "output_dir": str(outdir),
+            "output_dir": str(_outdir),
             "threads": 1,
             "first_epoch": 1638489600,
             "last_epoch": 1638496800,
@@ -329,7 +329,7 @@ def test_ctc_builder_ceiling_hrrr_ops_all_hrrr():
         stub_worker_log_configurer,
     )
 
-    list_of_output_files = outdir.glob("*")
+    list_of_output_files = _outdir.glob("*")
     latest_output_file = min(list_of_output_files, key=os.path.getctime)
 
     # Opening JSON file
@@ -377,7 +377,7 @@ def test_ctc_builder_ceiling_hrrr_ops_all_hrrr():
                 region="ALL_HRRR",
             )
             if cb_ctc is None:
-                print(f"cb_ctc is None for threshold {str(_t)}- contunuing")
+                print(f"cb_ctc is None for threshold {str(_t)}- continuing")
                 continue
 
 
@@ -386,7 +386,7 @@ def test_ctc_builder_visibility_hrrr_ops_all_hrrr():
     """
     This test verifies that data is returned for each fcstLen and each threshold.
     It can be used to debug the builder by putting a specific epoch for first_epoch.
-    By default it will build all unbuilt CTC objects and put them into the output folder.
+    By default it will build all un-built CTC objects and put them into the output folder.
     Then it takes the last output json file and loads that file.
     Then the test derives the same CTC.
     It calculates the CTC using couchbase data for input.
@@ -469,7 +469,7 @@ def test_ctc_builder_visibility_hrrr_ops_all_hrrr():
                 region="ALL_HRRR",
             )
             if cb_ctc is None:
-                print(f"cb_ctc is None for threshold {str(_threshold)}- contunuing")
+                print(f"cb_ctc is None for threshold {str(_threshold)}- continuing")
                 continue
 
 
@@ -480,7 +480,7 @@ def test_ctc_ceiling_data_hrrr_ops_all_hrrr():
     for a specific fcstValidEpoch from couchbase and calculate the CTC's for the same fcstValidEpoch.
     It then compares the data with assertions. The intent is to
     demonstrate that the data transformation from input model obs pairs is being done
-    corrctly.
+    correctly.
     """
 
     credentials_file = os.environ["CREDENTIALS"]
@@ -535,7 +535,7 @@ def test_ctc_ceiling_data_hrrr_ops_all_hrrr():
         """
     )
     cb_fcst_valid_lens = list(result)
-    # get the thesholdDescriptions from the couchbase metadata
+    # get the thresholdDescriptions from the couchbase metadata
     # result = cluster.query(
     #     f"""
     #     SELECT RAW thresholdDescriptions.ceiling
@@ -583,11 +583,11 @@ def test_ctc_ceiling_data_hrrr_ops_all_hrrr():
             order by fcstLen;"""
     )
     for _cb_ctc in cb_results:
-        fcstln = _cb_ctc["METAR"]["fcstLen"]
+        _fcstln = _cb_ctc["METAR"]["fcstLen"]
         for _threshold in _cb_ctc["METAR"]["data"]:
             _ctc = calculate_cb_ctc(
                 fcst_valid_epoch,
-                fcstln,
+                _fcstln,
                 float(_threshold),
                 "HRRR_OPS",
                 _collection,
@@ -603,7 +603,7 @@ def test_ctc_ceiling_data_hrrr_ops_all_hrrr():
                 For epoch : {_ctc['fcst_valid_epoch']}
                 and fstLen: {_ctc['fcst_len']}
                 and threshold: {_threshold}
-                the derived CTC {field}: {_ctc_value} and caclulated CTC {field}: {_cb_ctc_value} values do not match"""
+                the derived CTC {field}: {_ctc_value} and calculated CTC {field}: {_cb_ctc_value} values do not match"""
 
 
 @pytest.mark.integration
@@ -613,7 +613,7 @@ def test_ctc_visibiltiy_data_hrrr_ops_all_hrrr():
     for a specific fcstValidEpoch from couchbase and calculate the CTC's for the same fcstValidEpoch.
     It then compares the data with assertions. The intent is to
     demonstrate that the data transformation from input model obs pairs is being done
-    corrctly.
+    correctly.
     """
 
     credentials_file = os.environ["CREDENTIALS"]
@@ -667,7 +667,7 @@ def test_ctc_visibiltiy_data_hrrr_ops_all_hrrr():
         """
     )
     cb_fcst_valid_lens = list(result)
-    # get the thesholdDescriptions from the couchbase metadata
+    # get the thresholdDescriptions from the couchbase metadata
     # result = cluster.query(
     #     f"""
     #     SELECT RAW thresholdDescriptions.visibility
@@ -735,4 +735,4 @@ def test_ctc_visibiltiy_data_hrrr_ops_all_hrrr():
                 For epoch : {_ctc['fcst_valid_epoch']}
                 and fstLen: {_ctc['fcst_len']}
                 and threshold: {_threshold}
-                the derived CTC {field}: {_ctc_value} and caclulated CTC {field}: {_cb_ctc_value} values do not match"""
+                the derived CTC {field}: {_ctc_value} and calculated CTC {field}: {_cb_ctc_value} values do not match"""

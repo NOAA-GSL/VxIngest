@@ -42,4 +42,4 @@ There is a base NetcdfBuilder which has the generic code for reading a netcdf fi
 
 ## ingest documents - metadata
 
-Refer to [ingest documents and metadata](https://github.com/NOAA-GSL/VxIngest/blob/77b73babf031a19ba9623a7fed60de3583c9475b/mats_metadata_and_indexes/metadata_files/README.md#L11)
+Refer to [ingest documents and metadata](https://github.com/NOAA-GSL/VxIngest/blob/main/mats_metadata_and_indexes/metadata_files/README.md#L11)

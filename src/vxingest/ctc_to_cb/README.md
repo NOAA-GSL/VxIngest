@@ -42,7 +42,7 @@ the associated metadata documents.
 
 ## ingest documents
 
-[obs ingest documents](https://github.com/NOAA-GSL/VxIngest/blob/0edaa03be13d75812e19ecf295e952b46d255b8f/mats_metadata_and_indexes/metadata_files/ingest_stations_and_obs_netcdf.json)
+[obs ingest documents](https://github.com/NOAA-GSL/VxIngest/blob/main/mats_metadata_and_indexes/metadata_files/ingest_stations_and_obs_netcdf.json)
 
 ## Builder class
 

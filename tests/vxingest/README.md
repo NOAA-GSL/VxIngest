@@ -52,7 +52,7 @@ There are two kinds of tests in each test directory.
 - unit - tests are named like grib2_to_cb/test/test_unit_metar_model_grib.py
 
 Notice the ***test_int_*** and the ***test_unit*** in the names.
-Unit tests are relatively independent, require minimal external test data, and run quickly. These tests are for testing methods or functions independantly. Integration tests require external data and configuration, are not independant, and may be very long running. These tests are for testing a working system, or components of a working system that are interacting.
+Unit tests are relatively independent, require minimal external test data, and run quickly. These tests are for testing methods or functions independently. Integration tests require external data and configuration, are not independent, and may be very long running. These tests are for testing a working system, or components of a working system that are interacting.
 
 ## vscode
 

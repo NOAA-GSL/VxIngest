@@ -224,7 +224,6 @@ def calculate_cb_ctc(
         [station for station in legacy_stations if station not in reject_stations]
     )
     model_id = f"DD:V01:{subset}:{model}:{epoch}:{fcst_len}"
-    print("cb_ctc model_id:", model_id, " obs_id:", obs_id)
     try:
         full_model_data = load_spec["collection"].get(model_id).content_as[dict]
     except Exception:
@@ -294,7 +293,7 @@ def test_ctc_builder_ceiling_hrrr_ops_all_hrrr():
     """
     This test verifies that data is returned for each fcstLen and each threshold.
     It can be used to debug the builder by putting a specific epoch for first_epoch.
-    By default it will build all unbuilt CTC objects and put them into the output folder.
+    By default it will build all un-built CTC objects and put them into the output folder.
     Then it takes the last output json file and loads that file.
     Then the test derives the same CTC.
     It calculates the CTC using couchbase data for input.
@@ -377,7 +376,7 @@ def test_ctc_builder_ceiling_hrrr_ops_all_hrrr():
                 region="ALL_HRRR",
             )
             if cb_ctc is None:
-                print(f"cb_ctc is None for threshold {str(_t)}- contunuing")
+                print(f"cb_ctc is None for threshold {str(_t)}- continuing")
                 continue
 
 
@@ -386,7 +385,7 @@ def test_ctc_builder_visibility_hrrr_ops_all_hrrr():
     """
     This test verifies that data is returned for each fcstLen and each threshold.
     It can be used to debug the builder by putting a specific epoch for first_epoch.
-    By default it will build all unbuilt CTC objects and put them into the output folder.
+    By default it will build all un-built CTC objects and put them into the output folder.
     Then it takes the last output json file and loads that file.
     Then the test derives the same CTC.
     It calculates the CTC using couchbase data for input.
@@ -469,7 +468,7 @@ def test_ctc_builder_visibility_hrrr_ops_all_hrrr():
                 region="ALL_HRRR",
             )
             if cb_ctc is None:
-                print(f"cb_ctc is None for threshold {str(_threshold)}- contunuing")
+                print(f"cb_ctc is None for threshold {str(_threshold)}- continuing")
                 continue
 
 
@@ -480,7 +479,7 @@ def test_ctc_ceiling_data_hrrr_ops_all_hrrr():
     for a specific fcstValidEpoch from couchbase and calculate the CTC's for the same fcstValidEpoch.
     It then compares the data with assertions. The intent is to
     demonstrate that the data transformation from input model obs pairs is being done
-    corrctly.
+    correctly.
     """
 
     credentials_file = os.environ["CREDENTIALS"]
@@ -517,8 +516,9 @@ def test_ctc_ceiling_data_hrrr_ops_all_hrrr():
     cb_fcst_valid_epochs = list(result)
     if len(cb_fcst_valid_epochs) == 0:
         pytest.fail("There is no data")
-    # choose the last one
-    fcst_valid_epoch = cb_fcst_valid_epochs[round(len(cb_fcst_valid_epochs) / 2)]
+    # choose a relatively recent one
+    fcst_valid_epoch = cb_fcst_valid_epochs[round(len(cb_fcst_valid_epochs) - (len(cb_fcst_valid_epochs) / 5))]
+    #fcst_valid_epoch = 1726761600
     # get all the cb fcstLen values
     result = cluster.query(
         f"""SELECT raw fcstLen
@@ -535,40 +535,10 @@ def test_ctc_ceiling_data_hrrr_ops_all_hrrr():
         """
     )
     cb_fcst_valid_lens = list(result)
-    # get the thesholdDescriptions from the couchbase metadata
-    # result = cluster.query(
-    #     f"""
-    #     SELECT RAW thresholdDescriptions.ceiling
-    #     FROM `{_bucket}`.{_scope}.{_collection}
-    #     WHERE type="MD"
-    #         AND docType="matsAux"
-    #     """,
-    #     read_only=True,
-    # )
     # get the associated couchbase ceiling model data
     # get the associated couchbase obs
     # get the ctc couchbase data
-    result = cluster.query(
-        f"""
-        SELECT *
-        FROM `{_bucket}`.{_scope}.{_collection}
-        WHERE type='DD'
-            AND docType = "CTC"
-            AND subDocType = "CEILING"
-            AND model='HRRR_OPS'
-            AND region='ALL_HRRR'
-            AND version='V01'
-            AND subset='{_collection}'
-            AND fcstValidEpoch = {fcst_valid_epoch}
-            AND fcstLen IN {cb_fcst_valid_lens}
-            order by fcstLen;
-        """
-    )
-    cb_results = list(result)
-    # print the couchbase statement
-    print(
-        "cb statement is:"
-        + f"""
+    cb_statement = f"""
         SELECT *
         FROM `{_bucket}`.{_scope}.{_collection}
         WHERE type='DD'
@@ -581,7 +551,10 @@ def test_ctc_ceiling_data_hrrr_ops_all_hrrr():
             AND fcstValidEpoch = {fcst_valid_epoch}
             AND fcstLen IN {cb_fcst_valid_lens}
             order by fcstLen;"""
-    )
+    result = cluster.query(cb_statement)
+    cb_results = list(result)
+    # print the couchbase statement
+    print(f"cb statement is: {cb_statement}")
     for _cb_ctc in cb_results:
         fcstln = _cb_ctc["METAR"]["fcstLen"]
         for _threshold in _cb_ctc["METAR"]["data"]:
@@ -603,17 +576,17 @@ def test_ctc_ceiling_data_hrrr_ops_all_hrrr():
                 For epoch : {_ctc['fcst_valid_epoch']}
                 and fstLen: {_ctc['fcst_len']}
                 and threshold: {_threshold}
-                the derived CTC {field}: {_ctc_value} and caclulated CTC {field}: {_cb_ctc_value} values do not match"""
+                the derived CTC {field}: {_ctc_value} and calculated CTC {field}: {_cb_ctc_value} values do not match"""
 
 
 @pytest.mark.integration
-def test_ctc_visibiltiy_data_hrrr_ops_all_hrrr():
+def test_ctc_visibility_data_hrrr_ops_all_hrrr():
     """
     This test is a comprehensive test of the ctcBuilder data. It will retrieve CTC documents
     for a specific fcstValidEpoch from couchbase and calculate the CTC's for the same fcstValidEpoch.
     It then compares the data with assertions. The intent is to
     demonstrate that the data transformation from input model obs pairs is being done
-    corrctly.
+    correctly.
     """
 
     credentials_file = os.environ["CREDENTIALS"]
@@ -667,7 +640,7 @@ def test_ctc_visibiltiy_data_hrrr_ops_all_hrrr():
         """
     )
     cb_fcst_valid_lens = list(result)
-    # get the thesholdDescriptions from the couchbase metadata
+    # get the thresholdDescriptions from the couchbase metadata
     # result = cluster.query(
     #     f"""
     #     SELECT RAW thresholdDescriptions.visibility
@@ -735,4 +708,4 @@ def test_ctc_visibiltiy_data_hrrr_ops_all_hrrr():
                 For epoch : {_ctc['fcst_valid_epoch']}
                 and fstLen: {_ctc['fcst_len']}
                 and threshold: {_threshold}
-                the derived CTC {field}: {_ctc_value} and caclulated CTC {field}: {_cb_ctc_value} values do not match"""
+                the derived CTC {field}: {_ctc_value} and calculated CTC {field}: {_cb_ctc_value} values do not match"""

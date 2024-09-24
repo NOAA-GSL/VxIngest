@@ -517,8 +517,10 @@ def test_ctc_ceiling_data_hrrr_ops_all_hrrr():
     if len(cb_fcst_valid_epochs) == 0:
         pytest.fail("There is no data")
     # choose a relatively recent one
-    fcst_valid_epoch = cb_fcst_valid_epochs[round(len(cb_fcst_valid_epochs) - (len(cb_fcst_valid_epochs) / 5))]
-    #fcst_valid_epoch = 1726761600
+    fcst_valid_epoch = cb_fcst_valid_epochs[
+        round(len(cb_fcst_valid_epochs) - (len(cb_fcst_valid_epochs) / 5))
+    ]
+    # fcst_valid_epoch = 1726761600
     # get all the cb fcstLen values
     result = cluster.query(
         f"""SELECT raw fcstLen

@@ -12,13 +12,6 @@ from datetime import timedelta
 from multiprocessing import Process
 from pathlib import Path
 
-# This pyproj import has to remain here in order to enforce the
-# order of loading of the pyproj and cocuhbase libraries.  If ipyproj is loaded after
-# the couchbase library, it will cause a segmentation fault.
-# pyproj is used by the grib2_to_cb IngestManger and supporting
-# test code. The root cause of this is Couchbase. This incompatibility is supposed to be fixed
-# in the next release of Couchbase.
-import pyproj  # noqa: F401
 from couchbase.auth import PasswordAuthenticator
 from couchbase.cluster import Cluster
 from couchbase.exceptions import CouchbaseException, TimeoutException

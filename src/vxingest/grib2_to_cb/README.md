@@ -27,7 +27,7 @@ The 'MD:V01:METAR:HRRR_OPS:ingest:grib2' value is the id of a couchbase metadata
 This document MUST exist on the couchbase cluster defined by cb_host
 and MUST be readable by the cb_user. Copies of the metadata documents are checked into
 .../VXingest/mats_metadata_and_indexes/ingest_models_from_grib.json and there is a script
-.../VXingest/mats_metadata_and_indexes/ingest_models_from_grib.sh that is usefull for importing
+.../VXingest/mats_metadata_and_indexes/ingest_models_from_grib.sh that is useful for importing
 the associated metadata document.
 
 ## ingest documents

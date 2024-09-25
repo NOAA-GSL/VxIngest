@@ -23,6 +23,7 @@ import ncepbufr
 import numpy as np
 import numpy.ma as ma
 from metpy.units import units
+
 from vxingest.builder_common.builder import Builder
 from vxingest.builder_common.builder_utilities import (
     convert_to_iso,
@@ -907,7 +908,7 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                 return None
             relative_humidity = [
                 None
-                if p is ma.masked or t is ma.masked or s is ma.masked
+                if p is not self.is_a_number(ma.masked) or t is not self.is_a_number(ma.masked) or s is not self.is_a_number(ma.masked)
                 else metpy.calc.relative_humidity_from_specific_humidity(
                     p * units.hPa,
                     t * units.degC,
@@ -967,18 +968,18 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
             mpcalc.thickness_hydrostatic(p[layer], T[layer])
             <Quantity(5755.94719, 'meter')>
         """
-        if height is None:
-            # if there aren't any heights I don't know what to do. It needs a starting point at least.
+        if height is None or pressure is None or temperature is None or specific_humidity is None:
+            # if there aren't data I don't know what to do.
             return None
         try:
             # don't use invalid data at the top or bottom of the profile
             # if any of the needed values are invalid make them all math.nan at that position.
             # Make invalid values math.nan because the metpy.calc routine likes them that way.
             i = 0
-            while not (
-                self.is_a_number(pressure[i])
-                and self.is_a_number(temperature[i])
-                and self.is_a_number(specific_humidity[i])
+            while (
+                not self.is_a_number(pressure[i])
+                or not self.is_a_number(temperature[i])
+                or not self.is_a_number(specific_humidity[i])
             ):
                 temperature[i] = math.nan
                 pressure[i] = math.nan
@@ -986,10 +987,10 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                 i = i + 1
             _first_bottom_i = i
             i = len(pressure) - 1
-            while not (
-                self.is_a_number(pressure[i])
-                and self.is_a_number(temperature[i])
-                and self.is_a_number(specific_humidity[i])
+            while (
+                not self.is_a_number(pressure[i])
+                or not self.is_a_number(temperature[i])
+                or not self.is_a_number(specific_humidity[i])
             ):
                 temperature[i] = math.nan
                 pressure[i] = math.nan
@@ -999,14 +1000,14 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
 
             # create pint.Quantity sequences for the data
             sh = [
-                s if s is not ma.masked else math.nan for s in specific_humidity
+                s if self.is_a_number(s) else math.nan for s in specific_humidity
             ] * units("mg/kg")
             mr = metpy.calc.mixing_ratio_from_specific_humidity(sh).to("g/kg")
-            p = [p1 if p1 is not ma.masked else math.nan for p1 in pressure] * units.hPa
+            p = [p1 if self.is_a_number(p1) else math.nan for p1 in pressure] * units.hPa
             t = [
-                t1 if t1 is not ma.masked else math.nan for t1 in temperature
+                t1 if self.is_a_number(t1) else math.nan for t1 in temperature
             ] * units.degC
-            h = [h1 if h1 is not ma.masked else math.nan for h1 in height] * units.meter
+            h = [h1 if self.is_a_number(h1) else math.nan for h1 in height] * units.meter
 
             # now determine the layer by finding the bottom valid pressure that has corresponding valid data for
             # temperature, pressure, and mixing ratio.
@@ -1190,7 +1191,7 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
             if len(bufr_data[mnemonic_index].shape) == 1:
                 # no events present
                 return [
-                    i if i is not ma.masked else None for i in bufr_data[mnemonic_index]
+                    i if i is not ma.masked else np.nan for i in bufr_data[mnemonic_index]
                 ]
             if len(bufr_data[mnemonic_index].shape) > 1:
                 # there is an event dimension but we are ignoring it - just return the first event
@@ -1232,7 +1233,7 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                         if q_marker_keep_values is None
                         or bufr_data[q_marker_mnemonic_index][level_index][0]
                         in q_marker_keep_values
-                        else None
+                        else np.nan
                     )
                     continue
                 try:
@@ -1279,15 +1280,15 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                                     mnemonic_index
                                 ][level_index][e_index]
                             else:
-                                # the correct event value failed the q_marker test - gets a None for that level
+                                # the correct event value failed the q_marker test - gets a nan for that level
                                 # This means the the interpolation will have to interpolate the value for this level
-                                bufr_data_for_mnemonic[level_index][0] = None
+                                bufr_data_for_mnemonic[level_index][0] = np.nan
                     else:
                         logger.info(
                             f"PrepBufrBuilder.get_data_from_bufr_for_field: event_value not found for mnemonic {mnemonic}",
                         )
                         # could not find the desired event value - return None
-                        bufr_data_for_mnemonic[level_index][0] = None
+                        bufr_data_for_mnemonic[level_index][0] = np.nan
                 except IndexError as _ie:
                     logger.error(
                         f"PrepBufrBuilder.get_data_from_bufr_for_field: IndexError for mnemonic {mnemonic}",
@@ -1309,7 +1310,8 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         refer to https://www.emc.ncep.noaa.gov/emc/pages/infrastructure/bufrlib/tables/bufrtab_tableb.html
         example: see prepbufr_raob_template.json
 
-        :return: a data object: each key is a field name and the value is the data array (not masked) for that field
+        :return: a data object: each key is a field name and the value is the data array (not masked) for that field,
+        None values should be np.nan in the data array.
         """
         # see read_subset https://github.com/NOAA-EMC/NCEPLIBS-bufr/blob/a8108e591c6cb1e21ddc7ddb6715df1b3801fff8/python/ncepbufr/__init__.py#L449
         variable_mnemonics = []
@@ -1525,7 +1527,7 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
             temperature,
             specific_humidity,
         )
-        data["rh_wobus"] = self.get_relative_humidity_wobus(temperature, dewpoint)
+        #data["rh_wobus"] = self.get_relative_humidity_wobus(temperature, dewpoint)
         return _rh
 
     def get_raw_dewpoint(

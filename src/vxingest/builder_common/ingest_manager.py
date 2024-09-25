@@ -253,7 +253,7 @@ class CommonVxIngestManager(Process):
             raise _e
 
     def write_document_to_files(self, file_name, document_map):
-        """This method writes the current document directly to couchbase
+        """This method writes the current document to a file
         Args:
             file_name: the name to use for the files
             document_map (object): this object contains the output documents that will be upserted into couchbase

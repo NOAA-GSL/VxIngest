@@ -45,6 +45,7 @@ from pathlib import Path
 
 import mysql.connector
 from tabulate import tabulate
+
 from vxingest.builder_common.ingest_manager import CommonVxIngestManager
 from vxingest.prepbufr_to_cb import prepbufr_builder as my_builder
 

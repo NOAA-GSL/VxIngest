@@ -24,6 +24,7 @@ from pathlib import Path
 
 import pytest
 import yaml
+
 from vxingest.prepbufr_to_cb.run_ingest_threads import VXIngest
 
 
@@ -75,51 +76,51 @@ def assert_dicts_almost_equal(dict1, dict2, rel_tol=1e-09):
                 print("failed:" + str(e))
 
 
-@pytest.mark.integration()
+@pytest.mark.integration
 def test_one_thread_specify_file_pattern(tmp_path: Path):
     """Note: this test takes a long time to run (few minutes)"""
     log_queue = Queue()
     vx_ingest = setup_connection()
-    stations = [
-        "70026",
-        "72393",
-        "74794",
-        "71119",
-        "76225",
-        "76256",
-        "76458",
-        "76526",
-        "76595",
-        "76612",
-        "76644",
-        "76654",
-        "76679",
-        "76692",
-        "76743",
-        "76903",
-        "78384",
-        "78397",
-        "78486",
-        "78526",
-        "78583",
-        "78954",
-        "78970",
-        "82022",
-        "82026",
-        "82099",
-        "82107",
-        "82193",
-        "82244",
-        "82332",
-        "82411",
-        "82532",
-        "82599",
-        "82705",
-    ]
-    print("Testing stations: ", stations)
-    print(f"output path is: {tmp_path}")
-    vx_ingest.write_data_for_station_list = stations
-    vx_ingest.write_data_for_levels = [200, 300, 500, 700, 900]
+    # # stations = [
+    # #     "70026",
+    # #     "72393",
+    # #     "74794",
+    # #     "71119",
+    # #     "76225",
+    # #     "76256",
+    # #     "76458",
+    # #     "76526",
+    # #     "76595",
+    # #     "76612",
+    # #     "76644",
+    # #     "76654",
+    # #     "76679",
+    # #     "76692",
+    # #     "76743",
+    # #     "76903",
+    # #     "78384",
+    # #     "78397",
+    # #     "78486",
+    # #     "78526",
+    # #     "78583",
+    # #     "78954",
+    # #     "78970",
+    # #     "82022",
+    # #     "82026",
+    # #     "82099",
+    # #     "82107",
+    # #     "82193",
+    # #     "82244",
+    # #     "82332",
+    # #     "82411",
+    # #     "82532",
+    # #     "82599",
+    # #     "82705",
+    # # ]
+    # print("Testing stations: ", stations)
+    # print(f"output path is: {tmp_path}")
+    # vx_ingest.write_data_for_station_list = stations
+    # vx_ingest.write_data_for_levels = [200, 300, 500, 700, 900]
     vx_ingest.runit(
         {
             "job_id": "JOB-TEST:V01:RAOB:PREPBUFR:OBS",

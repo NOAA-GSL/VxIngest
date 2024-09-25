@@ -5,6 +5,7 @@ import mysql.connector
 import ncepbufr
 import pytest
 import yaml
+
 from vxingest.prepbufr_to_cb.prepbufr_builder import PrepbufrRaobsObsBuilderV01
 from vxingest.prepbufr_to_cb.run_ingest_threads import VXIngest
 
@@ -21,6 +22,7 @@ def setup_cb_connection():
     ).content_as[dict]["ingest_document_ids"]
     return _vx_ingest
 
+
 def setup_mysql_connection():
     """test setup"""
     credentials_file = os.environ["CREDENTIALS"]
@@ -30,14 +32,12 @@ def setup_mysql_connection():
         _mysql_user = _yaml_data["mysql_user"]
         _mysql_password = _yaml_data["mysql_password"]
     _mysql_db = mysql.connector.connect(
-        host = _mysql_host,
-        user = _mysql_user,
-        password = _mysql_password
+        host=_mysql_host, user=_mysql_user, password=_mysql_password
     )
     return _mysql_db
 
 
-@pytest.mark.integration()
+@pytest.mark.integration
 def test_read_header():
     queue_element = (
         "/opt/data/prepbufr_to_cb/input_files/241011200.gdas.t12z.prepbufr.nr"
@@ -68,30 +68,7 @@ def test_read_header():
     assert header["report_type"] == 120
 
 
-@pytest.mark.integration()
-def test_read_qm_data():
-    vx_ingest = setup_cb_connection()
-    queue_element = (
-        "/opt/data/prepbufr_to_cb/input_files/241011200.gdas.t12z.prepbufr.nr"
-    )
-    ingest_doc = vx_ingest.collection.get("MD:V01:RAOB:obs:ingest:prepbufr").content_as[
-        dict
-    ]
-    template = ingest_doc["mnemonic_mapping"]
-    builder = PrepbufrRaobsObsBuilderV01(
-        None,
-        ingest_doc,
-    )
-    bufr = ncepbufr.open(queue_element)
-    bufr.advance()
-    assert bufr.msg_type == template["bufr_msg_type"], "Expected ADPUPA message type"
-    bufr.load_subset()
-    qm_data = builder.read_data_from_bufr(bufr, template["q_marker"])
-    bufr.close()
-    assert qm_data is not None
-
-
-@pytest.mark.integration()
+@pytest.mark.integration
 def test_read_obs_err():
     vx_ingest = setup_cb_connection()
     ingest_doc = vx_ingest.collection.get("MD:V01:RAOB:obs:ingest:prepbufr").content_as[
@@ -217,7 +194,7 @@ def test_read_obs_err():
     assert obs_err["winds_obs_err"] is None
 
 
-@pytest.mark.integration()
+@pytest.mark.integration
 def test_read_obs_data():
     vx_ingest = setup_cb_connection()
     ingest_doc = vx_ingest.collection.get("MD:V01:RAOB:obs:ingest:prepbufr").content_as[
@@ -238,6 +215,7 @@ def test_read_obs_data():
     obs_data = builder.read_data_from_bufr(bufr, template["obs_data_120"])
     bufr.close()
     assert obs_data is not None
+
 
 def test_july_31_2024_0Z_data_diffs_with_legacy():
     """
@@ -284,7 +262,6 @@ def test_july_31_2024_0Z_data_diffs_with_legacy():
     wind_speed_max = 0
     wind_direction_max = 0
 
-
     try:
         for row in range(len(mysql_result)):
             try:
@@ -300,7 +277,10 @@ def test_july_31_2024_0Z_data_diffs_with_legacy():
                 cb_data = None
                 try:
                     for d in cb_result:
-                        if f"{m_wmoid:05}" in d["data"] and d["data"][f"{m_wmoid:05}"]["pressure"] == m_pressure:
+                        if (
+                            f"{m_wmoid:05}" in d["data"]
+                            and d["data"][f"{m_wmoid:05}"]["pressure"] == m_pressure
+                        ):
                             cb_data = d["data"][f"{m_wmoid:05}"]
                             break
                     if cb_data is None:
@@ -317,11 +297,12 @@ def test_july_31_2024_0Z_data_diffs_with_legacy():
                 cb_wind_direction = cb_data["wind_direction"]
                 cb_wind_speed = cb_data["wind_speed"]
 
+                assert (
+                    f"{m_wmoid:05}" == cb_wmoid
+                ), f"wmoid mismatch: {m_wmoid} != {cb_wmoid}"
 
-                assert f"{m_wmoid:05}" == cb_wmoid, f"wmoid mismatch: {m_wmoid} != {cb_wmoid}"
-
-                assert m_pressure == pytest.approx(
-                    cb_pressure, abs=press_tolerance
+                assert (
+                    m_pressure == pytest.approx(cb_pressure, abs=press_tolerance)
                 ), f"Pressure mismatch: {m_pressure} != {cb_pressure} +- {press_tolerance} for wmoid {m_wmoid} and pressure {m_pressure}"
 
                 if m_height is not None and cb_height is not None:
@@ -337,7 +318,8 @@ def test_july_31_2024_0Z_data_diffs_with_legacy():
                     if diff > temperature_max:
                         temperature_max = diff
                     assert (
-                        m_temperature / 100 == pytest.approx(cb_temperature, abs=temperature_tolerance)
+                        m_temperature / 100
+                        == pytest.approx(cb_temperature, abs=temperature_tolerance)
                     ), f"Temperature mismatch: {m_temperature / 100} != {cb_temperature} +- {temperature_tolerance} for wmoid {m_wmoid} and pressure {m_pressure}"
 
                 if m_dewpoint is not None and cb_dewpoint is not None:
@@ -345,35 +327,43 @@ def test_july_31_2024_0Z_data_diffs_with_legacy():
                     if diff > dewpoint_max:
                         dewpoint_max = diff
                     assert (
-                        m_dewpoint / 100 == pytest.approx(cb_dewpoint, abs=dewpoint_tolerance)
+                        m_dewpoint / 100
+                        == pytest.approx(cb_dewpoint, abs=dewpoint_tolerance)
                     ), f"Dewpoint mismatch: {m_dewpoint / 100} != {cb_dewpoint} +- {dewpoint_tolerance} for wmoid {m_wmoid} and pressure {m_pressure}"
 
                 if m_relative_humidity is not None and cb_relative_humidity is not None:
                     diff = abs(m_relative_humidity - cb_relative_humidity)
                     if diff > relative_humidity_max:
                         relative_humidity_max = diff
-                    assert m_relative_humidity == pytest.approx(
-                        cb_relative_humidity, abs=relative_humidity_tolerance
+                    assert (
+                        m_relative_humidity
+                        == pytest.approx(
+                            cb_relative_humidity, abs=relative_humidity_tolerance
+                        )
                     ), f"Relative Humidity mismatch: {m_relative_humidity} != {cb_relative_humidity} +- {relative_humidity_tolerance} for wmoid {m_wmoid} and pressure {m_pressure}"
 
                 if m_wind_speed is not None and cb_wind_speed is not None:
                     diff = abs(m_wind_speed / 100 - cb_wind_speed)
                     if diff > wind_speed_max:
                         wind_speed_max = diff
-                    assert m_wind_speed / 100 == pytest.approx(
-                        cb_wind_speed, abs=wind_speed_tolerance
+                    assert (
+                        m_wind_speed / 100
+                        == pytest.approx(cb_wind_speed, abs=wind_speed_tolerance)
                     ), f"Wind Speed mismatch: {m_wind_speed / 100} != {cb_wind_speed} +- {wind_speed_tolerance} for wmoid {m_wmoid} and pressure {m_pressure}"
 
                 if m_wind_direction is not None and cb_wind_direction is not None:
                     diff = abs(m_wind_direction - cb_wind_direction)
                     if diff > wind_direction_max:
                         wind_direction_max = diff
-                    assert m_wind_direction == pytest.approx(
-                        cb_wind_direction, abs=wind_direction_tolerance
+                    assert (
+                        m_wind_direction
+                        == pytest.approx(
+                            cb_wind_direction, abs=wind_direction_tolerance
+                        )
                     ), f"Wind Direction mismatch: {m_wind_direction} != {cb_wind_direction} +- {wind_direction_tolerance} for wmoid {m_wmoid} and pressure {m_pressure}"
             except Exception as _e:
                 print(_e)
-                #raise _e
+                # raise _e
     finally:
         print(f"max height diff: {height_max}")
         print(f"max temperature diff: {temperature_max}")

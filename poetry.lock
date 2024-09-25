@@ -535,26 +535,26 @@ tests = ["pytest", "pytest-cov", "pytest-xdist"]
 
 [[package]]
 name = "eccodes"
-version = "2.37.0"
+version = "2.38.0"
 description = "Python interface to the ecCodes GRIB and BUFR decoder/encoder"
 optional = false
 python-versions = "*"
 files = [
-    {file = "eccodes-2.37.0-cp310-cp310-macosx_13_0_arm64.whl", hash = "sha256:5cdb8c8e113db2e284a43391603a6e1a1ae69b7cd4063258b2e8a23538d91f90"},
-    {file = "eccodes-2.37.0-cp310-cp310-macosx_13_0_x86_64.whl", hash = "sha256:a213138088e93cf2c17c20aafa0890d7c99d042c494836553d6b4416fd4a5235"},
-    {file = "eccodes-2.37.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:4c4f980ac4664fb8324d5195dbba833c3b45513c4451791038721af1784f46f3"},
-    {file = "eccodes-2.37.0-cp311-cp311-macosx_13_0_arm64.whl", hash = "sha256:28b6b059e5bc156e3b6814f93b291aba9c290502652fabf638972656e6ccae25"},
-    {file = "eccodes-2.37.0-cp311-cp311-macosx_13_0_x86_64.whl", hash = "sha256:ccd454d7ceecde90a092d104af9065ad7503a339b46b37719f09d9420845ee6f"},
-    {file = "eccodes-2.37.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:3b963e5f9a945fa8bca18b66bdfa32cee513a6b080effd967daf4e10ba3f741f"},
-    {file = "eccodes-2.37.0-cp312-cp312-macosx_13_0_arm64.whl", hash = "sha256:4a107567b55fa0188b7215ea0e5d78680dcd73b6b80596d38c15587fae141713"},
-    {file = "eccodes-2.37.0-cp312-cp312-macosx_13_0_x86_64.whl", hash = "sha256:1fbfad23f5f31e5f578f6a9bb46b8b5fdf6e09d033e42a600cc2212278bb7c07"},
-    {file = "eccodes-2.37.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:76d3a7dbaf5590ade2f5c45ba6d2567a7b01864a407f8be4a06bdfc9a5e2e30b"},
-    {file = "eccodes-2.37.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:12d1738c607289ab42be90e9246b1e6efd4f5aefd0cb2eaf341e8aebd70d01fe"},
-    {file = "eccodes-2.37.0-cp39-cp39-macosx_13_0_arm64.whl", hash = "sha256:f43c3f90be33a2362400a589d3d086eba37f118109c2d431c735b25c5c769d88"},
-    {file = "eccodes-2.37.0-cp39-cp39-macosx_13_0_x86_64.whl", hash = "sha256:964e57ac46f9b01d3ab54acdb4cfae44bbb4c24ee9d5d76eed43892c8e5dabdf"},
-    {file = "eccodes-2.37.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:1c0b5cec6dac9d2985345e79a6d29ae7e27d0a8e5b9fcd0c571081aa0f1c76f0"},
-    {file = "eccodes-2.37.0-py3-none-any.whl", hash = "sha256:434e9e832d965f23141effa28a6997c635243d4d7cb8afb7ff453c6627014fc1"},
-    {file = "eccodes-2.37.0.tar.gz", hash = "sha256:ce9e11dba82dbdfee8803a26d03fe200307b23eac08e20c029c3e84b84757305"},
+    {file = "eccodes-2.38.0-cp310-cp310-macosx_13_0_arm64.whl", hash = "sha256:e2c25a0f0219be3842f1ae6da41e1faf4d74ee53af86c711717a0d70d76aa985"},
+    {file = "eccodes-2.38.0-cp310-cp310-macosx_13_0_x86_64.whl", hash = "sha256:006de61d7c0a2a31c3a8855a7cb12fe057c93832c744107e5b4b1ae225ece080"},
+    {file = "eccodes-2.38.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:9407224edc95e523d97ba7124c1ea669a33a61f30c980111f33c4e5be646b84b"},
+    {file = "eccodes-2.38.0-cp311-cp311-macosx_13_0_arm64.whl", hash = "sha256:bbd1c1b73ecfb0cd326e9beb427e0a17a16968efa3f800caba2a0c2bbf69c445"},
+    {file = "eccodes-2.38.0-cp311-cp311-macosx_13_0_x86_64.whl", hash = "sha256:3616814b43971a38e6055d0eeb4901f14c850a79a2e8c56108070a23eca6383f"},
+    {file = "eccodes-2.38.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:929215e0664e5f801400f6a3c9222139a53d000fabf3a22184af6c10cb8ed55c"},
+    {file = "eccodes-2.38.0-cp312-cp312-macosx_13_0_arm64.whl", hash = "sha256:769e10b3f13744265e892bb015f08659b1e41125fa0a4ce9256f7b8df3a50de2"},
+    {file = "eccodes-2.38.0-cp312-cp312-macosx_13_0_x86_64.whl", hash = "sha256:f5a1c1adbe84beadd7a97b71308247d1fe6a52e649461ac2cc815274d37a5ed9"},
+    {file = "eccodes-2.38.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:e521c978f725de7523d2315f1ae04eca8637edc5e11df65f3a1e644a93c3f4c8"},
+    {file = "eccodes-2.38.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:3b01b86356a5fcb8ee8563f5fd532ca6652f892d307dce726c67f5cdd199935a"},
+    {file = "eccodes-2.38.0-cp39-cp39-macosx_13_0_arm64.whl", hash = "sha256:ff7cffa95fa94f19d584ce1509376341e1241f25e357da91fbbadbc01339471a"},
+    {file = "eccodes-2.38.0-cp39-cp39-macosx_13_0_x86_64.whl", hash = "sha256:3a1265c44526ebf2083ed6ad793cee3ebc0f7bada322d40e583987dd6d02b0c5"},
+    {file = "eccodes-2.38.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b3c20dbe6bac78f6e8fa26c5e8e1bbb6b0aa71a0cc8893a0ba577ac635b4a059"},
+    {file = "eccodes-2.38.0-py3-none-any.whl", hash = "sha256:c98baeffe24691429c894a0b6a25c4b0a3916efbaad53678da306338634c3a72"},
+    {file = "eccodes-2.38.0.tar.gz", hash = "sha256:10633942621887a3f695653cad0aaa79f0e9697a51431dd8ba42b716f651fa76"},
 ]
 
 [package.dependencies]
@@ -1681,4 +1681,4 @@ viz = ["matplotlib", "nc-time-axis", "seaborn"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "d18a628ad2809dc9b4a74ca26448329705a4f3bcd95f7e98fb63f45f1a970565"
+content-hash = "2f4bac4b052b85278c75ac5c063d90f6de1bbc20cc06552f67615e9009e2fe1a"

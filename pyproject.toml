@@ -18,12 +18,12 @@ couchbase = "^4.3.1"
 pyproj = "^3.6.1"
 numpy = "^2.1.0"
 metpy = "^1.6.3"
-prometheus-client = "^0.20.0"
+prometheus-client = "^0.21.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.2"
 types-pyyaml = "^6.0.12.20240808"
-ruff = "^0.6.3"
+ruff = "^0.6.8"
 coverage = "^7.6.1"
 
 [build-system]

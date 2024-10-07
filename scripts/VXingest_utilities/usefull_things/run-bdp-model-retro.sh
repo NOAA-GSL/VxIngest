@@ -7,17 +7,17 @@
 #/home/amb-verif/VXingest/scripts/VXingest_utilities/run-bdp-model-retro.sh -y2021 -m07 -d01 -h"$(seq -s, -w 00 11)" -f"$(seq -s, -w 00 18)" -t /data -c /home/amb-verif/VxIngest
 #
 usage() {
-     echo "Usage: $0 -y year(2 digit) -m month (2 digit) -d day (2 digit) -h hours (comma seperated list) -f fcst_hours (comma seperated list) -t target directory -c (clone directory)"1>&2; exit 1; 
-     echo example '/home/amb-verif/VXingest/scripts/VXingest_utilities/run-bdp-model-retro.sh -y2021 -m07 -d01 -h"$(seq -s, -w 00 11)" -f"$(seq -s, -w 00 18)" -t /data -c /home/amb-verif/VxIngest'
+    echo "Usage: $0 -y year(2 digit) -m month (2 digit) -d day (2 digit) -h hours (comma separated list) -f fcst_hours (comma separated list) -t target directory -c (clone directory)"1 >&2
+    exit 1
+    echo example '/home/amb-verif/VXingest/scripts/VXingest_utilities/run-bdp-model-retro.sh -y2021 -m07 -d01 -h"$(seq -s, -w 00 11)" -f"$(seq -s, -w 00 18)" -t /data -c /home/amb-verif/VxIngest'
 }
-uname -a | grep -i Darwin > /dev/null
-if [ $? -eq 0 ]
-then
-   mydate=gdate
+uname -a | grep -i Darwin >/dev/null
+if [ $? -eq 0 ]; then
+    mydate=gdate
 else
-  mydate=date
+    mydate=date
 fi
-$mydate > /dev/null
+$mydate >/dev/null
 if [[ $? -ne 0 ]]; then
     echo 'your date command is broken (if you are on a mac have you "brew install coreutils" ?)'
     exit 1
@@ -39,63 +39,61 @@ check_param() {
 
 while getopts "y:m:d:h:f:t:c:" o; do
     case "${o}" in
-        y)
-            year=${OPTARG}
-            check_param $year 4
-            ;;
-        m)
-            month=${OPTARG}
-            check_param $month 2
-            ;;
-        d)
-            day=${OPTARG}
-            check_param $day 2
-            ;;
-        h)
-            hours_str=${OPTARG}
-            IFS=',' read -ra hours <<< "$hours_str"
-            for hr in "${hours[@]}"
-                do
-                  check_param $hr 2
-                done
-            ;;
-        f)
-            fcst_hours_str=${OPTARG}
-            IFS=',' read -ra fcst_hours <<< "$fcst_hours_str"
-            for hr in "${fcst_hours[@]}"
-                do
-                  check_param $hr 2
-                done
-            ;;
-        t)
-            target_dir=${OPTARG}
-            if [[ ! -d "${target_dir}" ]]; then
-                echo "error: ${target_dir} is not a directory" >&2
-                usage
-            fi
-            ;;
-        c)
-            clonedir=${OPTARG}
-            if [[ ! -d "${clonedir}" ]]; then
-                echo "error: ${clonedir} is not a directory" >&2
-                usage
-            fi
-            echo clonedir is ${clonedir}
-            cd ${clonedir}
-            gitroot=$(git rev-parse --show-toplevel)
-            if [ "$gitroot" != "$(pwd)" ];then
-                    echo "$(pwd) is not a git root directory:"
-                    usage
-            fi
-            ;;
-        *)
+    y)
+        year=${OPTARG}
+        check_param $year 4
+        ;;
+    m)
+        month=${OPTARG}
+        check_param $month 2
+        ;;
+    d)
+        day=${OPTARG}
+        check_param $day 2
+        ;;
+    h)
+        hours_str=${OPTARG}
+        IFS=',' read -ra hours <<<"$hours_str"
+        for hr in "${hours[@]}"; do
+            check_param $hr 2
+        done
+        ;;
+    f)
+        fcst_hours_str=${OPTARG}
+        IFS=',' read -ra fcst_hours <<<"$fcst_hours_str"
+        for hr in "${fcst_hours[@]}"; do
+            check_param $hr 2
+        done
+        ;;
+    t)
+        target_dir=${OPTARG}
+        if [[ ! -d "${target_dir}" ]]; then
+            echo "error: ${target_dir} is not a directory" >&2
             usage
-            ;;
+        fi
+        ;;
+    c)
+        clonedir=${OPTARG}
+        if [[ ! -d "${clonedir}" ]]; then
+            echo "error: ${clonedir} is not a directory" >&2
+            usage
+        fi
+        echo clonedir is ${clonedir}
+        cd ${clonedir}
+        gitroot=$(git rev-parse --show-toplevel)
+        if [ "$gitroot" != "$(pwd)" ]; then
+            echo "$(pwd) is not a git root directory:"
+            usage
+        fi
+        ;;
+    *)
+        usage
+        ;;
     esac
 done
-shift $((OPTIND-1))
+shift $((OPTIND - 1))
 
-if [ -z "${year}" ] || [ -z "${month}" ] || [ -z "${day}" ] || [ -z "${hours}" ] || [ -z "${fcst_hours}" ] || [ -z "${target_dir}" ] || [ -z "${clonedir}" ] ; then
+if [ -z "${year}" ] || [ -z "${month}" ] || [ -z "${day}" ] || [ -z "${hours}" ] || [ -z "${fcst_hours}" ] || [ -z "${target_dir}" ] || [ -z "${clonedir}" ]; then
     usage
 fi
 for hr in "${hours[@]}"; do

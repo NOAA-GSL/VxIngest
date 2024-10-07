@@ -15,6 +15,7 @@ import sys
 from pathlib import Path
 from pstats import Stats
 
+import cfgrib
 import pyproj
 import xarray as xr
 
@@ -78,7 +79,7 @@ class GribBuilder(Builder):
     ):
         """get the grid for the projection
         Args:
-            proj_params (dict): the prarameters for the projection
+            proj_params (dict): the parameters for the projection
             latitudeOfFirstGridPointInDegrees (float): latitude
             longitudeOfFirstGridPointInDegrees (float): longitude
 
@@ -98,9 +99,9 @@ class GribBuilder(Builder):
         )  # the lower left coordinates in the projection space
 
         # Add the proper conversion to 'fool' Proj into setting 0,0 in the lower left corner of the domain
-        # NOTE: It doesn't actually do this, but it will be necessary to find x,y coordinates relative to the lower left corne
+        # NOTE: It doesn't actually do this, but it will be necessary to find x,y coordinates relative to the lower left corner
         proj_params["x_0"] = abs(_x)
-        # offset the x,y points in the projection so that we get points oriented to bottm left
+        # offset the x,y points in the projection so that we get points oriented to bottom left
         proj_params["y_0"] = abs(_y)
         # Create Proj object
         grid_projection = pyproj.Proj(proj_params)
@@ -372,8 +373,8 @@ class GribBuilder(Builder):
         :param _named_function_def - this can be either a template key or a template value.
         The _named_function_def looks like "&named_function|*field1,*field2,*field3..."
         where named_function is the literal function name of a defined function.
-        The name of the function and the function parameters are seperated by a ":" and
-        the parameters are seperated by a ','.
+        The name of the function and the function parameters are separated by a ":" and
+        the parameters are separated by a ','.
         It is expected that field1, field2, and field3 etc are all valid variable names.
         Each field will be translated from the netcdf file into value1, value2 etc.
         The method "named_function" will be called like...
@@ -832,9 +833,9 @@ class GribBuilder(Builder):
             document_map[data_file_doc["id"]] = data_file_doc
             self.delete_idx_file(queue_element)
             return document_map
-        except FileNotFoundError:
+        except (FileNotFoundError, cfgrib.IOProblemError):
             logger.error(
-                "%s: Exception with builder build_document: file_name: %s, error: file not found - skipping this file",
+                "%s: Exception with builder build_document: file_name: %s, error: file not found or problem reading file - skipping this file",
                 self.__class__.__name__,
                 queue_element,
             )

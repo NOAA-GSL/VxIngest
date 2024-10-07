@@ -75,13 +75,13 @@ def main():
     for row in data_iter.rows():
         table.append(
             [
-                row["press"] if row["press"] != "null" else "null",
-                row["z"] if row["z"] else "null",
-                row["t"] if row["t"] else "null",
-                row["dp"] if row["dp"] else "null",
-                row["rh"] if row["rh"] else "null",
-                row["wd"] if row["wd"] else "null",
-                row["ws"] if row["ws"] else "null",
+                row["press"] if row["press"] == 0 or row["press"] != "null" else "null",
+                row["z"] if row["z"] == 0 or row["z"] else "null",
+                row["t"] if row["t"] == 0 or row["t"] else "null",
+                row["dp"] if row["dp"] == 0 or row["dp"] else "null",
+                row["rh"] if row["rh"] == 0 or row["rh"] else "null",
+                row["wd"] if row["wd"] == 0 or row["wd"] else "null",
+                row["ws"] if row["ws"] == 0 or row["ws"] else "null",
             ]
         )
     print(tabulate(table, headers="firstrow", tablefmt="plain"))

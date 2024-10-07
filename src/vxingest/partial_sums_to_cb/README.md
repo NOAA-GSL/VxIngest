@@ -47,8 +47,8 @@ one or a list of metadata documents. These documents define how the program will
 The 'MD-TEST:V01:METAR:HRRR_OPS:ALL_HRRR:SUMS:SURFACE:ingest' value is the id of a couchbase metadata ingest document.
 This document MUST exist on the couchbase cluster defined by cb_host
 and MUST be readable by the cb_user. Copies of the metadata documents are checked into
-.../VXingest/mats_metadata_and_indexes/ingest_sumss.json and there is a script
-.../VXingest/mats_metadata_and_indexes/ingest_sumss.sh that is usefull for importing
+.../VXingest/mats_metadata_and_indexes/ingest_sums.json and there is a script
+.../VXingest/mats_metadata_and_indexes/ingest_sums.sh that is usefull for importing
 the associated metadata documents.
 
 ## ingest documents
@@ -61,11 +61,9 @@ The builder is [PartialSumsSurfaceModelObsBuilderV01](partial_sums_builder.py)
 
 There is a base PartialSumsBuilder which has the generic code for reading a pair of documents and generating model obs sums and then there is a specialized PartialSumsSurfaceModelObsBuilderV01 that inherits from the generic class. Specific information for these classes is available in the docstring for each class.
 
-
 ## ingest documents - metadata
 
 Refer to [ingest documents and metadata](https://github.com/NOAA-GSL/VxIngest/blob/main/mats_metadata_and_indexes/metadata_files/README.md#L11)
-
 
 ## Examples of running the ingest programs
 
@@ -133,8 +131,8 @@ def surface_transform(params_dict):
 The named function routine processes a named function entry from a template.
 The '_named_function_def' looks like "&named_function|*field1,*field2,*field3..."
 where named_function is the literal function name of a defined function.
-The name of the function and the function parameters are seperated by a "|" and
-the parameters are seperated by a ','.
+The name of the function and the function parameters are separated by a "|" and
+the parameters are separated by a ','.
 It is expected that field1, field2, and field3 etc are all valid variable names.
 Each field will be translated from the grib2 file into an array of
 tuples, one per station location. Each tuple will have a location precise value and an interpolated value.

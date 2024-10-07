@@ -6,9 +6,11 @@ if a load job has already been processed - so it needs a database connection.
 Each Ingest manager (usually more than one) runs in its own thread which is
 maintained by its Vxingest. It is impossible to pass the VxIngest database connection
 to the VxIngestManager - i.e. across python process objects (multithreading process objects)
+to the VxIngestManager - i.e. across python process objects (multithreading process objects)
 because a database connection cannot be pickled (pythons name for object serialization).
 Therefore the database credentials are stored in the load_spec, but not the database connection.
 The database connection must be recreated in each process thread using the credentials that are
+stored in the load_spec. It feels redundant and it is definitely confusing but blame pythons
 stored in the load_spec. It feels redundant and it is definitely confusing but blame pythons
 threading model.
 """
@@ -21,13 +23,6 @@ import pathlib
 import sys
 import time
 
-# This pyproj import has to remain here in order to enforce the
-# order of loading of the pyproj and couchbase libraries.  If pyproj is loaded after
-# the couchbase library, it will cause a segmentation fault.
-# pyproj is used by the grib2_to_cb IngestManger and supporting
-# test code. The root cause of this is Couchbase. This incompatibility is supposed to be fixed
-# in the next release of Couchbase.
-import pyproj  # noqa: F401
 import yaml
 from couchbase.auth import PasswordAuthenticator
 from couchbase.cluster import Cluster
@@ -69,6 +64,7 @@ class CommonVxIngest:
         self.ingest_document = None
 
     def parse_args(self, args):
+        """This method is intended to be overridden"""
         """This method is intended to be overridden"""
         return args
 

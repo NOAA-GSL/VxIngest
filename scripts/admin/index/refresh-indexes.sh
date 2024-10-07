@@ -19,7 +19,7 @@ _usage() {
   -u, --username          Cluster Admin or RBAC username (default: Administrator)
   -p, --password          Cluster Admin or RBAC password (default: password)
   -f, --source-file       Source Index Definitions File (optional, if source cluster is provided)
-  -b, --buckets           Optional - Comma seperated list of buckets
+  -b, --buckets           Optional - Comma separated list of buckets
   -o, --output-file       Optional - Output file where all the target n1ql queries are logged
   -rf, --report-file      Optional - Report file where all the differences are reported
   -c, --check             Determines whether to execute the script in checking mode (default: false)
@@ -55,35 +55,35 @@ _options() {
   debug ""
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      -sc|--source-cluster) SOURCE_CLUSTER=${2} && shift 2;;
-      -tc|--target-cluster) TARGET_CLUSTER=${2} && shift 2;;
-      -f|--source-file) SOURCE_INDEX_DEFINITIONS_FILE=${2} && shift 2;;
-      -b|--buckets)BUCKETS=${2} && shift 2;;
-      -o|--output-file) OUTPUT_FILE=${2} && shift 2;;
-      -rf|--report-file) REPORT_FILE=${2} && shift 2;;
-      -c|--check) CHECK=${2} && shift 2;;
-      -r|--port) PORT=${2} && shift 2;;
-      -s|--protocol) PROTOCOL=${2} && shift 2;;
-      -t|--timeout) TIMEOUT=${2} && shift 2;;
-      -u|--username) USERNAME=${2} && shift 2;;
-      -p|--password)
-        # if no password was specified prompt for one
-        if [[ "${2:-}" == "" || "${2:-}" == --* ]]; then
-          stty -echo # disable keyboard input
-          read -p "Password: " -r PASSWORD # prompt the user for the password
-          stty echo # enable keyboard input
-          echo # new line
-          tput cuu1 && tput el # clear the previous line
-          shift
-        else
-          PASSWORD="${2}" # set the passed password
-          shift 2
-        fi
-        ;;
-      *)
-        error "invalid option: '$1'."
-        exit 1
-        ;;
+    -sc | --source-cluster) SOURCE_CLUSTER=${2} && shift 2 ;;
+    -tc | --target-cluster) TARGET_CLUSTER=${2} && shift 2 ;;
+    -f | --source-file) SOURCE_INDEX_DEFINITIONS_FILE=${2} && shift 2 ;;
+    -b | --buckets) BUCKETS=${2} && shift 2 ;;
+    -o | --output-file) OUTPUT_FILE=${2} && shift 2 ;;
+    -rf | --report-file) REPORT_FILE=${2} && shift 2 ;;
+    -c | --check) CHECK=${2} && shift 2 ;;
+    -r | --port) PORT=${2} && shift 2 ;;
+    -s | --protocol) PROTOCOL=${2} && shift 2 ;;
+    -t | --timeout) TIMEOUT=${2} && shift 2 ;;
+    -u | --username) USERNAME=${2} && shift 2 ;;
+    -p | --password)
+      # if no password was specified prompt for one
+      if [[ "${2:-}" == "" || "${2:-}" == --* ]]; then
+        stty -echo                       # disable keyboard input
+        read -p "Password: " -r PASSWORD # prompt the user for the password
+        stty echo                        # enable keyboard input
+        echo                             # new line
+        tput cuu1 && tput el             # clear the previous line
+        shift
+      else
+        PASSWORD="${2}" # set the passed password
+        shift 2
+      fi
+      ;;
+    *)
+      error "invalid option: '$1'."
+      exit 1
+      ;;
     esac
   done
 }
@@ -105,7 +105,7 @@ _dependencies() {
   # check if the dependent files are present
   FILE=./build-indexes.sh
   if [ ! -f "$FILE" ]; then
-      emergency "$FILE is required in current path, see (https://github.com/couchbaselabs/scripts/tree/master/external/admin/index)"
+    emergency "$FILE is required in current path, see (https://github.com/couchbaselabs/scripts/tree/master/external/admin/index)"
   fi
 }
 
@@ -157,7 +157,7 @@ _validate() {
     warning "The -l/--log-level argument must be an integer between 0-7" && valid=false
   fi
   # if there are errors
-  if ( ! $valid ); then
+  if (! $valid); then
     exit 1
   fi
 }
@@ -184,95 +184,87 @@ main() {
     protocol: $PROTOCOL
     timeout: $TIMEOUT"
 
-    local source_index_definition_file
-    local target_index_definition_file
-    source_index_definition_file="indexes-src-$SOURCE_CLUSTER-$(date +"%Y-%m-%dT%H:%M:%S").tsv"
-    target_index_definition_file="indexes-tgt-$TARGET_CLUSTER-$(date +"%Y-%m-%dT%H:%M:%S").tsv"
-    initialize
+  local source_index_definition_file
+  local target_index_definition_file
+  source_index_definition_file="indexes-src-$SOURCE_CLUSTER-$(date +"%Y-%m-%dT%H:%M:%S").tsv"
+  target_index_definition_file="indexes-tgt-$TARGET_CLUSTER-$(date +"%Y-%m-%dT%H:%M:%S").tsv"
+  initialize
 
-    if [ -z "$SOURCE_INDEX_DEFINITIONS_FILE" ]
-    then
-      generateIndexDefinitions "$SOURCE_CLUSTER" "$source_index_definition_file"
-    else
-      source_index_definition_file="$SOURCE_INDEX_DEFINITIONS_FILE"
-    fi
-    generateIndexDefinitions "$TARGET_CLUSTER" "$target_index_definition_file"
+  if [ -z "$SOURCE_INDEX_DEFINITIONS_FILE" ]; then
+    generateIndexDefinitions "$SOURCE_CLUSTER" "$source_index_definition_file"
+  else
+    source_index_definition_file="$SOURCE_INDEX_DEFINITIONS_FILE"
+  fi
+  generateIndexDefinitions "$TARGET_CLUSTER" "$target_index_definition_file"
 
-    loadSqlite "tabSrc" "$source_index_definition_file"
-    loadSqlite "tabTgt" "$target_index_definition_file"
+  loadSqlite "tabSrc" "$source_index_definition_file"
+  loadSqlite "tabTgt" "$target_index_definition_file"
 
-    createMissingIndexes
-    replaceMisMatchingIndexes
-    dropExtraIndexes
-    success "Refreshing indexes completed successfully"
+  createMissingIndexes
+  replaceMisMatchingIndexes
+  dropExtraIndexes
+  success "Refreshing indexes completed successfully"
 
 }
-initialize(){
+initialize() {
 
-  if [ -n "$OUTPUT_FILE" ]
-  then
-    echo "">"$OUTPUT_FILE"
+  if [ -n "$OUTPUT_FILE" ]; then
+    echo "" >"$OUTPUT_FILE"
     info "The output scripts are getting written to the file: $OUTPUT_FILE"
   fi
-  if [ -n "$REPORT_FILE" ]
-  then
+  if [ -n "$REPORT_FILE" ]; then
     {
       echo "Index Comparison Report"
       echo "Source Cluster: $SOURCE_CLUSTER"
       echo "Target Cluster: $TARGET_CLUSTER"
       echo ""
-    } > "$REPORT_FILE"
+    } >"$REPORT_FILE"
     info "The index differences are getting written to the report file: $REPORT_FILE"
   fi
-  if [ "$CHECK" = "true" ]
-  then
+  if [ "$CHECK" = "true" ]; then
     info "Script is running in check mode. No operations will be performed in the target cluster"
   fi
   if [ "$QUERY_NODE" == "" ] || [ -z ${QUERY_NODE+x} ]; then
-        query_nodes=$(getQueryNodes "$TARGET_CLUSTER")
+    query_nodes=$(getQueryNodes "$TARGET_CLUSTER")
   else
-        query_nodes="$QUERY_NODE"
+    query_nodes="$QUERY_NODE"
   fi
-  IFS=', ' read -r -a query_nodes <<< "$query_nodes"
+  IFS=', ' read -r -a query_nodes <<<"$query_nodes"
   QUERY_NODE="${query_nodes[$((RANDOM % ${#query_nodes[@]}))]}"
   debug "Query Node: $QUERY_NODE"
 }
-generateIndexDefinitions(){
+generateIndexDefinitions() {
   local cluster=$1
   local filename=$2
 
-  if [ -n "$BUCKETS" ]
-  then
+  if [ -n "$BUCKETS" ]; then
     bucketslist=$(echo "\"$BUCKETS\"" | tr -d " " | sed 's/,/","/g')
     # shellcheck disable=SC2086
-    curl --user "$USERNAME:$PASSWORD" --silent http://$cluster:$PORT/indexStatus | jq -r --arg buckets "$bucketslist" '[.indexes[] | select(([.bucket] | inside([$buckets])) and (.index | contains(" (replica ") | not))] | sort_by(.bucket) | .[] | "\(.bucket)\t\(.index)\t\(.definition)"' | sed s/'"nodes":\[[^]]*],'// | sed -e 's/  */ /g' -e 's/^ *\(.*\) *$/\1/' | uniq> "$filename"
+    curl --user "$USERNAME:$PASSWORD" --silent http://$cluster:$PORT/indexStatus | jq -r --arg buckets "$bucketslist" '[.indexes[] | select(([.bucket] | inside([$buckets])) and (.index | contains(" (replica ") | not))] | sort_by(.bucket) | .[] | "\(.bucket)\t\(.index)\t\(.definition)"' | sed s/'"nodes":\[[^]]*],'// | sed -e 's/  */ /g' -e 's/^ *\(.*\) *$/\1/' | uniq >"$filename"
   else
     # shellcheck disable=SC2086
-    curl --user "$USERNAME:$PASSWORD" --silent http://$cluster:8091/indexStatus | jq -r '.indexes | sort_by(.bucket) | .[] | "\(.bucket)\t\(.index)\t\(.definition)"' | sed s/'"nodes":\[[^]]*],'// | sed -e 's/ (replica [0-9]*)//' | sed -e 's/  */ /g' -e 's/^ *\(.*\) *$/\1/' | uniq> "$filename"
+    curl --user "$USERNAME:$PASSWORD" --silent http://$cluster:8091/indexStatus | jq -r '.indexes | sort_by(.bucket) | .[] | "\(.bucket)\t\(.index)\t\(.definition)"' | sed s/'"nodes":\[[^]]*],'// | sed -e 's/ (replica [0-9]*)//' | sed -e 's/  */ /g' -e 's/^ *\(.*\) *$/\1/' | uniq >"$filename"
   fi
   info "Index defenitions of cluster $cluster generated at $filename"
 }
-loadSqlite()
-{
+loadSqlite() {
   local tablename=$1
   local filename=$2
   sqlite3 test.db "DROP TABLE IF EXISTS $tablename"
   sqlite3 test.db "create table $tablename (bucket TEXT,name TEXT,definition TEXT);"
   sqlite3 -separator $'\t' test.db ".import $filename $tablename"
   local recordcount
-  recordcount=$(sqlite3 test.db  "select count(*) from $tablename")
+  recordcount=$(sqlite3 test.db "select count(*) from $tablename")
   info "$recordcount indexes loaded from $filename"
 }
-createMissingIndexes()
-{
+createMissingIndexes() {
   local indexes
   local count
 
   logFile $'##Script for creating Missing Indexes'
 
-  indexes=$(sqlite3 test.db  "select tabSrc.definition || \";\" from tabSrc left join tabTgt on tabSrc.bucket = tabTgt.bucket and tabSrc.name = tabTgt.name where tabTgt.bucket is null")
-  if [ -z "$indexes" ]
-  then
+  indexes=$(sqlite3 test.db "select tabSrc.definition || \";\" from tabSrc left join tabTgt on tabSrc.bucket = tabTgt.bucket and tabSrc.name = tabTgt.name where tabTgt.bucket is null")
+  if [ -z "$indexes" ]; then
     msg="There are no missing indexes in the target cluster"
     logReport "#$msg#"
     success "$msg"
@@ -285,36 +277,29 @@ createMissingIndexes()
   logReport "#$msg#"
   logFile "$indexes"
   #Priniting source index defenitions in report
-  if [ -n "$REPORT_FILE" ]
-  then
-      indexesReport=$(sqlite3 test.db  'select "Source Index definition: " || tabSrc.definition from tabSrc left join tabTgt on tabSrc.bucket = tabTgt.bucket and tabSrc.name = tabTgt.name where tabTgt.bucket is null')
-      logReport "$indexesReport"
+  if [ -n "$REPORT_FILE" ]; then
+    indexesReport=$(sqlite3 test.db 'select "Source Index definition: " || tabSrc.definition from tabSrc left join tabTgt on tabSrc.bucket = tabTgt.bucket and tabSrc.name = tabTgt.name where tabTgt.bucket is null')
+    logReport "$indexesReport"
   fi
-
 
   executeN1QLQueries "$indexes"
 
   buildIndexes
   success "Processing $count missing indexes completed"
 }
-replaceMisMatchingIndexes()
-{
+replaceMisMatchingIndexes() {
   logFile $'##Script for replacing Mis-Matching Indexes'
   local indexes
   local count
 
-
-
   #CREATE INDEXES WITH TEMPERORY NAME
-  indexes=$(sqlite3 test.db  'select REPLACE(tabSrc.definition,tabSrc.name,tabSrc.name || "_temp") || ";" from tabSrc inner join tabTgt on tabSrc.bucket = tabTgt.bucket and tabSrc.name = tabTgt.name where tabSrc.definition != tabTgt.definition')
-  if [ -z "$indexes" ]
-  then
+  indexes=$(sqlite3 test.db 'select REPLACE(tabSrc.definition,tabSrc.name,tabSrc.name || "_temp") || ";" from tabSrc inner join tabTgt on tabSrc.bucket = tabTgt.bucket and tabSrc.name = tabTgt.name where tabSrc.definition != tabTgt.definition')
+  if [ -z "$indexes" ]; then
     msg="There are no mis-matching indexes in the target cluster"
     logReport "#$msg#"
     success "$msg"
     return
   fi
-
 
   count=$(echo "$indexes" | wc -l | sed -e 's/^ *\(.*\) *$/\1/')
   msg="Mismatching Indexes in Target: $count"
@@ -322,10 +307,9 @@ replaceMisMatchingIndexes()
   logReport "#$msg#"
   logFile "$indexes"
   #Priniting source and target index defenitions in report
-  if [ -n "$REPORT_FILE" ]
-  then
-      indexesReport=$(sqlite3 test.db  'select "Source Index definition: " || tabSrc.definition || "\n" || "Target Index definition :" || tabTgt.definition from tabSrc inner join tabTgt on tabSrc.bucket = tabTgt.bucket and tabSrc.name = tabTgt.name where tabSrc.definition != tabTgt.definition')
-      logReport "$indexesReport"
+  if [ -n "$REPORT_FILE" ]; then
+    indexesReport=$(sqlite3 test.db 'select "Source Index definition: " || tabSrc.definition || "\n" || "Target Index definition :" || tabTgt.definition from tabSrc inner join tabTgt on tabSrc.bucket = tabTgt.bucket and tabSrc.name = tabTgt.name where tabSrc.definition != tabTgt.definition')
+    logReport "$indexesReport"
   fi
 
   executeN1QLQueries "$indexes"
@@ -334,19 +318,18 @@ replaceMisMatchingIndexes()
 
   #DROP ORIGINAL INDEXES
   # shellcheck disable=SC2016
-  indexes=$(sqlite3 test.db  'select "DROP INDEX `" || tabSrc.bucket || "`.`" || tabSrc.name || "`;" from tabSrc inner join tabTgt on tabSrc.bucket = tabTgt.bucket and tabSrc.name = tabTgt.name where tabSrc.definition != tabTgt.definition')
+  indexes=$(sqlite3 test.db 'select "DROP INDEX `" || tabSrc.bucket || "`.`" || tabSrc.name || "`;" from tabSrc inner join tabTgt on tabSrc.bucket = tabTgt.bucket and tabSrc.name = tabTgt.name where tabSrc.definition != tabTgt.definition')
   logFile "$indexes"
   count=$(echo "$indexes" | wc -l | sed -e 's/^ *\(.*\) *$/\1/')
   debug "Drop Indexes count: $count"
   executeN1QLQueries "$indexes"
-  if [ "$CHECK" = "false" ]
-  then
+  if [ "$CHECK" = "false" ]; then
     debug 'Taking a deep breath to refresh the indexes'
     sleep 5
   fi
 
   #CREATE INDEXES WITH ORIGINAL NAME
-  indexes=$(sqlite3 test.db  "select tabSrc.definition || \";\" from tabSrc inner join tabTgt on tabSrc.bucket = tabTgt.bucket and tabSrc.name = tabTgt.name where tabSrc.definition != tabTgt.definition")
+  indexes=$(sqlite3 test.db "select tabSrc.definition || \";\" from tabSrc inner join tabTgt on tabSrc.bucket = tabTgt.bucket and tabSrc.name = tabTgt.name where tabSrc.definition != tabTgt.definition")
   logFile "$indexes"
   count=$(echo "$indexes" | wc -l | sed -e 's/^ *\(.*\) *$/\1/')
   debug "Create Indexes count: $count"
@@ -356,7 +339,7 @@ replaceMisMatchingIndexes()
 
   #DROP TEMPERORY INDEXES
   # shellcheck disable=SC2016
-  indexes=$(sqlite3 test.db  'select "DROP INDEX `" || tabSrc.bucket || "`.`" || tabSrc.name || "_temp`" || ";" from tabSrc inner join tabTgt on tabSrc.bucket = tabTgt.bucket and tabSrc.name = tabTgt.name where tabSrc.definition != tabTgt.definition')
+  indexes=$(sqlite3 test.db 'select "DROP INDEX `" || tabSrc.bucket || "`.`" || tabSrc.name || "_temp`" || ";" from tabSrc inner join tabTgt on tabSrc.bucket = tabTgt.bucket and tabSrc.name = tabTgt.name where tabSrc.definition != tabTgt.definition')
   logFile "$indexes"
   count=$(echo "$indexes" | wc -l | sed -e 's/^ *\(.*\) *$/\1/')
   debug "Drop Temp Indexes count: $count"
@@ -364,16 +347,14 @@ replaceMisMatchingIndexes()
 
   success "Processing $count mis-matching indexes completed"
 }
-dropExtraIndexes()
-{
+dropExtraIndexes() {
   logFile $'##Script for deleting Extra Indexes'
   local indexes
   local count
 
   # shellcheck disable=SC2016
-  indexes=$(sqlite3 test.db  'select "DROP INDEX `" || tabTgt.bucket || "`.`" || tabTgt.name || "`;" from tabTgt left join tabSrc on tabSrc.bucket = tabTgt.bucket and tabSrc.name = tabTgt.name where tabSrc.bucket is null')
-  if [ -z "$indexes" ]
-  then
+  indexes=$(sqlite3 test.db 'select "DROP INDEX `" || tabTgt.bucket || "`.`" || tabTgt.name || "`;" from tabTgt left join tabSrc on tabSrc.bucket = tabTgt.bucket and tabSrc.name = tabTgt.name where tabSrc.bucket is null')
+  if [ -z "$indexes" ]; then
     msg="There are no extra indexes in the target cluster"
     logReport "#$msg#"
     success "$msg"
@@ -386,24 +367,20 @@ dropExtraIndexes()
   logReport "#$msg#"
   logFile "$indexes"
   #Priniting target index defenitions in report
-  if [ -n "$REPORT_FILE" ]
-  then
-      indexesReport=$(sqlite3 test.db  'select "Target Index definition :" || tabTgt.definition from tabTgt left join tabSrc on tabSrc.bucket = tabTgt.bucket and tabSrc.name = tabTgt.name where tabSrc.bucket is null')
-      logReport "$indexesReport"
+  if [ -n "$REPORT_FILE" ]; then
+    indexesReport=$(sqlite3 test.db 'select "Target Index definition :" || tabTgt.definition from tabTgt left join tabSrc on tabSrc.bucket = tabTgt.bucket and tabSrc.name = tabTgt.name where tabSrc.bucket is null')
+    logReport "$indexesReport"
   fi
 
   executeN1QLQueries "$indexes"
 
   success "Processing $count extra indexes completed"
 }
-executeN1QLQueries()
-{
+executeN1QLQueries() {
   local queries=$1
-  for query in $queries
-  do
+  for query in $queries; do
     debug "Executing the query: $query"
-    if [ "$CHECK" = "false" ]
-    then
+    if [ "$CHECK" = "false" ]; then
       #cbq -e "couchbase://$QUERY_NODE" -u "$USERNAME" -p "$PASSWORD" --script="$query"
       executeN1ql "$query"
       Wait
@@ -411,44 +388,38 @@ executeN1QLQueries()
       debug "#CHECK MODE# Skipping query execution"
     fi
   done
-  if [ "$CHECK" = "false" ]
-  then
+  if [ "$CHECK" = "false" ]; then
     debug 'Taking a deep breath to refresh the indexes'
     sleep 10
   fi
   debug "All queries got executed"
 }
-buildIndexes()
-{
-    logFile "build-indexes.sh --cluster=$TARGET_CLUSTER --username=USERNAME --password=PASSWORD --query-node=$QUERY_NODE"
-    debug "build-indexes.sh --cluster=$TARGET_CLUSTER --username=$USERNAME --password=$PASSWORD --query-node=$QUERY_NODE"
-    if [ "$CHECK" = "false" ]
-    then
-      # shellcheck disable=SC1091
-      result=$(source build-indexes.sh --cluster="$TARGET_CLUSTER" --username="$USERNAME" --password="$PASSWORD" --query-node="$QUERY_NODE")
-      debug "$result"
-      Wait
-    else
-      debug "#CHECK MODE# Skipping Index Build"
-    fi
+buildIndexes() {
+  logFile "build-indexes.sh --cluster=$TARGET_CLUSTER --username=USERNAME --password=PASSWORD --query-node=$QUERY_NODE"
+  debug "build-indexes.sh --cluster=$TARGET_CLUSTER --username=$USERNAME --password=$PASSWORD --query-node=$QUERY_NODE"
+  if [ "$CHECK" = "false" ]; then
+    # shellcheck disable=SC1091
+    result=$(source build-indexes.sh --cluster="$TARGET_CLUSTER" --username="$USERNAME" --password="$PASSWORD" --query-node="$QUERY_NODE")
+    debug "$result"
+    Wait
+  else
+    debug "#CHECK MODE# Skipping Index Build"
+  fi
 
-    waitForBuildCompletion
+  waitForBuildCompletion
 
 }
-waitForBuildCompletion()
-{
+waitForBuildCompletion() {
   logFile $'##WAIT FOR BUILD COMPLETION##'
-  if [ "$CHECK" = "false" ]
-  then
+  if [ "$CHECK" = "false" ]; then
     debug 'Taking a deep breath to refresh the indexes'
     sleep 5
     printf "Index Build in progress"
-    while true
-    do
+    while true; do
       out=$(curl \
         --user "$USERNAME:$PASSWORD" \
         --silent \
-        "$PROTOCOL://$TARGET_CLUSTER:$PORT/indexStatus" | \
+        "$PROTOCOL://$TARGET_CLUSTER:$PORT/indexStatus" |
         jq -r '.indexes | map(select((.status != "Ready"))) | .[] | .bucket + ": " + .index + " (" +.status + ")"')
       if [[ -n "$out" ]]; then
         printf .
@@ -464,26 +435,22 @@ waitForBuildCompletion()
     debug "#CHECK MODE# Skipping wait for build completion"
   fi
 }
-logFile()
-{
+logFile() {
   message=$1
-  if [ -n "$OUTPUT_FILE" ] && [ -n "$message" ]
-  then
+  if [ -n "$OUTPUT_FILE" ] && [ -n "$message" ]; then
     {
       echo "$message"
       echo ""
-    }>>"$OUTPUT_FILE"
+    } >>"$OUTPUT_FILE"
   fi
 }
-logReport()
-{
+logReport() {
   message=$1
-  if [ -n "$REPORT_FILE" ] && [ -n "$message" ]
-  then
+  if [ -n "$REPORT_FILE" ] && [ -n "$message" ]; then
     {
       echo -e "$message"
       echo ""
-    }>>"$REPORT_FILE"
+    } >>"$REPORT_FILE"
   fi
 }
 # getQueryNode
@@ -578,18 +545,18 @@ executeN1ql() {
 #  - https://github.com/oxyc/bash-boilerplate/blob/master/script.sh
 #  - https://github.com/kvz/bash3boilerplate/blob/master/example.sh
 
-set -o errexit # Exit on error. Append '||true' when you run the script if you expect an error.
+set -o errexit  # Exit on error. Append '||true' when you run the script if you expect an error.
 set -o errtrace # Exit on error inside any functions or subshells.
 set -o pipefail # Exit on piping, bash will remember & return the highest exitcode in a chain of pipes.
-set -o nounset # Exit when undeclared variables are used
+set -o nounset  # Exit when undeclared variables are used
 
 # magic variables for use within the script
-__dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)" # the directory the script is being executed in
+__dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"    # the directory the script is being executed in
 __script_path="${__dir}/$(basename "${BASH_SOURCE[0]}")" # the full path to the script
-__script="$(basename "${__script_path}")" # the name of the script including the extension
-__script_name="$(basename "${__script_path}" .sh)" # the name of the script without the extension
+__script="$(basename "${__script_path}")"                # the name of the script including the extension
+__script_name="$(basename "${__script_path}" .sh)"       # the name of the script without the extension
 # shellcheck disable=SC2015
-__invocation="$(printf %q "${__script_path}")$( (($#)) && printf ' %q' "$@" || true )" # the invocating command and options passed to the script at execution time
+__invocation="$(printf %q "${__script_path}")$( (($#)) && printf ' %q' "$@" || true)" # the invocating command and options passed to the script at execution time
 
 # Set Temp Directory
 # -----------------------------------
@@ -621,7 +588,7 @@ TRACE="0"
 #   Example: _log "info" "Some message"
 # -----------------------------------
 # shellcheck disable=SC2034
-_log () {
+_log() {
   local log_level="${1}" # first option is the level, the rest is the message
   shift
   local color_success="\\x1b[32m"
@@ -640,8 +607,8 @@ _log () {
   # If no color is set or a non-recognized terminal is used don't use colors
   if [[ "${NO_COLOR:-}" = "true" ]] || { [[ "${TERM:-}" != "xterm"* ]] && [[ "${TERM:-}" != "screen"* ]]; } || [[ ! -t 2 ]]; then
     if [[ "${NO_COLOR:-}" != "false" ]]; then
-      color="";
-      color_reset="";
+      color=""
+      color_reset=""
     fi
   fi
 
@@ -650,7 +617,7 @@ _log () {
 
   while IFS=$'\n' read -r log_line; do
     echo -e "$(date +"%Y-%m-%d %H:%M:%S %Z") ${color}[${log_level}]${color_reset} ${log_line}" 1>&2
-  done <<< "${@:-}"
+  done <<<"${@:-}"
 }
 
 # emergency
@@ -658,7 +625,8 @@ _log () {
 # Handles emergency logging
 # -----------------------------------
 emergency() {
-  _log emergency "${@}"; exit 1;
+  _log emergency "${@}"
+  exit 1
 }
 
 # success
@@ -666,7 +634,8 @@ emergency() {
 # Handles success logging
 # -----------------------------------
 success() {
-  _log success "${@}"; true;
+  _log success "${@}"
+  true
 }
 
 # alert
@@ -674,8 +643,8 @@ success() {
 # Handles alert logging
 # -----------------------------------
 alert() {
-  [[ "${LOG_LEVEL:-0}" -ge 1 ]] && _log alert "${@}";
-  true;
+  [[ "${LOG_LEVEL:-0}" -ge 1 ]] && _log alert "${@}"
+  true
 }
 
 # critical
@@ -683,8 +652,8 @@ alert() {
 # Handles critical logging
 # -----------------------------------
 critical() {
-  [[ "${LOG_LEVEL:-0}" -ge 2 ]] && _log critical "${@}";
-  true;
+  [[ "${LOG_LEVEL:-0}" -ge 2 ]] && _log critical "${@}"
+  true
 }
 
 # error
@@ -692,8 +661,8 @@ critical() {
 # Handles error logging
 # -----------------------------------
 error() {
-  [[ "${LOG_LEVEL:-0}" -ge 3 ]] && _log error "${@}";
-  true;
+  [[ "${LOG_LEVEL:-0}" -ge 3 ]] && _log error "${@}"
+  true
 }
 
 # warning
@@ -701,8 +670,8 @@ error() {
 # Handles warning logging
 # -----------------------------------
 warning() {
-  [[ "${LOG_LEVEL:-0}" -ge 4 ]] && _log warning "${@}";
-  true;
+  [[ "${LOG_LEVEL:-0}" -ge 4 ]] && _log warning "${@}"
+  true
 }
 
 # notice
@@ -710,8 +679,8 @@ warning() {
 # Handles notice logging
 # -----------------------------------
 notice() {
-  [[ "${LOG_LEVEL:-0}" -ge 5 ]] && _log notice "${@}";
-  true;
+  [[ "${LOG_LEVEL:-0}" -ge 5 ]] && _log notice "${@}"
+  true
 }
 
 # info
@@ -719,8 +688,8 @@ notice() {
 # Handles info logging
 # -----------------------------------
 info() {
-  [[ "${LOG_LEVEL:-0}" -ge 6 ]] && _log info "${@}";
-  true;
+  [[ "${LOG_LEVEL:-0}" -ge 6 ]] && _log info "${@}"
+  true
 }
 
 # debug
@@ -728,8 +697,8 @@ info() {
 # Handles debug logging and prepends the name of the that called debug in front of the message
 # -----------------------------------
 debug() {
-  [[ "${LOG_LEVEL:-0}" -ge 7 ]] && _log debug "${FUNCNAME[1]}() ${*}";
-  true;
+  [[ "${LOG_LEVEL:-0}" -ge 7 ]] && _log debug "${FUNCNAME[1]}() ${*}"
+  true
 }
 
 # _exit
@@ -762,21 +731,27 @@ IFS=$'\n\t'
 unset options
 while (($#)); do
   case $1 in
-    # If option is of type --foo=bar
-    --?*=*) options+=("${1%%=*}" "${1#*=}") ;;
-    --help) _usage >&2; _exit ;;
-    --version) echo "${__script_name} ${version}"; _exit ;;
-    --log-level) LOG_LEVEL=${2} && shift ;;
-    --no-color) NO_COLOR=true ;;
-    --debug) LOG_LEVEL="7" ;;
-    --trace)
-      TRACE="1"
-      LOG_LEVEL="7"
+  # If option is of type --foo=bar
+  --?*=*) options+=("${1%%=*}" "${1#*=}") ;;
+  --help)
+    _usage >&2
+    _exit
     ;;
-    # add --endopts for --
-    --) options+=(--endopts) ;;
-    # Otherwise, nothing special
-    *) options+=("$1") ;;
+  --version)
+    echo "${__script_name} ${version}"
+    _exit
+    ;;
+  --log-level) LOG_LEVEL=${2} && shift ;;
+  --no-color) NO_COLOR=true ;;
+  --debug) LOG_LEVEL="7" ;;
+  --trace)
+    TRACE="1"
+    LOG_LEVEL="7"
+    ;;
+  # add --endopts for --
+  --) options+=(--endopts) ;;
+  # Otherwise, nothing special
+  *) options+=("$1") ;;
   esac
   shift
 done
@@ -790,8 +765,7 @@ fi
 _options "$@"
 
 # if trace has been set to 1 via the --trace argument enable tracing after the options have been parsed
-if [[ "${TRACE}" == "1" ]]
-then
+if [[ "${TRACE}" == "1" ]]; then
   set -o xtrace
 fi
 

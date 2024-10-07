@@ -118,8 +118,8 @@ def ceiling_transform(params_dict):
 The named function routine processes a named function entry from a template.
 The '_named_function_def' looks like "&named_function|*field1,*field2,*field3..."
 where named_function is the literal function name of a defined function.
-The name of the function and the function parameters are seperated by a "|" and
-the parameters are seperated by a ','.
+The name of the function and the function parameters are separated by a "|" and
+the parameters are separated by a ','.
 It is expected that field1, field2, and field3 etc are all valid variable names.
 Each field will be translated from the grib2 file into an array of
 tuples, one per station location. Each tuple will have a location precise value and an interpolated value.
@@ -277,9 +277,8 @@ and to use multiple threads and log any errors you can do this, you should not u
 cbimport json --cluster couchbase://adb-cb4.gsd.esrl.noaa.gov --bucket mdata --username avid --password 'getyourselfapassword' --format list --generate-key %id% --dataset file:///path_to_the_file -t num_threads -e an_error_file
 ```
 
-A strategy might be to seperate data into multiple files and run a different cbimport
+A strategy might be to separate data into multiple files and run a different cbimport
 instance on each file.
-
 
 ### N1QL metadata queries
 

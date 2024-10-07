@@ -245,8 +245,8 @@ class NetcdfBuilder(Builder):
         :param _named_function_def - this can be either a template key or a template value.
         The _named_function_def looks like "&named_function:*field1,*field2,*field3..."
         where named_function is the literal function name of a defined function.
-        The name of the function and the function parameters are seperated by a ":" and
-        the parameters are seperated vy a ','.
+        The name of the function and the function parameters are separated by a ":" and
+        the parameters are separated vy a ','.
         It is expected that field1, field2, and field3 etc are all valid variable names.
         Each field will be translated from the netcdf file into value1, value2 etc.
         The method "named_function" will be called like...

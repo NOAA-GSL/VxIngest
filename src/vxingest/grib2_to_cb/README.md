@@ -5,7 +5,6 @@
 These programs are intended to import grib data into Couchbase taking advantage of the GSL Couchbase data schema
 that has been developed by the GSL AVID model verification team.
 
-
 ## Approach
 
 These programs use a load_spec YAML file to define which ingest templates are to be used, a credentials file to provide database authentication, command line parameters for run time options, and the associated ingest template documents from the database that are specified in the load_spec.yaml.
@@ -27,7 +26,7 @@ The 'MD:V01:METAR:HRRR_OPS:ingest:grib2' value is the id of a couchbase metadata
 This document MUST exist on the couchbase cluster defined by cb_host
 and MUST be readable by the cb_user. Copies of the metadata documents are checked into
 .../VXingest/mats_metadata_and_indexes/ingest_models_from_grib.json and there is a script
-.../VXingest/mats_metadata_and_indexes/ingest_models_from_grib.sh that is usefull for importing
+.../VXingest/mats_metadata_and_indexes/ingest_models_from_grib.sh that is useful for importing
 the associated metadata document.
 
 ## ingest documents

@@ -1,0 +1,83 @@
+name: SDR created
+on:
+  issues:
+    types:
+      - closed
+
+jobs:
+  main:
+    name: SDR created
+    runs-on: ubuntu-latest
+
+    # Only run this workflow if the closed issue has the "SDR: accepted" label
+    if: "${{ contains(github.event.issue.labels.*.name, 'SDR: accepted') }}"
+
+    steps:
+      - name: checkout main branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: get SDR number
+        id: next
+        run: |
+          LAST_SDR=$(ls docs/decisions/scientific/*.md | grep -Eo "scientific/[0-9]+-" | sort | tail -n1 | grep -Eo "[0-9]+")
+          LAST_SDR=$(echo "$LAST_SDR" | sed -E 's/^0+//')
+          NEXT_SDR=$(($LAST_SDR + 1))
+          NEXT_SDR=$(printf "%04i" "$NEXT_SDR")
+          echo "number=$NEXT_SDR" >> "$GITHUB_OUTPUT"
+
+      - name: write the SDR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs/promises");
+
+            // Use the GitHub toJSON expression to get these as escaped strings.
+            // In Javascript, this will preserve line breaks, and using template
+            // strings further down will preserve all the kinds of quotes.
+            const title = ${{ toJSON(github.event.issue.title) }};
+            const body = ${{ toJSON(github.event.issue.body )}};
+
+            const slug = title
+              .toLowerCase()
+              .trim()
+              .replace(/[^\w\s-]/g, "") // get rid of non-ascii characters
+              .replace(/[\s_-]+/g, "-") // convert whitespace and underscore to dash
+              .replace(/^-+|-+$/g, "");  // git rid of leading/trailing dashes
+
+            const filename = `docs/architecture/decisions/sdr-${{ steps.next.outputs.number }}-${slug}.md`;
+
+            // Get the current date as an ISO8601 string, split at the timestamp,
+            // and only keep the date portion.
+            const [date] = new Date().toISOString().split("T");
+
+            const sdr = `# ${ title }
+
+            Date: ${ date }
+
+            ### Status
+
+            Accepted
+
+            ${ body }
+            `;
+
+            await fs.writeFile(filename, sdr, { encoding: 'utf-8' });
+
+      - name: branch, commit, and open PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="sdr-auto-${{ steps.next.outputs.number }}"
+          git config --global user.email "mats.gsl@noaa.gov"
+          git config --global user.name "GSL Verification team SDR automation"
+          git checkout -b $BRANCH
+          git add docs/decisions/scientific/*.md
+          git commit -m "add SDR ${{ steps.next.outputs.number }}: ${{ github.event.issue.title }}"
+          git push -f origin $BRANCH
+          gh pr create \
+            --title "Add SDR ${{ steps.next.outputs.number }} to the repo" \
+            --label "SDR" \
+            --body "This pull request was opened automatically because #${{ github.event.issue.number }} was closed after being marked as an approved SDR. It contains a markdown file capturing the SDR body at the time the issue was closed. Please verify that the markdown is correct before merging!" || true
+          gh pr merge $BRANCH --auto --squash

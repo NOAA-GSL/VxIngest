@@ -1,0 +1,33 @@
+name: Scientific decision record (SDR)
+description: Open a new draft SDR
+labels: ["SDR"]
+body:
+  - type: textarea
+    id: context
+    validations:
+      required: true
+    attributes:
+      label: Context
+      description: >
+        Describe the motivating factors behind this decision: social, political,
+        scientific, etc. Why does this decision need to be made? This section should
+        be a statement of facts.
+  - type: textarea
+    id: decision
+    validations:
+      required: true
+    attributes:
+      label: Decision
+      description: >
+        What was decided? This should be an active-voice statement. For example,
+        "We will recalculate heights for RAOB observations."
+  - type: textarea
+    id: consequences
+    validations:
+      required: true
+    attributes:
+      label: Consequences
+      description: >
+        What are the consequences of this decision? Consequences can be
+        positive, negative, or neutral, but all known consequences of this
+        decision should be listed here.

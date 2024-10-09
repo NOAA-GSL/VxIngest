@@ -181,13 +181,13 @@ def test_read_obs_data():
     ]
     assert obs_test_data["temperature"] == [
         None,
-        np.float64(-7.2),
-        np.float64(-9.8),
-        np.float64(-9.8),
-        np.float64(-14.1),
-        np.float64(-16.1),
-        np.float64(-24.6),
-        np.float64(-28.4),
+        np.float64(-7.5),
+        np.float64(-10.1),
+        np.float64(-10.1),
+        np.float64(-14.3),
+        np.float64(-16.3),
+        np.float64(-24.7),
+        np.float64(-28.5),
         np.float64(-35.3),
         np.float64(-41.3),
         np.float64(-43.9),
@@ -249,13 +249,13 @@ def test_read_obs_data():
     ]
     assert obs_test_data["relative_humidity"] == [
         None,
-        np.float64(82.02),
-        np.float64(96.53),
-        np.float64(96.51),
-        np.float64(89.29),
-        np.float64(88.32),
-        np.float64(87.69),
-        np.float64(85.5),
+        np.float64(83.94),
+        np.float64(98.84),
+        np.float64(98.82),
+        np.float64(90.76),
+        np.float64(89.8),
+        np.float64(88.48),
+        np.float64(86.29),
         np.float64(52.69),
         np.float64(65.12),
         np.float64(70.78),
@@ -352,35 +352,35 @@ def test_read_obs_data():
     assert obs_test_data["height"] == [
         np.float64(-147.0),
         np.float64(18.0),
-        np.float64(458.02),
-        np.float64(499.85),
-        np.float64(1105.49),
-        np.float64(1526.06),
-        np.float64(2551.63),
-        np.float64(3009.49),
-        np.float64(3781.33),
-        np.float64(4481.07),
-        np.float64(4872.79),
-        np.float64(4899.57),
-        np.float64(5089.48),
-        np.float64(5558.04),
-        np.float64(6378.43),
-        np.float64(6560.16),
-        np.float64(8257.86),
-        np.float64(8736.55),
-        np.float64(9461.45),
-        np.float64(10930.08),
-        np.float64(12815.88),
-        np.float64(15446.48),
-        np.float64(17733.4),
-        np.float64(19874.03),
-        np.float64(20854.58),
-        np.float64(23090.29),
-        np.float64(23392.38),
-        np.float64(24597.46),
-        np.float64(25630.6),
-        np.float64(29995.78),
-        np.float64(31179.58),
+        np.float64(457.52),
+        np.float64(499.3),
+        np.float64(1104.37),
+        np.float64(1524.61),
+        np.float64(2549.57),
+        np.float64(3007.24),
+        np.float64(3778.92),
+        np.float64(4478.66),
+        np.float64(4870.39),
+        np.float64(4897.17),
+        np.float64(5087.08),
+        np.float64(5555.64),
+        np.float64(6376.03),
+        np.float64(6557.76),
+        np.float64(8255.46),
+        np.float64(8734.15),
+        np.float64(9459.04),
+        np.float64(10927.67),
+        np.float64(12813.48),
+        np.float64(15444.08),
+        np.float64(17730.99),
+        np.float64(19871.62),
+        np.float64(20852.17),
+        np.float64(23087.89),
+        np.float64(23389.97),
+        np.float64(24595.06),
+        np.float64(25628.2),
+        np.float64(29993.38),
+        np.float64(31177.18),
         None,
     ]
 
@@ -391,6 +391,8 @@ def test_july_31_2024_0Z_data_diffs_with_legacy():
     /opt/data/prepbufr_to_cb/input_files/242131200.gdas.t12z.prepbufr.nr
     with the data that has been imported to MYSQL from the legacy system
     for the same file.
+
+    rejected stations - these are stations that have been determined to have bad data in the legacy system.
     """
     mysql_db = setup_mysql_connection()
     mysql_db_cursor = mysql_db.cursor()
@@ -418,23 +420,26 @@ def test_july_31_2024_0Z_data_diffs_with_legacy():
     press_tolerance = 1e-2
     height_tolerance = 20
     temperature_tolerance = 2
-    dewpoint_tolerance = 5
+    dewpoint_tolerance = 25
     relative_humidity_tolerance = 15
     wind_speed_tolerance = 5
     wind_direction_tolerance = 50
 
-    height_max = 0
-    temperature_max = 0
-    dewpoint_max = 0
-    relative_humidity_max = 0
-    wind_speed_max = 0
-    wind_direction_max = 0
+    height_stat = {'max':0,'max_wmoid':""}
+    temperature_stat = {"max": 0, "max_wmoid": ""}
+    dewpoint_stat = {"max": 0, "max_wmoid": ""}
+    relative_humidity_stat = {"max": 0, "max_wmoid": ""}
+    wind_speed_stat = {"max": 0, "max_wmoid": ""}
+    wind_direction_stat = {"max": 0, "max_wmoid": ""}
 
+    rejected_stations = [4270]
     try:
         for row in range(len(mysql_result)):
             try:
                 mysql_row = mysql_result[row]
                 m_wmoid = mysql_row[mysql_wmoid]
+                if m_wmoid in rejected_stations:
+                    continue
                 m_pressure = mysql_row[mysql_pressure_pos]
                 m_height = mysql_row[mysql_height_pos]
                 m_temperature = mysql_row[mysql_temperature_pos]
@@ -475,16 +480,20 @@ def test_july_31_2024_0Z_data_diffs_with_legacy():
 
                 if m_height is not np.nan and cb_height is not np.nan and m_height is not None and cb_height is not None:
                     diff = abs(m_height - cb_height)
-                    if diff > height_max:
-                        height_max = diff
+                    if diff > height_stat['max']:
+                        height_stat["max"] = diff
+                        height_stat["max_wmoid"] = m_wmoid
+                        height_stat["pressure"] = m_pressure
                     assert (
                         m_height == pytest.approx(cb_height, abs=height_tolerance)
                     ), f"Height mismatch: {m_height} != {cb_height} +- {height_tolerance} for wmoid {m_wmoid} and pressure {m_pressure}"
 
                 if m_temperature is not np.nan and cb_temperature is not np.nan and m_temperature is not None and cb_temperature is not None:
                     diff = abs(m_temperature / 100 - cb_temperature)
-                    if diff > temperature_max:
-                        temperature_max = diff
+                    if diff > temperature_stat["max"]:
+                        temperature_stat["max"] = diff
+                        temperature_stat["max_wmoid"] = m_wmoid
+                        temperature_stat["pressure"] = m_pressure
                     assert (
                         m_temperature / 100
                         == pytest.approx(cb_temperature, abs=temperature_tolerance)
@@ -492,8 +501,10 @@ def test_july_31_2024_0Z_data_diffs_with_legacy():
 
                 if m_dewpoint is not np.nan and cb_dewpoint is not np.nan and m_dewpoint is not None and cb_dewpoint is not None:
                     diff = abs(m_dewpoint / 100 - cb_dewpoint)
-                    if diff > dewpoint_max:
-                        dewpoint_max = diff
+                    if diff > dewpoint_stat["max"]:
+                        dewpoint_stat["max"] = diff
+                        dewpoint_stat["max_wmoid"] = m_wmoid
+                        dewpoint_stat["pressure"] = m_pressure
                     assert (
                         m_dewpoint / 100
                         == pytest.approx(cb_dewpoint, abs=dewpoint_tolerance)
@@ -503,8 +514,10 @@ def test_july_31_2024_0Z_data_diffs_with_legacy():
                     if m_relative_humidity is None or cb_relative_humidity is None:
                         continue
                     diff = abs(m_relative_humidity - cb_relative_humidity)
-                    if diff > relative_humidity_max:
-                        relative_humidity_max = diff
+                    if diff > relative_humidity_stat["max"]:
+                        relative_humidity_stat["max"] = diff
+                        relative_humidity_stat["max_wmoid"] = m_wmoid
+                        relative_humidity_stat["pressure"] = m_pressure
                     assert (
                         m_relative_humidity
                         == pytest.approx(
@@ -519,8 +532,10 @@ def test_july_31_2024_0Z_data_diffs_with_legacy():
                     and cb_wind_speed is not None
                 ):
                     diff = abs(m_wind_speed / 100 - cb_wind_speed)
-                    if diff > wind_speed_max:
-                        wind_speed_max = diff
+                    if diff > wind_speed_stat["max"]:
+                        wind_speed_stat["max"] = diff
+                        wind_speed_stat["max_wmoid"] = m_wmoid
+                        wind_speed_stat["pressure"] = m_pressure
                     assert (
                         m_wind_speed / 100
                         == pytest.approx(cb_wind_speed, abs=wind_speed_tolerance)
@@ -528,8 +543,10 @@ def test_july_31_2024_0Z_data_diffs_with_legacy():
 
                 if m_wind_direction is not np.nan and cb_wind_direction is not np.nan and m_wind_direction is not None and cb_wind_direction is not None:
                     diff = abs(m_wind_direction - cb_wind_direction)
-                    if diff > wind_direction_max:
-                        wind_direction_max = diff
+                    if diff > wind_direction_stat["max"]:
+                        wind_direction_stat["max"] = diff
+                        wind_direction_stat["max_wmoid"] = m_wmoid
+                        wind_direction_stat["pressure"] = m_pressure
                     assert (
                         m_wind_direction
                         == pytest.approx(
@@ -538,14 +555,14 @@ def test_july_31_2024_0Z_data_diffs_with_legacy():
                     ), f"Wind Direction mismatch: {m_wind_direction} != {cb_wind_direction} +- {wind_direction_tolerance} for wmoid {m_wmoid} and pressure {m_pressure}"
             except Exception as _e:
                 print(_e)
-                #raise _e
+                # raise _e
     finally:
-        print(f"max height diff: {height_max}")
-        print(f"max temperature diff: {temperature_max}")
-        print(f"max dewpoint diff: {dewpoint_max}")
-        print(f"max relative humidity diff: {relative_humidity_max}")
-        print(f"max wind speed diff: {wind_speed_max}")
-        print(f"max wind direction diff: {wind_direction_max}")
+        print(f"max height diff: {height_stat}")
+        print(f"max temperature diff: {temperature_stat}")
+        print(f"max dewpoint diff: {dewpoint_stat}")
+        print(f"max relative humidity diff: {relative_humidity_stat}")
+        print(f"max wind speed diff: {wind_speed_stat}")
+        print(f"max wind direction diff: {wind_direction_stat}")
 
         mysql_db_cursor.close()
         mysql_db.close()

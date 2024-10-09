@@ -241,9 +241,13 @@ def calculate_cb_ctc(
             continue
         obs_data = full_obs_data["data"][station]
         # find model data for this station
-        if station not in full_model_data["data"]:
-            continue
-        model_data = full_model_data["data"][station]
+        try:
+            if station not in full_model_data['data']:
+                continue
+        except Exception:
+            raise AssertionError(f"station {station} not in full_model_data['stations']") from None
+
+        model_data = full_model_data['data'][station]
         # add to model_obs_data
         if (
             obs_data

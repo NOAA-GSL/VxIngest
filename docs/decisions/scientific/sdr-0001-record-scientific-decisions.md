@@ -1,4 +1,4 @@
-# 1. Record scientific decisions
+# Record scientific decisions
 
 Date: 2024-10-08
 

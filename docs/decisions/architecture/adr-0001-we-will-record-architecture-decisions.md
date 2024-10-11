@@ -1,4 +1,4 @@
-# Record architecture decisions
+# We will record architecture decisions
 
 Date: 2024-10-08
 

@@ -1,4 +1,4 @@
-# Record scientific decisions
+# We will record scientific decisions
 
 Date: 2024-10-08
 

@@ -1,4 +1,4 @@
-name: ADR created
+name: ADR Accepted
 on:
   issues:
     types:
@@ -6,7 +6,7 @@ on:
 
 jobs:
   main:
-    name: ADR created
+    name: Create ADR
     runs-on: ubuntu-latest
 
     # Only run this workflow if the closed issue has the "ADR: accepted" label
@@ -28,6 +28,7 @@ jobs:
           echo "number=$NEXT_ADR" >> "$GITHUB_OUTPUT"
 
       - name: write the ADR
+        id: create-adr
         uses: actions/github-script@v7
         with:
           script: |
@@ -46,7 +47,7 @@ jobs:
               .replace(/[\s_-]+/g, "-") // convert whitespace and underscore to dash
               .replace(/^-+|-+$/g, "");  // git rid of leading/trailing dashes
 
-            const filename = `docs/architecture/decisions/adr-${{ steps.next.outputs.number }}-${slug}.md`;
+            const filename = `docs/decisions/architecture/adr-${{ steps.next.outputs.number }}-${slug}.md`;
 
             // Get the current date as an ISO8601 string, split at the timestamp,
             // and only keep the date portion.
@@ -63,6 +64,10 @@ jobs:
             ${ body }
             `;
 
+            # Set outputs for the next step to use
+            core.setOutput('filename', filename);
+            core.setOutput('adr', adr);
+
             await fs.writeFile(filename, adr, { encoding: 'utf-8' });
 
       - name: branch, commit, and open PR
@@ -72,12 +77,34 @@ jobs:
           BRANCH="adr-auto-${{ steps.next.outputs.number }}"
           git config --global user.email "mats.gsl@noaa.gov"
           git config --global user.name "GSL Verification team ADR automation"
-          git checkout -b $BRANCH
-          git add docs/decisions/architecture/*.md
-          git commit -m "add ADR ${{ steps.next.outputs.number }}: ${{ github.event.issue.title }}"
-          git push -f origin $BRANCH
-          gh pr create \
-            --title "Add ADR ${{ steps.next.outputs.number }} to the repo" \
-            --label "ADR" \
-            --body "This pull request was opened automatically because #${{ github.event.issue.number }} was closed after being marked as an approved ADR. It contains a markdown file capturing the ADR body at the time the issue was closed. Please verify that the markdown is correct before merging!" || true
-          gh pr merge $BRANCH --auto --squash
+          # Check if the branch already exists, exit-code 2 means it doesn't, and that creating a new branch is safe.
+          set +e # override set -e since we're hoping for an exit code
+          git ls-remote --exit-code --heads origin refs/heads/$BRANCH > /dev/null
+          branch_exists=$?
+          set -e
+          if [ $branch_exists -eq 2 ]; then
+            git checkout -b $BRANCH
+            git add docs/decisions/architecture/*.md
+            git commit -m "add ADR ${{ steps.next.outputs.number }}: ${{ github.event.issue.title }}"
+            git push -f origin $BRANCH
+            gh pr create \
+                --title "Add ADR ${{ steps.next.outputs.number }} to the repo" \
+                --label "ADR" \
+                --body "This pull request was opened automatically because #${{ github.event.issue.number }} was closed after being marked as an approved ADR. It contains a markdown file capturing the ADR body at the time the issue was closed. Please verify that the markdown is correct before merging!" || true
+          else
+            echo "Error - Branch $BRANCH already exists, PR will need to be created manually. ADR text is below. Exiting."
+            echo " --- "
+            echo "Filename: ${{ steps.create-adr.outputs.filename }}"
+            echo " --- Start File --- "
+            echo "${{ steps.create-adr.outputs.adr }}"
+            echo " --- End File --- "
+
+            # Create a step summary
+            echo "# Error" >> $GITHUB_STEP_SUMMARY
+            echo "Branch $BRANCH already exists, PR will need to be created manually. ADR contents are below. Exiting." >> $GITHUB_STEP_SUMMARY
+            echo "## Filename" >> $GITHUB_STEP_SUMMARY
+            echo "\`${{ steps.create-adr.outputs.filename }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "## ADR Contents" >> $GITHUB_STEP_SUMMARY
+            echo "${{ steps.create-adr.outputs.adr }}" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi

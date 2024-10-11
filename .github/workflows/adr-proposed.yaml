@@ -6,7 +6,7 @@ on:
 
 jobs:
   main:
-    name: ADR created
+    name: ADR proposed
     runs-on: ubuntu-latest
 
     # Only run this workflow if the issue is open and has the "ADR" label

@@ -1,6 +1,7 @@
 name: Scientific decision record (SDR)
 description: Open a new draft SDR
 labels: ["SDR"]
+title: "We will "
 body:
   - type: textarea
     id: context
@@ -8,7 +9,7 @@ body:
       required: true
     attributes:
       label: Context
-      description: >
+      description: > # Turn new lines into spaces
         Describe the motivating factors behind this decision: social, political,
         scientific, etc. Why does this decision need to be made? This section should
         be a statement of facts.
@@ -31,3 +32,15 @@ body:
         What are the consequences of this decision? Consequences can be
         positive, negative, or neutral, but all known consequences of this
         decision should be listed here.
+      value: | # Preserve new lines
+        #### Positive
+
+        - 
+
+        #### Neutral
+
+        - 
+
+        #### Negative
+
+        -

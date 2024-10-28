@@ -371,7 +371,11 @@ class PrepbufrBuilder(Builder):
                             p_arr = np.asarray(
                                 raw_obs_data[station][report]["obs_data"]["pressure"]
                             )
-                            if np.isnan(p_arr).all() or level > p_arr.max() or level < p_arr.min():
+                            if (
+                                np.isnan(p_arr).all()
+                                or level > p_arr.max()
+                                or level < p_arr.min()
+                            ):
                                 # this level is outside the range of the data - have to skip it
                                 interpolated_data[station][report]["data"][variable][
                                     level
@@ -404,11 +408,17 @@ class PrepbufrBuilder(Builder):
                                 # this is the level we want - it matches the mandatory level
                                 interpolated_data[station][report]["data"][variable][
                                     level
-                                ] = raw_obs_data[station][report]["obs_data"][variable][
-                                    nearest_lower_i
-                                ] if self.is_a_number(raw_obs_data[station][report]["obs_data"][variable][
-                                    nearest_lower_i
-                                ]) else None
+                                ] = (
+                                    raw_obs_data[station][report]["obs_data"][variable][
+                                        nearest_lower_i
+                                    ]
+                                    if self.is_a_number(
+                                        raw_obs_data[station][report]["obs_data"][
+                                            variable
+                                        ][nearest_lower_i]
+                                    )
+                                    else None
+                                )
                                 continue
                             # have to interpolate the data for this variable and level
                             try:
@@ -912,14 +922,19 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                 return None
             relative_humidity = [
                 None
-                if not self.is_a_number(p) or not self.is_a_number(t) or not self.is_a_number(s)
-                else np.round(metpy.calc.relative_humidity_from_specific_humidity(
-                    p * units.hPa,
-                    t * units.degC,
-                    s / 1000 * units("g/kg"),
+                if not self.is_a_number(p)
+                or not self.is_a_number(t)
+                or not self.is_a_number(s)
+                else np.round(
+                    metpy.calc.relative_humidity_from_specific_humidity(
+                        p * units.hPa,
+                        t * units.degC,
+                        s / 1000 * units("g/kg"),
+                    )
+                    .to("percent")
+                    .to_tuple()[0],
+                    4,
                 )
-                .to("percent")
-                .to_tuple()[0],4)
                 for p, t, s in zip(pressure, temperature, specific_humidity)
             ]
             return relative_humidity
@@ -991,7 +1006,7 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                 or not self.is_a_number(temperature[i])
                 or not self.is_a_number(specific_humidity[i])
                 or not self.is_a_number(height[i])
-                or (pressure[i] > 1010 and pressure[i+1] > 1010)
+                or (pressure[i] > 1010 and pressure[i + 1] > 1010)
             ):
                 temperature[i] = math.nan
                 pressure[i] = math.nan
@@ -1018,11 +1033,15 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                 s if self.is_a_number(s) else math.nan for s in specific_humidity
             ] * units("mg/kg")
             mr = metpy.calc.mixing_ratio_from_specific_humidity(sh).to("g/kg")
-            p = [p1 if self.is_a_number(p1) else math.nan for p1 in pressure] * units.hPa
+            p = [
+                p1 if self.is_a_number(p1) else math.nan for p1 in pressure
+            ] * units.hPa
             t = [
                 t1 if self.is_a_number(t1) else math.nan for t1 in temperature
             ] * units.degC
-            h = [h1 if self.is_a_number(h1) else math.nan for h1 in height] * units.meter
+            h = [
+                h1 if self.is_a_number(h1) else math.nan for h1 in height
+            ] * units.meter
 
             # now determine the layer by finding the bottom valid pressure that has corresponding valid data for
             # temperature, pressure, and mixing ratio.
@@ -1206,7 +1225,8 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
             if len(bufr_data[mnemonic_index].shape) == 1:
                 # no events present
                 return [
-                    i if i is not ma.masked else np.nan for i in bufr_data[mnemonic_index]
+                    i if i is not ma.masked else np.nan
+                    for i in bufr_data[mnemonic_index]
                 ]
             if len(bufr_data[mnemonic_index].shape) > 1:
                 # there is an event dimension but we are ignoring it - just return the first event
@@ -1242,7 +1262,16 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                     # This deserves explanation. The bufr data is a 3-d array with the first dimension being the variable (or q_marker)
                     # the second dimension being the level and the third dimension being the event. If there is only one event
                     # then the third dimension is irrelevant.
-                    q_marker_code = int(bufr_data[q_marker_mnemonic_index][level_index][0]) if not ma.is_masked(bufr_data[q_marker_mnemonic_index][level_index][0]) and self.is_a_number(bufr_data[q_marker_mnemonic_index][level_index][0]) else None
+                    q_marker_code = (
+                        int(bufr_data[q_marker_mnemonic_index][level_index][0])
+                        if not ma.is_masked(
+                            bufr_data[q_marker_mnemonic_index][level_index][0]
+                        )
+                        and self.is_a_number(
+                            bufr_data[q_marker_mnemonic_index][level_index][0]
+                        )
+                        else None
+                    )
                     # use all the keep  values for the program code
                     q_marker_keep_values = list(
                         itertools.chain.from_iterable(
@@ -1252,14 +1281,16 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                     bufr_data_for_mnemonic[level_index] = (
                         bufr_data[mnemonic_index][level_index]
                         if program_code_q_marker_keep_values is None
-                            or q_marker_code in q_marker_keep_values
+                        or q_marker_code in q_marker_keep_values
                         else np.nan
                     )
                     continue
                 try:
                     # now we have multiple events so we have to consider them - so find the index of the expected event_value
-                    #need to consider the event values and q_marker values
-                    event_program_codes = [int(v) for v in list(program_code_q_marker_keep_values.keys())]
+                    # need to consider the event values and q_marker values
+                    event_program_codes = [
+                        int(v) for v in list(program_code_q_marker_keep_values.keys())
+                    ]
                     _event_value_found = False
                     for e_index in range(0, bufr_data.shape[2]):
                         if (
@@ -1273,14 +1304,16 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                                 mnemonic_index
                             ][level_index]  # is masked
                             continue
-                        program_code = int(bufr_data[event_program_code_mnemonic_index][
-                            level_index
-                        ][e_index])
-                        if (
-                            program_code in event_program_codes
-                        ):
+                        program_code = int(
+                            bufr_data[event_program_code_mnemonic_index][level_index][
+                                e_index
+                            ]
+                        )
+                        if program_code in event_program_codes:
                             _event_value_found = True
-                            q_marker_keep_values = program_code_q_marker_keep_values[str(program_code)]
+                            q_marker_keep_values = program_code_q_marker_keep_values[
+                                str(program_code)
+                            ]
                             break
                     # using the found event value index find the correct value for this field and level
                     # qualify the value by the corresponding q_marker value
@@ -1290,7 +1323,9 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                             bufr_data[mnemonic_index][level_index][e_index]
                             is not ma.masked
                         ):
-                            q_marker = int(bufr_data[q_marker_mnemonic_index][level_index][e_index])
+                            q_marker = int(
+                                bufr_data[q_marker_mnemonic_index][level_index][e_index]
+                            )
                             if (
                                 q_marker_keep_values is None
                                 or q_marker in q_marker_keep_values
@@ -1522,7 +1557,9 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         if height is None:
             # need to get some specific fields to interpolate the height
             height_mnemonic = template["height"]["mnemonic"]
-            height_program_code_q_marker_keep_values = template["height"].get("program_code_q_marker_keep", None)
+            height_program_code_q_marker_keep_values = template["height"].get(
+                "program_code_q_marker_keep", None
+            )
 
             height = self.get_data_from_bufr_for_field(
                 events,
@@ -1541,7 +1578,7 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
             temperature,
             specific_humidity,
         )
-        #data["rh_wobus"] = self.get_relative_humidity_wobus(temperature, dewpoint)
+        # data["rh_wobus"] = self.get_relative_humidity_wobus(temperature, dewpoint)
         return _rh
 
     def get_raw_dewpoint(
@@ -1814,7 +1851,11 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                     else:
                         # It is possible to have multiple reports for the same station and report type
                         # We have made a policy decision to always take the largest report i.e. the one with most pressure fields
-                        if len(subset_data["obs_data"]["pressure"]) > len(raw_bufr_data[station_id][report_type]["obs_data"]["pressure"]):
+                        if len(subset_data["obs_data"]["pressure"]) > len(
+                            raw_bufr_data[station_id][report_type]["obs_data"][
+                                "pressure"
+                            ]
+                        ):
                             # replace with the larger new subset
                             raw_bufr_data[station_id][report_type] = subset_data
                 except Exception as _e:

@@ -30,7 +30,11 @@ def main():
             mnemonic = line.split()[0]
             if mnemonic == "POB":
                 qualified = True
-                _press = round(float(line.split()[1])) if line.split()[1] != "MISSING" else None
+                _press = (
+                    round(float(line.split()[1]))
+                    if line.split()[1] != "MISSING"
+                    else None
+                )
                 if _press not in [
                     1000,
                     850,
@@ -68,7 +72,11 @@ def main():
                         case "TYP":
                             continue
                         case "PQM":
-                            _val = round(float(line.split()[1])) if line.split()[1] != "MISSING" else None
+                            _val = (
+                                round(float(line.split()[1]))
+                                if line.split()[1] != "MISSING"
+                                else None
+                            )
                             if _val not in [0, 1, 2]:
                                 # disqualified because of quality marker
                                 # go to next POB
@@ -76,7 +84,11 @@ def main():
                                 row = {}
                                 continue
                         case "PPC":
-                            _val = round(float(line.split()[1])) if line.split()[1] != "MISSING" else None
+                            _val = (
+                                round(float(line.split()[1]))
+                                if line.split()[1] != "MISSING"
+                                else None
+                            )
                             if _val != 1:
                                 # disqualified because of program code
                                 # go to next POB
@@ -88,13 +100,21 @@ def main():
                                 row["sh"] = line.split()[1]
                             continue
                         case "QQM":
-                            _val = round(float(line.split()[1])) if line.split()[1] != "MISSING" else None
+                            _val = (
+                                round(float(line.split()[1]))
+                                if line.split()[1] != "MISSING"
+                                else None
+                            )
                             if _val not in [0, 1, 2, 9, 15]:
                                 # disqualified because of quality marker
                                 row["sh"] = None
                                 continue
                         case "QPC":
-                            _val = round(float(line.split()[1])) if line.split()[1] != "MISSING" else None
+                            _val = (
+                                round(float(line.split()[1]))
+                                if line.split()[1] != "MISSING"
+                                else None
+                            )
                             if _val != 1:
                                 # disqualified because of program code
                                 row["sh"] = None
@@ -103,13 +123,21 @@ def main():
                             row["z"] = line.split()[1]
                             continue
                         case "ZQM":
-                            _val = round(float(line.split()[1])) if line.split()[1] != "MISSING" else None
+                            _val = (
+                                round(float(line.split()[1]))
+                                if line.split()[1] != "MISSING"
+                                else None
+                            )
                             if _val not in [0, 1, 2]:
                                 # disqualified because of quality marker
                                 row["z"] = None
                                 continue
                         case "ZPC":
-                            _val = round(float(line.split()[1])) if line.split()[1] != "MISSING" else None
+                            _val = (
+                                round(float(line.split()[1]))
+                                if line.split()[1] != "MISSING"
+                                else None
+                            )
                             if _val != 1:
                                 # disqualified because of program code
                                 row["z"] = None
@@ -118,13 +146,21 @@ def main():
                             row["t"] = line.split()[1]
                             continue
                         case "TQM":
-                            _val = round(float(line.split()[1])) if line.split()[1] != "MISSING" else None
+                            _val = (
+                                round(float(line.split()[1]))
+                                if line.split()[1] != "MISSING"
+                                else None
+                            )
                             if _val not in [0, 1, 2]:
                                 # disqualified because of quality marker
                                 row["t"] = None
                                 continue
                         case "TPC":
-                            _val = round(float(line.split()[1])) if line.split()[1] != "MISSING" else None
+                            _val = (
+                                round(float(line.split()[1]))
+                                if line.split()[1] != "MISSING"
+                                else None
+                            )
                             if _val != 1:
                                 # disqualified because of program code
                                 row["t"] = None
@@ -140,14 +176,22 @@ def main():
                             row["ws"] = line.split()[1]
                             continue
                         case "DFQ":
-                            _val = round(float(line.split()[1])) if line.split()[1] != "MISSING" else None
+                            _val = (
+                                round(float(line.split()[1]))
+                                if line.split()[1] != "MISSING"
+                                else None
+                            )
                             if _val not in [0, 1, 2]:
                                 # disqualified because of quality marker
                                 row["wd"] = None
                                 row["ws"] = None
                                 continue
                         case "DFP":
-                            _val = round(float(line.split()[1])) if line.split()[1] != "MISSING" else None
+                            _val = (
+                                round(float(line.split()[1]))
+                                if line.split()[1] != "MISSING"
+                                else None
+                            )
                             if _val != 1:
                                 # disqualified because of program code
                                 row["wd"] = None
@@ -180,13 +224,13 @@ def main():
                     row.get("t", "null"),
                     row.get("dp", "null"),
                     row.get("wd", "null"),
-                    round(float(row.get("ws")) * 0.5144444444, 4) if row.get("ws") is not None else None,
+                    round(float(row.get("ws")) * 0.5144444444, 4)
+                    if row.get("ws") is not None
+                    else None,
                     row.get("ws", "null"),
                 ]
             )
-        print(
-            tabulate(table, headers="firstrow", tablefmt="plain")
-        )
+        print(tabulate(table, headers="firstrow", tablefmt="plain"))
     except Exception as e:
         print(f"Error: {e}")
 

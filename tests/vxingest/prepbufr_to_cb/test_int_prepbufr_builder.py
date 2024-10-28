@@ -148,7 +148,9 @@ def test_one_thread_specify_file_pattern(tmp_path: Path):
         )
 
         # Test that we have one "load job" ("LJ") document
-        lj_doc_regex = "LJ:RAOB:vxingest.prepbufr_to_cb.run_ingest_threads:VXIngest:*.json"
+        lj_doc_regex = (
+            "LJ:RAOB:vxingest.prepbufr_to_cb.run_ingest_threads:VXIngest:*.json"
+        )
         num_load_job_files = len(list(tmp_path.glob(lj_doc_regex)))
         assert (
             num_load_job_files >= 1
@@ -185,9 +187,9 @@ def test_one_thread_specify_file_pattern(tmp_path: Path):
                     # make sure the updateTime is the same in both the derived and retrieved station
                     retrieved_station["updateTime"] = derived_station["updateTime"]
                     # make sure the firstTime and lastTime are the same in both the derived and retrieved station['geo']
-                    retrieved_station["geo"][0]["firstTime"] = derived_station["geo"][0][
-                        "firstTime"
-                    ]
+                    retrieved_station["geo"][0]["firstTime"] = derived_station["geo"][
+                        0
+                    ]["firstTime"]
                     retrieved_station["geo"][0]["lastTime"] = derived_station["geo"][0][
                         "lastTime"
                     ]
@@ -203,7 +205,9 @@ def test_one_thread_specify_file_pattern(tmp_path: Path):
                     if item["docType"] == "obs":
                         obs_id = item["id"]
                         derived_obs = item
-                        retrieved_obs = vx_ingest.collection.get(obs_id).content_as[dict]
+                        retrieved_obs = vx_ingest.collection.get(obs_id).content_as[
+                            dict
+                        ]
                         assert_dicts_almost_equal(derived_obs, retrieved_obs)
                 except Exception as e2:
                     print("failed:" + str(e2))

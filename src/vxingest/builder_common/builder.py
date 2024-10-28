@@ -61,4 +61,9 @@ class Builder:
             return None
 
     def is_a_number(self, v):
-        return v is not None and isinstance(v, (int, float)) and not math.isnan(v) and v is not ma.masked
+        return (
+            v is not None
+            and isinstance(v, (int, float))
+            and not math.isnan(v)
+            and v is not ma.masked
+        )

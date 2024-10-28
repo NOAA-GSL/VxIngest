@@ -90,14 +90,14 @@ def test_read_obs_err():
     obs_err = builder.read_data_from_bufr(bufr, template["obs_err"])
     bufr.close()
     assert obs_err is not np.nan
-    assert (obs_err["pressure_obs_err"][1] == np.float64(1.1))
-    assert (np.isnan(obs_err["pressure_obs_err"][0]))
+    assert obs_err["pressure_obs_err"][1] == np.float64(1.1)
+    assert np.isnan(obs_err["pressure_obs_err"][0])
     for i in range(2, len(obs_err["pressure_obs_err"])):
-        assert (np.isnan(obs_err["pressure_obs_err"][i]))
-    assert (np.isnan(obs_err["relative_humidity_obs_err"][0]))
+        assert np.isnan(obs_err["pressure_obs_err"][i])
+    assert np.isnan(obs_err["relative_humidity_obs_err"][0])
     for i in range(1, len(obs_err["relative_humidity_obs_err"])):
-        assert (obs_err["relative_humidity_obs_err"][i] == np.float64(2.0))
-    assert (np.isnan(obs_err["temperature_obs_err"][0]))
+        assert obs_err["relative_humidity_obs_err"][i] == np.float64(2.0)
+    assert np.isnan(obs_err["temperature_obs_err"][0])
     assert obs_err["temperature_obs_err"][1:] == [
         1.2,
         1.0,
@@ -131,7 +131,7 @@ def test_read_obs_err():
         1.5,
         1.5,
     ]
-    assert (obs_err["winds_obs_err"] is None)
+    assert obs_err["winds_obs_err"] is None
 
 
 @pytest.mark.integration
@@ -425,7 +425,7 @@ def test_july_31_2024_0Z_data_diffs_with_legacy():
     wind_speed_tolerance = 5
     wind_direction_tolerance = 50
 
-    height_stat = {'max':0,'max_wmoid':""}
+    height_stat = {"max": 0, "max_wmoid": ""}
     temperature_stat = {"max": 0, "max_wmoid": ""}
     dewpoint_stat = {"max": 0, "max_wmoid": ""}
     relative_humidity_stat = {"max": 0, "max_wmoid": ""}
@@ -465,11 +465,11 @@ def test_july_31_2024_0Z_data_diffs_with_legacy():
         41112,
         29839,
     ]
-# a couple of useful sample queries.
-# MYSQL
-# export w=41112;mysql --defaults-file=~/wolphin.cnf -A -B  --execute "select press,z as height,t / 100 as temperature, ws / 100 as ws,wd from ruc_ua_pb.RAOB where date = '2024-07-31' and hour = 0 and wmoid = ${w} ORDER BY press DESC;"
-# CB
-# export w=29839;cbq -q -terse --no-ssl-verify -e 'https://adb-cb1.gsd.esrl.noaa.gov:18093' -u avid -p 'pwd_av!d' -s "SELECT  d.data.[\"${w}\"].pressure,d.data.[\"${w}\"].height,d.data.[\"${w}\"].temperature,d.data.[\"${w}\"].wind_speed as ws, d.data.[\"${w}\"].wind_direction as wd FROM vxdata._default.RAOB AS d WHERE d.type='DD' AND d.subset='RAOB' AND d.docType='obs' AND d.subDocType = 'prepbufr' AND d.fcstValidISO = '2024-07-31T00:00:00Z' ORDER BY d.data.[\"${w}\"].pressure DESC;" | grep -v Disabling | jq -r '.[] | "\(.pressure) \(.height) \(.temperature) \(.ws) \(.wd)"'
+    # a couple of useful sample queries.
+    # MYSQL
+    # export w=41112;mysql --defaults-file=~/wolphin.cnf -A -B  --execute "select press,z as height,t / 100 as temperature, ws / 100 as ws,wd from ruc_ua_pb.RAOB where date = '2024-07-31' and hour = 0 and wmoid = ${w} ORDER BY press DESC;"
+    # CB
+    # export w=29839;cbq -q -terse --no-ssl-verify -e 'https://adb-cb1.gsd.esrl.noaa.gov:18093' -u avid -p 'pwd_av!d' -s "SELECT  d.data.[\"${w}\"].pressure,d.data.[\"${w}\"].height,d.data.[\"${w}\"].temperature,d.data.[\"${w}\"].wind_speed as ws, d.data.[\"${w}\"].wind_direction as wd FROM vxdata._default.RAOB AS d WHERE d.type='DD' AND d.subset='RAOB' AND d.docType='obs' AND d.subDocType = 'prepbufr' AND d.fcstValidISO = '2024-07-31T00:00:00Z' ORDER BY d.data.[\"${w}\"].pressure DESC;" | grep -v Disabling | jq -r '.[] | "\(.pressure) \(.height) \(.temperature) \(.ws) \(.wd)"'
 
     # 4270  GLM00004270  61.1667  -45.4167   34.0    MITTARFIK NARSARSUAQ
     # 42886 INM00042886  21.9167   84.0833  228.0    JHARSIGUDA
@@ -478,38 +478,38 @@ def test_july_31_2024_0Z_data_diffs_with_legacy():
     # 04202 GLM00004202  76.5330  -68.7500   77.0    PITUFFIK
     # MXM00076692  19.1500  -96.1333   19.0    HACIENDA YLANG YLANG VERACRUZ
     # wmoid: 57494, pressure: 330
-        # Height mismatch: 9058 != 8882.923562114107 +- 20 for wmoid 57494 and pressure 330
-        # assert 9058 == 8882.923562114107 ± 2.0e+01
-        # this station clearly chose the smaller of two type 120 records
-        # refer to /opt/data/prepbufr_to_cb/test_artifacts/57494...txt
+    # Height mismatch: 9058 != 8882.923562114107 +- 20 for wmoid 57494 and pressure 330
+    # assert 9058 == 8882.923562114107 ± 2.0e+01
+    # this station clearly chose the smaller of two type 120 records
+    # refer to /opt/data/prepbufr_to_cb/test_artifacts/57494...txt
     # wmoid: 4202, pressure: 300
-        # Height mismatch: 8890 != 8726.783020412973 +- 20 for wmoid 4202 and pressure 300
-        # assert 8890 == 8726.783020412973 ± 2.0e+01
-        # the other fields for p 290 to 320 are matching fairly closely
-        # most of the heights are missing
-        # refer to /opt/data/prepbufr_to_cb/test_artifacts/4202-120.txt
-        # appears to be interpolation issue
+    # Height mismatch: 8890 != 8726.783020412973 +- 20 for wmoid 4202 and pressure 300
+    # assert 8890 == 8726.783020412973 ± 2.0e+01
+    # the other fields for p 290 to 320 are matching fairly closely
+    # most of the heights are missing
+    # refer to /opt/data/prepbufr_to_cb/test_artifacts/4202-120.txt
+    # appears to be interpolation issue
     # max height diff: {'max': 107.80940556393762, 'max_wmoid': 76692, 'pressure': 40}
     # wmoid: 76692, pressure: 40
-        # Height mismatch: 22132 != 22239.809405563938 +- 20 for wmoid 76692 and pressure 40
-        # assert 22132 == 22239.809405563938 ± 2.0e+01
-        # data from ADPUPA appears to be invalid above 50mb
+    # Height mismatch: 22132 != 22239.809405563938 +- 20 for wmoid 76692 and pressure 40
+    # assert 22132 == 22239.809405563938 ± 2.0e+01
+    # data from ADPUPA appears to be invalid above 50mb
     # max height diff: {'max': 106.04168884284445, 'max_wmoid': 76458, 'pressure': 20}
     # wmoid: 76458, pressure: 20
-        # Height mismatch: 26583 != 26689.041688842844 +- 20 for wmoid 76458 and pressure 20
-        # assert 26583 == 26689.041688842844 ± 2.0e+01
-        # these heights fail ... 20, 30, 40, 50, 60
-        # close evaluation is simply showing significant differences in the height interpolation
-        # the temperatures are quite low, so the heights might be likely to be off
-        # interpolation uses specific humidity  QOB but that isn't recorded in the mysql data
-        # so it isn't possible to compare the interpolation
-        # refer to /opt/data/prepbufr_to_cb/test_artifacts/76458-120.txt
+    # Height mismatch: 26583 != 26689.041688842844 +- 20 for wmoid 76458 and pressure 20
+    # assert 26583 == 26689.041688842844 ± 2.0e+01
+    # these heights fail ... 20, 30, 40, 50, 60
+    # close evaluation is simply showing significant differences in the height interpolation
+    # the temperatures are quite low, so the heights might be likely to be off
+    # interpolation uses specific humidity  QOB but that isn't recorded in the mysql data
+    # so it isn't possible to compare the interpolation
+    # refer to /opt/data/prepbufr_to_cb/test_artifacts/76458-120.txt
 
     # max wind direction diff: {'max': 179, 'max_wmoid': 24908, 'pressure': 740}
     # wmoid: 24908, pressure: 740
-        # Wind Direction mismatch: 74 != 253 +- 50 for wmoid 24908 and pressure 740
-        # assert 74 == 253 ± 5.0e+01
-        # careful analysis shows the legacy interpolation is off
+    # Wind Direction mismatch: 74 != 253 +- 50 for wmoid 24908 and pressure 740
+    # assert 74 == 253 ± 5.0e+01
+    # careful analysis shows the legacy interpolation is off
 
     # max height diff: {'max': 55.06061090946605, 'max_wmoid': 47158, 'pressure': 330}
     # wmoid: 47158, pressure: 330
@@ -600,7 +600,7 @@ def test_july_31_2024_0Z_data_diffs_with_legacy():
     # Wind Direction mismatch: 65 != 243 +- 50 for wmoid 32540 and pressure 960
     # assert 65 == 243 ± 5.0e+01
     # I think what is going on here is that the highest pressure in the raw data is 999 which does not quite reach the mandatory level of 1000mb.
-    # The mysql ingest appears to be using the 999 level data as the highest mandatory pressure level (1000) whereas the CB ingest uses 
+    # The mysql ingest appears to be using the 999 level data as the highest mandatory pressure level (1000) whereas the CB ingest uses
     # the next level (990) as the highest pressure level.
     # The interpolation is different because of this.
 
@@ -700,33 +700,33 @@ def test_july_31_2024_0Z_data_diffs_with_legacy():
     # 840 - 5   840 - 3.08    844 - 0.0
     # CB is definitely closer for the wind speed at 830mb.
     # The mismatched wind direction is for all the readings from 410mb through 840mb.
-        # MYSQL                 CB         ADPUPA
-        # Pres  ws      wd    ws     wd    press ws     wd
-        # 410	2.5200	237   2.0998 318       409 4   315
-        # 420	2.9600	225   2.5141 344
-        # 430	3.4000	213   2.9187 10
-        # 440	3.8200	201   3.314 36
-        # 450	4.2300	189   3.7004 60
-        # 460	4.6400	178   4.0783 85
-        # 470	5.0400	167   4.4481 108       475 4.63   120
-        # 480	5.4300	156   5.0218 123
-        # 490	5.8100	145   5.7934 128       495 6.17  130
-        # 500	6.1800	135   6.1733 135       500 6.17  135.000
-        # 700	2.0600	195   2.0578 195       700 2.06   195
-        # 710	1.9000	208   1.564 212
-        # 720	1.7500	220   1.0772 228       721 1.03   230
-        # 730	1.6000	232   1.3027 182
-        # 740	1.4500	244   1.7076 145       738 1.54   140
-        # 750	1.3000	256   2.5226 169
-        # 760	1.1500	268   3.0867 179       757 3.09   185
-        # 770	1.0100	279   3.2468 167
-        # 780	0.8700	290   3.4447 158
-        # 790	0.7300	302   3.6703 150       788 3.6   150
-        # 800	0.5900	313   4.0134 150
-        # 810	0.4500	324   4.1156 168
-        # 820	0.3200	335   4.6103 179       815 4.12   180
-        # 830	0.1800	345   5.5907 176
-        # 840	0.0500	356   3.0793 87        836 6.17  175
+    # MYSQL                 CB         ADPUPA
+    # Pres  ws      wd    ws     wd    press ws     wd
+    # 410	2.5200	237   2.0998 318       409 4   315
+    # 420	2.9600	225   2.5141 344
+    # 430	3.4000	213   2.9187 10
+    # 440	3.8200	201   3.314 36
+    # 450	4.2300	189   3.7004 60
+    # 460	4.6400	178   4.0783 85
+    # 470	5.0400	167   4.4481 108       475 4.63   120
+    # 480	5.4300	156   5.0218 123
+    # 490	5.8100	145   5.7934 128       495 6.17  130
+    # 500	6.1800	135   6.1733 135       500 6.17  135.000
+    # 700	2.0600	195   2.0578 195       700 2.06   195
+    # 710	1.9000	208   1.564 212
+    # 720	1.7500	220   1.0772 228       721 1.03   230
+    # 730	1.6000	232   1.3027 182
+    # 740	1.4500	244   1.7076 145       738 1.54   140
+    # 750	1.3000	256   2.5226 169
+    # 760	1.1500	268   3.0867 179       757 3.09   185
+    # 770	1.0100	279   3.2468 167
+    # 780	0.8700	290   3.4447 158
+    # 790	0.7300	302   3.6703 150       788 3.6   150
+    # 800	0.5900	313   4.0134 150
+    # 810	0.4500	324   4.1156 168
+    # 820	0.3200	335   4.6103 179       815 4.12   180
+    # 830	0.1800	345   5.5907 176
+    # 840	0.0500	356   3.0793 87        836 6.17  175
     # The wind direction values that are in the adpupa data more closely align with the CB data.
 
     # 83746 BRM00083746 -22.8167  -43.2500    6.0    GALEAO
@@ -778,7 +778,6 @@ def test_july_31_2024_0Z_data_diffs_with_legacy():
     # 760	308    240
     # 750	299    243
     # For what it is worth (not much) the CB wind interpolation is closer to the adpupa data.
-
 
     # 41112 29839
     # A cursory look at these stations show a similar pattern.
@@ -833,9 +832,14 @@ def test_july_31_2024_0Z_data_diffs_with_legacy():
                     diff <= press_tolerance
                 ), f"Pressure mismatch: diff: {diff} is not <= {press_tolerance} for wmoid {m_wmoid} and pressure {m_pressure}"
 
-                if m_height is not np.nan and cb_height is not np.nan and m_height is not None and cb_height is not None:
+                if (
+                    m_height is not np.nan
+                    and cb_height is not np.nan
+                    and m_height is not None
+                    and cb_height is not None
+                ):
                     diff = abs(m_height - cb_height)
-                    if diff > height_stat['max']:
+                    if diff > height_stat["max"]:
                         height_stat["max"] = diff
                         height_stat["max_wmoid"] = m_wmoid
                         height_stat["pressure"] = m_pressure
@@ -843,7 +847,12 @@ def test_july_31_2024_0Z_data_diffs_with_legacy():
                         diff <= height_tolerance
                     ), f"Height mismatch: diff: {diff} is not <= {height_tolerance} for wmoid {m_wmoid} and pressure {m_pressure}"
 
-                if m_temperature is not np.nan and cb_temperature is not np.nan and m_temperature is not None and cb_temperature is not None:
+                if (
+                    m_temperature is not np.nan
+                    and cb_temperature is not np.nan
+                    and m_temperature is not None
+                    and cb_temperature is not None
+                ):
                     diff = abs(m_temperature / 100 - cb_temperature)
                     if diff > temperature_stat["max"]:
                         temperature_stat["max"] = diff
@@ -853,7 +862,12 @@ def test_july_31_2024_0Z_data_diffs_with_legacy():
                         diff <= temperature_tolerance
                     ), f"Temperature mismatch: diff: {diff} is not <= {temperature_tolerance} for wmoid {m_wmoid} and pressure {m_pressure}"
 
-                if m_dewpoint is not np.nan and cb_dewpoint is not np.nan and m_dewpoint is not None and cb_dewpoint is not None:
+                if (
+                    m_dewpoint is not np.nan
+                    and cb_dewpoint is not np.nan
+                    and m_dewpoint is not None
+                    and cb_dewpoint is not None
+                ):
                     diff = abs(m_dewpoint / 100 - cb_dewpoint)
                     if diff > dewpoint_stat["max"]:
                         dewpoint_stat["max"] = diff
@@ -863,7 +877,12 @@ def test_july_31_2024_0Z_data_diffs_with_legacy():
                         diff <= dewpoint_tolerance
                     ), f"Dewpoint mismatch: diff: {diff} is not <= {dewpoint_tolerance} for wmoid {m_wmoid} and pressure {m_pressure}"
 
-                if m_relative_humidity is not np.nan and cb_relative_humidity is not np.nan and m_relative_humidity is not None and cb_relative_humidity is not None:
+                if (
+                    m_relative_humidity is not np.nan
+                    and cb_relative_humidity is not np.nan
+                    and m_relative_humidity is not None
+                    and cb_relative_humidity is not None
+                ):
                     if m_relative_humidity is None or cb_relative_humidity is None:
                         continue
                     diff = abs(m_relative_humidity - cb_relative_humidity)
@@ -892,7 +911,12 @@ def test_july_31_2024_0Z_data_diffs_with_legacy():
                         diff <= wind_speed_tolerance
                     ), f"Wind Speed mismatch: diff: {diff} is not <= {wind_speed_tolerance} for wmoid {m_wmoid} and pressure {m_pressure}"
 
-                if m_wind_direction is not np.nan and cb_wind_direction is not np.nan and m_wind_direction is not None and cb_wind_direction is not None:
+                if (
+                    m_wind_direction is not np.nan
+                    and cb_wind_direction is not np.nan
+                    and m_wind_direction is not None
+                    and cb_wind_direction is not None
+                ):
                     m_wind_direction = round(m_wind_direction) % 360
                     diff = m_wind_direction - cb_wind_direction
                     if diff > 180:
@@ -910,10 +934,10 @@ def test_july_31_2024_0Z_data_diffs_with_legacy():
                         diff <= wind_direction_tolerance
                     ), f"Wind Direction mismatch: diff: {diff} is not <= {wind_direction_tolerance} for wmoid {m_wmoid} and pressure {m_pressure}"
             except Exception as _e:
-                    print("--------------------")
-                    print (f"wmoid: {m_wmoid}, pressure: {m_pressure}")
-                    print (_e)
-                # raise _e
+                print("--------------------")
+                print(f"wmoid: {m_wmoid}, pressure: {m_pressure}")
+                print(_e)
+            # raise _e
     finally:
         print(f"max height diff: {height_stat}")
         print(f"max temperature diff: {temperature_stat}")

@@ -282,11 +282,12 @@ class PrepbufrBuilder(Builder):
                 else:
                     if dir_dif < -180:
                         dir_dif += 360
-                value = next_higher_pressure_direction + weight * (dir_dif)
+                # round the possible floating point number to the nearest integer
+                value = round(next_higher_pressure_direction + weight * (dir_dif))
                 if value < 0:
                     value += 360
                 else:
-                    if value > 360:
+                    if value >= 360:
                         value -= 360
                 return value
             else:  # if it isn't a wind_direction do this
@@ -983,11 +984,14 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
             # don't use invalid data at the top or bottom of the profile
             # if any of the needed values are invalid make them all math.nan at that position.
             # Make invalid values math.nan because the metpy.calc routine likes them that way.
+            # also don't use data that is more than one level away from the bottom of the mandatory levels (1000mb).
             i = 0
             while i < len(pressure) and (
                 not self.is_a_number(pressure[i])
                 or not self.is_a_number(temperature[i])
                 or not self.is_a_number(specific_humidity[i])
+                or not self.is_a_number(height[i])
+                or (pressure[i] > 1010 and pressure[i+1] > 1010)
             ):
                 temperature[i] = math.nan
                 pressure[i] = math.nan

@@ -632,7 +632,8 @@ def test_ctc_visibility_data_hrrr_ops_all_hrrr():
     if len(cb_fcst_valid_epochs) == 0:
         pytest.fail("There is no data")
     # choose the last one
-    fcst_valid_epoch = cb_fcst_valid_epochs[round(len(cb_fcst_valid_epochs) / 2)]
+    # fcst_valid_epoch = cb_fcst_valid_epochs[round(len(cb_fcst_valid_epochs) / 2)]
+    fcst_valid_epoch = cb_fcst_valid_epochs[len(cb_fcst_valid_epochs) - 100]
     # get all the cb fcstLen values
     result = cluster.query(
         f"""SELECT raw fcstLen

@@ -465,6 +465,12 @@ def test_july_31_2024_0Z_data_diffs_with_legacy():
         41112,
         29839,
     ]
+# a couple of useful sample queries.
+# MYSQL
+# export w=41112;mysql --defaults-file=~/wolphin.cnf -A -B  --execute "select press,z as height,t / 100 as temperature, ws / 100 as ws,wd from ruc_ua_pb.RAOB where date = '2024-07-31' and hour = 0 and wmoid = ${w} ORDER BY press DESC;"
+# CB
+# export w=29839;cbq -q -terse --no-ssl-verify -e 'https://adb-cb1.gsd.esrl.noaa.gov:18093' -u avid -p 'pwd_av!d' -s "SELECT  d.data.[\"${w}\"].pressure,d.data.[\"${w}\"].height,d.data.[\"${w}\"].temperature,d.data.[\"${w}\"].wind_speed as ws, d.data.[\"${w}\"].wind_direction as wd FROM vxdata._default.RAOB AS d WHERE d.type='DD' AND d.subset='RAOB' AND d.docType='obs' AND d.subDocType = 'prepbufr' AND d.fcstValidISO = '2024-07-31T00:00:00Z' ORDER BY d.data.[\"${w}\"].pressure DESC;" | grep -v Disabling | jq -r '.[] | "\(.pressure) \(.height) \(.temperature) \(.ws) \(.wd)"'
+
     # 4270  GLM00004270  61.1667  -45.4167   34.0    MITTARFIK NARSARSUAQ
     # 42886 INM00042886  21.9167   84.0833  228.0    JHARSIGUDA
     # 97686 IDM00097686  -4.0667  138.9500 1660.0    WAMENA
@@ -638,7 +644,7 @@ def test_july_31_2024_0Z_data_diffs_with_legacy():
     # export w=35671
     # cbq -no-ssl-verify -e 'https://adb-cb1.gsd.esrl.noaa.gov:18093' -u avid -p 'pwd_av!d' -s "SELECT d.data.[\"${w}\"] FROM vxdata._default.RAOB AS d WHERE d.type='DD' AND d.subset='RAOB' AND d.docType='obs' AND d.subDocType = 'prepbufr' AND d.fcstValidISO = '2024-07-31T00:00:00Z' AND d.data.[\"${w}\"].pressure IN [850, 700, 500, 400, 300, 250, 200, 150, 100, 70, 50, 30] ORDER BY d.data.[\"${w}\"].pressure DESC;" | egrep "pressure|wind_direction|wind_speed"
     # This limits the output to a select set of mandatory levels that exist in the 35671-typ220.txt file. All of those match except the mysql data excludes the 30mb level.
-    # However, removing the IN clause form both queries shows that the mysql non mandatory levels wildly diverge from the CB data and the data in the 35671-typ220.txt file.
+    # However, removing the IN clause from both queries shows that the mysql non mandatory levels wildly diverge from the CB data and the data in the 35671-typ220.txt file.
     # The mysql data is clearly wrong but I cannot determine what is wrong with the interpolation.
 
     # 07145 CAM00071450  51.1330 -106.5830  595.0    ELBOW CS

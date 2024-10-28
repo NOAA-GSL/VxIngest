@@ -1,6 +1,8 @@
 import sys
 from pathlib import Path
 
+from tabulate import tabulate
+
 
 def main():
     _wmoid = sys.argv[1] if sys.argv and len(sys.argv) > 1 else "65578"
@@ -28,11 +30,12 @@ def main():
             mnemonic = line.split()[0]
             if mnemonic == "POB":
                 qualified = True
-                _press = round(float(line.split()[1]))
+                _press = round(float(line.split()[1])) if line.split()[1] != "MISSING" else None
                 if _press not in [
                     1000,
                     850,
                     700,
+                    600,
                     500,
                     400,
                     300,
@@ -65,14 +68,16 @@ def main():
                         case "TYP":
                             continue
                         case "PQM":
-                            if round(float(line.split()[1])) not in [0, 1, 2]:
+                            _val = round(float(line.split()[1])) if line.split()[1] != "MISSING" else None
+                            if _val not in [0, 1, 2]:
                                 # disqualified because of quality marker
                                 # go to next POB
                                 qualified = False
                                 row = {}
                                 continue
                         case "PPC":
-                            if round(float(line.split()[1])) != 1:
+                            _val = round(float(line.split()[1])) if line.split()[1] != "MISSING" else None
+                            if _val != 1:
                                 # disqualified because of program code
                                 # go to next POB
                                 qualified = False
@@ -83,12 +88,14 @@ def main():
                                 row["sh"] = line.split()[1]
                             continue
                         case "QQM":
-                            if round(float(line.split()[1])) not in [0, 1, 2, 9, 15]:
+                            _val = round(float(line.split()[1])) if line.split()[1] != "MISSING" else None
+                            if _val not in [0, 1, 2, 9, 15]:
                                 # disqualified because of quality marker
                                 row["sh"] = None
                                 continue
                         case "QPC":
-                            if round(float(line.split()[1])) != 1:
+                            _val = round(float(line.split()[1])) if line.split()[1] != "MISSING" else None
+                            if _val != 1:
                                 # disqualified because of program code
                                 row["sh"] = None
                                 continue
@@ -96,12 +103,14 @@ def main():
                             row["z"] = line.split()[1]
                             continue
                         case "ZQM":
-                            if round(float(line.split()[1])) not in [0, 1, 2]:
+                            _val = round(float(line.split()[1])) if line.split()[1] != "MISSING" else None
+                            if _val not in [0, 1, 2]:
                                 # disqualified because of quality marker
                                 row["z"] = None
                                 continue
                         case "ZPC":
-                            if round(float(line.split()[1])) != 1:
+                            _val = round(float(line.split()[1])) if line.split()[1] != "MISSING" else None
+                            if _val != 1:
                                 # disqualified because of program code
                                 row["z"] = None
                                 continue
@@ -109,12 +118,14 @@ def main():
                             row["t"] = line.split()[1]
                             continue
                         case "TQM":
-                            if round(float(line.split()[1])) not in [0, 1, 2]:
+                            _val = round(float(line.split()[1])) if line.split()[1] != "MISSING" else None
+                            if _val not in [0, 1, 2]:
                                 # disqualified because of quality marker
                                 row["t"] = None
                                 continue
                         case "TPC":
-                            if round(float(line.split()[1])) != 1:
+                            _val = round(float(line.split()[1])) if line.split()[1] != "MISSING" else None
+                            if _val != 1:
                                 # disqualified because of program code
                                 row["t"] = None
                                 continue
@@ -129,13 +140,15 @@ def main():
                             row["ws"] = line.split()[1]
                             continue
                         case "DFQ":
-                            if round(float(line.split()[1])) not in [0, 1, 2]:
+                            _val = round(float(line.split()[1])) if line.split()[1] != "MISSING" else None
+                            if _val not in [0, 1, 2]:
                                 # disqualified because of quality marker
                                 row["wd"] = None
                                 row["ws"] = None
                                 continue
                         case "DFP":
-                            if round(float(line.split()[1])) != 1:
+                            _val = round(float(line.split()[1])) if line.split()[1] != "MISSING" else None
+                            if _val != 1:
                                 # disqualified because of program code
                                 row["wd"] = None
                                 row["ws"] = None
@@ -152,8 +165,8 @@ def main():
             "t",
             "dp",
             "wd",
-            "ws",
-            "ws(FFO)",
+            "ws(knts)",
+            "ws(FFO mps)",
         ]
     ]
     try:
@@ -167,17 +180,13 @@ def main():
                     row.get("t", "null"),
                     row.get("dp", "null"),
                     row.get("wd", "null"),
-                    "...",
+                    round(float(row.get("ws")) * 0.5144444444, 4) if row.get("ws") is not None else None,
                     row.get("ws", "null"),
                 ]
             )
-        # out_table  = tabulate(table, headers="firstrow", tablefmt="plain")
-        # # Split the table into separate columns with spaces
-        # columns = out_table.split('\t')
-        print(f"data-dump-{_wmoid}")
-        for row in table:
-            print(" ".join(list(map(str, row))))
-        # print(" ".join(columns))
+        print(
+            tabulate(table, headers="firstrow", tablefmt="plain")
+        )
     except Exception as e:
         print(f"Error: {e}")
 

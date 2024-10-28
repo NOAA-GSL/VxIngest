@@ -57,7 +57,7 @@ def main():
             AND docType='obs'
             AND subDocType = 'prepbufr'
             AND fcstValidISO = '2024-07-31T00:00:00Z'
-            AND d.data.['{wmoid}'].['pressure'] IN [1000,850,700,500,400,300,250,200,150,100,70,50,30,20]
+            AND d.data.['{wmoid}'].['pressure'] IN [1000,850,700,600,500,400,300,250,200,150,100,70,50,30,20]
             ORDER BY d.data.['{wmoid}'].['pressure'] DESC;"""
     data_iter = connect_cb()["cluster"].query(_statement)
     table = [
@@ -76,11 +76,11 @@ def main():
         table.append(
             [
                 row["press"] if row["press"] == 0 or row["press"] != "null" else "null",
-                row["z"] if row["z"] == 0 or row["z"] else "null",
+                round(row["z"]) if row["z"] == 0 or row["z"] else "null",
                 row["t"] if row["t"] == 0 or row["t"] else "null",
                 row["dp"] if row["dp"] == 0 or row["dp"] else "null",
                 row["rh"] if row["rh"] == 0 or row["rh"] else "null",
-                row["wd"] if row["wd"] == 0 or row["wd"] else "null",
+                round(row["wd"]) if row["wd"] == 0 or row["wd"] else "null",
                 row["ws"] if row["ws"] == 0 or row["ws"] else "null",
             ]
         )

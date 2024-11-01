@@ -3,7 +3,7 @@
 # NOTE - avoid installing python packages via apt - they install an alternate version of Python
 
 # The builder image, used for building the virtual environment
-FROM python:3.11-slim-bookworm AS builder
+FROM python:3.13-slim-bookworm AS builder
 
 RUN apt-get update && \
     # cftime build deps
@@ -40,7 +40,7 @@ RUN poetry install
 
 
 # The runtime image, used for running just the application with its dependencies
-FROM python:3.11-slim-bookworm AS prod
+FROM python:3.13-slim-bookworm AS prod
 
 ARG COMMITBRANCH=development
 ARG COMMITSHA=unspecified

@@ -6,13 +6,19 @@ Copyright 2019 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of
 Colorado, NOAA/OAR/ESRL/GSL
 """
 
+import copy
+import cProfile
 import datetime as dt
 import logging
 import math
 import sys
 from pathlib import Path
+from pstats import Stats
 
+import cfgrib
 import numpy as np
+import pyproj
+import xarray as xr
 
 from vxingest.builder_common.builder_utilities import get_geo_index
 from vxingest.grib2_to_cb.grib_builder_parent import GribBuilder
@@ -22,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 # Concrete builders
-class GribModelBuilderV01(GribBuilder):
+class GribModelMETARBuilderV01(GribBuilder):
     """
     This is the builder for model data that is ingested from grib2 files. It is a concrete builder specifically
     for the model data.
@@ -64,6 +70,382 @@ class GribModelBuilderV01(GribBuilder):
         self.land_use_types = None
         # self.do_profiling = True  # set to True to enable build_document profiling
         self.do_profiling = False  # set to True to enable build_document profiling
+
+    def build_document(self, queue_element):
+        """
+        This is the entry point for the gribBuilders from the ingestManager.
+        The ingest manager is giving us a grib file to process from the queue.
+        These documents are id'd by valid time and fcstLen. The data section is a dictionary
+        indexed by station name each element of which contains variable data and a station name.
+        To process this file we need to iterate the domain_stations list and process the
+        station name along with all the required variables.
+        1) get the first epoch - if none was specified get the latest one from the db
+        2) transform the projection from the grib file
+        3) determine the stations for this domain, adding grid points to each station - build a station list
+        4) enable profiling if requested
+        5) handle_document - iterate the template and process all the keys and values
+        6) build a datafile document to record that this file has been processed
+        7) cfgrib leaves .idx files in the directory - delete the .idx file
+
+        NOTE: For cfgrib variables are contained in datasets. Some variables are continuous,
+        like temperature, and some are non-continuous, like ceiling and visibility.
+        The continuous variables must have their coordinates interpolated, but not the non-continuous
+        variables.
+        For cfgrib the variables defined in the templates are to be defined by their long_name attribute.
+        for example there is a ds_height_above_ground_2m dataset and also a ds_height_above_ground_10m dataset.
+        Each of those datasets can have multiple variables, but only one variable with a given long_name.
+
+        A given dataset may have multiple variables with different long_names. For example "2 metre temperature"
+        and "2 metre dewpoint temperature" are both in the ds_height_above_ground_2m dataset.
+        """
+
+        try:
+            # get the bucket, scope, and collection from the load_spec
+            bucket = self.load_spec["cb_connection"]["bucket"]
+            scope = self.load_spec["cb_connection"]["scope"]
+            collection = self.load_spec["cb_connection"]["collection"]
+
+            # translate the projection from the grib file
+            # The projection is the same for all the variables in the grib file,
+            # so we only need to get it once and from one variable - we'll use heightAboveGround
+            # for 2 meters.
+
+            # heightAboveGround variables
+            ds_height_above_ground_2m = xr.open_dataset(
+                queue_element,
+                engine="cfgrib",
+                backend_kwargs={
+                    "filter_by_keys": {
+                        "typeOfLevel": "heightAboveGround",
+                        "stepType": "instant",
+                        "level": 2,
+                    },
+                    "read_keys": ["projString"],
+                    "indexpath": "",
+                },
+            )
+            ds_height_above_ground_10m = xr.open_dataset(
+                queue_element,
+                engine="cfgrib",
+                backend_kwargs={
+                    "filter_by_keys": {
+                        "typeOfLevel": "heightAboveGround",
+                        "stepType": "instant",
+                        "level": 10,
+                    },
+                    "indexpath": "",
+                },
+            )
+            in_proj = pyproj.Proj(proj="latlon")
+            proj_string = ds_height_above_ground_2m.r2.attrs["GRIB_projString"]
+            max_x = ds_height_above_ground_2m.r2.attrs["GRIB_Nx"]
+            max_y = ds_height_above_ground_2m.r2.attrs["GRIB_Ny"]
+            spacing = ds_height_above_ground_2m.r2.attrs["GRIB_DxInMetres"]
+            latitude_of_first_grid_point_in_degrees = (
+                ds_height_above_ground_2m.r2.attrs[
+                    "GRIB_latitudeOfFirstGridPointInDegrees"
+                ]
+            )
+            longitude_of_first_grid_point_in_degrees = (
+                ds_height_above_ground_2m.r2.attrs[
+                    "GRIB_longitudeOfFirstGridPointInDegrees"
+                ]
+            )
+            proj_params_dict = self.get_proj_params_from_string(proj_string)
+            in_proj = pyproj.Proj(proj="latlon")
+            out_proj = self.get_grid(
+                proj_params_dict,
+                latitude_of_first_grid_point_in_degrees,
+                longitude_of_first_grid_point_in_degrees,
+            )
+            transformer = pyproj.Transformer.from_proj(
+                proj_from=in_proj, proj_to=out_proj
+            )
+            # use these if necessary to comare projections for debugging
+            # print()
+            # print ('in_proj', in_proj, 'out_proj', out_proj, 'max_x', max_x, 'max_y', max_y, 'spacing', spacing)
+
+            # we get the fcst_valid_epoch and fcst_len once for the entire file, from the heightAboveGround
+            ds_fcst_valid_epoch = (
+                ds_height_above_ground_2m.valid_time.values.astype("uint64") / 10**9
+            ).astype("uint32")
+            ds_fcst_len = (int)((ds_height_above_ground_2m.step.values) / 1e9 / 3600)
+
+            # height_above_ground variables
+            ds_hgt_2_metre_temperature = ds_height_above_ground_2m.filter_by_attrs(
+                long_name="2 metre temperature"
+            )
+            # to get the values you can use the following...
+            # ds_hgt_2_metre_temperature.variables[list(ds_2_metre_temperature.data_vars.keys())[0]].values
+            ds_hgt_2_metre_dewpoint_temperature = (
+                ds_height_above_ground_2m.filter_by_attrs(
+                    long_name="2 metre dewpoint temperature"
+                )
+            )
+            # to get the values you can use the following...
+            # ds_hgt_2_metre_dewpoint_temperature.variables[list(ds_2_metre_dewpoint_temperature.data_vars.keys())[0]].values
+            ds_hgt_2_metre_relative_humidity = (
+                ds_height_above_ground_2m.filter_by_attrs(
+                    long_name="2 metre relative humidity"
+                )
+            )
+            # to get the values you can use the following...
+            # ds_hgt_2_metre_relative_humidity.variables[list(ds_2_metre_relative_humidity.data_vars.keys())[0]].values
+            ds_hgt_2_metre_specific_humidity = (
+                ds_height_above_ground_2m.filter_by_attrs(
+                    long_name="2 metre specific humidity"
+                )
+            )
+            # to get the values you can use the following...
+            # ds_hgt_2_metre_specific_humidity.variables[list(ds_hgt_2_metre_specific_humidity.data_vars.keys())[0]].values
+
+            ds_hgt_10_metre_u_component_of_wind = (
+                ds_height_above_ground_10m.filter_by_attrs(
+                    long_name="10 metre U wind component"
+                )
+            )
+            # to get the values you can use the following...
+            # ds_10_metre_u_component_of_wind.variables[list(ds_10_metre_u_component_of_wind.data_vars.keys())[0]].values
+            ds_hgt_10_metre_v_component_of_wind = (
+                ds_height_above_ground_10m.filter_by_attrs(
+                    long_name="10 metre V wind component"
+                )
+            )
+            # to get the values you can use the following...
+            # ds_hgt_10_metre_v_component_of_wind.variables[list(ds_hgt_10_metre_v_component_of_wind.data_vars.keys())[0]].values
+
+            # ceiling variables - this one is different because it only has one variable
+            ds_cloud_ceiling = xr.open_dataset(
+                queue_element,
+                engine="cfgrib",
+                backend_kwargs={
+                    "filter_by_keys": {
+                        "typeOfLevel": "cloudCeiling",
+                        "stepType": "instant",
+                    },
+                    "indexpath": "",
+                },
+            )
+            # to get the values you can use the following...
+            # ds_cloud_ceiling.variables[list(ds_cloud_ceiling.data_vars.keys())[0]].values
+
+            # surface variables
+            ds_surface = xr.open_dataset(
+                queue_element,
+                engine="cfgrib",
+                backend_kwargs={
+                    "filter_by_keys": {"typeOfLevel": "surface", "stepType": "instant"},
+                    "read_keys": ["projString"],
+                    "indexpath": "",
+                },
+            )
+            ds_surface_pressure = ds_surface.filter_by_attrs(
+                long_name="Surface pressure"
+            )
+            # to get the values you can use the following...
+            # ds_surface_pressure.variables[list(ds_surface_pressure.data_vars.keys())[0]].values
+            ds_surface_orog = ds_surface.filter_by_attrs(long_name="Orography")
+            # to get the values you can use the following...
+            # ds_surface_orog.variables[list(ds_surface_orog.data_vars.keys())[0]].values
+            ds_surface_visibility = ds_surface.filter_by_attrs(long_name="Visibility")
+            # to get the values you can use the following...
+            # ds_surface_visibility.variables[list(ds_surface_visibility.data_vars.keys())[0]].values
+            ds_surface_vegetation_type = ds_surface.filter_by_attrs(
+                long_name="Vegetation Type"
+            )
+            # to get the values you can use the following...
+            # ds_surface_vegetation_type.variables[list(ds_surface_vegetation_type.data_vars.keys())[0]].values
+
+            # set up the variables map for the translate_template_item method. this way only the
+            # translation map needs to be a class variable. Better data hiding.
+            # It seems that cfgrib is graceful about missing variables, so we don't need to check
+            # for them here. But when we try to get the indexed values we will get an exception
+            # if the variable is missing. We will catch that exception and return an empty document
+            try:
+                self.ds_translate_item_variables_map = {
+                    "2 metre temperature": ds_hgt_2_metre_temperature.variables[
+                        list(ds_hgt_2_metre_temperature.data_vars.keys())[0]
+                    ]
+                    if len(list(ds_hgt_2_metre_temperature.data_vars.keys())) > 0
+                    else None,
+                    "2 metre dewpoint temperature": ds_hgt_2_metre_dewpoint_temperature.variables[
+                        list(ds_hgt_2_metre_dewpoint_temperature.data_vars.keys())[0]
+                    ]
+                    if len(list(ds_hgt_2_metre_dewpoint_temperature.data_vars.keys()))
+                    > 0
+                    else None,
+                    "2 metre relative humidity": ds_hgt_2_metre_relative_humidity.variables[
+                        list(ds_hgt_2_metre_relative_humidity.data_vars.keys())[0]
+                    ]
+                    if len(list(ds_hgt_2_metre_relative_humidity.data_vars.keys())) > 0
+                    else None,
+                    "2 metre specific humidity": ds_hgt_2_metre_specific_humidity.variables[
+                        list(ds_hgt_2_metre_specific_humidity.data_vars.keys())[0]
+                    ]
+                    if len(list(ds_hgt_2_metre_specific_humidity.data_vars.keys())) > 0
+                    else None,
+                    "10 metre U wind component": ds_hgt_10_metre_u_component_of_wind.variables[
+                        list(ds_hgt_10_metre_u_component_of_wind.data_vars.keys())[0]
+                    ]
+                    if len(list(ds_hgt_10_metre_u_component_of_wind.data_vars.keys()))
+                    > 0
+                    else None,
+                    "10 metre V wind component": ds_hgt_10_metre_v_component_of_wind.variables[
+                        list(ds_hgt_10_metre_v_component_of_wind.data_vars.keys())[0]
+                    ]
+                    if len(list(ds_hgt_10_metre_v_component_of_wind.data_vars.keys()))
+                    > 0
+                    else None,
+                    "Surface pressure": ds_surface_pressure.variables[
+                        list(ds_surface_pressure.data_vars.keys())[0]
+                    ]
+                    if len(list(ds_surface_pressure.data_vars.keys())) > 0
+                    else None,
+                    "Visibility": ds_surface_visibility.variables[
+                        list(ds_surface_visibility.data_vars.keys())[0]
+                    ]
+                    if len(list(ds_surface_visibility.data_vars.keys())) > 0
+                    else None,
+                    "Orography": ds_surface_orog.variables[
+                        list(ds_surface_orog.data_vars.keys())[0]
+                    ]
+                    if len(list(ds_surface_orog.data_vars.keys())) > 0
+                    else None,
+                    "Cloud ceiling": ds_cloud_ceiling.variables[
+                        list(ds_cloud_ceiling.data_vars.keys())[0]
+                    ]
+                    if len(list(ds_cloud_ceiling.data_vars.keys())) > 0
+                    else None,
+                    "Vegetation Type": ds_surface_vegetation_type.variables[
+                        list(ds_surface_vegetation_type.data_vars.keys())[0]
+                    ]
+                    if len(list(ds_surface_vegetation_type.data_vars.keys())) > 0
+                    else None,
+                    "fcst_valid_epoch": ds_fcst_valid_epoch,
+                    "fcst_len": ds_fcst_len,
+                    "proj_params": proj_params_dict,
+                }
+            except IndexError as _e:
+                logger.exception(
+                    "%s: Exception with builder build_document retrieving grib variables: error: %s",
+                    self.__class__.__name__,
+                    _e,
+                )
+                # remove any idx file that may have been created
+                self.delete_idx_file(queue_element)
+                # return an empty document_map
+                return {}
+            # reset the builders document_map for a new file
+            self.initialize_document_map()
+            # get stations from couchbase and filter them so
+            # that we retain only the ones for this models domain which is derived from the projection
+            # also fill in the gridpoints for each station and for each geo within each station
+            # NOTE: this is not about regions, this is about models
+            self.domain_stations = []
+            limit_clause = ";"
+            if self.number_stations != sys.maxsize:
+                limit_clause = f" limit {self.number_stations};"
+            result = self.load_spec["cluster"].query(
+                f"""SELECT geo, name
+                    from `{bucket}`.{scope}.{collection}
+                    where type='MD'
+                    and docType='station'
+                    and subset='{self.subset}'
+                    and version='V01'
+                    {limit_clause}"""
+            )
+            for row in result:
+                station = copy.deepcopy(row)
+                for geo_index in range(len(row["geo"])):
+                    lat = row["geo"][geo_index]["lat"]
+                    lon = row["geo"][geo_index]["lon"]
+                    if lat == -90 and lon == 180:
+                        continue  # don't know how to transform that station
+                    (
+                        _x,
+                        _y,
+                    ) = transformer.transform(lon, lat, radians=False)
+                    x_gridpoint = _x / spacing
+                    y_gridpoint = _y / spacing
+                    # use for debugging if you must
+                    # print (f"transform - lat: {lat}, lon: {lon}, x_gridpoint: {x_gridpoint}, y_gridpoint: {y_gridpoint}")
+                    try:
+                        if (
+                            math.floor(x_gridpoint) < 0
+                            or math.ceil(x_gridpoint) >= max_x
+                            or math.floor(y_gridpoint) < 0
+                            or math.ceil(y_gridpoint) >= max_y
+                        ):
+                            continue
+                    except Exception as _e:
+                        logger.error(
+                            "%s: Exception with builder build_document processing station: error: %s",
+                            self.__class__.__name__,
+                            str(_e),
+                        )
+                        continue
+                    # set the gridpoint for the station
+                    station["geo"][geo_index]["x_gridpoint"] = x_gridpoint
+                    station["geo"][geo_index]["y_gridpoint"] = y_gridpoint
+                # if we have gridpoints for all the geos in the station, add it to the list
+                has_gridpoints = True
+                for elem in station["geo"]:
+                    if "x_gridpoint" not in elem or "y_gridpoint" not in elem:
+                        has_gridpoints = False
+                if has_gridpoints:
+                    self.domain_stations.append(station)
+            # if we have asked for profiling go ahead and do it
+            if self.do_profiling:
+                with cProfile.Profile() as _pr:
+                    self.handle_document()
+                    with Path(self.profile_output_path / "profiling_stats.txt").open(
+                        "w", encoding="utf-8"
+                    ) as stream:
+                        stats = Stats(_pr, stream=stream)
+                        stats.strip_dirs()
+                        stats.sort_stats("time")
+                        stats.dump_stats(
+                            self.profile_output_path / "profiling_stats.prof"
+                        )
+                        stats.print_stats()
+            else:
+                self.handle_document()
+
+            document_map = self.get_document_map()
+            data_file_id = self.create_data_file_id(
+                self.subset, "grib2", self.template["model"], queue_element
+            )
+            if data_file_id is None:
+                logger.error(
+                    "%s: Failed to create DataFile ID:", self.__class__.__name__
+                )
+            data_file_doc = self.build_datafile_doc(
+                file_name=queue_element,
+                data_file_id=data_file_id,
+                origin_type=self.template["model"],
+            )
+            document_map[data_file_doc["id"]] = data_file_doc
+            self.delete_idx_file(queue_element)
+            return document_map
+        except (FileNotFoundError, cfgrib.IOProblemError):
+            logger.error(
+                "%s: Exception with builder build_document: file_name: %s, error: file not found or problem reading file - skipping this file",
+                self.__class__.__name__,
+                queue_element,
+            )
+            # remove any idx file that may have been created
+            self.delete_idx_file(queue_element)
+            return {}
+        except Exception as _e:
+            logger.exception(
+                "%s: Exception with builder build_document: file_name: %s, exception %s",
+                self.__class__.__name__,
+                queue_element,
+                _e,
+            )
+            # remove any idx file that may have been created
+            self.delete_idx_file(queue_element)
+            return {}
 
     def build_datafile_doc(self, file_name, data_file_id, origin_type):
         """
@@ -462,15 +844,17 @@ class GribModelBuilderV01(GribBuilder):
         values = self.ds_translate_item_variables_map[
             "2 metre specific humidity"
         ].values
-        spfh = []
+        specific_humidity = []
         for station in self.domain_stations:
             geo_index = get_geo_index(
                 self.ds_translate_item_variables_map["fcst_valid_epoch"], station["geo"]
             )
             x_gridpoint = station["geo"][geo_index]["x_gridpoint"]
             y_gridpoint = station["geo"][geo_index]["y_gridpoint"]
-            spfh.append((float)(self.interp_grid_box(values, y_gridpoint, x_gridpoint)))
-        return spfh
+            specific_humidity.append(
+                float(self.interp_grid_box(values, y_gridpoint, x_gridpoint))
+            )
+        return specific_humidity
 
     def handle_vegetation_type(self, params_dict):
         """returns the vegetation type for this document
@@ -561,3 +945,5 @@ class GribModelBuilderV01(GribBuilder):
             int: forecast length
         """
         return (int)(self.ds_translate_item_variables_map["fcst_len"])
+
+

@@ -10,7 +10,7 @@ The architecture plan is to extend the VxIngest GribBuilder to create a GribMode
 
 ## Templates
 
-There is an associated ingest template that will define the data types, "MD:V01:RAOB:HRRR_OPS:ingest:grib2". This is a straightforward grib2 ingest template. There will be a data document for each fcst hour and each level with entries for every RAOB station. We will record drift info in the data section.
+There are associated ingest templates that will define the data types, "MD:V01:RAOB:PRS:HRRR_OPS:ingest:grib2" and "MD:V01:RAOB:PRS:HRRR_OPS:ingest:grib2". These are straightforward grib2 ingest templates. There will be a data document for each fcst hour and each level with entries for every RAOB station. We will record drift info in the data section.
 
 ## Data Source
 

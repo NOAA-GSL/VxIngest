@@ -3,12 +3,12 @@
 ## Data Source
 
 The data will come from s3://noaa-hrrr-bdp-pds/hrrr.20240731/conus/ in form of hrrr.t01z.wrfprsf04.grib2 files.
-The 'wrfprs' part tells us it is a pressure file.
+The 'wrfprs' part tells us it is a pressure file. A native step file has 'wrfnat' instead.
 The ingest will need to process these on an ongoing 'operational' means, i.e. process every file that arrives there.
 The ingest will also need an on-demand way where it is given a date range of required data.
 The data_request document is "DR:continuous:HRRR_OPS:1730496755:0:1730498583:V01"
 
-Since this data comes from the [NODD](https://www.noaa.gov/information-technology/open-data-dissemination)
+Since this data comes from the public [NODD](https://www.noaa.gov/information-technology/open-data-dissemination)
 it does not need to be moved to a GSL s3 bucket, it will be read directly from the data source.
 
 The file path "s3://noaa-hrrr-bdp-pds/hrrr.20240731/conus/" includes a date component. In this example the "20240731" represents July 31, 2024. The file name "hrrr.t01z.wrfprsf04.grib2" contains a cycle time "t01z" (the operational hrrr runs every hour) and a forecast hour "f04" (the operational hrrr is recorded here to forecast hour 15).

@@ -15,7 +15,7 @@ The file path "s3://noaa-hrrr-bdp-pds/hrrr.20240731/conus/" includes a date comp
 
 ## Data Output
 
-The builder will produce a data bundle each run that will include the required variables for all of the unprocessed model data for which there are grib2 files available that are newer than the latest model data currently in the database. There will also be a way to provide parameters that will specify a range of epochs to process even though that data is older than the latest data in the database.
+The builder will produce a data bundle each run that will include the required variables for all of the unprocessed model data for which there are grib2 files available that are newer than the latest model data currently in the database. The builder is event triggered by the creation of a new model file but unprocessed data files should also be processed within limits. This can be done by querying the load job documents for the latest document processed. There will also be a way to provide parameters that will specify a range of epochs to process even though that data is older than the latest data in the database. It is a little unclear how that processing will be triggered, probably manually.
 
 ## Database Import
 
@@ -24,8 +24,8 @@ that are currently being discussed in the data bundle meetings.
 
 ## Data Bundle storage
 
-Long term data bundle storage is currently being discussed in the data bundle meetings. (UC-02-01)
+Long term data bundle storage is currently being discussed in the data bundle meetings. (UC-02-01). The intnent is to use AWS storage classes to manage bundle lifecycle.
 
 ## Data expiration
 
-This data will have a very long TTL (Time To Live). It is currently being discussed how to specify the TTL long lived operational data.
+This data will have a very long TTL (Time To Live). It is currently being discussed how to specify the TTL long lived operational data. I expect that for Couchbase data the TTL will be specified in the process_Spec but this is still under discussion.

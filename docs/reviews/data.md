@@ -24,7 +24,7 @@ that are currently being discussed in the data bundle meetings.
 
 ## Data Bundle storage
 
-Long term data bundle storage is currently being discussed in the data bundle meetings. (UC-02-01). The intnent is to use AWS storage classes to manage bundle lifecycle.
+Long term data bundle storage is currently being discussed in the data bundle meetings. (UC-02-01). The intent is to use AWS storage classes to manage bundle lifecycle.
 
 ## Data expiration
 

@@ -1,21 +1,24 @@
 # Deployment
 
+This might be one of the first builders to use the mechanisms being ironed out in the data bundle meetings.
+
+The actual builders are all part of the same container already, and will be available as soon as the builder PR is merged into the main branch.
+
+We will run this in the cloud using Ian's kubernetes deployment.
+
 ## Data_request
+
+There is an associated Data_Source object: "DS:continuous:RAOB:HRRR_OPS:1730496755:0:1730498583:V01"
 
 ## Process_spec
 
+There is an associated Process_Spec:
+"PS:RAOB:GRIB2:MODEL:HRRR_OPS:1730496755:1814400:V01"
+
 ## Ingest docs
 
-## Compose.yaml
+There is an ingest doc for the pressure level ingest:
+"MD:V01:RAOB:PRS:HRRR_OPS:ingest:grib2"
 
-This might be the first builder to use the mechanisms being ironed out in the data bundle meetings.
-The builders are all part of the same container already.
-I envision that there will be a data_request made to DSG (with a data_request object)
-and then I will develop an associated process_spec, and ingest templates. We will run this in the cloud using Ian's kubernetes deployment.
-We will have a monitoring container (probably keda) that will monitor s3 events from the NODD and pick up on the S3 events
-that are associated with the "s3://noaa-hrrr-bdp-pds/hrrr.20240731/conus/" bucket.
-It will start ingest containers with the event being sent to the ingest main which will query the CB
-for the associated process_spec and from that get the associated ingest template and process the file.
-The ingest builder will need to download the file from the bucket to a temporary folder in the container,
-process it, and then remove the temporary file.
-
+There is an ingest doc for the native level ingest:
+"MD:V01:RAOB:NTV:HRRR_OPS:ingest:grib2"

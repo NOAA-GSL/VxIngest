@@ -1,8 +1,13 @@
 # GribModelRaobPressureBuilderV01 Design
 
-GribModelRaobPressureBuilderV01 will extend GribBuilder.
-This will necessitate also making GribModelRaobNativeBuilderV01 to build documents that are indexed on native step levels of the model.
-It also necessitates renaming (and slightly refactoring) the original gribbuilder class for METARS since it was the only grib model builder
-the heirarchy of the classes needs to be sorted out and common code moved to the parent GribBuilder.
-There will be three GribBuilder... classes after this.
+## Builder Class
 
+GribModelRaobPressureBuilderV01 will extend GribBuilder.
+GribModelRaobNativeBuilderV01  will extend GribBuilder.
+GribModelRaobPressureBuilderV01 will build documents that are indexed on pressure levels of the model.
+GribModelRaobNativeBuilderV01 will build documents that are indexed on native step levels of the model.
+
+This also necessitates renaming (and slightly refactoring) the original GribBuilder class for METARS since it was the only grib model builder that existed.
+
+The hierarchy of the classes needs to be sorted out and common code moved to the parent GribBuilder.
+There will be three concrete GribBuilder classes after this.

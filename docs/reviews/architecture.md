@@ -1,31 +1,31 @@
 # Architecture overview
 
-## Meeting:
+## Meeting
 
-We had an online review meeting on October 31.
+We had an online architecture review meeting on October 31. The general consensus was that the architecture is acceptable.
 
-## Overview:
+## Overview
 
-The architecture extends the VxIngest GribBuilder to create a GribModelRaobPressureBuilderV01 class that will handle the pressure model files. It is intended to read these files from the NODD using the BOTO3 python package. Example https://noaa-hrrr-bdp-pds.s3.amazonaws.com/index.html#hrrr.20240731/conus/hrrr.t00z.wrfprsf00.grib2. is the operational hrrr model grib2 output file with pressure levels. using aws cli it would be "aws s3 cp --no-sign-request s3://noaa-hrrr-bdp-pds/hrrr.20240731/conus/hrrr.t00z.wrfprsf00.grib2 /opt/data/grib2_to_cb/hrrr_ops/input_files/2421300000000" to download the test data file of July31, 2024 00Z.
+The architecture plan is to extend the VxIngest GribBuilder to create a GribModelRaobPressureBuilderV01 class that will handle the pressure model files. It is intended to read these files from the NODD using the BOTO3 python package. Example [hrrr.t00z.wrfprsf00.grib2](https://noaa-hrrr-bdp-pds.s3.amazonaws.com/index.html#hrrr.20240731/conus/hrrr.t00z.wrfprsf00.grib2) is the operational hrrr model grib2 output file with pressure levels. Using AWS cli it would be "aws s3 cp --no-sign-request s3://noaa-hrrr-bdp-pds/hrrr.20240731/conus/hrrr.t00z.wrfprsf00.grib2 /opt/data/grib2_to_cb/hrrr_ops/input_files/2421300000000" to download the test data file of July31, 2024 00Z.
 
-## Templates:
+## Templates
 
-There are associated ingest templates that will define the data types.
+There is an associated ingest template that will define the data types, "MD:V01:RAOB:HRRR_OPS:ingest:grib2". This is a straightforward grib2 ingest template. There will be a data document for each fcst hour and each level with entries for every RAOB station. We will record drift info in the data section.
 
-## Data Source:
+## Data Source
 
-The builder will use cfgrib to read the temporary files, then clean them up after. The primary isobaric dataset is retrieved by ds=xr.open_dataset(f,engine="cfgrib",backend_kwargs={"filter_by_keys": {"typeOfLevel":"isobaricInhPa"}}) which will contain the variables we need, i.e. temp, height, dp, sh, etc. The pressures in the grib2 file are spaced every 25 mb from 1013mb through 50mb so the ingest will need to interpolate the variables to standard levels (1010 through 20 spaced by 10).
+The builder will use cfgrib to read the temporary files, then clean them up after. There appears to be no well defined way to stream the file directly from aws s3 so the program will download it completely. The primary isobaric dataset is retrieved by ds=xr.open_dataset(f,engine="cfgrib",backend_kwargs={"filter_by_keys": {"typeOfLevel":"isobaricInhPa"}}) which will contain the variables we need, i.e. temp, height, dp, sh, etc. The pressures in the grib2 file are spaced every 25 mb from 1013mb through 50mb so the ingest will need to interpolate the variables to standard levels (1010 through 20 spaced by 10).
 
-## Method:
+## Method
 
-Variables can retrieved in python by first opening the file with xarray (with the engine cfgrib), then accessing the variable values for a given step and matching the pressure at that step. i.e.
+Variables can be retrieved in python by first opening the file with xarray (with the engine cfgrib), then accessing the variable values for a given step and matching the pressure at that step. i.e.
 
 ```bash
 # cd to the clone dir for VxIngest
 > cd $HOME/VxIngest
 # source the virtual env
 > . .venv/bin/activate
-# start pyton3
+# start python3
 > python
 >>> # download the file see .... https://github.com/awsdocs/aws-doc-sdk-examples/blob/main/python/example_code/s3/s3_basics/object_wrapper.py
 >>> f="temp_grib2_file"
@@ -50,3 +50,4 @@ Variables can retrieved in python by first opening the file with xarray (with th
 1   np.float32(62.30307).  # this is in fahrenheit
 ```
 
+The builder will maintain a map of the data variables that the translate_template_item can use to access the data. Of course the above example does not consider interpolation. The program will interpolate all the values to mandatory levels.

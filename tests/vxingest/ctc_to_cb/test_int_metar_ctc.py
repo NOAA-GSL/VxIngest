@@ -78,9 +78,9 @@ def test_check_fcst_valid_epoch_fcst_valid_iso():
         fve = row["fve"]
         utc_time = datetime.strptime(row["fvi"], "%Y-%m-%dT%H:%M:%S")
         epoch_time = int((utc_time - datetime(1970, 1, 1)).total_seconds())
-        assert (
-            fve == epoch_time
-        ), "fcstValidEpoch and fcstValidIso are not the same time"
+        assert fve == epoch_time, (
+            "fcstValidEpoch and fcstValidIso are not the same time"
+        )
         assert (fve % 3600) == 0, "fcstValidEpoch is not at top of hour"
 
 
@@ -163,9 +163,9 @@ def test_get_stations_geo_search():
             + " stations symmetric_difference is "
             + str(stations_difference)
         )
-        assert (
-            len(stations_difference) < 1000
-        ), "difference between expected and actual greater than 100"
+        assert len(stations_difference) < 1000, (
+            "difference between expected and actual greater than 100"
+        )
 
 
 def calculate_cb_ctc(
@@ -575,8 +575,8 @@ def test_ctc_ceiling_data_hrrr_ops_all_hrrr():
                 _ctc_value = _ctc[field]
                 _cb_ctc_value = _cb_ctc[_collection]["data"][_threshold][field]
                 assert _ctc_value == _cb_ctc_value, f"""
-                For epoch : {_ctc['fcst_valid_epoch']}
-                and fstLen: {_ctc['fcst_len']}
+                For epoch : {_ctc["fcst_valid_epoch"]}
+                and fstLen: {_ctc["fcst_len"]}
                 and threshold: {_threshold}
                 the derived CTC {field}: {_ctc_value} and calculated CTC {field}: {_cb_ctc_value} values do not match"""
 
@@ -707,7 +707,7 @@ def test_ctc_visibility_data_hrrr_ops_all_hrrr():
                 _ctc_value = _ctc[field]
                 _cb_ctc_value = _cb_ctc[_collection]["data"][_threshold][field]
                 assert _ctc_value == _cb_ctc_value, f"""
-                For epoch : {_ctc['fcst_valid_epoch']}
-                and fstLen: {_ctc['fcst_len']}
+                For epoch : {_ctc["fcst_valid_epoch"]}
+                and fstLen: {_ctc["fcst_len"]}
                 and threshold: {_threshold}
                 the derived CTC {field}: {_ctc_value} and calculated CTC {field}: {_cb_ctc_value} values do not match"""

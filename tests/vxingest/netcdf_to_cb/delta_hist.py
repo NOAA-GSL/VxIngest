@@ -26,7 +26,7 @@ def parse_args(args):
         "-f",
         "--file",
         type=str,
-        help="Please provide required input filename " "-f file",
+        help="Please provide required input filename -f file",
     )
     args = parser.parse_args(args)
     return args

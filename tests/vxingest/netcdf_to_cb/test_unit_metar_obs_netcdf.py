@@ -175,7 +175,7 @@ def test_vxingest_get_file_list(tmp_path):
         Path(tmp_path / "1820016010000").touch()
 
         query = f""" SELECT url, mtime
-            From `{vx_ingest.cb_credentials['bucket']}`.{vx_ingest.cb_credentials['scope']}.{vx_ingest.cb_credentials['collection']}
+            From `{vx_ingest.cb_credentials["bucket"]}`.{vx_ingest.cb_credentials["scope"]}.{vx_ingest.cb_credentials["collection"]}
             WHERE
             subset='metar'
             AND type='DF'
@@ -256,17 +256,17 @@ def test_interpolate_time():
             + str(t_interpolated)
         )
         if delta >= -1800 and delta <= 1799:
-            assert (
-                t_interpolated == 1636390800
-            ), f"1636390800 interpolated to {t_interpolated} is not equal"
+            assert t_interpolated == 1636390800, (
+                f"1636390800 interpolated to {t_interpolated} is not equal"
+            )
         if delta <= -1801:
-            assert (
-                t_interpolated == 1636390800 - 3600
-            ), f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
+            assert t_interpolated == 1636390800 - 3600, (
+                f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
+            )
         if delta >= 1800:
-            assert (
-                t_interpolated == 1636390800 + 3600
-            ), f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
+            assert t_interpolated == 1636390800 + 3600, (
+                f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
+            )
 
 
 @pytest.mark.integration
@@ -301,13 +301,16 @@ def test_interpolate_time_iso():
         t_interpolated = _builder.interpolate_time_iso({"timeObs": _t})
         if delta >= -1800 and delta <= 1799:
             assert (
-                (datetime.utcfromtimestamp(1636390800).isoformat()) == t_interpolated
-            ), f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
+                datetime.utcfromtimestamp(1636390800).isoformat()
+            ) == t_interpolated, (
+                f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
+            )
         if delta <= -1801:
             assert (
-                (datetime.utcfromtimestamp(1636390800 - 3600).isoformat())
-                == t_interpolated
-            ), f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
+                datetime.utcfromtimestamp(1636390800 - 3600).isoformat()
+            ) == t_interpolated, (
+                f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
+            )
         if delta >= 1800:
             assert (
                 datetime.utcfromtimestamp(1636390800 + 3600).isoformat()
@@ -378,7 +381,7 @@ def test_handle_station():
                 (
                     f"""
             SELECT METAR.*
-            From `{vx_ingest.cb_credentials['bucket']}`.{vx_ingest.cb_credentials['scope']}.{vx_ingest.cb_credentials['collection']}
+            From `{vx_ingest.cb_credentials["bucket"]}`.{vx_ingest.cb_credentials["scope"]}.{vx_ingest.cb_credentials["collection"]}
             WHERE type = 'MD'
             AND docType = 'station'
             AND version = 'V01'
@@ -403,7 +406,7 @@ def test_handle_station():
         result = _cluster.query(
             f"""
             SELECT METAR.*
-            From `{vx_ingest.cb_credentials['bucket']}`.{vx_ingest.cb_credentials['scope']}.{vx_ingest.cb_credentials['collection']}
+            From `{vx_ingest.cb_credentials["bucket"]}`.{vx_ingest.cb_credentials["scope"]}.{vx_ingest.cb_credentials["collection"]}
             WHERE type = 'MD'
             AND docType = 'station'
             AND version = 'V01'
@@ -420,7 +423,7 @@ def test_handle_station():
         result = _cluster.query(
             f"""
             SELECT METAR.*
-            From `{vx_ingest.cb_credentials['bucket']}`.{vx_ingest.cb_credentials['scope']}.{vx_ingest.cb_credentials['collection']}
+            From `{vx_ingest.cb_credentials["bucket"]}`.{vx_ingest.cb_credentials["scope"]}.{vx_ingest.cb_credentials["collection"]}
             WHERE type = 'MD'
             AND docType = 'station'
             AND version = 'V01'
@@ -458,7 +461,7 @@ def test_handle_station():
         result = _cluster.query(
             f"""
             SELECT METAR.*
-            From `{vx_ingest.cb_credentials['bucket']}`.{vx_ingest.cb_credentials['scope']}.{vx_ingest.cb_credentials['collection']}
+            From `{vx_ingest.cb_credentials["bucket"]}`.{vx_ingest.cb_credentials["scope"]}.{vx_ingest.cb_credentials["collection"]}
             WHERE type = 'MD'
             AND docType = 'station'
             AND version = 'V01'
@@ -466,9 +469,9 @@ def test_handle_station():
             QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS),
         )
         # station ZBAA should now have 2 geo entries
-        assert (
-            len(doc_map["MD:V01:METAR:station:ZBAA"]["geo"]) == 2
-        ), "new station ZBAA['geo'] does not have 2 elements"
+        assert len(doc_map["MD:V01:METAR:station:ZBAA"]["geo"]) == 2, (
+            "new station ZBAA['geo'] does not have 2 elements"
+        )
         # modify the station_zbaa to reflect what handle_station should have done
         station_zbaa["geo"][0]["lat"] = 41.06999
         station_zbaa["geo"].append(
@@ -507,7 +510,7 @@ def test_handle_station():
         result = _cluster.query(
             f"""
             SELECT METAR.*
-            From `{vx_ingest.cb_credentials['bucket']}`.{vx_ingest.cb_credentials['scope']}.{vx_ingest.cb_credentials['collection']}
+            From `{vx_ingest.cb_credentials["bucket"]}`.{vx_ingest.cb_credentials["scope"]}.{vx_ingest.cb_credentials["collection"]}
             WHERE type = 'MD'
             AND docType = 'station'
             AND version = 'V01'
@@ -549,7 +552,7 @@ def remove_station(cluster, collection, station, builder):
             (
                 f"""
                 SELECT METAR.*
-                FROM `{builder.load_spec['cb_connection']['bucket']}`.{builder.load_spec['cb_connection']['scope']}.{builder.load_spec['cb_connection']['collection']}
+                FROM `{builder.load_spec["cb_connection"]["bucket"]}`.{builder.load_spec["cb_connection"]["scope"]}.{builder.load_spec["cb_connection"]["collection"]}
                 WHERE type = 'MD'
                 AND docType = 'station'
                 AND version = 'V01'
@@ -572,7 +575,7 @@ def setup_builder_doc(cluster, builder):
     result = cluster.query(
         " ".join(
             f"""SELECT METAR.*
-            FROM `{builder.load_spec['cb_connection']['bucket']}`.{builder.load_spec['cb_connection']['scope']}.{builder.load_spec['cb_connection']['collection']}
+            FROM `{builder.load_spec["cb_connection"]["bucket"]}`.{builder.load_spec["cb_connection"]["scope"]}.{builder.load_spec["cb_connection"]["collection"]}
             WHERE type = 'MD'
             AND docType = 'station'
             AND subset = 'METAR'
@@ -592,7 +595,7 @@ def cleanup_builder_doc(cluster, collection, builder, station_zbaa_copy):
     result = cluster.query(
         " ".join(
             f"""SELECT METAR.*
-            From `{builder.load_spec['cb_connection']['bucket']}`.{builder.load_spec['cb_connection']['scope']}.{builder.load_spec['cb_connection']['collection']}
+            From `{builder.load_spec["cb_connection"]["bucket"]}`.{builder.load_spec["cb_connection"]["scope"]}.{builder.load_spec["cb_connection"]["collection"]}
             WHERE type = 'MD'
             AND docType = 'station'
             AND subset = 'METAR'
@@ -610,7 +613,7 @@ def assert_station(cluster, station_zbaa, builder):
         " ".join(
             f"""
             SELECT METAR.*
-            From `{builder.load_spec['cb_connection']['bucket']}`.{builder.load_spec['cb_connection']['scope']}.{builder.load_spec['cb_connection']['collection']}
+            From `{builder.load_spec["cb_connection"]["bucket"]}`.{builder.load_spec["cb_connection"]["scope"]}.{builder.load_spec["cb_connection"]["collection"]}
             WHERE type = 'MD'
             AND docType = 'station'
             AND version = 'V01'
@@ -708,9 +711,9 @@ def test_derive_valid_time_epoch():
     _file_utc_time = datetime.strptime(_builder.file_name, _pattern)
     expected_epoch = (_file_utc_time - datetime(1970, 1, 1)).total_seconds()
     derived_epoch = _builder.derive_valid_time_epoch({"file_name_pattern": _pattern})
-    assert (
-        expected_epoch == derived_epoch
-    ), f"derived epoch {derived_epoch} is not equal to 1636329600"
+    assert expected_epoch == derived_epoch, (
+        f"derived epoch {derived_epoch} is not equal to 1636329600"
+    )
 
 
 @pytest.mark.integration
@@ -725,6 +728,6 @@ def test_derive_valid_time_iso():
     _builder = NetcdfMetarObsBuilderV01(load_spec, ingest_document)
     _builder.file_name = "20211108_0000"
     derived_epoch = _builder.derive_valid_time_iso({"file_name_pattern": "%Y%m%d_%H%M"})
-    assert (
-        derived_epoch == "2021-11-08T00:00:00Z"
-    ), f"derived epoch {derived_epoch} is not equal to 1636390800"
+    assert derived_epoch == "2021-11-08T00:00:00Z", (
+        f"derived epoch {derived_epoch} is not equal to 1636390800"
+    )

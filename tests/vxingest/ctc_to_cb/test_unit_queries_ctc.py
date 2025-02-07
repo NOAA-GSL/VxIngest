@@ -15,9 +15,9 @@ def connect_cb():
     """
 
     credentials_file = os.environ["CREDENTIALS"]
-    assert (
-        Path(credentials_file).is_file() is True
-    ), f"*** credentials_file file {credentials_file} can not be found!"
+    assert Path(credentials_file).is_file() is True, (
+        f"*** credentials_file file {credentials_file} can not be found!"
+    )
     with Path(credentials_file).open(encoding="utf-8") as _f:
         _yaml_data = yaml.load(_f, yaml.SafeLoader)
     cb_connection = {}
@@ -57,9 +57,9 @@ def test_epoch_fcstlen_model(request):
     elapsed_time = result.metadata().metrics().elapsed_time().total_seconds()
     print(f"{_name}: elapsed_time is {elapsed_time}")
     assert result is not None, "{_name}: result is None"
-    assert (
-        elapsed_time < _expected_time
-    ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
+    assert elapsed_time < _expected_time, (
+        f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
+    )
 
 
 @pytest.mark.integration
@@ -75,9 +75,9 @@ def test_epoch_fcstlen_obs(request):
     elapsed_time = result.metadata().metrics().elapsed_time().total_seconds()
     print(f"{_name}: elapsed_time is {elapsed_time}")
     assert result is not None, "{_name}: result is None"
-    assert (
-        elapsed_time < _expected_time
-    ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
+    assert elapsed_time < _expected_time, (
+        f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
+    )
 
 
 @pytest.mark.integration
@@ -93,9 +93,9 @@ def test_forecast_valid_epoch(request):
     elapsed_time = result.metadata().metrics().elapsed_time().total_seconds()
     print(f"{_name}: elapsed_time is {elapsed_time}")
     assert result is not None, "{_name}: result is None"
-    assert (
-        elapsed_time < _expected_time
-    ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
+    assert elapsed_time < _expected_time, (
+        f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
+    )
 
 
 @pytest.mark.integration
@@ -111,9 +111,9 @@ def test_get_region_lat_lon(request):
     elapsed_time = result.metadata().metrics().elapsed_time().total_seconds()
     print(f"{_name}: elapsed_time is {elapsed_time}")
     assert result is not None, "{_name}: result is None"
-    assert (
-        elapsed_time < _expected_time
-    ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
+    assert elapsed_time < _expected_time, (
+        f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
+    )
 
 
 @pytest.mark.integration
@@ -129,9 +129,9 @@ def test_get_stations(request):
     elapsed_time = result.metadata().metrics().elapsed_time().total_seconds()
     print(f"{_name}: elapsed_time is {elapsed_time}")
     assert result is not None, "{_name}: result is None"
-    assert (
-        elapsed_time < _expected_time
-    ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
+    assert elapsed_time < _expected_time, (
+        f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
+    )
 
 
 @pytest.mark.integration
@@ -149,6 +149,6 @@ def test_get_threshold_descriptions(request):
     elapsed_time = result.metadata().metrics().elapsed_time().total_seconds()
     print(f"{_name}: elapsed_time is {elapsed_time}")
     assert result is not None, "{_name}: result is None"
-    assert (
-        elapsed_time < _expected_time
-    ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
+    assert elapsed_time < _expected_time, (
+        f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
+    )

@@ -231,7 +231,7 @@ class VXIngest(CommonVxIngest):
         ]["subset"]
         file_query = f"""
             SELECT url, mtime
-            FROM `{self.cb_credentials['bucket']}`.{self.cb_credentials['scope']}.{self.cb_credentials['collection']}
+            FROM `{self.cb_credentials["bucket"]}`.{self.cb_credentials["scope"]}.{self.cb_credentials["collection"]}
             WHERE
             subset='{subset}'
             AND type='DF'

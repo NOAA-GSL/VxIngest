@@ -44,16 +44,16 @@ def setup_connection():
 
 def assert_dicts_almost_equal(dict1, dict2, rel_tol=1e-09):
     """Utility function to compare potentially nested dictionaries containing floats"""
-    assert set(dict1.keys()) == set(
-        dict2.keys()
-    ), "Dictionaries do not have the same keys"
+    assert set(dict1.keys()) == set(dict2.keys()), (
+        "Dictionaries do not have the same keys"
+    )
     for key in dict1:
         if isinstance(dict1[key], dict):
             assert_dicts_almost_equal(dict1[key], dict2[key], rel_tol)
         else:
-            assert dict1[key] == pytest.approx(
-                dict2[key], rel=rel_tol
-            ), f"Values for {key} do not match"
+            assert dict1[key] == pytest.approx(dict2[key], rel=rel_tol), (
+                f"Values for {key} do not match"
+            )
 
 
 @pytest.mark.integration
@@ -136,14 +136,14 @@ def test_two_threads_spedicfy_file_pattern(tmp_path):
         log_queue,
         stub_worker_log_configurer,
     )
-    assert (
-        len(list(tmp_path.glob("[0123456789]???????_[0123456789]???.json"))) > 0
-    ), "There are no output files"
+    assert len(list(tmp_path.glob("[0123456789]???????_[0123456789]???.json"))) > 0, (
+        "There are no output files"
+    )
 
     lj_doc_regex = "LJ:METAR:vxingest.netcdf_to_cb.run_ingest_threads:VXIngest:*.json"
-    assert (
-        len(list(tmp_path.glob(lj_doc_regex))) == 1
-    ), "there is no load job output file"
+    assert len(list(tmp_path.glob(lj_doc_regex))) == 1, (
+        "there is no load job output file"
+    )
 
     # use file globbing to see if we got one output file for each input file plus one load job file
     input_path = Path("/opt/data/netcdf_to_cb/input_files")
@@ -173,14 +173,14 @@ def test_one_thread_default(tmp_path):
         log_queue,
         stub_worker_log_configurer,
     )
-    assert (
-        len(list(tmp_path.glob("[0123456789]???????_[0123456789]???.json"))) > 0
-    ), "There are no output files"
+    assert len(list(tmp_path.glob("[0123456789]???????_[0123456789]???.json"))) > 0, (
+        "There are no output files"
+    )
 
     lj_doc_regex = "LJ:METAR:vxingest.netcdf_to_cb.run_ingest_threads:VXIngest:*.json"
-    assert (
-        len(list(tmp_path.glob(lj_doc_regex))) >= 1
-    ), "there is no load job output file"
+    assert len(list(tmp_path.glob(lj_doc_regex))) >= 1, (
+        "there is no load job output file"
+    )
 
     # use file globbing to see if we got one output file for each input file plus one load job file
     input_path = Path("/opt/data/netcdf_to_cb/input_files")
@@ -209,14 +209,14 @@ def test_two_threads_default(tmp_path):
         log_queue,
         stub_worker_log_configurer,
     )
-    assert (
-        len(list(tmp_path.glob("[0123456789]???????_[0123456789]???.json"))) > 0
-    ), "There are no output files"
+    assert len(list(tmp_path.glob("[0123456789]???????_[0123456789]???.json"))) > 0, (
+        "There are no output files"
+    )
 
     lj_doc_regex = "LJ:METAR:vxingest.netcdf_to_cb.run_ingest_threads:VXIngest:*.json"
-    assert (
-        len(list(tmp_path.glob(lj_doc_regex))) >= 1
-    ), "there is no load job output file"
+    assert len(list(tmp_path.glob(lj_doc_regex))) >= 1, (
+        "there is no load job output file"
+    )
 
     # use file globbing to see if we got one output file for each input file plus one load job file
     input_path = Path("/opt/data/netcdf_to_cb/input_files")

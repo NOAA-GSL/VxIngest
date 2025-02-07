@@ -72,11 +72,15 @@ def test_proj_nocb():
     assert (
         in_proj.definition_string()
         == "proj=longlat datum=WGS84 no_defs ellps=WGS84 towgs84=0,0,0"
-    ), "in_proj definition_string is not 'proj=longlat datum=WGS84 no_defs ellps=WGS84 towgs84=0,0,0'"
+    ), (
+        "in_proj definition_string is not 'proj=longlat datum=WGS84 no_defs ellps=WGS84 towgs84=0,0,0'"
+    )
     assert (
         out_proj.definition_string()
         == "proj=lcc lat_0=38.5 lon_0=262.5 lat_1=38.5 lat_2=38.5 x_0=2697520.14252193 y_0=1587306.15255666 R=6371229 units=m no_defs"
-    ), "out_proj is not 'proj=lcc lat_0=38.5 lon_0=262.5 lat_1=38.5 lat_2=38.5 x_0=2697520.14252193 y_0=1587306.15255666 R=6371229 units=m no_defs'"
+    ), (
+        "out_proj is not 'proj=lcc lat_0=38.5 lon_0=262.5 lat_1=38.5 lat_2=38.5 x_0=2697520.14252193 y_0=1587306.15255666 R=6371229 units=m no_defs'"
+    )
     assert max_x == 1799, "max_x is not 1799"
     assert max_y == 1059, "max_y is not 1059"
     assert spacing == 3000.0, "spacing is not 3000.0"

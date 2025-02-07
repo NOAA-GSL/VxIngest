@@ -126,7 +126,7 @@ def test_vxingest_get_file_list(tmp_path):
         Path(tmp_path / "20210922_1701").touch()
         Path(tmp_path / "20210923_1701").touch()
         query = f""" SELECT url, mtime
-            From `{vx_ingest.cb_credentials['bucket']}`.{vx_ingest.cb_credentials['scope']}.{vx_ingest.cb_credentials['collection']}
+            From `{vx_ingest.cb_credentials["bucket"]}`.{vx_ingest.cb_credentials["scope"]}.{vx_ingest.cb_credentials["collection"]}
             WHERE
             subset='metar'
             AND type='DF'

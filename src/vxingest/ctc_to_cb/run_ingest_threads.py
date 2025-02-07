@@ -234,7 +234,7 @@ class VXIngest(CommonVxIngest):
         for thread_count in range(int(self.thread_count)):
             try:
                 ingest_manager_thread = VxIngestManager(
-                    f"VxIngestManager-{thread_count+1}",  # Processes are 1 indexed in the logger
+                    f"VxIngestManager-{thread_count + 1}",  # Processes are 1 indexed in the logger
                     self.load_spec,
                     _q,
                     self.output_dir,
@@ -243,7 +243,7 @@ class VXIngest(CommonVxIngest):
                 )
                 ingest_manager_list.append(ingest_manager_thread)
                 ingest_manager_thread.start()  # This calls a .run() method in the class
-                logger.info(f"Started thread: VxIngestManager-{thread_count+1}")
+                logger.info(f"Started thread: VxIngestManager-{thread_count + 1}")
             except Exception as _e:
                 logger.error("*** Error in VXIngest %s***", str(_e))
                 raise _e

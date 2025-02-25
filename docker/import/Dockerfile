@@ -27,7 +27,7 @@ RUN groupadd --gid ${ID} ${USERNAME} && \
 RUN apt-get update && apt-get upgrade -y && \
     # Install runtime deps for the script
     apt-get install -y curl jq && \
-    apt-get clean && rm -rf /var/lib/apt/lists/* 
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 

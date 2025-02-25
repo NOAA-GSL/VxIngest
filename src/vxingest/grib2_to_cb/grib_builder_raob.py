@@ -8,7 +8,6 @@ Colorado, NOAA/OAR/ESRL/GSL
 
 import copy
 import cProfile
-import datetime as dt
 import logging
 import math
 import sys
@@ -16,11 +15,9 @@ from pathlib import Path
 from pstats import Stats
 
 import cfgrib
-import numpy as np
 import pyproj
 import xarray as xr
 
-from vxingest.builder_common.builder_utilities import get_geo_index
 from vxingest.grib2_to_cb.grib_builder_parent import GribBuilder
 
 # Get a logger with this module's name to help with debugging
@@ -159,10 +156,11 @@ class GribModelRaobPressureBuilderV01(GribBuilder):
             # print ('in_proj', in_proj, 'out_proj', out_proj, 'max_x', max_x, 'max_y', max_y, 'spacing', spacing)
 
             # we get the fcst_valid_epoch and fcst_len once for the entire file, from the heightAboveGround
-            ds_fcst_valid_epoch = (
-                ds_isobaricInhPa.valid_time.values.astype("uint64") / 10**9
-            ).astype("uint32")
-            ds_fcst_len = (int)((ds_isobaricInhPa.step.values) / 1e9 / 3600)
+
+            # ds_fcst_valid_epoch = (
+            #     ds_isobaricInhPa.valid_time.values.astype("uint64") / 10**9
+            # ).astype("uint32")
+            # ds_fcst_len = (int)((ds_isobaricInhPa.step.values) / 1e9 / 3600)
 
             ds_pressure = ds_isobaricInhPa.coords["isobaricInhPa"].values
             ds_height = ds_isobaricInhPa.gh

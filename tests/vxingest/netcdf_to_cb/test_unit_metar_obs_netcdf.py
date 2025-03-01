@@ -256,17 +256,17 @@ def test_interpolate_time():
             + str(t_interpolated)
         )
         if delta >= -1800 and delta <= 1799:
-            assert t_interpolated == 1636390800, (
-                f"1636390800 interpolated to {t_interpolated} is not equal"
-            )
+            assert (
+                t_interpolated == 1636390800
+            ), f"1636390800 interpolated to {t_interpolated} is not equal"
         if delta <= -1801:
-            assert t_interpolated == 1636390800 - 3600, (
-                f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
-            )
+            assert (
+                t_interpolated == 1636390800 - 3600
+            ), f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
         if delta >= 1800:
-            assert t_interpolated == 1636390800 + 3600, (
-                f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
-            )
+            assert (
+                t_interpolated == 1636390800 + 3600
+            ), f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
 
 
 @pytest.mark.integration
@@ -301,16 +301,13 @@ def test_interpolate_time_iso():
         t_interpolated = _builder.interpolate_time_iso({"timeObs": _t})
         if delta >= -1800 and delta <= 1799:
             assert (
-                datetime.utcfromtimestamp(1636390800).isoformat()
-            ) == t_interpolated, (
-                f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
-            )
+                (datetime.utcfromtimestamp(1636390800).isoformat()) == t_interpolated
+            ), f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
         if delta <= -1801:
             assert (
-                datetime.utcfromtimestamp(1636390800 - 3600).isoformat()
-            ) == t_interpolated, (
-                f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
-            )
+                (datetime.utcfromtimestamp(1636390800 - 3600).isoformat())
+                == t_interpolated
+            ), f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
         if delta >= 1800:
             assert (
                 datetime.utcfromtimestamp(1636390800 + 3600).isoformat()
@@ -469,9 +466,9 @@ def test_handle_station():
             QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS),
         )
         # station ZBAA should now have 2 geo entries
-        assert len(doc_map["MD:V01:METAR:station:ZBAA"]["geo"]) == 2, (
-            "new station ZBAA['geo'] does not have 2 elements"
-        )
+        assert (
+            len(doc_map["MD:V01:METAR:station:ZBAA"]["geo"]) == 2
+        ), "new station ZBAA['geo'] does not have 2 elements"
         # modify the station_zbaa to reflect what handle_station should have done
         station_zbaa["geo"][0]["lat"] = 41.06999
         station_zbaa["geo"].append(
@@ -711,9 +708,9 @@ def test_derive_valid_time_epoch():
     _file_utc_time = datetime.strptime(_builder.file_name, _pattern)
     expected_epoch = (_file_utc_time - datetime(1970, 1, 1)).total_seconds()
     derived_epoch = _builder.derive_valid_time_epoch({"file_name_pattern": _pattern})
-    assert expected_epoch == derived_epoch, (
-        f"derived epoch {derived_epoch} is not equal to 1636329600"
-    )
+    assert (
+        expected_epoch == derived_epoch
+    ), f"derived epoch {derived_epoch} is not equal to 1636329600"
 
 
 @pytest.mark.integration
@@ -728,6 +725,6 @@ def test_derive_valid_time_iso():
     _builder = NetcdfMetarObsBuilderV01(load_spec, ingest_document)
     _builder.file_name = "20211108_0000"
     derived_epoch = _builder.derive_valid_time_iso({"file_name_pattern": "%Y%m%d_%H%M"})
-    assert derived_epoch == "2021-11-08T00:00:00Z", (
-        f"derived epoch {derived_epoch} is not equal to 1636390800"
-    )
+    assert (
+        derived_epoch == "2021-11-08T00:00:00Z"
+    ), f"derived epoch {derived_epoch} is not equal to 1636390800"

@@ -131,7 +131,6 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus(tmp_path):
             len(result_rows) > 0
         ), f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure test document {_id} not found in couchbase"
 
-
         result = result_rows[0]
         # assert top level fields
         keys = _json.keys()

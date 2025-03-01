@@ -14,9 +14,9 @@ def connect_cb():
     create a couchbase connection and maintain the collection and cluster objects.
     """
     credentials_file = os.environ["CREDENTIALS"]
-    assert Path(credentials_file).is_file() is True, (
-        f"*** credentials_file file {credentials_file} can not be found!"
-    )
+    assert (
+        Path(credentials_file).is_file() is True
+    ), f"*** credentials_file file {credentials_file} can not be found!"
     with Path(credentials_file).open(encoding="utf-8") as _f:
         _yaml_data = yaml.load(_f, yaml.SafeLoader)
     cb_connection = {}

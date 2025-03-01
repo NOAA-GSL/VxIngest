@@ -197,13 +197,6 @@ class CommonVxIngest:
                 )
                 for filename in file_list:
                     try:
-                        # test to see if this filename can be parsed into a valid date using the fmask, i.e. it is a valid file name
-                        try:
-                            _d = dt.datetime.strptime(
-                                pathlib.PurePath(filename).name, file_mask
-                            )
-                        except ValueError:
-                            continue
                         # check to see if this file has already been ingested
                         # (if it is not in the df_full_names - add it)
                         if str(filename) not in df_full_names:

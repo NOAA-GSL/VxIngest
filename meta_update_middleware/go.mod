@@ -3,12 +3,12 @@ module meta-update
 go 1.23
 
 require (
-	github.com/couchbase/gocb/v2 v2.9.3
+	github.com/couchbase/gocb/v2 v2.9.4
 	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
-	github.com/couchbase/gocbcore/v10 v10.5.3 // indirect
+	github.com/couchbase/gocbcore/v10 v10.5.4 // indirect
 	github.com/couchbase/gocbcoreps v0.1.3 // indirect
 	github.com/couchbase/goprotostellar v1.0.2 // indirect
 	github.com/couchbaselabs/gocbconnstr/v2 v2.0.0-20240607131231-fb385523de28 // indirect

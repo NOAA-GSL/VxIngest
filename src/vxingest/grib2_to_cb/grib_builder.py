@@ -124,7 +124,10 @@ class GribModelBuilderV01(GribBuilder):
                 elem = {}
                 for key in keys:
                     if element[key] is not None:
-                        elem[key] = element[key][i]
+                        if isinstance(element[key], list):
+                            elem[key] = element[key][i]
+                        else:
+                            elem[key] = element[key]
                     else:
                         elem[key] = None
                 doc["data"][elem["name"]] = elem

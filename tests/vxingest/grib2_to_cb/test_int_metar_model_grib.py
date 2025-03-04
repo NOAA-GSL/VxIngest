@@ -282,7 +282,6 @@ def test_grib_builder_one_thread_file_pattern_mpas(tmp_path):
                         # There are no unusual math transformations in the RH handler.
                     else:
                         abs_tol = 0.001  # most fields validate between pygrib and cfgrib precisely
-
                     assert math.isclose(
                         result["data"][_k][_dk],
                         _json["data"][_k][_dk],

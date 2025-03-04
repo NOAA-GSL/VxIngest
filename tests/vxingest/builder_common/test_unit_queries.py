@@ -16,9 +16,9 @@ def connect_cb():
     create a couchbase connection and maintain the collection and cluster objects.
     """
     credentials_file = os.environ["CREDENTIALS"]
-    assert (
-        Path(credentials_file).is_file() is True
-    ), f"*** credentials_file file {credentials_file} can not be found!"
+    assert Path(credentials_file).is_file() is True, (
+        f"*** credentials_file file {credentials_file} can not be found!"
+    )
     with Path(credentials_file).open(encoding="utf-8") as _f:
         _yaml_data = yaml.load(_f, yaml.SafeLoader)
     cb_connection = {}
@@ -86,9 +86,9 @@ def test_stations_fcst_valid_epoch(request):
     elapsed_time = result.metadata().metrics().elapsed_time().total_seconds()
     print(f"{_name}: elapsed_time is {elapsed_time}")
     assert result is not None, f"{_name}: result is None"
-    assert (
-        elapsed_time < _expected_time
-    ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
+    assert elapsed_time < _expected_time, (
+        f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
+    )
 
 
 @pytest.mark.integration
@@ -104,9 +104,9 @@ def test_stations_get_file_list_grib2(request):
     elapsed_time = result.metadata().metrics().elapsed_time().total_seconds()
     print(f"{_name}: elapsed_time is {elapsed_time}")
     assert result is not None, f"{_name}: result is None"
-    assert (
-        elapsed_time < _expected_time
-    ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
+    assert elapsed_time < _expected_time, (
+        f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
+    )
 
 
 @pytest.mark.integration
@@ -122,9 +122,9 @@ def test_stations_get_file_list_netcdf(request):
     elapsed_time = result.metadata().metrics().elapsed_time().total_seconds()
     print(f"{_name}: elapsed_time is {elapsed_time}")
     assert result is not None, f"{_name}: result is None"
-    assert (
-        elapsed_time < _expected_time
-    ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
+    assert elapsed_time < _expected_time, (
+        f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
+    )
 
 
 @pytest.mark.integration
@@ -140,6 +140,6 @@ def test_metar_count(request):
     elapsed_time = result.metadata().metrics().elapsed_time().total_seconds()
     print(f"{_name}: elapsed_time is {elapsed_time}")
     assert result is not None, f"{_name}: result is None"
-    assert (
-        elapsed_time < _expected_time
-    ), f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
+    assert elapsed_time < _expected_time, (
+        f"{_name}: elasped_time greater than {_expected_time} {elapsed_time}"
+    )

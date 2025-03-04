@@ -37,9 +37,9 @@ def connect_cb():
         return cb_connection
     else:
         credentials_file = os.environ["CREDENTIALS"]
-        assert (
-            Path(credentials_file).is_file() is True
-        ), f"*** credentials_file file {credentials_file} can not be found!"
+        assert Path(credentials_file).is_file() is True, (
+            f"*** credentials_file file {credentials_file} can not be found!"
+        )
         with Path(credentials_file).open(encoding="utf-8") as _f:
             _yaml_data = yaml.load(_f, yaml.SafeLoader)
         cb_connection["host"] = _yaml_data["cb_host"]
@@ -110,53 +110,52 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus(tmp_path):
         _id = _json["id"]
         if _id.startswith("LJ"):
             for _k in _json:
-                assert (
-                    _k
-                    in [
-                        "id",
-                        "subset",
-                        "type",
-                        "lineageId",
-                        "script",
-                        "scriptVersion",
-                        "loadSpec",
-                        "note",
-                    ]
-                ), f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus LJ failure key {_k} not in {_json.keys()}"
+                assert _k in [
+                    "id",
+                    "subset",
+                    "type",
+                    "lineageId",
+                    "script",
+                    "scriptVersion",
+                    "loadSpec",
+                    "note",
+                ], (
+                    f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus LJ failure key {_k} not in {_json.keys()}"
+                )
             continue
         _statement = f"select METAR.* from `{connect_cb()['bucket']}`._default.METAR where meta().id = '{_id}'"
         _qresult = connect_cb()["cluster"].query(_statement)
         result_rows = list(_qresult.rows())
-        assert (
-            len(result_rows) > 0
-        ), f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure test document {_id} not found in couchbase"
+        assert len(result_rows) > 0, (
+            f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure test document {_id} not found in couchbase"
+        )
 
         result = result_rows[0]
         # assert top level fields
         keys = _json.keys()
         for _k in result:
-            assert (
-                _k in keys
-            ), f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure top level key {_k} not in {_json.keys()}"
+            assert _k in keys, (
+                f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure top level key {_k} not in {_json.keys()}"
+            )
         # assert the units
-        assert (
-            result["units"] == _json["units"]
-        ), f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure units {result['units']} != {_json['units']}"
+        assert result["units"] == _json["units"], (
+            f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure units {result['units']} != {_json['units']}"
+        )
         # assert the data
         for _k in result["data"]:
-            assert (
-                _k in _json["data"]
-            ), f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure data key {_k} not in {_json['data'].keys()}"
+            assert _k in _json["data"], (
+                f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure data key {_k} not in {_json['data'].keys()}"
+            )
             for _dk in result["data"][_k]:
-                assert (
-                    _dk in _json["data"][_k]
-                ), f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure data key {_k}.{_dk} not in {_json['data'][_k].keys()}"
+                assert _dk in _json["data"][_k], (
+                    f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure data key {_k}.{_dk} not in {_json['data'][_k].keys()}"
+                )
                 # assert data field matches to 2 decimal places
                 if _dk == "name":
                     # string compare
-                    assert (
-                        result["data"][_k][_dk] == _json["data"][_k][_dk]
-                    ), f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure name {result['data'][_k][_dk]} != {_json['data'][_k][_dk]}"
+                    assert result["data"][_k][_dk] == _json["data"][_k][_dk], (
+                        f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure name {result['data'][_k][_dk]} != {_json['data'][_k][_dk]}"
+                    )
 
                 else:
                     # math compare
@@ -220,53 +219,52 @@ def test_grib_builder_one_thread_file_pattern_mpas(tmp_path):
         _id = _json["id"]
         if _id.startswith("LJ"):
             for _k in _json:
-                assert (
-                    _k
-                    in [
-                        "id",
-                        "subset",
-                        "type",
-                        "lineageId",
-                        "script",
-                        "scriptVersion",
-                        "loadSpec",
-                        "note",
-                    ]
-                ), f"TestGribBuilderV01.test_grib_builder_one_thread_file_pattern_mpas LJ failure key {_k} not in {_json.keys()}"
+                assert _k in [
+                    "id",
+                    "subset",
+                    "type",
+                    "lineageId",
+                    "script",
+                    "scriptVersion",
+                    "loadSpec",
+                    "note",
+                ], (
+                    f"TestGribBuilderV01.test_grib_builder_one_thread_file_pattern_mpas LJ failure key {_k} not in {_json.keys()}"
+                )
             continue
         _statement = f"select METAR.* from `{connect_cb()['bucket']}`._default.METAR where meta().id = '{_id}'"
         _qresult = connect_cb()["cluster"].query(_statement)
         result_rows = list(_qresult.rows())
-        assert (
-            len(result_rows) > 0
-        ), f"TestGribBuilderV01.test_grib_builder_one_thread_file_pattern_mpas failure test document {_id} not found in couchbase"
+        assert len(result_rows) > 0, (
+            f"TestGribBuilderV01.test_grib_builder_one_thread_file_pattern_mpas failure test document {_id} not found in couchbase"
+        )
 
         result = result_rows[0]
         # assert top level fields
         keys = _json.keys()
         for _k in result:
-            assert (
-                _k in keys
-            ), f"TestGribBuilderV01.test_grib_builder_one_thread_file_pattern_mpas failure top level key {_k} not in {_json.keys()}"
+            assert _k in keys, (
+                f"TestGribBuilderV01.test_grib_builder_one_thread_file_pattern_mpas failure top level key {_k} not in {_json.keys()}"
+            )
         # assert the units
-        assert (
-            result["units"] == _json["units"]
-        ), f"TestGribBuilderV01.test_grib_builder_one_thread_file_pattern_mpas failure units {result['units']} != {_json['units']}"
+        assert result["units"] == _json["units"], (
+            f"TestGribBuilderV01.test_grib_builder_one_thread_file_pattern_mpas failure units {result['units']} != {_json['units']}"
+        )
         # assert the data
         for _k in result["data"]:
-            assert (
-                _k in _json["data"]
-            ), f"TestGribBuilderV01.test_grib_builder_one_thread_file_pattern_mpas failure data key {_k} not in {_json['data'].keys()}"
+            assert _k in _json["data"], (
+                f"TestGribBuilderV01.test_grib_builder_one_thread_file_pattern_mpas failure data key {_k} not in {_json['data'].keys()}"
+            )
             for _dk in result["data"][_k]:
-                assert (
-                    _dk in _json["data"][_k]
-                ), f"TestGribBuilderV01.test_grib_builder_one_thread_file_pattern_mpas failure data key {_k}.{_dk} not in {_json['data'][_k].keys()}"
+                assert _dk in _json["data"][_k], (
+                    f"TestGribBuilderV01.test_grib_builder_one_thread_file_pattern_mpas failure data key {_k}.{_dk} not in {_json['data'][_k].keys()}"
+                )
                 # assert data field matches to 2 decimal places
                 if _dk == "name":
                     # string compare
-                    assert (
-                        result["data"][_k][_dk] == _json["data"][_k][_dk]
-                    ), f"TestGribBuilderV01.test_grib_builder_one_thread_file_pattern_mpas failure name {result['data'][_k][_dk]} != {_json['data'][_k][_dk]}"
+                    assert result["data"][_k][_dk] == _json["data"][_k][_dk], (
+                        f"TestGribBuilderV01.test_grib_builder_one_thread_file_pattern_mpas failure name {result['data'][_k][_dk]} != {_json['data'][_k][_dk]}"
+                    )
                 else:
                     # math compare
                     # print(f"result {_k} {_dk} ", result["data"][_k][_dk])
@@ -284,7 +282,6 @@ def test_grib_builder_one_thread_file_pattern_mpas(tmp_path):
                         # There are no unusual math transformations in the RH handler.
                     else:
                         abs_tol = 0.001  # most fields validate between pygrib and cfgrib precisely
-
                     assert math.isclose(
                         result["data"][_k][_dk],
                         _json["data"][_k][_dk],

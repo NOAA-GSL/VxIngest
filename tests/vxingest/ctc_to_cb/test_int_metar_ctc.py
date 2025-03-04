@@ -78,9 +78,9 @@ def test_check_fcst_valid_epoch_fcst_valid_iso():
         fve = row["fve"]
         utc_time = datetime.strptime(row["fvi"], "%Y-%m-%dT%H:%M:%S")
         epoch_time = int((utc_time - datetime(1970, 1, 1)).total_seconds())
-        assert (
-            fve == epoch_time
-        ), "fcstValidEpoch and fcstValidIso are not the same time"
+        assert fve == epoch_time, (
+            "fcstValidEpoch and fcstValidIso are not the same time"
+        )
         assert (fve % 3600) == 0, "fcstValidEpoch is not at top of hour"
 
 
@@ -163,9 +163,9 @@ def test_get_stations_geo_search():
             + " stations symmetric_difference is "
             + str(stations_difference)
         )
-        assert (
-            len(stations_difference) < 1000
-        ), "difference between expected and actual greater than 100"
+        assert len(stations_difference) < 1000, (
+            "difference between expected and actual greater than 100"
+        )
 
 
 def calculate_cb_ctc(

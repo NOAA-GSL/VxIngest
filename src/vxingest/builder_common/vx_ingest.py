@@ -6,11 +6,9 @@ if a load job has already been processed - so it needs a database connection.
 Each Ingest manager (usually more than one) runs in its own thread which is
 maintained by its Vxingest. It is impossible to pass the VxIngest database connection
 to the VxIngestManager - i.e. across python process objects (multithreading process objects)
-to the VxIngestManager - i.e. across python process objects (multithreading process objects)
 because a database connection cannot be pickled (pythons name for object serialization).
 Therefore the database credentials are stored in the load_spec, but not the database connection.
 The database connection must be recreated in each process thread using the credentials that are
-stored in the load_spec. It feels redundant and it is definitely confusing but blame pythons
 stored in the load_spec. It feels redundant and it is definitely confusing but blame pythons
 threading model.
 """
@@ -64,7 +62,6 @@ class CommonVxIngest:
         self.ingest_document = None
 
     def parse_args(self, args):
-        """This method is intended to be overridden"""
         """This method is intended to be overridden"""
         return args
 
@@ -200,14 +197,13 @@ class CommonVxIngest:
                 )
                 for filename in file_list:
                     try:
-                        # test to see if the first part of this filename can be parsed into a valid date using the fmask, i.e. it is a valid file name
-                        try:
-                            _d = dt.datetime.strptime(
-                                (pathlib.PurePath(filename).name).split(".")[0],
-                                file_mask,
-                            )
-                        except ValueError:
-                            continue
+                        # test to see if this filename can be parsed into a valid date using the fmask, i.e. it is a valid file name
+                        # try:
+                        #     _d = dt.datetime.strptime(
+                        #         pathlib.PurePath(filename).name, file_mask
+                        #     )
+                        # except ValueError:
+                        #     continue
                         # check to see if this file has already been ingested
                         # (if it is not in the df_full_names - add it)
                         if str(filename) not in df_full_names:

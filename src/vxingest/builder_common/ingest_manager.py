@@ -31,9 +31,9 @@ class CommonVxIngestManager(Process):
     The builders use the template to create documents for
     each filename and put them into the document map.
 
-    When all of the result set entries for a file are processed, the IngestManager will upsert
-    the document(s) to couchbase, or write to an output directory and retrieve a new filename from
-    the queue and start over.
+    When all of the result set entries for a file are processed, the IngestManager upserts
+    the document(s) to couchbase, or writes to an output directory and retrieves a new filename from
+    the queue and starts over.
 
     Each builder is kept in an object pool so that they do not need to be re instantiated.
     When the queue has been emptied the IngestManager closes its connections
@@ -246,7 +246,7 @@ class CommonVxIngestManager(Process):
             raise _e
 
     def write_document_to_files(self, file_name, document_map):
-        """This method writes the current document to a file
+        """This method writes the current document directly to couchbase
         Args:
             file_name: the name to use for the files
             document_map (object): this object contains the output documents that will be upserted into couchbase
@@ -279,7 +279,7 @@ class CommonVxIngestManager(Process):
                     )
                     with Path(complete_file_name).open("w", encoding="utf-8") as _f:
                         # we need to write out a list of the values of the _document_map for cbimport
-                        json_data = json.dumps(list(document_map.values()), indent=2)
+                        json_data = json.dumps(list(document_map.values()))
                         _f.write(json_data)
                 except Exception as _e1:
                     logger.exception(

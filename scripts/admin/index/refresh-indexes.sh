@@ -19,7 +19,7 @@ _usage() {
   -u, --username          Cluster Admin or RBAC username (default: Administrator)
   -p, --password          Cluster Admin or RBAC password (default: password)
   -f, --source-file       Source Index Definitions File (optional, if source cluster is provided)
-  -b, --buckets           Optional - Comma separated list of buckets
+  -b, --buckets           Optional - Comma seperated list of buckets
   -o, --output-file       Optional - Output file where all the target n1ql queries are logged
   -rf, --report-file      Optional - Report file where all the differences are reported
   -c, --check             Determines whether to execute the script in checking mode (default: false)

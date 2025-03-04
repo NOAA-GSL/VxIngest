@@ -241,14 +241,8 @@ def calculate_cb_ctc(
             continue
         obs_data = full_obs_data["data"][station]
         # find model data for this station
-        try:
-            if station not in full_model_data["data"]:
-                continue
-        except Exception:
-            raise AssertionError(
-                f"station {station} not in full_model_data['stations']"
-            ) from None
-
+        if station not in full_model_data["data"]:
+            continue
         model_data = full_model_data["data"][station]
         # add to model_obs_data
         if (
@@ -300,7 +294,6 @@ def test_ctc_builder_ceiling_hrrr_ops_all_hrrr():
     This test verifies that data is returned for each fcstLen and each threshold.
     It can be used to debug the builder by putting a specific epoch for first_epoch.
     By default it will build all un-built CTC objects and put them into the output folder.
-    By default it will build all un-built CTC objects and put them into the output folder.
     Then it takes the last output json file and loads that file.
     Then the test derives the same CTC.
     It calculates the CTC using couchbase data for input.
@@ -312,11 +305,11 @@ def test_ctc_builder_ceiling_hrrr_ops_all_hrrr():
 
     credentials_file = os.environ["CREDENTIALS"]
     job_id = "JOB-TEST:V01:METAR:CTC:CEILING:MODEL:OPS"
-    _outdir = Path("/opt/data/ctc_to_cb/hrrr_ops/ceiling/output")
-    if not _outdir.exists():
+    outdir = Path("/opt/data/ctc_to_cb/hrrr_ops/ceiling/output")
+    if not outdir.exists():
         # Create a new directory because it does not exist
-        _outdir.mkdir(parents=True)
-    files = _outdir.glob("*.json")
+        outdir.mkdir(parents=True)
+    files = outdir.glob("*.json")
     for _f in files:
         Path(_f).unlink()
     log_queue = Queue()
@@ -326,7 +319,7 @@ def test_ctc_builder_ceiling_hrrr_ops_all_hrrr():
         {
             "job_id": job_id,
             "credentials_file": credentials_file,
-            "output_dir": str(_outdir),
+            "output_dir": str(outdir),
             "threads": 1,
             "first_epoch": 1638489600,
             "last_epoch": 1638496800,
@@ -335,7 +328,7 @@ def test_ctc_builder_ceiling_hrrr_ops_all_hrrr():
         stub_worker_log_configurer,
     )
 
-    list_of_output_files = _outdir.glob("*")
+    list_of_output_files = outdir.glob("*")
     latest_output_file = min(list_of_output_files, key=os.path.getctime)
 
     # Opening JSON file
@@ -565,11 +558,11 @@ def test_ctc_ceiling_data_hrrr_ops_all_hrrr():
     # print the couchbase statement
     print(f"cb statement is: {cb_statement}")
     for _cb_ctc in cb_results:
-        _fcstln = _cb_ctc["METAR"]["fcstLen"]
+        fcstln = _cb_ctc["METAR"]["fcstLen"]
         for _threshold in _cb_ctc["METAR"]["data"]:
             _ctc = calculate_cb_ctc(
                 fcst_valid_epoch,
-                _fcstln,
+                fcstln,
                 float(_threshold),
                 "HRRR_OPS",
                 _collection,
@@ -632,8 +625,7 @@ def test_ctc_visibility_data_hrrr_ops_all_hrrr():
     if len(cb_fcst_valid_epochs) == 0:
         pytest.fail("There is no data")
     # choose the last one
-    # fcst_valid_epoch = cb_fcst_valid_epochs[round(len(cb_fcst_valid_epochs) / 2)]
-    fcst_valid_epoch = cb_fcst_valid_epochs[len(cb_fcst_valid_epochs) - 100]
+    fcst_valid_epoch = cb_fcst_valid_epochs[round(len(cb_fcst_valid_epochs) / 2)]
     # get all the cb fcstLen values
     result = cluster.query(
         f"""SELECT raw fcstLen

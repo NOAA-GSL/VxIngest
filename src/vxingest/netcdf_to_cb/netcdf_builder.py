@@ -168,7 +168,7 @@ class NetcdfBuilder(Builder):
             if rec_num_data_size == 0:
                 return
             # make a copy of the template, which will become the new document
-            # once all the translations have occurred
+            # once all the translations have occured
             new_document = initialize_data_array(new_document)
             for rec_num in range(rec_num_data_size):
                 for key in self.template:
@@ -245,8 +245,8 @@ class NetcdfBuilder(Builder):
         :param _named_function_def - this can be either a template key or a template value.
         The _named_function_def looks like "&named_function:*field1,*field2,*field3..."
         where named_function is the literal function name of a defined function.
-        The name of the function and the function parameters are separated by a ":" and
-        the parameters are separated vy a ','.
+        The name of the function and the function parameters are seperated by a ":" and
+        the parameters are seperated vy a ','.
         It is expected that field1, field2, and field3 etc are all valid variable names.
         Each field will be translated from the netcdf file into value1, value2 etc.
         The method "named_function" will be called like...
@@ -326,7 +326,7 @@ class NetcdfBuilder(Builder):
         """This is the entry point for the NetcfBuilders from the ingestManager.
         These documents are id'd by fcstValidEpoch. The data section is an array
         each element of which contains variable data and a station name. To process this
-        file we need to iterate the document by recNum and process the station name along
+        file we need to itterate the document by recNum and process the station name along
         with all the other variables in the template.
         Args:
             file_name (str): the name of the file being processed

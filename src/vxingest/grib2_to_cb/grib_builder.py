@@ -462,17 +462,15 @@ class GribModelBuilderV01(GribBuilder):
         values = self.ds_translate_item_variables_map[
             "2 metre specific humidity"
         ].values
-        specific_humidity = []
+        spfh = []
         for station in self.domain_stations:
             geo_index = get_geo_index(
                 self.ds_translate_item_variables_map["fcst_valid_epoch"], station["geo"]
             )
             x_gridpoint = station["geo"][geo_index]["x_gridpoint"]
             y_gridpoint = station["geo"][geo_index]["y_gridpoint"]
-            specific_humidity.append(
-                float(self.interp_grid_box(values, y_gridpoint, x_gridpoint))
-            )
-        return specific_humidity
+            spfh.append((float)(self.interp_grid_box(values, y_gridpoint, x_gridpoint)))
+        return spfh
 
     def handle_vegetation_type(self, params_dict):
         """returns the vegetation type for this document

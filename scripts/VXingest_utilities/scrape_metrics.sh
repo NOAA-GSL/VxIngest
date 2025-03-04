@@ -10,53 +10,56 @@
 export TZ="UTC0"
 
 function is_epoch_rational {
-  if [ -z "$1" ]; then
-    echo "is_epoch_rational: ERROR: no epoch specified"
-    usage
-  fi
-  current=$(date +"%s")
-  if [ $1 -lt $((${current} - 3600 * 24)) ]; then
-    echo "is_epoch_rational: ERROR: irrational epoch - $1 is prior to yesterday at this time ($((${current} - 3600 * 24)))"
-    usage
-  fi
+    if [ -z "$1" ]; then
+        echo "is_epoch_rational: ERROR: no epoch specified"
+        usage
+    fi
+    current=$(date +"%s")
+    if [ $1 -lt $((${current}-3600*24)) ]; then
+        echo "is_epoch_rational: ERROR: irrational epoch - $1 is prior to yesterday at this time ($((${current}-3600*24)))"
+        usage
+    fi
 
-  if [ $1 -gt ${current} ]; then
-    echo "is_epoch_rational: ERROR: irrational epoch - $1 is beyond current time ${current}"
-    usage
-  fi
-  return 0
+    if [ $1 -gt ${current} ]; then
+        echo "is_epoch_rational: ERROR: irrational epoch - $1 is beyond current time ${current}"
+        usage
+    fi
+    return 0
 }
 
 function derive_pattern_from_ids {
-  # Determine an sql string pattern using wildcards that will be usable
-  # in an sql query with a like statement.
-  # Given a list of similar ids (same number of fields) this routine will
-  # find the fields (':'separated) that are not common
-  # throught the list and substitute those fields with a "%25 (special char for %)" and return
-  # that pattern.
-  ids=("$@")
-  # get the number of columns in these ingest_ids - just use the first one as they should all be the same
-  num_columns=$(echo ${ids[0]} | awk -F ":" '{print NF}')
-  differing_columns=()
-  # find the columns that do not match for all the ingest ids - create an array of the differing column numbers
-  for i in $(seq 1 $num_columns); do
-    if [[ $(printf "%s\n" "${ids[@]}" | awk -F":" -vvar=$i '{print $var}' | awk '{$1=$1};1' | sort | uniq | wc -l) -ne 1 ]]; then
-      differing_columns+=($i)
-    fi
-  done
-  # now that we have the differing columns use the first id and replace the differing_columns with "%25 (special char for %)"
-  pattern=${ids[0]}
-  for i in ${differing_columns[@]}; do
-    pattern=$(echo $pattern | awk -F ":" -vfield=$i 'BEGIN { OFS=":" }{$field="%25"; print}')
-  done
-  echo ${pattern}
+    # Determine an sql string pattern using wildcards that will be usable
+    # in an sql query with a like statement.
+    # Given a list of similar ids (same number of fields) this routine will
+    # find the fields (':'seperated) that are not common
+    # throught the list and substitute those fields with a "%25 (special char for %)" and return
+    # that pattern.
+    ids=("$@")
+    # get the number of columns in these ingest_ids - just use the first one as they should all be the same
+    num_columns=$(echo ${ids[0]} | awk -F ":" '{print NF}')
+    differing_columns=()
+    # find the columns that do not match for all the ingest ids - create an array of the differing column numbers
+    for i in $(seq 1 $num_columns)
+        do
+            if [[ $(printf "%s\n" "${ids[@]}" | awk -F":" -vvar=$i '{print $var}' | awk '{$1=$1};1' | sort | uniq | wc -l) -ne 1 ]]
+            then
+                differing_columns+=( $i )
+            fi
+        done
+    # now that we have the differing columns use the first id and replace the differing_columns with "%25 (special char for %)"
+    pattern=${ids[0]}
+    for i in ${differing_columns[@]}
+    do
+        pattern=$(echo $pattern | awk -F ":" -vfield=$i 'BEGIN { OFS=":" }{$field="%25"; print}')
+    done
+    echo ${pattern}
 }
 
-function get_record_count_from_log() {
-  log_file=$1
-  num_docs=0
-  num_docs=$(grep "adding document DD" $log_file | sort | uniq | wc -l)
-  echo $num_docs
+function get_record_count_from_log(){
+    log_file=$1
+    num_docs=0
+    num_docs=$(grep "adding document DD" $log_file | sort | uniq | wc -l)
+    echo $num_docs
 }
 
 function usage {
@@ -79,7 +82,7 @@ while getopts 'c:l:b:e:d:' param; do
     cb_host=$(grep cb_host ${credentials_file} | awk '{print $2}')
     # if it is a multinode host split on ',' and take the first one
     IFS=','
-    read -ra hostarr <<<"$cb_host"
+    read -ra hostarr <<< "$cb_host"
     cb_host=${hostarr[0]}
     cb_user=$(grep cb_user ${credentials_file} | awk '{print $2}')
     cb_pwd=$(grep cb_password ${credentials_file} | awk '{print $2}')
@@ -119,15 +122,15 @@ while getopts 'c:l:b:e:d:' param; do
 done
 
 if [ -z "${textfile_dir}" ]; then
-  echo "ERROR: no textfile_dir specified"
-  usage
+    echo "ERROR: no textfile_dir specified"
+    usage
 fi
 
 metric_name=$(grep 'metric_name' ${log_file} | awk '{print $6}')
-start_epoch=$(date -d "$(grep 'Begin a_time:' ${log_file} | awk '{print $7" "$8}')" +"%s")
+start_epoch=$(date -d "$(grep  'Begin a_time:' ${log_file} | awk '{print $7" "$8}')" +"%s")
 is_epoch_rational ${start_epoch}
 
-finish_epoch=$(date -d "$(grep 'End a_time:' ${log_file} | awk '{print $7" "$8}')" +"%s")
+finish_epoch=$(date -d "$(grep  'End a_time:' ${log_file} | awk '{print $7" "$8}')" +"%s")
 is_epoch_rational ${finish_epoch}
 
 #Get the error count from the log file
@@ -139,7 +142,7 @@ exit_code=$(grep exit_code ${log_file} | cut -d':' -f5)
 # get the list of data document ids by greping "adding document DD:" from the log and awking the 5th param
 # and determine the common pattern
 dids=()
-IFS=$'\r\n' dids=($(grep 'adding document DD:' ${log_file} | grep 'DD:' | sort | uniq | awk '{print $9}'))
+IFS=$'\r\n' dids=($(grep 'adding document DD:' ${log_file} | grep 'DD:' | sort | uniq | awk  '{print $9}'))
 document_id_pattern=$(derive_pattern_from_ids "${dids[@]}")
 # do not know how to do that yet, perhaps from the prior metrics - actual_duration_seconds?
 expected_duration_seconds=0
@@ -153,10 +156,10 @@ echo "finish_import_epoch is ${finish_import_epoch}"
 echo "document_id_pattern is ${document_id_pattern}"
 echo "log_file is ${log_file}"
 if [[ -z $start_import_epoch ]] || [[ -z $finish_import_epoch ]]; then
-  # there wasn't any start or finish time in the import - no records to import
-  recorded_record_count=0
+	# there wasn't any start or finish time in the import - no records to import
+	recorded_record_count=0
 else
-  recorded_record_count=$(curl -s http://${cb_host}:8093/query/service -u"${cred}" -d "statement=select raw count(meta().id) from ${bucket}.${scope}.${collection}  where CEIL(meta().cas / 1000000000) BETWEEN ${start_import_epoch} AND ${finish_import_epoch} AND meta().id like \"${document_id_pattern}\"" | jq -r '.results | .[]')
+	recorded_record_count=$(curl -s http://${cb_host}:8093/query/service -u"${cred}" -d "statement=select raw count(meta().id) from ${bucket}.${scope}.${collection}  where CEIL(meta().cas / 1000000000) BETWEEN ${start_import_epoch} AND ${finish_import_epoch} AND meta().id like \"${document_id_pattern}\"" | jq -r '.results | .[]')
 fi
 tmp_metric_file=/tmp/${metric_name}_$$
 record_count_difference=$((recorded_record_count - intended_record_count))
@@ -168,46 +171,48 @@ metric_name=$(echo "${metric_name}" | tr '[:upper:]' '[:lower:]')
 # for getting historical data from promql...
 # promql is a promql-cli tool that can be used to query prometheus
 # it can be found at https://github.com/nalbury/promql-cli/releases
-which promql >/dev/null
-if [ $? -ne 0 ]; then
-  echo "no promql in path"
-  echo "promql is a promql-cli tool that can be used to query prometheus"
-  echo "promql can be found at https://github.com/nalbury/promql-cli/releases"
-  usage
+which promql > /dev/null
+if [ $? -ne 0 ]
+then
+	echo "no promql in path"
+	echo "promql is a promql-cli tool that can be used to query prometheus"
+	echo "promql can be found at https://github.com/nalbury/promql-cli/releases"
+	usage
 fi
 # we have to default these to 0 if they do not exist in the promql database - otherwise the scrape will fail next time
-min_recorded_record_count_average=$(promql --no-headers --host "http://${cb_host}:9090" "floor(min(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_recorded_record_count'}[6h:1h])))" | awk '{print $1}')
-if [[ "x" == "x${min_recorded_record_count_average}" ]]; then
-  min_recorded_record_count_average=0
+min_recorded_record_count_average=$(promql --no-headers --host "http://${cb_host}:9090"  "floor(min(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_recorded_record_count'}[6h:1h])))" | awk '{print $1}')
+if [[ "x" == "x${min_recorded_record_count_average}" ]] ; then
+      min_recorded_record_count_average=0
 fi
-max_recorded_record_count_average=$(promql --no-headers --host "http://${cb_host}:9090" "ceil(max(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_recorded_record_count'}[6h:1h])))" | awk '{print $1}')
-if [[ "x" == "x${max_recorded_record_count_average}" ]]; then
-  max_recorded_record_count_average=0
-fi
-
-min_actual_duration_seconds_average=$(promql --no-headers --host "http://${cb_host}:9090" "floor(min(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_actual_duration_seconds'}[6h:1h])))" | awk '{print $1}')
-if [[ "x" == "x${min_actual_duration_seconds_average}" ]]; then
-  min_actual_duration_seconds_average=0
-fi
-max_actual_duration_seconds_average=$(promql --no-headers --host "http://${cb_host}:9090" "ceil(max(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_actual_duration_seconds'}[6h:1h])))" | awk '{print $1}')
-if [[ "x" == "x${max_actual_duration_seconds_average}" ]]; then
-  max_actual_duration_seconds_average=0
+max_recorded_record_count_average=$(promql --no-headers --host "http://${cb_host}:9090"  "ceil(max(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_recorded_record_count'}[6h:1h])))" | awk '{print $1}')
+if [[ "x" == "x${max_recorded_record_count_average}" ]] ; then
+      max_recorded_record_count_average=0
 fi
 
-echo "${metric_name}{ingest_id=\"ingest_run_time\",log_file=\"${log_file}\",start_epoch=\"${start_epoch}\",stop_epoch=\"${finish_epoch}\"} 1" >>${tmp_metric_file}
+min_actual_duration_seconds_average=$(promql --no-headers --host "http://${cb_host}:9090"  "floor(min(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_actual_duration_seconds'}[6h:1h])))" | awk '{print $1}')
+if [[ "x" == "x${min_actual_duration_seconds_average}" ]] ; then
+      min_actual_duration_seconds_average=0
+fi
+max_actual_duration_seconds_average=$(promql --no-headers --host "http://${cb_host}:9090"  "ceil(max(avg_over_time({__name__=~'$metric_name',ingest_id=~'ingest_actual_duration_seconds'}[6h:1h])))" | awk '{print $1}')
+if [[ "x" == "x${max_actual_duration_seconds_average}" ]] ; then
+      max_actual_duration_seconds_average=0
+fi
 
-echo "${metric_name}{ingest_id=\"ingest_min_actual_duration_average_seconds\",log_file=\"${log_file}\"} ${min_actual_duration_seconds_average}" >>${tmp_metric_file}
-echo "${metric_name}{ingest_id=\"ingest_max_actual_duration_average_seconds\",log_file=\"${log_file}\"} ${max_actual_duration_seconds_average}" >>${tmp_metric_file}
-echo "${metric_name}{ingest_id=\"ingest_actual_duration_seconds\",log_file=\"${log_file}\"} ${actual_duration_seconds}" >>${tmp_metric_file}
+echo "${metric_name}{ingest_id=\"ingest_run_time\",log_file=\"${log_file}\",start_epoch=\"${start_epoch}\",stop_epoch=\"${finish_epoch}\"} 1" >> ${tmp_metric_file}
 
-echo "${metric_name}{ingest_id=\"ingest_error_count\",log_file=\"${log_file}\"} ${error_count}" >>${tmp_metric_file}
+echo "${metric_name}{ingest_id=\"ingest_min_actual_duration_average_seconds\",log_file=\"${log_file}\"} ${min_actual_duration_seconds_average}" >> ${tmp_metric_file}
+echo "${metric_name}{ingest_id=\"ingest_max_actual_duration_average_seconds\",log_file=\"${log_file}\"} ${max_actual_duration_seconds_average}" >> ${tmp_metric_file}
+echo "${metric_name}{ingest_id=\"ingest_actual_duration_seconds\",log_file=\"${log_file}\"} ${actual_duration_seconds}" >> ${tmp_metric_file}
 
-echo "${metric_name}{ingest_id=\"ingest_min_recorded_record_count_average\",log_file=\"${log_file}\"} ${min_recorded_record_count_average}" >>${tmp_metric_file}
-echo "${metric_name}{ingest_id=\"ingest_max_recorded_record_count_average\",log_file=\"${log_file}\"} ${max_recorded_record_count_average}" >>${tmp_metric_file}
-echo "${metric_name}{ingest_id=\"ingest_recorded_record_count\",log_file=\"${log_file}\"} ${recorded_record_count}" >>${tmp_metric_file}
+echo "${metric_name}{ingest_id=\"ingest_error_count\",log_file=\"${log_file}\"} ${error_count}" >> ${tmp_metric_file}
 
-echo "${metric_name}{ingest_id=\"ingest_record_count_difference\",log_file=\"${log_file}\"} ${record_count_difference}" >>${tmp_metric_file}
+echo "${metric_name}{ingest_id=\"ingest_min_recorded_record_count_average\",log_file=\"${log_file}\"} ${min_recorded_record_count_average}" >> ${tmp_metric_file}
+echo "${metric_name}{ingest_id=\"ingest_max_recorded_record_count_average\",log_file=\"${log_file}\"} ${max_recorded_record_count_average}" >> ${tmp_metric_file}
+echo "${metric_name}{ingest_id=\"ingest_recorded_record_count\",log_file=\"${log_file}\"} ${recorded_record_count}" >> ${tmp_metric_file}
 
-echo "${metric_name}{ingest_id=\"ingest_exit_code\",log_file=\"${log_file}\"} ${exit_code}" >>${tmp_metric_file}
+echo "${metric_name}{ingest_id=\"ingest_record_count_difference\",log_file=\"${log_file}\"} ${record_count_difference}" >> ${tmp_metric_file}
+
+echo "${metric_name}{ingest_id=\"ingest_exit_code\",log_file=\"${log_file}\"} ${exit_code}" >> ${tmp_metric_file}
 
 mv ${tmp_metric_file} ${metric_file}
+

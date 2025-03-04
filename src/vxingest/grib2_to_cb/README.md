@@ -5,6 +5,7 @@
 These programs are intended to import grib data into Couchbase taking advantage of the GSL Couchbase data schema
 that has been developed by the GSL AVID model verification team.
 
+
 ## Approach
 
 These programs use a load_spec YAML file to define which ingest templates are to be used, a credentials file to provide database authentication, command line parameters for run time options, and the associated ingest template documents from the database that are specified in the load_spec.yaml.
@@ -41,4 +42,4 @@ There is a base NetcdfBuilder which has the generic code for reading a netcdf fi
 
 ## ingest documents - metadata
 
-Refer to [ingest documents and metadata](https://github.com/NOAA-GSL/VxIngest/blob/main/mats_metadata_and_indexes/metadata_files/README.md#L11)
+Refer to [ingest documents and metadata](https://github.com/NOAA-GSL/VxIngest/blob/77b73babf031a19ba9623a7fed60de3583c9475b/mats_metadata_and_indexes/metadata_files/README.md#L11)

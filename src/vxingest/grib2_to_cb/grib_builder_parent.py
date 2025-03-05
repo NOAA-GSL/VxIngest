@@ -427,9 +427,15 @@ class GribBuilder(Builder):
                     value = data_template[key]
                     # values can be null...
                     if value and value.startswith("&"):
+                        # this is a named function
                         value = self.handle_named_function(value)
                     else:
-                        value = self.translate_template_item(value)
+                        if value and value.startswith("*"):
+                            # this is a replacement
+                            value = self.translate_template_item(value)
+                        else:
+                            # this is a constant
+                            value = value
                 except Exception as _e:
                     value = [(None, None)]
                     logger.warning(

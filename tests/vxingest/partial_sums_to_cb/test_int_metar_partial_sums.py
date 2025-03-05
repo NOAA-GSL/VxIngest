@@ -247,6 +247,81 @@ def test_ps_builder_surface_hrrr_ops_all_hrrr():
                 break
         assert _elem is not None, "fcstLen not found in output"
 
+@pytest.mark.integration
+def test_ps_builder_surface_mpas_physics_dev1_all_hrrr():
+    """
+    This test verifies that data is returned for each fcstLen.
+    It can be used to debug the builder by putting a specific epoch for first_epoch.
+    By default it will build all unbuilt SUMS objects and put them into the output folder.
+    Then it takes the last output json file and loads that file.
+    Then the test derives the same SUMS.
+    It calculates the Partial using couchbase data for input.
+    Then the couchbase SUMS fcstValidEpochs are compared and asserted against the derived SUMS.
+    """
+
+    global cb_model_obs_data
+    global stations
+
+    credentials_file = os.environ["CREDENTIALS"]
+    job_id = "JOB-TEST:V01:METAR:PARTIAL_SUMS:SURFACE:MODEL:OPS"
+    outdir = Path("/opt/data/test/partial_sums_to_cb/mpas_physics_dev1/sums/output")
+    if not outdir.exists():
+        # Create a new directory because it does not exist
+        outdir.mkdir(parents=True)
+    files = outdir.glob("*.json")
+    for _f in files:
+        Path(_f).unlink()
+    log_queue = Queue()
+    vx_ingest = VXIngest()
+    # These SUM's might already have been ingested in which case this won't do anything.
+    vx_ingest.runit(
+        {
+            "job_id": job_id,
+            "credentials_file": credentials_file,
+            "output_dir": str(outdir),
+            "threads": 1,
+            "first_epoch": 1740942000,
+            "last_epoch": 1740952800,
+        },
+        log_queue,
+        stub_worker_log_configurer,
+    )
+
+    list_of_output_files = outdir.glob("*")
+    # latest_output_file = max(list_of_output_files, key=os.path.getctime)
+    latest_output_file = min(list_of_output_files, key=os.path.getctime)
+
+    # Opening JSON file
+    with Path(latest_output_file).open(encoding="utf-8") as output_file:
+        # returns JSON object as a dictionary
+        vx_ingest_output_data = json.load(output_file)
+    # if this is an LJ document then the SUMS's were already ingested
+    # and the test should stop here
+    if vx_ingest_output_data[0]["type"] == "LJ":
+        return
+    # get the last fcstValidEpochs
+    fcst_valid_epochs = {doc["fcstValidEpoch"] for doc in vx_ingest_output_data}
+    # take a fcstValidEpoch in the middle of the list
+    fcst_valid_epoch = list(fcst_valid_epochs)[int(len(fcst_valid_epochs) / 2)]
+    # get all the documents that have the chosen fcstValidEpoch
+    docs = [
+        _doc
+        for _doc in vx_ingest_output_data
+        if _doc["fcstValidEpoch"] == fcst_valid_epoch
+    ]
+    # get all the fcstLens for those docs
+    fcst_lens = []
+    for _elem in docs:
+        fcst_lens.append(_elem["fcstLen"])
+
+    for _i in fcst_lens:
+        _elem = None
+        # find the document for this fcst_len
+        for _elem in docs:
+            if _elem["fcstLen"] == _i:
+                break
+        assert _elem is not None, "fcstLen not found in output"
+
 
 @pytest.mark.integration
 def test_ps_surface_data_hrrr_ops_all_hrrr():
@@ -342,6 +417,111 @@ def test_ps_surface_data_hrrr_ops_all_hrrr():
             AND docType = "SUMS"
             AND subDocType = "SURFACE"
             AND model='HRRR_OPS'
+            AND region='ALL_HRRR'
+            AND version='V01'
+            AND subset='{_collection}'
+            AND fcstValidEpoch = {fcst_valid_epoch}
+            AND fcstLen IN {ps_fcst_valid_lens}
+            order by fcstLen;"""
+    )
+    for _cb_ps in cb_results:
+        print(f"do something {_cb_ps}")
+
+
+@pytest.mark.integration
+def test_ps_surface_data_mpas_physics_dev1_ops_all_hrrr():
+    """
+    This test is a comprehensive test of the partialSumsBuilder data. It will retrieve SUMS documents
+    for a specific fcstValidEpoch from couchbase and calculate the SUM's for the same fcstValidEpoch.
+    It then compares the data with assertions. The intent is to
+    demonstrate that the data transformation from input model obs pairs is being done
+    corrctly.
+    """
+
+    credentials_file = os.environ["CREDENTIALS"]
+    assert Path(credentials_file).is_file(), "credentials_file Does not exist"
+    with Path(credentials_file).open(encoding="utf-8") as _f:
+        yaml_data = yaml.load(_f, yaml.SafeLoader)
+    _host = yaml_data["cb_host"]
+    _user = yaml_data["cb_user"]
+    _password = yaml_data["cb_password"]
+    _bucket = yaml_data["cb_bucket"]
+    _collection = yaml_data["cb_collection"]
+    _scope = yaml_data["cb_scope"]
+
+    timeout_options = ClusterTimeoutOptions(
+        kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
+    )
+    options = ClusterOptions(
+        PasswordAuthenticator(_user, _password), timeout_options=timeout_options
+    )
+    cluster = Cluster(_host, options)
+    # get available fcstValidEpochs for couchbase
+
+    result = cluster.query(
+        f"""SELECT RAW fcstValidEpoch
+        FROM `{_bucket}`.{_scope}.{_collection}
+        WHERE type="DD"
+            AND docType="SUMS"
+            AND subDocType = "SURFACE"
+            AND model='MPAS_physics_dev1'
+            AND region='ALL_HRRR'
+            AND version='V01'
+            AND subset='{_collection}'"""
+    )
+    ps_fcst_valid_epochs = list(result)
+    # if len(ps_fcst_valid_epochs) == 0:
+    #    assert False, "There is no data"
+    # choose the last one
+    fcst_valid_epoch = []
+    if len(ps_fcst_valid_epochs) > 0:
+        fcst_valid_epoch = ps_fcst_valid_epochs[-1]
+    # get all the cb fcstLen values
+    result = cluster.query(
+        f"""SELECT raw fcstLen
+        FROM `{_bucket}`.{_scope}.{_collection}
+        WHERE type='DD'
+            AND docType = "SUMS"
+            AND subDocType = "SURFACE"
+            AND model='MPAS_physics_dev1'
+            AND region='ALL_HRRR'
+            AND version='V01'
+            AND subset='{_collection}'
+            AND fcstValidEpoch = {fcst_valid_epoch}
+            order by fcstLen
+        """
+    )
+    ps_fcst_valid_lens = list(result)
+    # get the associated couchbase model data
+    # get the associated couchbase obs
+    # get the SUMS couchbase data
+    result = cluster.query(
+        f"""
+        SELECT *
+        FROM `{_bucket}`.{_scope}.{_collection}
+        WHERE type='DD'
+            AND docType = "SUMS"
+            AND subDocType = "SURFACE"
+            AND model='MPAS_physics_dev1'
+            AND region='ALL_HRRR'
+            AND version='V01'
+            AND subset='{_collection}'
+            AND fcstValidEpoch = {fcst_valid_epoch}
+            AND fcstLen IN {ps_fcst_valid_lens}
+            order by fcstLen;
+        """
+    )
+    cb_results = list(result)
+    # print the couchbase statement
+    print(
+        "cb statement is:"
+        + f"""
+        SELECT *
+        FROM `{_bucket}`.{_scope}.{_collection}
+        WHERE type='DD'
+            AND docType = "SUMS"
+            AND subDocType = "SURFACE"
+            AND model='MPAS_physics_dev1'
             AND region='ALL_HRRR'
             AND version='V01'
             AND subset='{_collection}'

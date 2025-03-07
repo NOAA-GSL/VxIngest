@@ -264,7 +264,7 @@ def test_ps_builder_surface_mpas_physics_dev1_all_hrrr():
     global stations
 
     credentials_file = os.environ["CREDENTIALS"]
-    job_id = "JOB-TEST:V01:METAR:PARTIAL_SUMS:SURFACE:MODEL:OPS"
+    job_id = "JOB-TEST:V01:METAR:PARTIAL_SUMS:SURFACE:MPAS_physics_dev1:MODEL:OPS"
     outdir = Path("/opt/data/test/partial_sums_to_cb/mpas_physics_dev1/sums/output")
     if not outdir.exists():
         # Create a new directory because it does not exist

@@ -379,6 +379,97 @@ def test_ctc_builder_ceiling_hrrr_ops_all_hrrr():
                 print(f"cb_ctc is None for threshold {str(_t)}- continuing")
                 continue
 
+@pytest.mark.integration
+def test_ctc_builder_ceiling_MPAS_physics_dev1_all_hrrr():
+    """
+    This test verifies that data is returned for each fcstLen and each threshold.
+    It can be used to debug the builder by putting a specific epoch for first_epoch.
+    By default it will build all un-built CTC objects and put them into the output folder.
+    Then it takes the last output json file and loads that file.
+    Then the test derives the same CTC.
+    It calculates the CTC using couchbase data for input.
+    Then the couchbase CTC fcstValidEpochs are compared and asserted against the derived CTC.
+    """
+
+    global cb_model_obs_data
+    global stations
+
+    credentials_file = os.environ["CREDENTIALS"]
+    job_id = "JOB-TEST:V01:METAR:CTC:CEILING:MODEL:MPAS_physics_dev1"
+    outdir = Path("/opt/data/ctc_to_cb/mpas_physics_dev1/ceiling/output")
+    if not outdir.exists():
+        # Create a new directory because it does not exist
+        outdir.mkdir(parents=True)
+    files = outdir.glob("*.json")
+    for _f in files:
+        Path(_f).unlink()
+    log_queue = Queue()
+    vx_ingest = VXIngest()
+    # These CTC's might already have been ingested in which case this won't do anything.
+    vx_ingest.runit(
+        {
+            "job_id": job_id,
+            "credentials_file": credentials_file,
+            "output_dir": str(outdir),
+            "threads": 1,
+            "first_epoch": 1740942000,
+            "last_epoch": 1740945600,
+        },
+        log_queue,
+        stub_worker_log_configurer,
+    )
+
+    list_of_output_files = outdir.glob("*")
+    latest_output_file = min(list_of_output_files, key=os.path.getctime)
+
+    # Opening JSON file
+    with latest_output_file.open(encoding="utf8") as output_file:
+        # returns JSON object as a dictionary
+        vx_ingest_output_data = json.load(output_file)
+    # if this is an LJ document then the CTC's were already ingested
+    # and the test should stop here
+    if vx_ingest_output_data[0]["type"] == "LJ":
+        return
+    # get the last fcstValidEpochs
+    fcst_valid_epochs = {doc["fcstValidEpoch"] for doc in vx_ingest_output_data}
+    # take a fcstValidEpoch in the middle of the list
+    fcst_valid_epoch = list(fcst_valid_epochs)[int(len(fcst_valid_epochs) / 2)]
+    _thresholds = ["500", "1000", "3000", "60000"]
+    # get all the documents that have the chosen fcstValidEpoch
+    docs = [
+        _doc
+        for _doc in vx_ingest_output_data
+        if _doc["fcstValidEpoch"] == fcst_valid_epoch
+    ]
+    # get all the fcstLens for those docs
+    fcst_lens = []
+    for _elem in docs:
+        fcst_lens.append(_elem["fcstLen"])
+
+    for _i in fcst_lens:
+        _elem = None
+        # find the document for this fcst_len
+        for _elem in docs:
+            if _elem["fcstLen"] == _i:
+                break
+        # process all the thresholds
+        for _t in _thresholds:
+            print(
+                f"Asserting derived CTC for fcstValidEpoch: {_elem['fcstValidEpoch']} model: HRRR_OPS region: ALL_HRRR fcst_len: {_i} threshold: {_t}"
+            )
+            cb_ctc = calculate_cb_ctc(
+                epoch=_elem["fcstValidEpoch"],
+                fcst_len=_i,
+                threshold=int(_t),
+                model="MPAS_physics_dev1",
+                subset="METAR",
+                doc_sub_type="Ceiling",
+                region="ALL_HRRR",
+            )
+            if cb_ctc is None:
+                print(f"cb_ctc is None for threshold {str(_t)}- continuing")
+                continue
+
 
 @pytest.mark.integration
 def test_ctc_builder_visibility_hrrr_ops_all_hrrr():
@@ -517,9 +608,10 @@ def test_ctc_ceiling_data_hrrr_ops_all_hrrr():
     if len(cb_fcst_valid_epochs) == 0:
         pytest.fail("There is no data")
     # choose a relatively recent one
-    fcst_valid_epoch = cb_fcst_valid_epochs[
-        round(len(cb_fcst_valid_epochs) - (len(cb_fcst_valid_epochs) / 5))
-    ]
+    # fcst_valid_epoch = cb_fcst_valid_epochs[
+    #     round(len(cb_fcst_valid_epochs) - (len(cb_fcst_valid_epochs) / 5))
+    # ]
+    fcst_valid_epoch = 1642449600
     # fcst_valid_epoch = 1726761600
     # get all the cb fcstLen values
     result = cluster.query(
@@ -580,6 +672,116 @@ def test_ctc_ceiling_data_hrrr_ops_all_hrrr():
                 and threshold: {_threshold}
                 the derived CTC {field}: {_ctc_value} and calculated CTC {field}: {_cb_ctc_value} values do not match"""
 
+@pytest.mark.integration
+def test_ctc_ceiling_data_mpas_physics_dev1_all_hrrr():
+    """
+    This test is a comprehensive test of the ctcBuilder data. It will retrieve CTC documents
+    for a specific fcstValidEpoch from couchbase and calculate the CTC's for the same fcstValidEpoch.
+    It then compares the data with assertions. The intent is to
+    demonstrate that the data transformation from input model obs pairs is being done
+    correctly.
+    """
+
+    credentials_file = os.environ["CREDENTIALS"]
+    assert Path(credentials_file).is_file(), "credentials_file Does not exist"
+    with Path(credentials_file).open(encoding="utf-8") as _f:
+        yaml_data = yaml.load(_f, yaml.SafeLoader)
+    _host = yaml_data["cb_host"]
+    _user = yaml_data["cb_user"]
+    _password = yaml_data["cb_password"]
+    _bucket = yaml_data["cb_bucket"]
+    _collection = yaml_data["cb_collection"]
+    _scope = yaml_data["cb_scope"]
+
+    timeout_options = ClusterTimeoutOptions(
+        kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
+    )
+    options = ClusterOptions(
+        PasswordAuthenticator(_user, _password), timeout_options=timeout_options
+    )
+    cluster = Cluster(_host, options)
+    # get available fcstValidEpochs for couchbase
+
+    result = cluster.query(
+        f"""SELECT RAW fcstValidEpoch
+        FROM `{_bucket}`.{_scope}.{_collection}
+        WHERE type="DD"
+            AND docType="CTC"
+            AND subDocType = "CEILING"
+            AND model='MPAS_physics_dev1'
+            AND region='ALL_HRRR'
+            AND version='V01'
+            AND subset='{_collection}'"""
+    )
+    cb_fcst_valid_epochs = list(result)
+    if len(cb_fcst_valid_epochs) == 0:
+        pytest.fail("There is no data")
+    # choose a relatively recent one
+    # fcst_valid_epoch = cb_fcst_valid_epochs[
+    #     round(len(cb_fcst_valid_epochs) - (len(cb_fcst_valid_epochs) / 5))
+    # ]
+    fcst_valid_epoch = 1740942000
+    # fcst_valid_epoch = 1726761600
+    # get all the cb fcstLen values
+    result = cluster.query(
+        f"""SELECT raw fcstLen
+        FROM `{_bucket}`.{_scope}.{_collection}
+        WHERE type='DD'
+            AND docType = "CTC"
+            AND subDocType = "CEILING"
+            AND model='MPAS_physics_dev1'
+            AND region='ALL_HRRR'
+            AND version='V01'
+            AND subset='{_collection}'
+            AND fcstValidEpoch = {fcst_valid_epoch}
+            order by fcstLen
+        """
+    )
+    cb_fcst_valid_lens = list(result)
+    # get the associated couchbase ceiling model data
+    # get the associated couchbase obs
+    # get the ctc couchbase data
+    cb_statement = f"""
+        SELECT *
+        FROM `{_bucket}`.{_scope}.{_collection}
+        WHERE type='DD'
+            AND docType = "CTC"
+            AND subDocType = "CEILING"
+            AND model='MPAS_physics_dev1'
+            AND region='ALL_HRRR'
+            AND version='V01'
+            AND subset='{_collection}'
+            AND fcstValidEpoch = {fcst_valid_epoch}
+            AND fcstLen IN {cb_fcst_valid_lens}
+            order by fcstLen;"""
+    result = cluster.query(cb_statement)
+    cb_results = list(result)
+    # print the couchbase statement
+    print(f"cb statement is: {cb_statement}")
+    for _cb_ctc in cb_results:
+        fcstln = _cb_ctc["METAR"]["fcstLen"]
+        for _threshold in _cb_ctc["METAR"]["data"]:
+            _ctc = calculate_cb_ctc(
+                fcst_valid_epoch,
+                fcstln,
+                float(_threshold),
+                "MPAS_physics_dev1",
+                _collection,
+                doc_sub_type="Ceiling",
+                region="ALL_HRRR",
+            )
+            # assert ctc values
+            fields = ["hits", "misses", "false_alarms", "correct_negatives"]
+            for field in fields:
+                _ctc_value = _ctc[field]
+                _cb_ctc_value = _cb_ctc[_collection]["data"][_threshold][field]
+                assert _ctc_value == _cb_ctc_value, f"""
+                For epoch : {_ctc["fcst_valid_epoch"]}
+                and fstLen: {_ctc["fcst_len"]}
+                and threshold: {_threshold}
+                the derived CTC {field}: {_ctc_value} and calculated CTC {field}: {_cb_ctc_value} values do not match"""
+
+
 
 @pytest.mark.integration
 def test_ctc_visibility_data_hrrr_ops_all_hrrr():
@@ -625,7 +827,8 @@ def test_ctc_visibility_data_hrrr_ops_all_hrrr():
     if len(cb_fcst_valid_epochs) == 0:
         pytest.fail("There is no data")
     # choose the last one
-    fcst_valid_epoch = cb_fcst_valid_epochs[round(len(cb_fcst_valid_epochs) / 2)]
+    #fcst_valid_epoch = cb_fcst_valid_epochs[len(cb_fcst_valid_epochs) - round(len(cb_fcst_valid_epochs) / 5)]
+    fcst_valid_epoch = 1642449600
     # get all the cb fcstLen values
     result = cluster.query(
         f"""SELECT raw fcstLen

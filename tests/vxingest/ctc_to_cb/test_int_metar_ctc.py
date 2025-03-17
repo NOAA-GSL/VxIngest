@@ -379,6 +379,7 @@ def test_ctc_builder_ceiling_hrrr_ops_all_hrrr():
                 print(f"cb_ctc is None for threshold {str(_t)}- continuing")
                 continue
 
+
 @pytest.mark.integration
 def test_ctc_builder_ceiling_MPAS_physics_dev1_all_hrrr():
     """
@@ -672,6 +673,7 @@ def test_ctc_ceiling_data_hrrr_ops_all_hrrr():
                 and threshold: {_threshold}
                 the derived CTC {field}: {_ctc_value} and calculated CTC {field}: {_cb_ctc_value} values do not match"""
 
+
 @pytest.mark.integration
 def test_ctc_ceiling_data_mpas_physics_dev1_all_hrrr():
     """
@@ -782,7 +784,6 @@ def test_ctc_ceiling_data_mpas_physics_dev1_all_hrrr():
                 the derived CTC {field}: {_ctc_value} and calculated CTC {field}: {_cb_ctc_value} values do not match"""
 
 
-
 @pytest.mark.integration
 def test_ctc_visibility_data_hrrr_ops_all_hrrr():
     """
@@ -827,7 +828,7 @@ def test_ctc_visibility_data_hrrr_ops_all_hrrr():
     if len(cb_fcst_valid_epochs) == 0:
         pytest.fail("There is no data")
     # choose the last one
-    #fcst_valid_epoch = cb_fcst_valid_epochs[len(cb_fcst_valid_epochs) - round(len(cb_fcst_valid_epochs) / 5)]
+    # fcst_valid_epoch = cb_fcst_valid_epochs[len(cb_fcst_valid_epochs) - round(len(cb_fcst_valid_epochs) / 5)]
     fcst_valid_epoch = 1642449600
     # get all the cb fcstLen values
     result = cluster.query(

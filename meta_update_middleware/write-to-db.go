@@ -31,6 +31,11 @@ type MetadataJSON struct {
 	ID      string  `json:"id"`
 	Name    string  `json:"name"`
 	App     string  `json:"app"`
+	Type	string  `json:"type"`
+	Version string  `json:"version"`
+	Subset  string  `json:"subset"`
+	DocType string  `json:"docType"`
+	Generated bool  `json:"generated"`
 	Updated int     `json:"updated"`
 	Models  []Model `json:"models"`
 }

@@ -128,7 +128,7 @@ func updateMedataForAppDocType(conn CbConnection, name string, app string, docty
 		}
 	*/
 
-	metadata := MetadataJSON{ID: "MD:matsGui:" + name + ":COMMON:V01", Name: name, App: app}
+	metadata := MetadataJSON{ID: "MD:matsGui:" + name + ":COMMON:V01", Name: name, App: app, Type: "MD", Version: "V01", Subset: "COMMON", DocType: "matsGui", Generated: true}
 	metadata.Updated = 0
 
 	for i, m := range models {

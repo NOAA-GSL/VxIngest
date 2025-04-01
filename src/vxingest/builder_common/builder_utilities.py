@@ -6,6 +6,7 @@ import datetime as dt
 import logging
 
 TS_OUT_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+logger = logging.getLogger(__name__)
 
 
 def convert_to_iso(an_epoch):
@@ -56,7 +57,7 @@ def get_geo_index(fcst_valid_epoch, geo):
         else:
             return latest_index
     except Exception as _e:
-        logging.error("CTCBuilder.get_geo_index: Exception  error: %s", str(_e))
+        logger.error("CTCBuilder.get_geo_index: Exception  error: %s", str(_e))
         return 0
 
 

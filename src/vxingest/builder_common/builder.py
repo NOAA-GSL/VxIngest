@@ -5,6 +5,8 @@ Builder - Parent class for all Builders
 import logging
 from pathlib import Path
 
+logger = logging.getLogger(__name__)
+
 
 class Builder:
     """
@@ -54,5 +56,5 @@ class Builder:
             an_id = f"DF:{subset}:{file_type}:{origin_type}:{base_name}"
             return an_id
         except Exception as _e:
-            logging.exception("%s create_data_file_id", self.__class__.__name__)
+            logger.exception("%s create_data_file_id", self.__class__.__name__)
             return None

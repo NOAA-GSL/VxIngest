@@ -39,7 +39,12 @@ import sys
 import time
 
 from vxingest.builder_common.ingest_manager import CommonVxIngestManager
-from vxingest.netcdf_to_cb import netcdf_builder as my_builder
+from vxingest.netcdf_to_cb import (
+    netcdf_metar_obs_builder as NetcdfMetarObsBuilderV01,  # noqa: F401
+)
+from vxingest.netcdf_to_cb import (
+    netcdf_tropoe_obs_builder as NetcdfTropoeObsBuilderV01,  # noqa: F401
+)
 
 # Get a logger with this module's name to help with debugging
 logger = logging.getLogger(__name__)
@@ -153,6 +158,18 @@ class VxIngestManager(CommonVxIngestManager):
             if self.ingest_type_builder_name in self.builder_map:
                 builder = self.builder_map[self.ingest_type_builder_name]
             else:
+                if self.ingest_type_builder_name == "NetcdfMetarObsBuilderV01":
+                    my_builder = NetcdfMetarObsBuilderV01
+                elif self.ingest_type_builder_name == "NetcdfTropoeObsBuilderV01":
+                    my_builder = NetcdfTropoeObsBuilderV01
+                else:
+                    logger.error(
+                        "%s: Unknown builder type %s",
+                        self.thread_name,
+                        self.ingest_type_builder_name,
+                    )
+                    raise Exception("Unknown builder type")
+                # instantiate the builder
                 builder_class = getattr(my_builder, self.ingest_type_builder_name)
                 builder = builder_class(self.load_spec, self.ingest_document)
                 self.builder_map[self.ingest_type_builder_name] = builder

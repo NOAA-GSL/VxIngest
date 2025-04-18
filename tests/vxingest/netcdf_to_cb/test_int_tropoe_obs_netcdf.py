@@ -94,19 +94,14 @@ def test_one_thread_specify_file_pattern(tmp_path):
 
     # Test that the output file matches the content in the database
     try:
-
         derived_data = json.load((output_files[0]).open(encoding="utf-8"))
-        obs_id = 'DD-TEST:V01:TROPOE:obs:1622851502'
-        derived_record = [
-            d for d in derived_data if d["id"] == obs_id
-        ]
+        obs_id = "DD-TEST:V01:TROPOE:obs:1622851502"
+        derived_record = [d for d in derived_data if d["id"] == obs_id]
         retrieved_record = vx_ingest.collection.get(obs_id).content_as[dict]
         assert derived_record[0] == retrieved_record
         assert_dicts_almost_equal(derived_record[0], retrieved_record)
     except Exception as _e:
-        print(
-            f"*** test_one_thread_specify_file_pattern: Exception: {str(_e)}"
-        )
+        print(f"*** test_one_thread_specify_file_pattern: Exception: {str(_e)}")
         pytest.fail(f"*** test_one_thread_specify_file_pattern: Exception: {str(_e)}")
     finally:
         # cleanup

@@ -253,9 +253,7 @@ class NetcdfBuilder(Builder):
                                 return value
                         else:
                             # it doesn't need to be a string
-                            if ma.isMA(
-                                self.ncdf_data_set[variable][base_var_index]
-                            ):
+                            if ma.isMA(self.ncdf_data_set[variable][base_var_index]):
                                 # it is a masked array
                                 size = self.ncdf_data_set[variable][base_var_index].size
                                 if size <= 1:
@@ -427,7 +425,7 @@ class NetcdfBuilder(Builder):
             # interpolate the data
             interpolated_data = self.interpolate_3d_data(data_elem)
             flat_interpolated_data = {}
-            flat_interpolated_data['levels'] = list(interpolated_data[key].keys())
+            flat_interpolated_data["levels"] = list(interpolated_data[key].keys())
             for key in interpolated_data:
                 flat_interpolated_data[key] = list(interpolated_data[key].values())
             doc["data"] = flat_interpolated_data

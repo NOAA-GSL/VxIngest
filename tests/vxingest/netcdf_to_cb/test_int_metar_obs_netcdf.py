@@ -53,7 +53,7 @@ def assert_dicts_almost_equal(dict1, dict2, rel_tol=1e-09):
             assert_dicts_almost_equal(dict1[key], dict2[key], rel_tol)
         else:
             assert dict1[key] == pytest.approx(dict2[key], rel=rel_tol), (
-                f"Values for {key} do not match dict1[key]: {dict1[key]} dict2[key]: {dict2[key]}"
+                f"Values for station {dict1['name']} {key} do not match dict1[key]: {dict1[key]} dict2[key]: {dict2[key]}"
             )
 
 

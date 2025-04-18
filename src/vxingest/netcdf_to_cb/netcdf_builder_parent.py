@@ -252,16 +252,21 @@ class NetcdfBuilder(Builder):
                                 )
                                 return value
                         else:
-                            # it desn't need to be a string
-                            size = self.ncdf_data_set[variable][base_var_index].size
-                            if size <= 1:
-                                return self.ncdf_data_set[variable][
-                                    base_var_index
-                                ].data.item()
-                            else:
-                                return self.ncdf_data_set[variable][
-                                    base_var_index
-                                ].tolist()
+                            # it doesn't need to be a string
+                            if ma.isMA(
+                                self.ncdf_data_set[variable][base_var_index]
+                            ):
+                                # it is a masked array
+                                size = self.ncdf_data_set[variable][base_var_index].size
+                                if size <= 1:
+                                    return self.ncdf_data_set[variable][
+                                        base_var_index
+                                    ].data.item()
+                                else:
+                                    return self.ncdf_data_set[variable][
+                                        base_var_index
+                                    ].tolist()
+                            return self.ncdf_data_set[variable][base_var_index]
         except Exception as _e:
             logger.exception(
                 "Builder.translate_template_item for variable %s: replacements: %s",
@@ -421,7 +426,11 @@ class NetcdfBuilder(Builder):
             doc["raw_data"] = data_elem
             # interpolate the data
             interpolated_data = self.interpolate_3d_data(data_elem)
-            doc["data"] = interpolated_data
+            flat_interpolated_data = {}
+            flat_interpolated_data['levels'] = list(interpolated_data[key].keys())
+            for key in interpolated_data:
+                flat_interpolated_data[key] = list(interpolated_data[key].values())
+            doc["data"] = flat_interpolated_data
             return doc
         except Exception as _e:
             logger.exception(

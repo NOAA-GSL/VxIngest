@@ -67,18 +67,10 @@ def test_int_tropoe_visual():
             "height",
         ]:
             raw_data[variable] = data[variable][:index]
+
         intrp_data = {}
         res = collection.lookup_in(doc_id, (SD.get("data"),))
-        data_res = res.content_as[dict](0)
-
-        for variable in [
-            "temperature",
-            "sigma_temperature",
-            "waterVapor",
-            "sigma_waterVapor",
-        ]:
-            intrp_data[variable] = list(data_res[variable].values())
-        intrp_data["levels"] = list(data_res["temperature"].keys())
+        intrp_data = res.content_as[dict](0)
 
         fig = make_subplots(specs=[[{"secondary_y": True}]])
         fig.add_trace(
@@ -95,7 +87,6 @@ def test_int_tropoe_visual():
                 name="interpolated data temperature",
             ),
         )
-
         fig.add_trace(
             go.Line(
                 y=raw_data["height"],
@@ -114,8 +105,8 @@ def test_int_tropoe_visual():
         fig.update_layout(title="fireweather raw data vs interpolated data")
         fig.update_traces(mode="lines+markers")
         fig.update_traces(marker=dict(size=5))
-        fig.update_xaxes(title_text="temperature/waterVapor")
-        fig.update_yaxes(title_text="height/levels")
+        fig.update_xaxes(title_text="temperature degC / waterVapor g/kg")
+        fig.update_yaxes(title_text="height/levels meters")
         fig.show()
     except Exception as _e:
         pytest.fail(

@@ -16,6 +16,7 @@ If you re-import the data and forget to delete the DF document you will get an e
 """
 
 # import json
+import json
 import os
 from multiprocessing import Queue
 from pathlib import Path
@@ -87,35 +88,27 @@ def test_one_thread_specify_file_pattern(tmp_path):
     # Test that we have one output file per input file
     input_path = Path("/opt/data/fireweather/input_files")
     num_input_files = len(list(input_path.glob("sgptropoeC1.c1.*.nc")))
-    num_output_files = len(list(tmp_path.glob("sgptropoeC1.c1.*.json")))
+    output_files = list(tmp_path.glob("sgptropoeC1.c1.*.json"))
+    num_output_files = len(output_files)
     assert num_output_files == num_input_files, "number of output files is incorrect"
 
     # Test that the output file matches the content in the database
-    # derived_data = json.load(
-    #     (tmp_path / "sgptropoeC1.c1.20210605.000502.nc.json").open(encoding="utf-8")
-    # )
-    # station_id = ""
-    # derived_station = {}
-    # obs_id = ""
-    # derived_obs = {}
-    # for item in derived_data:
-    #     if item["docType"] == "station" and item["name"] == "KDEN":
-    #         station_id = item["id"]
-    #         derived_station = item
-    #     else:
-    #         if item["docType"] == "obs":
-    #             obs_id = item["id"]
-    #             derived_obs = item
-    #     if derived_station and derived_obs:
-    #         break
-    # # retrieved_station = vx_ingest.collection.get(station_id).content_as[dict]
-    # # retrieved_obs = vx_ingest.collection.get(obs_id).content_as[dict]
-    # # # make sure the updateTime is the same in both the derived and retrieved station
-    # # retrieved_station["updateTime"] = derived_station["updateTime"]
-    # # # make sure the firstTime and lastTime are the same in both the derived and retrieved station['geo']
-    # # retrieved_station["geo"][0]["firstTime"] = derived_station["geo"][0]["firstTime"]
-    # # retrieved_station["geo"][0]["lastTime"] = derived_station["geo"][0]["lastTime"]
+    try:
 
-    # assert derived_station == retrieved_station
-
-    # assert_dicts_almost_equal(derived_obs, retrieved_obs)
+        derived_data = json.load((output_files[0]).open(encoding="utf-8"))
+        obs_id = 'DD-TEST:V01:TROPOE:obs:1622851502'
+        derived_record = [
+            d for d in derived_data if d["id"] == obs_id
+        ]
+        retrieved_record = vx_ingest.collection.get(obs_id).content_as[dict]
+        assert derived_record[0] == retrieved_record
+        assert_dicts_almost_equal(derived_record[0], retrieved_record)
+    except Exception as _e:
+        print(
+            f"*** test_one_thread_specify_file_pattern: Exception: {str(_e)}"
+        )
+        pytest.fail(f"*** test_one_thread_specify_file_pattern: Exception: {str(_e)}")
+    finally:
+        # cleanup
+        for output_file in output_file_list:
+            output_file.unlink()

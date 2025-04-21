@@ -453,7 +453,7 @@ class GribBuilder(Builder):
                     "%s Builder.handle_data - _data_key is None",
                     self.__class__.__name__,
                 )
-            self.load_data(doc, data_key, data_elem)
+            self.load_data(doc, data_elem)
             return doc
         except Exception as _e:
             logger.exception(

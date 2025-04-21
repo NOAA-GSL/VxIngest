@@ -35,7 +35,7 @@ class Builder:
     def derive_id(self, **kwargs):
         pass
 
-    def load_data(self, doc, key, element):
+    def load_data(self, doc, element):
         pass
 
     def handle_document(self):

@@ -55,7 +55,7 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
         # self.do_profiling = True  # set to True to enable build_document profiling
         self.do_profiling = False  # set to True to enable build_document profiling
 
-    def build_document(self, queue_element):
+    def build_document(self, queue_element: str) -> dict:
         """This is the entry point for the NetcfBuilders from the ingestManager.
         These documents are id'd by fcstValidEpoch. The data section is an array
         each element of which contains variable data and a station name. To process this
@@ -270,25 +270,9 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
             if station is None:
                 # get the netcdf fields for comparing or adding new
                 an_id = "MD:V01:METAR:station:" + netcdf["name"]
-                new_station = {
-                    "id": an_id,
-                    "description": netcdf["description"],
-                    "docType": "station",
-                    "geo": [
-                        {
-                            "firstTime": fcst_valid_epoch,
-                            "elev": elev,
-                            "lat": lat,
-                            "lon": lon,
-                            "lastTime": fcst_valid_epoch,
-                        }
-                    ],
-                    "name": netcdf["name"],
-                    "subset": "METAR",
-                    "type": "MD",
-                    "updateTime": int(time.time()),
-                    "version": "V01",
-                }
+                new_station = self.get_new_station(
+                    an_id, netcdf, fcst_valid_epoch, elev, lat, lon
+                )
                 # add the new station to the document map with the new id
                 if an_id not in self.document_map:
                     self.document_map[an_id] = new_station
@@ -341,3 +325,67 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
                 str(params_dict),
             )
             return ""
+
+    def get_new_station(
+        self,
+        an_id: str,
+        netcdf: dict,
+        fcst_valid_epoch: int,
+        elev: float,
+        lat: float,
+        lon: float,
+    ) -> dict:
+        """
+        Creates a new station dictionary with the provided parameters.
+        Args:
+            an_id (str): The unique identifier for the station.
+            netcdf (dict): A dictionary containing metadata about the station,
+                           including "description" and "name" keys.
+            fcst_valid_epoch (int): The forecast valid epoch time (in seconds since the epoch).
+            elev (float): The elevation of the station.
+            lat (float): The latitude of the station.
+            lon (float): The longitude of the station.
+        Returns:
+            dict: A dictionary representing the new station with the provided details.
+        """
+        # typechecks
+        if not isinstance(an_id, str):
+            raise TypeError("an_id must be a string")
+        if not isinstance(netcdf, dict):
+            raise TypeError("netcdf must be a dictionary")
+        if not isinstance(fcst_valid_epoch, int):
+            raise TypeError("fcst_valid_epoch must be an integer")
+        if not isinstance(elev, float):
+            raise TypeError("elev must be a float")
+        if not isinstance(lat, float):
+            raise TypeError("lat must be a float")
+        if not isinstance(lon, float):
+            raise TypeError("lon must be a float")
+        # create the new station
+        if (
+            an_id is not None
+            and netcdf["description"] is not None
+            and netcdf["name"] is not None
+        ):
+            # create the new station
+            new_station = {
+                "id": an_id,
+                "description": netcdf["description"],
+                "docType": "station",
+                "geo": [
+                    {
+                        "firstTime": fcst_valid_epoch,
+                        "elev": elev,
+                        "lat": lat,
+                        "lon": lon,
+                        "lastTime": fcst_valid_epoch,
+                    }
+                ],
+                "name": netcdf["name"],
+                "subset": "METAR",
+                "type": "MD",
+                "updateTime": int(time.time()),
+                "version": "V01",
+            }
+
+        return new_station

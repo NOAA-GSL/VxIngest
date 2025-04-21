@@ -25,7 +25,7 @@ class NetcdfTropoeObsBuilderV01(NetcdfBuilder):
     Each file contains the data for a single mobile station.
     """
 
-    def build_document(self, queue_element):
+    def build_document(self, queue_element: str) -> dict:
         """This is the entry point for the NetcfBuilders from the ingestManager.
         These documents are id'd by fcstValidEpoch. The data section is an array
         each element of which contains variable data and a station name. To process this
@@ -36,6 +36,14 @@ class NetcdfTropoeObsBuilderV01(NetcdfBuilder):
         Returns:
             [dict]: document
         """
+        # type checks
+        if not isinstance(queue_element, str):
+            logger.error(
+                "%s: Exception with builder build_document: file_name: %s, error: file_name is not a string",
+                self.__class__.__name__,
+                queue_element,
+            )
+            return {}
         try:
             self.same_time_rows = {}
             # bucket, scope, collection = self.get_database_connection_details(queue_element)

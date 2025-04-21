@@ -59,7 +59,23 @@ class NetcdfBuilder(Builder):
         self.file_name = Path(queue_element).name
         return bucket, scope, collection
 
-    def build_document_map(self, queue_element, base_var_name, origin_type=None):
+    def build_document_map(
+        self, queue_element: str, base_var_name: str, origin_type: str = None
+    ) -> dict:
+        # Type checks
+        if not isinstance(queue_element, str):
+            raise TypeError(
+                f"Expected 'queue_element' to be a string, got {type(queue_element).__name__}"
+            )
+        if not isinstance(base_var_name, str):
+            raise TypeError(
+                f"Expected 'base_var_name' to be a string, got {type(base_var_name).__name__}"
+            )
+        if origin_type is not None and not isinstance(origin_type, str):
+            raise TypeError(
+                f"Expected 'origin_type' to be a string or None, got {type(origin_type).__name__}"
+            )
+
         self.initialize_document_map()
         logger.info(
             "%s building documents for file %s",
@@ -89,8 +105,12 @@ class NetcdfBuilder(Builder):
         return document_map
 
     def build_3d_document_map(
-        self, queue_element, base_var_name, data_key_var_name, origin_type=None
-    ):
+        self,
+        queue_element: str,
+        base_var_name: str,
+        data_key_var_name: str,
+        origin_type: str = None,
+    ) -> dict:
         # this is a 3D netcdf file
         # we have to process the base_var_name and then
         # process the 3D data
@@ -129,9 +149,7 @@ class NetcdfBuilder(Builder):
             # one data element within a given document for each height level.
             if self.do_profiling:
                 with cProfile.Profile() as _pr:
-                    self.handle_3d_document(
-                        base_var_name, base_var_index, data_key_var_name
-                    )
+                    self.handle_3d_document(base_var_index, data_key_var_name)
                     with Path("profiling_stats.txt").open(
                         "w", encoding="utf-8"
                     ) as stream:
@@ -141,9 +159,7 @@ class NetcdfBuilder(Builder):
                         stats.dump_stats("profiling_stats.prof")
                         stats.print_stats()
             else:
-                self.handle_3d_document(
-                    base_var_name, base_var_index, data_key_var_name
-                )
+                self.handle_3d_document(base_var_index, data_key_var_name)
 
             document_map = self.get_document_map(base_var_name)
             data_file_id = self.create_data_file_id(
@@ -157,7 +173,7 @@ class NetcdfBuilder(Builder):
         document_map[data_file_doc["id"]] = data_file_doc
         return document_map
 
-    def derive_id(self, **kwargs):
+    def derive_id(self, **kwargs: dict) -> str:
         """
         This is a private method to derive a document id from the current base_var_index,
         substituting *values from the corresponding grib fields as necessary. A *field
@@ -168,6 +184,7 @@ class NetcdfBuilder(Builder):
         Returns:
             [string]: The processed id with substitutions made for elements in the id template
         """
+
         try:
             template_id = kwargs["template_id"]
             base_var_index = kwargs["base_var_index"]
@@ -188,7 +205,7 @@ class NetcdfBuilder(Builder):
             logger.exception("NetcdfBuilder.derive_id: Exception  error: %s")
             return None
 
-    def translate_template_item(self, variable, base_var_index):
+    def translate_template_item(self, variable, base_var_index: int) -> str:
         """
         This method translates template replacements (*item).
         It can translate keys or values.
@@ -196,6 +213,13 @@ class NetcdfBuilder(Builder):
         :param recNum: the current recNum
         :return:
         """
+        # Type checks
+        # variable is not checked on purpose - it can be different things
+        if not isinstance(base_var_index, int):
+            raise TypeError(
+                f"translate_template_item - Expected 'base_var_index' to be an int, got {type(base_var_index).__name__}"
+            )
+
         replacements = []
 
         try:
@@ -263,7 +287,7 @@ class NetcdfBuilder(Builder):
                                 else:
                                     return self.ncdf_data_set[variable][
                                         base_var_index
-                                    ].tolist()
+                                    ].data.tolist()
                             return self.ncdf_data_set[variable][base_var_index]
         except Exception as _e:
             logger.exception(
@@ -273,7 +297,7 @@ class NetcdfBuilder(Builder):
             )
         return value
 
-    def handle_document(self, base_var_name):
+    def handle_document(self, base_var_name: str):
         """
         This routine processes the complete document (essentially a complete netcdf file)
         Each template key or value that corresponds to a variable will be selected from
@@ -281,6 +305,11 @@ class NetcdfBuilder(Builder):
         each station will get values from the record.
         :return: The modified document_map
         """
+
+        if not isinstance(base_var_name, str):
+            raise TypeError(
+                f"Expected base_var_name to be a string, got {type(base_var_name).__name__}"
+            )
 
         try:
             new_document = copy.deepcopy(self.template)
@@ -322,13 +351,21 @@ class NetcdfBuilder(Builder):
             )
             raise _e
 
-    def handle_3d_document(self, base_var_name, base_var_index, data_key_var_name):
+    def handle_3d_document(self, base_var_index: int, data_key_var_name: str) -> None:
         """
         This routine processes the complete 3d document (one record of the unlimited var)
         Each template key or value that corresponds to a variable will be selected from
         the netcdf file into a netcdf data set.
         :return: The modified document_map
         """
+        if not isinstance(base_var_index, int):
+            raise TypeError(
+                f"Expected base_var_index to be an int, got {type(base_var_index).__name__}"
+            )
+        if not isinstance(data_key_var_name, str):
+            raise TypeError(
+                f"Expected data_key_var_name to be a string, got {type(data_key_var_name).__name__}"
+            )
 
         try:
             new_document = copy.deepcopy(self.template)
@@ -378,7 +415,7 @@ class NetcdfBuilder(Builder):
             )
             raise _e
 
-    def handle_3d_data(self, **kwargs):
+    def handle_3d_data(self, **kwargs: dict) -> dict:
         """This method iterates the template entries, deciding for each entry to either
         handle_named_function (if the entry starts with a '&') or to translate_template_item
         if it starts with an '*'. It handles both keys and values for each template entry.
@@ -438,8 +475,13 @@ class NetcdfBuilder(Builder):
         return doc
 
     def handle_3d_key(
-        self, doc, base_var_index, base_var_name, key, data_key_var_index
-    ):
+        self,
+        doc: dict,
+        base_var_index: int,
+        base_var_name: str,
+        key: str,
+        data_key_var_index: int,
+    ) -> dict:
         """
         This routine handles keys by substituting
         the netcdf variables that correspond to the key into the values
@@ -449,6 +491,25 @@ class NetcdfBuilder(Builder):
         :param _key: A key to be processed, This can be a key to a primitive,
         or to another dictionary, or to a named function
         """
+        # Type checks
+        if not isinstance(doc, dict):
+            raise TypeError(
+                f"Expected 'doc' to be a dictionary, got {type(doc).__name__}"
+            )
+        if not isinstance(base_var_index, int):
+            raise TypeError(
+                f"Expected 'base_var_index' to be an int, got {type(base_var_index).__name__}"
+            )
+        if not isinstance(base_var_name, str):
+            raise TypeError(
+                f"Expected 'base_var_name' to be a string, got {type(base_var_name).__name__}"
+            )
+        if not isinstance(key, str):
+            raise TypeError(f"Expected 'key' to be a string, got {type(key).__name__}")
+        if not isinstance(data_key_var_index, int):
+            raise TypeError(
+                f"Expected 'data_key_var_index' to be an int, got {type(data_key_var_index).__name__}"
+            )
 
         try:
             if key == "id":
@@ -487,24 +548,176 @@ class NetcdfBuilder(Builder):
             )
         return doc
 
-    def interpolate_3d_data(self, raw_data):
+    def getBoundary_heights_for_level(
+        self, levels: list, heights: list, level: int
+    ) -> dict:
         """
-        This function is used to interpolate the data to the standard levels.
+        This function is used to get the boundary heights for the levels.
         Args:
-            raw_data (dict): raw data
+            levels (list): list of levels
+            heights (list): list of heights
         Returns:
-            [dict]: interpolated data
-
-        The standard levels are:
-        [every 20 m, up to 200 m]  (10 levs)
-        20, 40, 60, 80, 100, 120, 140, 160, 180, 200,
-        [then every 50 m, up to 500 m]  (8 levs)
-        250, 300, 250, 300, 350, 400, 450, 500,
-        [then every 100 m, up to 2000 m]  (14 levs)
-        600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000
-        [then every 200 m, up to 5000 m]  (15 levs)
-        2200, 2400, 2600, 2800….
+            map: map of boundary heights for this level
         """
+        if type(levels) is not list:
+            raise TypeError("levels must be a list")
+        if type(heights) is not list:
+            raise TypeError("heights must be a list")
+        if type(level) is not int:
+            raise TypeError("level must be an int")
+        boundary_heights = {"lower": None, "upper": None, "exact": None}
+        if level in heights:
+            boundary_heights["exact"] = level
+        else:
+            # If the level is not in the data, we need to interpolate
+            # Find the two closest raw heights below and above the level
+            lower_height = max([h for h in heights if h < level])
+            upper_height = min([h for h in heights if h > level])
+        boundary_heights["lower"] = lower_height
+        boundary_heights["upper"] = upper_height
+        return boundary_heights
+
+    def calculate_interpolated_values(
+        self,
+        raw_data: dict,
+        standard_levels: list,
+        interpolated_data: dict,
+        heights: list,
+        level: int,
+    ) -> dict:
+        """
+        Calculate interpolated values for a given level based on raw data and standard levels.
+
+        This method interpolates data for a specified level using the provided raw data,
+        standard levels, and heights. If the level exists in the raw data, the corresponding
+        value is directly copied. Otherwise, linear interpolation is performed using the
+        two closest heights.
+
+        Args:
+            raw_data (dict): A dictionary containing raw data values for various variables.
+                             Each key represents a variable, and its value is a list of
+                             corresponding data points.
+            standard_levels (list): A list of standard levels to which the data should be
+                                    interpolated.
+            interpolated_data (dict): A dictionary to store the interpolated data. This will
+                                      be updated with the calculated values.
+            heights (list): A list of heights corresponding to the raw data.
+            level (int): The specific level for which interpolated values are to be calculated.
+
+        Returns:
+            dict: The updated `interpolated_data` dictionary containing interpolated values
+                  for the specified level.
+
+        Raises:
+            TypeError: If any of the input arguments are of incorrect type.
+            ValueError: If the specified level is not in the `standard_levels`.
+            Exception: If an error occurs during interpolation or boundary height calculation.
+
+        Notes:
+            - The method relies on `getBoundary_heights_for_level` to determine the boundary
+              heights for interpolation.
+            - Linear interpolation is used to calculate values for levels not present in the
+              raw data.
+        """
+
+        # type checks
+        if not isinstance(raw_data, dict):
+            raise TypeError(
+                f"Expected 'raw_data' to be a dictionary, got {type(raw_data).__name__}"
+            )
+        if not isinstance(standard_levels, list):
+            raise TypeError(
+                f"Expected 'standard_levels' to be a list, got {type(standard_levels).__name__}"
+            )
+        if not isinstance(interpolated_data, dict):
+            raise TypeError(
+                f"Expected 'interpolated_data' to be a dictionary, got {type(interpolated_data).__name__}"
+            )
+        if not isinstance(heights, list):
+            raise TypeError(
+                f"Expected 'heights' to be a list, got {type(heights).__name__}"
+            )
+        if not isinstance(level, int):
+            raise TypeError(
+                f"Expected 'level' to be an int, got {type(level).__name__}"
+            )
+        if level not in standard_levels:
+            raise ValueError(
+                f"level {level} is not in standard_levels {standard_levels}"
+            )
+
+        try:
+            boundary_heights = self.getBoundary_heights_for_level(
+                standard_levels, heights, level
+            )
+        except TypeError as _e:
+            raise TypeError(
+                "%s : Exception in getBoundary_heights:  error: %s",
+                self.__class__.__name__,
+                str(_e),
+            ) from _e
+        try:
+            if boundary_heights["exact"] is not None:
+                # If the level is already in the data, just copy it
+                for variable in raw_data:
+                    if variable != "height":
+                        continue
+                    interpolated_data[variable] = raw_data[variable][
+                        heights.index(boundary_heights["exact"])
+                    ]
+            else:
+                # If the level is not in the data, we need to interpolate
+                # Find the two closest raw heights below and above the level
+                lower_height = boundary_heights["lower"]
+                upper_height = boundary_heights["upper"]
+                # Interpolate the data for this height
+                for variable in raw_data:
+                    if variable == "height":
+                        continue
+                        # Linear interpolation
+                    lower_value = raw_data[variable][heights.index(lower_height)]
+                    upper_value = raw_data[variable][heights.index(upper_height)]
+                    interpolated_value = lower_value + (upper_value - lower_value) * (
+                        (level - lower_height) / (upper_height - lower_height)
+                    )
+                    if variable not in interpolated_data:
+                        interpolated_data[variable] = {}
+                    if level not in interpolated_data[variable]:
+                        interpolated_data[variable][level] = {}
+                    interpolated_data[variable][level] = interpolated_value
+        except Exception as _e:
+            raise TypeError(
+                "%s : Exception in calculate_interpolated_values:  error: %s",
+                self.__class__.__name__,
+                str(_e),
+            ) from _e
+        return interpolated_data
+
+    def interpolate_3d_data(self, raw_data: dict) -> dict:
+        """
+        Interpolates 3D data to standard levels.
+
+        This method takes raw 3D data and interpolates it to a predefined set of
+        standard levels. The raw data is expected to include a "height" variable
+        which represents the raw heights from the NetCDF file.
+
+        Args:
+            raw_data (dict): A dictionary containing the raw 3D data. It must
+                             include a "height" key with corresponding height values.
+
+        Returns:
+            dict: A dictionary containing the interpolated data at the standard levels.
+
+        Raises:
+            Exception: Logs an error message if an exception occurs during the
+                       interpolation process.
+        """
+        # Type checks
+        if not isinstance(raw_data, dict):
+            raise TypeError(
+                f"Expected 'raw_data' to be a dictionary, got {type(raw_data).__name__}"
+            )
+
         # The standard levels are:
         standard_levels = [
             20,
@@ -561,35 +774,11 @@ class NetcdfBuilder(Builder):
             # raw heights are the valuse of the height variable in the netcdf file
             interpolated_data = {}
             heights = raw_data["height"]
+            # Get the boundary heights for the levels
             for level in standard_levels:
-                if any(x == level for x in heights):
-                    # If the level is already in the data, just copy it
-                    for variable in raw_data:
-                        if variable != "height":
-                            continue
-                        interpolated_data[variable][level] = raw_data[variable][
-                            heights.index(level)
-                        ]
-                else:
-                    # If the level is not in the data, we need to interpolate
-                    # Find the two closest raw heights below and above the level
-                    lower_height = max([h for h in heights if h < level])
-                    upper_height = min([h for h in heights if h > level])
-                    # Interpolate the data for this height
-                    for variable in raw_data:
-                        if variable == "height":
-                            continue
-                        # Linear interpolation
-                        lower_value = raw_data[variable][heights.index(lower_height)]
-                        upper_value = raw_data[variable][heights.index(upper_height)]
-                        interpolated_value = lower_value + (
-                            upper_value - lower_value
-                        ) * ((level - lower_height) / (upper_height - lower_height))
-                        if variable not in interpolated_data:
-                            interpolated_data[variable] = {}
-                        if level not in interpolated_data[variable]:
-                            interpolated_data[variable][level] = {}
-                        interpolated_data[variable][level] = interpolated_value
+                self.calculate_interpolated_values(
+                    raw_data, standard_levels, interpolated_data, heights, level
+                )
         except Exception as _e:
             logger.error(
                 "%s : Exception in named function interpolate_data:  error: %s",
@@ -598,16 +787,55 @@ class NetcdfBuilder(Builder):
             )
         return interpolated_data
 
-    def handle_key(self, doc, base_var_name, base_var_index, key):
+    def handle_key(self, doc: dict, base_var_name: str, base_var_index: int, key: str):
         """
-        This routine handles keys by substituting
-        the netcdf variables that correspond to the key into the values
-        in the template that begin with *
-        :param doc: the current document
-        :param base_var_index: The current unlimited variable
-        :param _key: A key to be processed, This can be a key to a primitive,
-        or to another dictionary, or to a named function
+        Processes a key within a document by substituting NetCDF variables or handling
+        nested dictionaries and named functions based on the provided template.
+
+        This method modifies the input document (`doc`) by processing the specified key
+        and replacing its value based on the template and the current NetCDF variable index.
+
+        Args:
+            doc (dict): The current document being processed. Must be a dictionary.
+            base_var_name (str): The name of the base NetCDF variable.
+            base_var_index (int): The current index of the unlimited NetCDF variable.
+            key (str): The key to be processed. Can refer to a primitive, another dictionary,
+                       or a named function.
+
+        Returns:
+            dict: The updated document after processing the specified key.
+
+        Raises:
+            TypeError: If any of the arguments (`doc`, `base_var_name`, `base_var_index`, `key`)
+                       are not of the expected type.
+
+        Notes:
+            - If the key is "id", it derives an ID using the `derive_id` method and adds it
+              to the document if it doesn't already exist.
+            - If the value of the key is a dictionary, it recursively processes the nested
+              dictionary.
+            - If the value of the key is a string starting with "&", it processes it as a
+              named function using the `handle_named_function` method.
+            - Otherwise, it translates the template item using the `translate_template_item` method.
+            - Logs exceptions if any errors occur during processing.
         """
+        # Type checks
+        if not isinstance(doc, dict):
+            raise TypeError(
+                f"netcdf_builder_parent:handle_key: Expected 'doc' to be a dictionary, got {type(doc).__name__}"
+            )
+        if not isinstance(base_var_name, str):
+            raise TypeError(
+                f"netcdf_builder_parent:handle_key: Expected 'base_var_name' to be a string, got {type(base_var_name).__name__}"
+            )
+        if not isinstance(base_var_index, int):
+            raise TypeError(
+                f"netcdf_builder_parent:handle_key: Expected 'base_var_index' to be an int, got {type(base_var_index).__name__}"
+            )
+        if not isinstance(key, str):
+            raise TypeError(
+                f"netcdf_builder_parent:handle_key: Expected 'key' to be a string, got {type(key).__name__}"
+            )
 
         try:
             if key == "id":
@@ -642,22 +870,41 @@ class NetcdfBuilder(Builder):
             )
         return doc
 
-    def handle_named_function(self, named_function_def, base_var_index):
+    def handle_named_function(
+        self, named_function_def: str, base_var_index: int
+    ) -> str:
         """
-        This routine processes a named function entry from a template.
-        :param _named_function_def - this can be either a template key or a template value.
-        The _named_function_def looks like "&named_function:*field1,*field2,*field3..."
-        where named_function is the literal function name of a defined function.
-        The name of the function and the function parameters are seperated by a ":" and
-        the parameters are seperated vy a ','.
-        It is expected that field1, field2, and field3 etc are all valid variable names.
-        Each field will be translated from the netcdf file into value1, value2 etc.
-        The method "named_function" will be called like...
-        named_function({field1:value1, field2:value2, ... fieldn:valuen}) and the return value from named_function
-        will be substituted into the document.
-        :base_var_index the base_var_index being processed.
-        """
+        Processes a named function entry from a template and substitutes its return value into a document.
+        This method takes a named function definition string, extracts the function name and its parameters,
+        translates the parameters from the NetCDF file, and calls the corresponding function with the translated
+        parameters. The return value of the function is then used as a replacement in the document.
+        Args:
+            named_function_def (str): A string representing the named function definition. It is expected to
+                follow the format "&named_function:*field1,*field2,*field3...". The function name and its
+                parameters are separated by a colon (":") and the parameters are separated by commas (",").
+                Each parameter is prefixed with an asterisk ("*").
+            base_var_index (int): The base variable index being processed.
+        Returns:
+            str: The result of the named function call, which is substituted into the document.
+        Raises:
+            Exception: Logs an exception if there is an error during the processing of the named function.
+        Notes:
+            - The method assumes that the parameters (e.g., field1, field2, field3) are valid variable names
+              and translates them into corresponding values (e.g., value1, value2, value3) using the
+              `translate_template_item` method.
+            - The named function is dynamically called using `getattr` on the current instance.
+            - If the function name or parameters are not valid, an exception is logged."""
 
+        # Type checks
+        if not isinstance(named_function_def, str):
+            raise TypeError(
+                f"handle_named_function - Expected 'named_function_def' to be a string, got {type(named_function_def).__name__}"
+            )
+        if not isinstance(base_var_index, int):
+            raise TypeError(
+                f"handle_named_function - Expected 'base_var_index' to be an int, got {type(base_var_index).__name__}"
+            )
+        # Split the named function definition into function name and parameters
         func = None
         try:
             func = named_function_def.split("|")[0].replace("&", "")
@@ -678,13 +925,22 @@ class NetcdfBuilder(Builder):
         return replace_with
 
     def handle_data(self, **kwargs):
-        """This method iterates the template entries, deciding for each entry to either
-        handle_named_function (if the entry starts with a '&') or to translate_template_item
-        if it starts with an '*'. It handles both keys and values for each template entry.
-        Args:
-            doc (Object): this is the data document that is being built
-        Returns:
-            (Object): this is the data document that is being built
+        """
+        Processes a data template by iterating through its entries and applying specific
+        handling logic based on the entry type. This method supports handling named
+        functions and translating template items for both keys and values in the template.
+            **kwargs: Arbitrary keyword arguments.
+                - doc (Object): The data document that is being built.
+                - base_var_index (int): An index used for variable substitution in the template.
+            Object: The updated data document after processing the template.
+            Returns:
+                (Object): this is the data document that is being built
+        Raises:
+            Exception: Logs and handles any exceptions that occur during processing.
+        Notes:
+            - Template entries starting with '&' are processed using `handle_named_function`.
+            - Template entries starting with '*' are processed using `translate_template_item`.
+            - Logs warnings if a value or key cannot be processed.
         """
         try:
             doc = kwargs["doc"]
@@ -716,7 +972,7 @@ class NetcdfBuilder(Builder):
                     "%s Builder.handle_data - _data_key is None",
                     self.__class__.__name__,
                 )
-            self.load_data(doc, data_key, data_elem)
+            self.load_data(doc, data_elem)
             return doc
         except Exception as _e:
             logger.exception(
@@ -725,14 +981,40 @@ class NetcdfBuilder(Builder):
             )
         return doc
 
-    def build_datafile_doc(self, file_name, data_file_id, origin_type):
+    def build_datafile_doc(
+        self, file_name: str, data_file_id: str, origin_type: str
+    ) -> dict:
         """
-        This method will build a dataFile document for NetcdfBuilder. The dataFile
-        document will represent the file that is ingested by the Builder. The document
-        is intended to be added to the output folder and imported with the other documents.
-        The VxIngest will examine the existing dataFile documents to determine if a specific file
-        has already been ingested.
+        Builds a dataFile document for the NetcdfBuilder.
+
+        This method creates a dictionary representing a dataFile document, which
+        contains metadata about a NetCDF file being ingested. The document is
+        intended to be added to the output folder and imported with other documents.
+        The VxIngest system uses these documents to determine if a specific file
+        has already been processed.
+
+        Args:
+            file_name (str): The path to the NetCDF file.
+            data_file_id (str): A unique identifier for the data file.
+            origin_type (str): The origin type of the data file.
+
+        Returns:
+            dict: A dictionary containing metadata about the NetCDF file.
         """
+        # Type checks
+        if not isinstance(file_name, str):
+            raise TypeError(
+                f"Expected 'file_name' to be a string, got {type(file_name).__name__}"
+            )
+        if not isinstance(data_file_id, str):
+            raise TypeError(
+                f"Expected 'data_file_id' to be a string, got {type(data_file_id).__name__}"
+            )
+        if not isinstance(origin_type, str):
+            raise TypeError(
+                f"Expected 'origin_type' to be a string, got {type(origin_type).__name__}"
+            )
+        # Build the dataFile document
         mtime = Path(file_name).stat().st_mtime
         df_doc = {
             "id": data_file_id,
@@ -755,10 +1037,22 @@ class NetcdfBuilder(Builder):
         """
         self.document_map = {}
 
-    def get_document_map(self, base_var_name):
+    def get_document_map(self, base_var_name: str) -> dict:
         """
-        In case there are leftovers we have to process them first so call the handle_document method again.
-        :return: the document_map
+        dict:
+        Retrieve the document map for the current file.
+        This method is responsible for returning the `document_map` attribute, which
+        contains processed data for the current file. If there are any unprocessed
+        rows remaining in `same_time_rows`, it will invoke the `handle_document`
+        method to process them before returning the `document_map`.
+        Args:
+            base_var_name (str): The base variable name used for processing.
+        Returns:
+            dict: The document map containing processed data for the current file.
+                    Returns `None` if an exception occurs during processing.
+        Raises:
+            Exception: Logs any exception that occurs
+            during the execution of the method.
         """
         try:
             if len(self.same_time_rows) != 0:
@@ -772,7 +1066,7 @@ class NetcdfBuilder(Builder):
             )
             return None
 
-    def load_data(self, doc, key, element):
+    def load_data(self, doc: dict, element: dict) -> dict:
         """
         This method adds an observation to the data dict -
         in fact we use a dict to hold data elems to ensure
@@ -780,10 +1074,32 @@ class NetcdfBuilder(Builder):
         Using a map ensures that the last
         entry in the netcdf file is the one that gets captured.
         :param doc: The document being created
-        :param key: Not used
         :param element: the observation data
         :return: the document being created
         """
+        # Type checks
+        if not isinstance(doc, dict):
+            raise TypeError(
+                f"Expected 'doc' to be a dictionary, got {type(doc).__name__}"
+            )
+        if not isinstance(element, dict):
+            raise TypeError(
+                f"Expected 'element' to be a dictionary, got {type(element).__name__}"
+            )
+        # Check if the element is None
+        if element is None:
+            logger.warning(
+                "%s load_data: element is None",
+                self.__class__.__name__,
+            )
+            return doc
+        # Check if the element is empty
+        if not element:
+            logger.warning(
+                "%s load_data: element is empty",
+                self.__class__.__name__,
+            )
+            return doc
         if "data" not in doc or doc["data"] is None:
             doc["data"] = {}
         if element["name"] not in doc["data"]:

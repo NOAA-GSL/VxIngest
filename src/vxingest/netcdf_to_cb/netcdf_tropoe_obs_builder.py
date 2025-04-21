@@ -78,8 +78,8 @@ class NetcdfTropoeObsBuilderV01(NetcdfBuilder):
         """
         try:
             # This is the base_time + time_offset[base_var_index]
-            base_time = params_dict["base_time"]
-            time_offset = params_dict["time_offset"]
+            base_time = params_dict["base_time"].data.item()
+            time_offset = params_dict["time_offset"].data.item()
             epoch = int(base_time + time_offset)
             return int(epoch)
         except Exception as _e:

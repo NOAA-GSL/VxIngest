@@ -277,17 +277,6 @@ class NetcdfBuilder(Builder):
                                 return value
                         else:
                             # it doesn't need to be a string
-                            if ma.isMA(self.ncdf_data_set[variable][base_var_index]):
-                                # it is a masked array
-                                size = self.ncdf_data_set[variable][base_var_index].size
-                                if size <= 1:
-                                    return self.ncdf_data_set[variable][
-                                        base_var_index
-                                    ].data.item()
-                                else:
-                                    return self.ncdf_data_set[variable][
-                                        base_var_index
-                                    ].data.tolist()
                             return self.ncdf_data_set[variable][base_var_index]
         except Exception as _e:
             logger.exception(
@@ -438,6 +427,12 @@ class NetcdfBuilder(Builder):
                         value = self.handle_named_function(value, base_var_index)
                     else:
                         value = self.translate_template_item(value, base_var_index)
+                        if ma.isMA(value):
+                            # it is a masked array
+                            if value.size <= 1:
+                                value = value.data.item()
+                            else:
+                                value = value.tolist()
                 except Exception as _e:
                     value = None
                     logger.warning(
@@ -539,7 +534,16 @@ class NetcdfBuilder(Builder):
             ):
                 doc[key] = self.handle_named_function(doc[key], base_var_index)
             else:
-                doc[key] = self.translate_template_item(doc[key], base_var_index)
+                val = self.translate_template_item(doc[key], base_var_index)
+                if ma.isMA(val):
+                    # it is a masked array
+                    if val.size <= 1:
+                        doc[key] = val.data.item()
+                    else:
+                        doc[key] = val.tolist()
+                else:
+                    # it is a regular value
+                    doc[key] = val
             return doc
         except Exception as _e:
             logger.exception(

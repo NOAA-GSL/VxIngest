@@ -19,13 +19,13 @@ pyproj = "^3.7.0"
 numpy = "^2.2.4"
 metpy = "^1.6.3"
 prometheus-client = "^0.21.1"
-plotly = "^6.0.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.5"
 types-pyyaml = "^6.0.12.20250326"
 ruff = "^0.11.2"
 coverage = "^7.8.0"
+plotly = "^6.0.1"
 
 [build-system]
 requires = ["poetry-core"]

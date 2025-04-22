@@ -489,7 +489,7 @@ class GribBuilder(Builder):
         The ingest manager is giving us a grib file to process from the queue.
         These documents are id'd by valid time and fcstLen. The data section is a dictionary
         indexed by station name each element of which contains variable data and a station name.
-        To process this file we need to itterate the domain_stations list and process the
+        To process this file we need to iterate the domain_stations list and process the
         station name along with all the required variables.
         1) get the first epoch - if none was specified get the latest one from the db
         2) transform the projection from the grib file

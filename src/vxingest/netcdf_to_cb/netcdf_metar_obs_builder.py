@@ -59,7 +59,7 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
         """This is the entry point for the NetcfBuilders from the ingestManager.
         These documents are id'd by fcstValidEpoch. The data section is an array
         each element of which contains variable data and a station name. To process this
-        file we need to itterate the document by base_var_index and process the station name along
+        file we need to iterate the document by base_var_index and process the station name along
         with all the other variables in the template.
         Args:
             file_name (str): the name of the file being processed

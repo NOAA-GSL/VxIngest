@@ -414,7 +414,7 @@ class CTCBuilder(Builder):
         each element of which contains a map keyed by thresholds. The values are the
         hits, misses, false_alarms, adn correct_negatives for the stations in the region
         that is specified in the ingest_document.
-        To process this file we need to itterate the list of valid fcstValidEpochs
+        To process this file we need to iterate the list of valid fcstValidEpochs
         and process the region station list for each fcstValidEpoch and fcstLen.
 
         1) get stations from couchbase and filter them so that we retain only the ones for this model and region

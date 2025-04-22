@@ -221,10 +221,12 @@ def get_job_docs(
 
     # TODO - We're doing this query at the cluster level. Would it be better to query at the scope level if we're using Couchbase 7?
     # https://docs.couchbase.com/python-sdk/current/howtos/n1ql-queries-with-sdk.html#querying-at-scope-level
-    if job_id is not None:
+
+    def build_query_for_job_id(job_id: str) -> str:
+        """Builds a query to fetch a specific job document by ID"""
         # fmt: off
-        # Disable Black to keep the Couchbase query readable
-        query = (
+        # Disable formatting to keep the Couchbase query readable
+        return (
             "SELECT meta().id AS id, "
                 "LOWER(META().id) as name, "
                 "run_priority, "
@@ -237,39 +239,70 @@ def get_job_docs(
                 "AND CONTAINS(status, 'active') "
         )
         # fmt: on
+
+    def build_query_for_scheduled_active_jobs() -> str:
+        """Builds a query to fetch all active job documents with 'schedule' field valid within the past 15 minutes"""
+        # fmt: off
+        # Disable formatting to keep the Couchbase query readable
+        return (
+            "SELECT meta().id AS id, "
+                "LOWER(META().id) as name, "
+                "run_priority, "
+                "offset_minutes, "
+                "LOWER(subType) as sub_type "
+            f"FROM {creds['cb_bucket']}.{creds['cb_scope']}.{creds['cb_collection']} "
+            "LET millis = ROUND(CLOCK_MILLIS()), "
+                "sched = SPLIT(schedule,' '), "
+                "minute = CASE WHEN sched[0] = '*' THEN DATE_PART_MILLIS(millis, 'minute', 'UTC') ELSE TO_NUMBER(sched[0]) END, "
+                "hour = CASE WHEN sched[1] = '*' THEN DATE_PART_MILLIS(millis, 'hour', 'UTC') ELSE TO_NUMBER(sched[1]) END, "
+                "day = CASE WHEN sched[2] = '*' THEN DATE_PART_MILLIS(millis, 'day', 'UTC') ELSE TO_NUMBER(sched[2]) END, "
+                "month = CASE WHEN sched[3] = '*' THEN DATE_PART_MILLIS(millis, 'month', 'UTC') ELSE TO_NUMBER(sched[3]) END, "
+                "year = CASE WHEN sched[4] = '*' THEN DATE_PART_MILLIS(millis, 'year', 'UTC') ELSE TO_NUMBER(sched[4]) END "
+            "WHERE type='JOB' "
+                "AND version='V01' "
+                "AND status='active' "
+                "AND DATE_PART_MILLIS(millis, 'year', 'UTC') = year "
+                "AND DATE_PART_MILLIS(millis, 'month', 'UTC') = month "
+                "AND DATE_PART_MILLIS(millis, 'hour', 'UTC') = hour "
+                "AND DATE_PART_MILLIS(millis, 'day', 'UTC') = day "
+                "AND IDIV(DATE_PART_MILLIS(millis, 'minute', 'UTC'), 15) = IDIV(minute, 15) "
+            "ORDER BY offset_minutes, "
+                    "run_priority "
+        )
+        # fmt: on
+
+    def build_query_for_active_jobs() -> str:
+        """Builds a query to fetch all active job documents"""
+        # fmt: off
+        # Disable formatting to keep the Couchbase query readable
+        return (
+            "SELECT meta().id AS id, "
+                "LOWER(META().id) as name, "
+                "run_priority, "
+                "offset_minutes, "
+                "LOWER(subType) as sub_type "
+            f"FROM {creds['cb_bucket']}.{creds['cb_scope']}.{creds['cb_collection']} "
+            "WHERE type='JOB' "
+                "AND version='V01' "
+                "AND status='active' "
+            "ORDER BY offset_minutes, "
+                    "run_priority "
+        )
+        # fmt: on
+
+    def execute_query(query: str) -> list[JobDoc]:
+        """Executes the given query and returns the results"""
         row_iter = cluster.query(query, QueryOptions(read_only=True))  # type: ignore[assignment]
         return [row for row in row_iter]
 
-    # fmt: off
-    # Disable Black to keep the Couchbase query readable
-    query = (
-        "SELECT meta().id AS id, "
-            "LOWER(META().id) as name, "
-            "run_priority, "
-            "offset_minutes, "
-            "LOWER(subType) as sub_type "
-        f"FROM {creds['cb_bucket']}.{creds['cb_scope']}.{creds['cb_collection']} "
-        "LET millis = ROUND(CLOCK_MILLIS()), "
-            "sched = SPLIT(schedule,' '), "
-            "minute = CASE WHEN sched[0] = '*' THEN DATE_PART_MILLIS(millis, 'minute', 'UTC') ELSE TO_NUMBER(sched[0]) END, "
-            "hour = CASE WHEN sched[1] = '*' THEN DATE_PART_MILLIS(millis, 'hour', 'UTC') ELSE TO_NUMBER(sched[1]) END, "
-            "day = CASE WHEN sched[2] = '*' THEN DATE_PART_MILLIS(millis, 'day', 'UTC') ELSE TO_NUMBER(sched[2]) END, "
-            "month = CASE WHEN sched[3] = '*' THEN DATE_PART_MILLIS(millis, 'month', 'UTC') ELSE TO_NUMBER(sched[3]) END, "
-            "year = CASE WHEN sched[4] = '*' THEN DATE_PART_MILLIS(millis, 'year', 'UTC') ELSE TO_NUMBER(sched[4]) END "
-        "WHERE type='JOB' "
-            "AND version='V01' "
-            "AND status='active' "
-            "AND DATE_PART_MILLIS(millis, 'year', 'UTC') = year "
-            "AND DATE_PART_MILLIS(millis, 'month', 'UTC') = month "
-            "AND DATE_PART_MILLIS(millis, 'hour', 'UTC') = hour "
-            "AND DATE_PART_MILLIS(millis, 'day', 'UTC') = day "
-            "AND IDIV(DATE_PART_MILLIS(millis, 'minute', 'UTC'), 15) = IDIV(minute, 15) "
-        "ORDER BY offset_minutes, "
-                "run_priority "
-    )
-    # fmt: on
-    row_iter = cluster.query(query, QueryOptions(read_only=True))  # type: ignore[assignment]
-    return [row for row in row_iter]
+    if job_id is not None:
+        query = build_query_for_job_id(job_id)
+    elif os.getenv("VXINGEST_IGNORE_JOB_SCHEDULE") == "true":
+        query = build_query_for_active_jobs()
+    else:
+        query = build_query_for_scheduled_active_jobs()
+
+    return execute_query(query)
 
 
 def connect_cb(creds: dict[str, str]) -> Cluster:
@@ -294,10 +327,15 @@ def connect_cb(creds: dict[str, str]) -> Cluster:
             )
             break
         except CouchbaseException as _e:
+            logger.error(
+                f"Error connecting to Couchbase server with: {creds}. Exception: {_e}. Attempt {_attempts + 1} of 3"
+            )
             time.sleep(5)
             _attempts = _attempts + 1
     if _attempts == 3:
-        raise CouchbaseException("Could not connect to couchbase after 3 attempts")
+        raise CouchbaseException(
+            message="Could not connect to couchbase after 3 attempts"
+        )
 
     # Wait until the cluster is ready for use.
     cluster.wait_until_ready(timedelta(seconds=5))
@@ -520,8 +558,11 @@ def run_ingest() -> None:
     logger.info("Connecting to Couchbase")
     try:
         cluster = connect_cb(creds)
-    except (TimeoutException, CouchbaseException) as e:
-        logger.fatal(f"Error connecting to Couchbase: {e}")
+    except (TimeoutException, CouchbaseException):
+        logger.critical(
+            f"Error connecting to Couchbase server at: {creds['cb_host']}.",
+            exc_info=True,
+        )
         sys.exit(1)
 
     logger.info("Getting job docs")

@@ -328,7 +328,7 @@ def connect_cb(creds: dict[str, str]) -> Cluster:
             break
         except CouchbaseException as _e:
             logger.error(
-                f"Error connecting to Couchbase server at: {creds["cb_host"]}. Exception: {_e}. Attempt {_attempts + 1} of 3"
+                f"Error connecting to Couchbase server at: {creds['cb_host']}. Exception: {_e}. Attempt {_attempts + 1} of 3"
             )
             time.sleep(5)
             _attempts = _attempts + 1

@@ -9,7 +9,7 @@ authors = [
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = "^3.13"
 pyyaml = "^6.0.2"
 xarray = "^2025.3.1"
 netcdf4 = "^1.7.2"
@@ -25,6 +25,7 @@ pytest = "^8.3.5"
 types-pyyaml = "^6.0.12.20250326"
 ruff = "^0.11.2"
 coverage = "^7.8.0"
+mypy = "^1.15.0"
 
 [build-system]
 requires = ["poetry-core"]

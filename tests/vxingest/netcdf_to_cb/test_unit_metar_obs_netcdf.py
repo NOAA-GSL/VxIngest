@@ -11,7 +11,7 @@ from couchbase.mutation_state import MutationState
 from couchbase.n1ql import QueryScanConsistency
 from couchbase.options import QueryOptions
 
-from vxingest.netcdf_to_cb.netcdf_builder_parent import NetcdfMetarObsBuilderV01
+from vxingest.netcdf_to_cb.netcdf_metar_obs_builder import NetcdfMetarObsBuilderV01
 from vxingest.netcdf_to_cb.run_ingest_threads import VXIngest
 
 # various unit tests for the obs builder.
@@ -124,7 +124,7 @@ def test_umask_value_transform():
         builder.ncdf_data_set = _nc
         # assign our handler parameters
         params_dict = {}
-        params_dict["unlimited_var"] = 0
+        params_dict["base_var_index"] = 0
         params_dict["temperature"] = "temperature"
         # call the handler
         temp = builder.umask_value_transform(params_dict)
@@ -417,7 +417,7 @@ def test_handle_station():
         setup_builder_doc(_cluster, _builder)
         # handle_station should give us a new station_zbaa
         _builder.handle_station(
-            {"unlimited_var": _rec_num, "stationName": _station_name}
+            {"base_var_index": _rec_num, "stationName": _station_name}
         )
         doc_map = _builder.get_document_map("rec_num")
         _id = next(iter(doc_map))
@@ -447,7 +447,7 @@ def test_handle_station():
         # populate the builder list with the modified station by seting up
         setup_builder_doc(_cluster, _builder)
         _builder.handle_station(
-            {"unlimited_var": _rec_num, "stationName": _station_name}
+            {"base_var_index": _rec_num, "stationName": _station_name}
         )
         result = _cluster.query(
             """
@@ -511,7 +511,7 @@ def test_handle_station():
         # the existing timeframe of geo[0] and modify the geo element with the
         # original firstTime (matches the fcstValidEpoch of the file)
         _builder.handle_station(
-            {"unlimited_var": _rec_num, "stationName": _station_name}
+            {"base_var_index": _rec_num, "stationName": _station_name}
         )
         result = _cluster.query(
             f"""

@@ -48,9 +48,7 @@ class NetcdfTropoeObsBuilderV01(NetcdfBuilder):
             self.same_time_rows = {}
             # bucket, scope, collection = self.get_database_connection_details(queue_element)
             self.ncdf_data_set = nc.Dataset(queue_element)
-            document_map = self.build_3d_document_map(
-                queue_element, "time", "height", "tropoe"
-            )
+            document_map = self.build_3d_document_map(queue_element, "time", "tropoe")
             return document_map
         except FileNotFoundError:
             logger.error(
@@ -78,8 +76,8 @@ class NetcdfTropoeObsBuilderV01(NetcdfBuilder):
         """
         try:
             # This is the base_time + time_offset[base_var_index]
-            base_time = params_dict["base_time"].data.item()
-            time_offset = params_dict["time_offset"].data.item()
+            base_time = params_dict["base_time"]
+            time_offset = params_dict["time_offset"]
             epoch = int(base_time + time_offset)
             return int(epoch)
         except Exception as _e:
@@ -113,3 +111,70 @@ class NetcdfTropoeObsBuilderV01(NetcdfBuilder):
                 str(_e),
             )
         return None
+
+        # # add the height and load the raw data into the document - convert km to m
+        # data_elem["height"] = [
+        #     i * 1000 for i in self.ncdf_data_set["height"][:].tolist()
+        # ]
+        # doc["raw_data"] = data_elem
+        # # interpolate the data
+        # interpolated_data = self.interpolate_3d_data(data_elem)
+        # flat_interpolated_data = {}
+        # flat_interpolated_data["levels"] = list(interpolated_data[key].keys())
+        # for key in interpolated_data:
+        #     flat_interpolated_data[key] = list(interpolated_data[key].values())
+        # doc["data"] = flat_interpolated_data
+
+    def get_raw_data(self, params_dict):
+        raw_data = {}
+        base_var_index = params_dict["base_var_index"]
+        variables = []
+        for k in params_dict:
+            if k == "base_var_index":
+                continue
+            variables.append(k)
+        try:
+            for variable in variables:
+                raw_data[variable] = self.ncdf_data_set[variable][
+                    base_var_index
+                ].tolist()
+            # add the height
+            raw_data["height"] = [
+                v * 1000 for v in self.ncdf_data_set["height"][:].tolist()
+            ]
+        except Exception as _e:
+            logger.error(f"*** get_raw_data: Exception: {str(_e)}")
+            raise _e
+        return raw_data
+
+    def get_interpolated_data(self, params_dict):
+        interpolated_data = {}
+        lower = 0
+        lower_variable = "lower"
+        upper = 500
+        upper_variable = "upper"
+        try:
+            for variable in params_dict:
+                if variable.startswith("lower"):
+                    lower = int(params_dict[variable].replace("lower:", ""))
+                    lower_variable = variable
+                if variable.startswith("upper"):
+                    upper = int(params_dict[variable].replace("upper:", ""))
+                    upper_variable = variable
+            del params_dict[lower_variable]
+            del params_dict[upper_variable]
+            _raw_data = self.get_raw_data(params_dict)
+            interpolated_data = self.interpolate_3d_data(_raw_data)
+            # Flatten the interpolated data
+            flat_interpolated_data = {}
+            flat_interpolated_data["levels"] = list(
+                interpolated_data[list(interpolated_data.keys())[0]].keys()
+            )
+            for key in interpolated_data:
+                flat_interpolated_data[key] = list(interpolated_data[key].values())[
+                    lower:upper
+                ]
+        except Exception as _e:
+            logger.error(f"*** get_interpolated_data: Exception: {str(_e)}")
+            raise _e
+        return flat_interpolated_data

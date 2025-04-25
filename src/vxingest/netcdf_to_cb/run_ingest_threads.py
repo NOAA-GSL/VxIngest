@@ -196,7 +196,9 @@ class VXIngest(CommonVxIngest):
             self.load_spec["fmask"] = self.fmask
             self.load_spec["input_data_path"] = self.path
             # stash the load_job in the load_spec
-            self.load_spec["load_job_doc"] = self.build_load_job_doc("tropoe")
+            self.load_spec["load_job_doc"] = self.build_load_job_doc(
+                self.load_spec["cb_connection"]["collection"]
+            )
         except (RuntimeError, TypeError, NameError, KeyError):
             logger.error(
                 "*** Error occurred in Main reading load_spec: %s ***",

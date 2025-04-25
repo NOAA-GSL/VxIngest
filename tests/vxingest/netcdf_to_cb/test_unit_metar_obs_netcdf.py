@@ -93,7 +93,7 @@ def test_build_load_job_doc(tmp_path):
 
 
 @pytest.mark.integration
-def test_umask_value_transform():
+def test_retrieve_from_netcdf():
     """test the derive_valid_time_epoch
     requires file_name which should match the format for grib2 hrr_ops files
     i.e. "20210920_1700", and params_dict['file_name_mask'] = "%Y%m%d_%H%M"
@@ -127,7 +127,7 @@ def test_umask_value_transform():
         params_dict["base_var_index"] = 0
         params_dict["temperature"] = "temperature"
         # call the handler
-        temp = builder.umask_value_transform(params_dict)
+        temp = builder.retrieve_from_netcdf(params_dict)
         assert temp == 250.15
     except Exception as _e:
         pytest.fail(f"test_build_load_job_doc Exception failure: {_e}")

@@ -15,6 +15,8 @@ import re
 from pathlib import Path
 from pstats import Stats
 
+# Removed deprecated typing.List; using built-in list type instead
+import couchbase.subdocument as SD
 import netCDF4 as nc
 import numpy.ma as ma
 from metpy.calc import relative_humidity_from_dewpoint, wind_components
@@ -47,6 +49,8 @@ class NetcdfBuilder(Builder):
         self.ncdf_data_set = None
         self.stations = []
         self.file_name = None
+        self.standard_levels = None
+
         # self.do_profiling = False  - in super
         # set to True to enable build_document profiling
 
@@ -108,18 +112,51 @@ class NetcdfBuilder(Builder):
         self,
         queue_element: str,
         base_var_name: str,
-        data_key_var_name: str,
         origin_type: str = None,
     ) -> dict:
-        # this is a 3D netcdf file
-        # we have to process the base_var_name and then
-        # process the 3D data
-        # for example for the fireweather data the time is the unlimited var
-        # for all the documents in the file i.e. one document for each valid time
-        # but within a single document the unlimited var is height i.e. there is
-        # one data element within a given document for each height level.
-        # we will pass in the index of the top level unlimited var 'time' and the name of the data_key_var
-        # 'height' which will be the unlimited var for each individual time document.
+        """
+        Builds a document map for a 3D NetCDF file by processing the base variable
+        and associated 3D data.
+
+        This method processes the unlimited variable (e.g., 'time') to create one
+        document for each valid time. Within each document, the unlimited variable
+        (e.g., 'time') is processed to produce a document for each valid time.
+
+        Args:
+            queue_element (str): The file path or identifier for the NetCDF file.
+            base_var_name (str): The name of the base variable (e.g., 'time')
+                representing the top-level unlimited dimension.
+            origin_type (str, optional): The origin type of the data (e.g.,
+                'satellite', 'model'). Defaults to None.
+
+        Returns:
+            dict: A dictionary representing the document map. Each key is a
+            document ID, and the value is the corresponding document metadata.
+
+        Raises:
+            TypeError: If any of the input arguments are not of the expected type.
+
+        Notes:
+            - This method initializes the document map before processing.
+            - If the base variable has no data (size is 0), an empty dictionary is returned.
+            - Profiling can be enabled to analyze performance using cProfile.
+            - The method logs various stages of processing for debugging and monitoring.
+        """
+
+        # Type checks
+        if not isinstance(queue_element, str):
+            raise TypeError(
+                f"Expected 'queue_element' to be a string, got {type(queue_element).__name__}"
+            )
+        if not isinstance(base_var_name, str):
+            raise TypeError(
+                f"Expected 'base_var_name' to be a string, got {type(base_var_name).__name__}"
+            )
+        if origin_type is not None and not isinstance(origin_type, str):
+            raise TypeError(
+                f"Expected 'origin_type' to be a string or None, got {type(origin_type).__name__}"
+            )
+
         self.initialize_document_map()
         logger.info(
             "%s building documents for file %s",
@@ -149,7 +186,7 @@ class NetcdfBuilder(Builder):
             # one data element within a given document for each height level.
             if self.do_profiling:
                 with cProfile.Profile() as _pr:
-                    self.handle_3d_document(base_var_index, data_key_var_name)
+                    self.handle_document(base_var_name, base_var_index)
                     with Path("profiling_stats.txt").open(
                         "w", encoding="utf-8"
                     ) as stream:
@@ -159,17 +196,16 @@ class NetcdfBuilder(Builder):
                         stats.dump_stats("profiling_stats.prof")
                         stats.print_stats()
             else:
-                self.handle_3d_document(base_var_index, data_key_var_name)
-
-            document_map = self.get_document_map(base_var_name)
-            data_file_id = self.create_data_file_id(
-                self.subset, "netcdf", origin_type, queue_element
-            )
-            data_file_doc = self.build_datafile_doc(
-                file_name=queue_element,
-                data_file_id=data_file_id,
-                origin_type=origin_type,
-            )
+                self.handle_document(base_var_name, base_var_index)
+        document_map = self.get_document_map(base_var_name)
+        data_file_id = self.create_data_file_id(
+            self.subset, "netcdf", origin_type, queue_element
+        )
+        data_file_doc = self.build_datafile_doc(
+            file_name=queue_element,
+            data_file_id=data_file_id,
+            origin_type=origin_type,
+        )
         document_map[data_file_doc["id"]] = data_file_doc
         return document_map
 
@@ -268,16 +304,38 @@ class NetcdfBuilder(Builder):
                                         )
                                     ),
                                 )
+                                if ma.isMaskedArray(value):
+                                    # it is a masked array
+                                    if value.size == 1:
+                                        value = value.data.item()
+                                    else:
+                                        # it is a masked array of more than one value
+                                        value = value.data.tolist()
                                 return value
                             else:
                                 # it is probably a number
                                 value = str(
                                     self.ncdf_data_set[variable][base_var_index]
                                 )
+                                if ma.isMaskedArray(value):
+                                    # it is a masked array
+                                    if value.size == 1:
+                                        value = value.data.item()
+                                    else:
+                                        # it is a masked array of more than one value
+                                        value = value.data.tolist()
                                 return value
                         else:
                             # it doesn't need to be a string
-                            return self.ncdf_data_set[variable][base_var_index]
+                            value = self.ncdf_data_set[variable][base_var_index]
+                            if ma.isMaskedArray(value):
+                                # it is a masked array
+                                if value.size == 1:
+                                    value = value.data.item()
+                                else:
+                                    # it is a masked array of more than one value
+                                    value = value.data.tolist()
+                            return value
         except Exception as _e:
             logger.exception(
                 "Builder.translate_template_item for variable %s: replacements: %s",
@@ -286,7 +344,7 @@ class NetcdfBuilder(Builder):
             )
         return value
 
-    def handle_document(self, base_var_name: str):
+    def handle_document(self, base_var_name: str, base_var_index: int = None) -> None:
         """
         This routine processes the complete document (essentially a complete netcdf file)
         Each template key or value that corresponds to a variable will be selected from
@@ -299,16 +357,26 @@ class NetcdfBuilder(Builder):
             raise TypeError(
                 f"Expected base_var_name to be a string, got {type(base_var_name).__name__}"
             )
+        if base_var_index is not None and not isinstance(base_var_index, int):
+            raise TypeError(
+                f"Expected base_var_index to be an int, got {type(base_var_index).__name__}"
+            )
 
         try:
             new_document = copy.deepcopy(self.template)
-            number_of_docs = self.ncdf_data_set.dimensions[base_var_name].size
+            if base_var_index is not None:
+                number_of_docs = 1
+                docs = [base_var_index]
+            else:
+                number_of_docs = self.ncdf_data_set.dimensions[base_var_name].size
+                docs = range(number_of_docs)
+
             if number_of_docs == 0:
                 return
             # make a copy of the template, which will become the new document
             # once all the translations have occured
             new_document = initialize_data_array(new_document)
-            for base_var_index in range(number_of_docs):
+            for base_var_index in docs:
                 for key in self.template:
                     if key == "data":
                         new_document = self.handle_data(
@@ -340,220 +408,8 @@ class NetcdfBuilder(Builder):
             )
             raise _e
 
-    def handle_3d_document(self, base_var_index: int, data_key_var_name: str) -> None:
-        """
-        This routine processes the complete 3d document (one record of the unlimited var)
-        Each template key or value that corresponds to a variable will be selected from
-        the netcdf file into a netcdf data set.
-        :return: The modified document_map
-        """
-        if not isinstance(base_var_index, int):
-            raise TypeError(
-                f"Expected base_var_index to be an int, got {type(base_var_index).__name__}"
-            )
-        if not isinstance(data_key_var_name, str):
-            raise TypeError(
-                f"Expected data_key_var_name to be a string, got {type(data_key_var_name).__name__}"
-            )
-
-        try:
-            new_document = copy.deepcopy(self.template)
-            # get the unlimited var
-            data_key_var_data_size = self.ncdf_data_set.dimensions[
-                data_key_var_name
-            ].size
-            if data_key_var_data_size == 0:
-                return
-            # make a copy of the template, which will become the new document
-            # once all the translations have occured
-            new_document = initialize_data_array(new_document)
-            for data_key_var_index in range(data_key_var_data_size):
-                for key in self.template:
-                    if key == "data":
-                        new_document = self.handle_3d_data(
-                            base_var_index=base_var_index,
-                            data_key_var_name=data_key_var_name,
-                            doc=new_document,
-                            data_key_var=data_key_var_index,
-                        )
-                        continue
-                    new_document = self.handle_3d_key(
-                        new_document,
-                        base_var_index,
-                        data_key_var_name,
-                        key,
-                        data_key_var_index,
-                    )
-            # put document into document map
-            if new_document["id"]:
-                logger.info(
-                    "NetcdfBuilder.handle_document - adding document %s",
-                    new_document["id"],
-                )
-                self.document_map[new_document["id"]] = new_document
-            else:
-                logger.info(
-                    "NetcdfBuilder.handle_document - cannot add document with key %s",
-                    str(new_document["id"]),
-                )
-        except Exception as _e:
-            logger.error(
-                "NetcdfBuilder.handle_document: Exception instantiating builder: %s error: %s",
-                self.__class__.__name__,
-                str(_e),
-            )
-            raise _e
-
-    def handle_3d_data(self, **kwargs: dict) -> dict:
-        """This method iterates the template entries, deciding for each entry to either
-        handle_named_function (if the entry starts with a '&') or to translate_template_item
-        if it starts with an '*'. It handles both keys and values for each template entry.
-        Args:
-            doc (Object): this is the data document that is being built
-        Returns:
-            (Object): this is the data document that is being built
-        """
-        try:
-            doc = kwargs["doc"]
-            base_var_index = kwargs["base_var_index"]
-            data_elem = {}
-            data_key = next(iter(self.template["data"]))
-            data_template = self.template["data"][data_key]
-            for key in data_template:
-                try:
-                    value = data_template[key]
-                    # values can be null...
-                    if value and value.startswith("&"):
-                        value = self.handle_named_function(value, base_var_index)
-                    else:
-                        value = self.translate_template_item(value, base_var_index)
-                        if ma.isMA(value):
-                            # it is a masked array
-                            if value.size <= 1:
-                                value = value.data.item()
-                            else:
-                                value = value.tolist()
-                except Exception as _e:
-                    value = None
-                    logger.warning(
-                        "%s Builder.handle_3d_data - value is None",
-                        self.__class__.__name__,
-                    )
-                data_elem[key] = value
-            if data_key.startswith("&"):
-                data_key = self.handle_named_function(data_key, base_var_index)
-            else:
-                data_key = self.translate_template_item(data_key, base_var_index)
-            if data_key is None:
-                logger.warning(
-                    "%s Builder.handle_3d_data - _data_key is None",
-                    self.__class__.__name__,
-                )
-            # add the height and load the raw data into the document - convert km to m
-            data_elem["height"] = [
-                i * 1000 for i in self.ncdf_data_set["height"][:].tolist()
-            ]
-            doc["raw_data"] = data_elem
-            # interpolate the data
-            interpolated_data = self.interpolate_3d_data(data_elem)
-            flat_interpolated_data = {}
-            flat_interpolated_data["levels"] = list(interpolated_data[key].keys())
-            for key in interpolated_data:
-                flat_interpolated_data[key] = list(interpolated_data[key].values())
-            doc["data"] = flat_interpolated_data
-            return doc
-        except Exception as _e:
-            logger.exception(
-                "%s handle_3d_data: Exception instantiating builder",
-                self.__class__.__name__,
-            )
-        return doc
-
-    def handle_3d_key(
-        self,
-        doc: dict,
-        base_var_index: int,
-        base_var_name: str,
-        key: str,
-        data_key_var_index: int,
-    ) -> dict:
-        """
-        This routine handles keys by substituting
-        the netcdf variables that correspond to the key into the values
-        in the template that begin with *
-        :param doc: the current document
-        :param base_var_index: The current unlimited variable
-        :param _key: A key to be processed, This can be a key to a primitive,
-        or to another dictionary, or to a named function
-        """
-        # Type checks
-        if not isinstance(doc, dict):
-            raise TypeError(
-                f"Expected 'doc' to be a dictionary, got {type(doc).__name__}"
-            )
-        if not isinstance(base_var_index, int):
-            raise TypeError(
-                f"Expected 'base_var_index' to be an int, got {type(base_var_index).__name__}"
-            )
-        if not isinstance(base_var_name, str):
-            raise TypeError(
-                f"Expected 'base_var_name' to be a string, got {type(base_var_name).__name__}"
-            )
-        if not isinstance(key, str):
-            raise TypeError(f"Expected 'key' to be a string, got {type(key).__name__}")
-        if not isinstance(data_key_var_index, int):
-            raise TypeError(
-                f"Expected 'data_key_var_index' to be an int, got {type(data_key_var_index).__name__}"
-            )
-
-        try:
-            if key == "id":
-                an_id = self.derive_id(
-                    base_var_index=base_var_index,
-                    template_id=self.template["id"],
-                )
-                if an_id not in doc:
-                    doc["id"] = an_id
-                return doc
-            if isinstance(doc[key], dict):
-                # process an embedded dictionary
-                tmp_doc = copy.deepcopy(self.template[key])
-                for sub_key in tmp_doc:
-                    tmp_doc = self.handle_3d_key(
-                        tmp_doc,
-                        base_var_index,
-                        base_var_name,
-                        sub_key,
-                        data_key_var_index,
-                    )  # recursion
-                doc[key] = tmp_doc
-            if (
-                not isinstance(doc[key], dict)
-                and isinstance(doc[key], str)
-                and doc[key].startswith("&")
-            ):
-                doc[key] = self.handle_named_function(doc[key], base_var_index)
-            else:
-                val = self.translate_template_item(doc[key], base_var_index)
-                if ma.isMA(val):
-                    # it is a masked array
-                    if val.size <= 1:
-                        doc[key] = val.data.item()
-                    else:
-                        doc[key] = val.tolist()
-                else:
-                    # it is a regular value
-                    doc[key] = val
-            return doc
-        except Exception as _e:
-            logger.exception(
-                "%s NetcdfBuilder.handle_key: Exception in builder",
-                self.__class__.__name__,
-            )
-        return doc
-
     def getBoundary_heights_for_level(
-        self, levels: list, heights: list, level: int
+        self, levels: list, heights: list[int], level: int
     ) -> dict:
         """
         This function is used to get the boundary heights for the levels.
@@ -645,14 +501,14 @@ class NetcdfBuilder(Builder):
             raise TypeError(
                 f"Expected 'level' to be an int, got {type(level).__name__}"
             )
-        if level not in standard_levels:
+        if level not in self.get_standard_levels():
             raise ValueError(
-                f"level {level} is not in standard_levels {standard_levels}"
+                f"level {level} is not in standard_levels {self.standard_levels}"
             )
 
         try:
             boundary_heights = self.getBoundary_heights_for_level(
-                standard_levels, heights, level
+                self.get_standard_levels(), heights, level
             )
         except TypeError as _e:
             raise TypeError(
@@ -722,62 +578,13 @@ class NetcdfBuilder(Builder):
                 f"Expected 'raw_data' to be a dictionary, got {type(raw_data).__name__}"
             )
 
-        # The standard levels are:
-        standard_levels = [
-            20,
-            40,
-            60,
-            80,
-            100,
-            120,
-            140,
-            160,
-            180,
-            200,
-            250,
-            300,
-            250,
-            300,
-            350,
-            400,
-            450,
-            500,
-            600,
-            700,
-            800,
-            900,
-            1000,
-            1100,
-            1200,
-            1300,
-            1400,
-            1500,
-            1600,
-            1700,
-            1800,
-            1900,
-            2000,
-            2200,
-            2400,
-            2600,
-            2800,
-            3000,
-            3200,
-            3400,
-            3600,
-            3800,
-            4000,
-            4200,
-            4400,
-            4600,
-            4800,
-            5000,
-        ]
         try:
             # Interpolate the data to the standard levels
             # raw heights are the valuse of the height variable in the netcdf file
             interpolated_data = {}
             heights = raw_data["height"]
+            # Get the standard levels from the metadata
+            standard_levels = self.get_standard_levels()
             # Get the boundary heights for the levels
             for level in standard_levels:
                 self.calculate_interpolated_values(
@@ -915,8 +722,14 @@ class NetcdfBuilder(Builder):
             params = named_function_def.split("|")[1].split(",")
             dict_params = {"base_var_index": base_var_index}
             for _p in params:
-                # be sure to slice the * off of the front of the param
-                dict_params[_p[1:]] = self.translate_template_item(_p, base_var_index)
+                # be sure to slice the * off of the front of the param - if it is there
+                if _p.startswith("*"):
+                    # this is a template item
+                    dict_params[_p[1:]] = self.translate_template_item(
+                        _p, base_var_index
+                    )
+                else:
+                    dict_params[_p] = self.translate_template_item(_p, base_var_index)
             # call the named function using getattr
             replace_with = getattr(self, func)(dict_params)
         except Exception as _e:
@@ -968,7 +781,7 @@ class NetcdfBuilder(Builder):
                     )
                 data_elem[key] = value
             if data_key.startswith("&"):
-                data_key = self.handle_named_function(data_key)
+                data_key = self.handle_named_function(data_key, base_var_index)
             else:
                 data_key = self.translate_template_item(data_key, base_var_index)
             if data_key is None:
@@ -976,6 +789,8 @@ class NetcdfBuilder(Builder):
                     "%s Builder.handle_data - _data_key is None",
                     self.__class__.__name__,
                 )
+            if "name" not in data_elem:
+                data_elem["name"] = data_key
             self.load_data(doc, data_elem)
             return doc
         except Exception as _e:
@@ -1072,14 +887,22 @@ class NetcdfBuilder(Builder):
 
     def load_data(self, doc: dict, element: dict) -> dict:
         """
-        This method adds an observation to the data dict -
-        in fact we use a dict to hold data elems to ensure
-        the data elements are unique per station name.
-        Using a map ensures that the last
-        entry in the netcdf file is the one that gets captured.
-        :param doc: The document being created
-        :param element: the observation data
-        :return: the document being created
+        Adds an observation to the provided document dictionary, ensuring that
+        data elements are unique per station name. If multiple observations exist
+        for the same station, the one closest to the target time is retained.
+        This method uses a dictionary to hold data elements, ensuring uniqueness
+        and capturing the most relevant observation for each station.
+        Args:
+            doc (dict): The document being created or updated. It must contain a
+                        "data" key to store observations, and a "fcstValidEpoch"
+                        key representing the target time.
+            element (dict): The observation data to be added. It must contain a
+                            "name" key for the station name and a "Reported Time"
+                            key for the observation timestamp.
+        Returns:
+            dict: The updated document with the observation added or replaced.
+        Raises:
+            TypeError: If `doc` or `element` is not a dictionary.
         """
         # Type checks
         if not isinstance(doc, dict):
@@ -1106,7 +929,7 @@ class NetcdfBuilder(Builder):
             return doc
         if "data" not in doc or doc["data"] is None:
             doc["data"] = {}
-        if element["name"] not in doc["data"]:
+        if "name" not in element or element["name"] not in doc["data"]:
             # we only want the closest record (to match the legacy-sql data)
             doc["data"][element["name"]] = element
         else:
@@ -1119,6 +942,30 @@ class NetcdfBuilder(Builder):
         return doc
 
     # named functions
+    def get_standard_levels(self):
+        """Returns the standard levels for the data
+        Returns:
+            list: the standard levels
+        """
+        if not self.standard_levels:
+            try:
+                docid = "MD:STANDARD_LEVELS:COMMON:V01"
+                self.standard_levels = (
+                    self.load_spec["collection"]
+                    .lookup_in(docid, (SD.get("TROPOE"),))
+                    .content_as[list](0)
+                )
+            except Exception as _e:
+                logger.error(
+                    "%s get_standard_levels: Exception in named function get_standard_levels:  error: %s",
+                    self.__class__.__name__,
+                    str(_e),
+                )
+                raise TypeError(
+                    f"{self.__class__.__name__} get_standard_levels: Exception in named function get_standard_levels"
+                ) from _e
+        return self.standard_levels
+
     def meterspersecond_to_milesperhour(self, params_dict):
         """Converts meters per second to mile per hour performing any translations that are necessary
         Args:
@@ -1128,7 +975,7 @@ class NetcdfBuilder(Builder):
         """
         # Meters/second to miles/hour
         try:
-            value = self.umask_value_transform(params_dict)
+            value = self.retrieve_from_netcdf(params_dict)
             if value is not None and value != "":
                 value = value * 2.237
             return value
@@ -1148,7 +995,7 @@ class NetcdfBuilder(Builder):
             [type]: [description]
         """
         try:
-            value = self.umask_value_transform(params_dict)
+            value = self.retrieve_from_netcdf(params_dict)
             if value is not None and value != "":
                 value = (float(value) - 273.15) * 1.8 + 32
             return value
@@ -1160,7 +1007,7 @@ class NetcdfBuilder(Builder):
             )
             return None
 
-    def umask_value_transform(self, params_dict):
+    def retrieve_from_netcdf(self, params_dict):
         """Retrieves a netcdf value, checking for masking and retrieves the value as a float
         Args:
             params_dict (dict): named function parameters
@@ -1182,7 +1029,7 @@ class NetcdfBuilder(Builder):
                 return None
         except Exception as _e:
             logger.error(
-                "%s umask_value_transform: Exception in named function umask_value_transform for key %s:  error: %s",
+                "%s retrieve_from_netcdf: Exception in named function retrieve_from_netcdf for key %s:  error: %s",
                 self.__class__.__name__,
                 key,
                 str(_e),
@@ -1197,15 +1044,15 @@ class NetcdfBuilder(Builder):
             float: the RH
         """
         try:
-            # dewpoint = self.umask_value_transform({"base_var_index": params_dict["base_var_index"], "dewpoint":"dewpoint"})
-            # temperature = self.umask_value_transform({"base_var_index": params_dict["base_var_index"], "temperature":"temperature"})
-            dewpoint = self.umask_value_transform(
+            # dewpoint = self.retrieve_from_netcdf({"base_var_index": params_dict["base_var_index"], "dewpoint":"dewpoint"})
+            # temperature = self.retrieve_from_netcdf({"base_var_index": params_dict["base_var_index"], "temperature":"temperature"})
+            dewpoint = self.retrieve_from_netcdf(
                 {
                     "base_var_index": params_dict["base_var_index"],
                     "dewpoint": params_dict["dewpoint"],
                 }
             )
-            temperature = self.umask_value_transform(
+            temperature = self.retrieve_from_netcdf(
                 {
                     "base_var_index": params_dict["base_var_index"],
                     "temperature": params_dict["temperature"],
@@ -1230,13 +1077,13 @@ class NetcdfBuilder(Builder):
             float: the wind direction
         """
         try:
-            _wind_dir = self.umask_value_transform(
+            _wind_dir = self.retrieve_from_netcdf(
                 {
                     "base_var_index": params_dict["base_var_index"],
                     "windDir": params_dict["windDir"],
                 }
             )
-            _wind_speed = self.umask_value_transform(
+            _wind_speed = self.retrieve_from_netcdf(
                 {
                     "base_var_index": params_dict["base_var_index"],
                     "windSpeed": params_dict["windSpeed"],
@@ -1267,13 +1114,13 @@ class NetcdfBuilder(Builder):
             float: the wind direction
         """
         try:
-            _wind_dir = self.umask_value_transform(
+            _wind_dir = self.retrieve_from_netcdf(
                 {
                     "base_var_index": params_dict["base_var_index"],
                     "windDir": params_dict["windDir"],
                 }
             )
-            _wind_speed = self.umask_value_transform(
+            _wind_speed = self.retrieve_from_netcdf(
                 {
                     "base_var_index": params_dict["base_var_index"],
                     "windSpeed": params_dict["windSpeed"],
@@ -1304,7 +1151,7 @@ class NetcdfBuilder(Builder):
             float: the pressure in millibars
         """
         try:
-            value = self.umask_value_transform(params_dict)
+            value = self.retrieve_from_netcdf(params_dict)
             if value is not None:
                 # convert to millibars (from pascals) and round
                 value = float(value) / 100

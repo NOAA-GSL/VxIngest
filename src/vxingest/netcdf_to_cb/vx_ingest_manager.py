@@ -40,10 +40,10 @@ import time
 
 from vxingest.builder_common.ingest_manager import CommonVxIngestManager
 from vxingest.netcdf_to_cb import (
-    netcdf_metar_obs_builder as NetcdfMetarObsBuilderV01,  # noqa: F401
+    netcdf_metar_obs_builder as NetcdfMetarObsBuilderV01,
 )
 from vxingest.netcdf_to_cb import (
-    netcdf_tropoe_obs_builder as NetcdfTropoeObsBuilderV01,  # noqa: F401
+    netcdf_tropoe_obs_builder as NetcdfTropoeObsBuilderV01,
 )
 
 # Get a logger with this module's name to help with debugging

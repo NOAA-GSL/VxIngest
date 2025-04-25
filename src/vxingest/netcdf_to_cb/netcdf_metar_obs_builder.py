@@ -130,7 +130,13 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
             mBKN = re.compile(".*BKN.*")  # Broken
             mOVC = re.compile(".*OVC.*")  # Overcast
             mVV = re.compile(".*VV.*")  # Vertical Visibility
-            mask_array = ma.getmaskarray(skyLayerBase)
+            # by the time we get here the skyLayerBase and skyCover arrays have been processed
+            # to remove the masked values (replaced with fill values from translate_template_item)
+            # but I need the mask here so I need to retrieve it from the netcdf again
+            mask_array = self.ncdf_data_set["skyLayerBase"][
+                params_dict["base_var_index"]
+            ].mask.tolist()
+            # mask_array = ma.getmaskarray(skyLayerBase)
             skyCover_array = skyCover[1:-1].replace("'", "").split(" ")
             # check for unmasked ceiling values - broken, overcast, vertical visibility - return associated skyLayerBase
             # name = str(nc.chartostring(self.ncdf_data_set['stationName'][params_dict['base_var_index']]))
@@ -186,7 +192,7 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
         """
         # vis_sm = vis_m / 1609.344
         try:
-            value = self.umask_value_transform(params_dict)
+            value = self.retrieve_from_netcdf(params_dict)
             if value is not None:
                 value = float(value) / 1609.344
             return value

@@ -53,7 +53,7 @@ def test_int_tropoe_visual():
 
     doc_id = "DD-TEST:V01:TROPOE:obs:1622851502"
     try:
-        res = collection.lookup_in(doc_id, (SD.get("raw_data"),))
+        res = collection.lookup_in(doc_id, (SD.get("data.1622851502.raw"),))
         data = res.content_as[dict](0)
         index = 0
         while index < len(data["height"]):
@@ -71,7 +71,7 @@ def test_int_tropoe_visual():
             raw_data[variable] = data[variable][:index]
 
         intrp_data = {}
-        res = collection.lookup_in(doc_id, (SD.get("data"),))
+        res = collection.lookup_in(doc_id, (SD.get("data.1622851502.interpolated"),))
         intrp_data = res.content_as[dict](0)
 
         fig = make_subplots(specs=[[{"secondary_y": True}]])

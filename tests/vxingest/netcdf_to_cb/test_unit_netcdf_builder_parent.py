@@ -80,13 +80,6 @@ class TestNetcdfBuilder(unittest.TestCase):
         with pytest.raises(TypeError):
             self.builder.handle_document(123)
 
-    def test_handle_3d_document_type_check(self):
-        """Test type checks in handle_3d_document."""
-        with pytest.raises(TypeError):
-            self.builder.handle_3d_document("not_an_int", "data_key_var_name")
-        with pytest.raises(TypeError):
-            self.builder.handle_3d_document(0, 123)
-
     def test_build_datafile_doc(self):
         """Test building a datafile document."""
         file_name = "test_file.nc"
@@ -121,7 +114,3 @@ class TestNetcdfBuilder(unittest.TestCase):
         result = self.builder.load_data(doc, element)
         assert "station1" in result["data"]
         assert result["data"]["station1"] == element
-
-
-if __name__ == "__main__":
-    unittest.main()

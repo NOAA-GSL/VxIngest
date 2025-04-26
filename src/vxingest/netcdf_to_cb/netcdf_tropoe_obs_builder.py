@@ -170,9 +170,11 @@ class NetcdfTropoeObsBuilderV01(NetcdfBuilder):
             flat_interpolated_data["levels"] = list(
                 interpolated_data[list(interpolated_data.keys())[0]].keys()
             )
+            lower_index = flat_interpolated_data["levels"].index(lower)
+            upper_index = flat_interpolated_data["levels"].index(upper)
             for key in interpolated_data:
                 flat_interpolated_data[key] = list(interpolated_data[key].values())[
-                    lower:upper
+                    lower_index:upper_index
                 ]
         except Exception as _e:
             logger.error(f"*** get_interpolated_data: Exception: {str(_e)}")

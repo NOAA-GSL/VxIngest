@@ -51,69 +51,75 @@ def test_int_tropoe_visual():
             "*** builder_common.CommonVxIngest Error in connect_cb *** %s", str(_e)
         )
 
-    doc_id = "DD-TEST:V01:TROPOE:obs:1622851502"
+    # add 21600 to each document time to get 6 hours intervals
     try:
-        res = collection.lookup_in(doc_id, (SD.get("data.1622851502.raw"),))
-        data = res.content_as[dict](0)
-        index = 0
-        while index < len(data["height"]):
-            if data["height"][index] >= 5000:
-                break
-            index += 1
-        raw_data = {}
-        for variable in [
-            "temperature",
-            "sigma_temperature",
-            "waterVapor",
-            "sigma_waterVapor",
-            "height",
-        ]:
-            raw_data[variable] = data[variable][:index]
+        epoch = 1622851502
+        for i in range(0, 3):
+            epoch = epoch + i * 21600
+            doc_id = f"DD-TEST:V01:TROPOE:obs:{epoch}"
+        # doc_id = "DD-TEST:V01:TROPOE:obs:1622851502"
+            try:
+                res = collection.lookup_in(doc_id, (SD.get(f"data.{epoch}.raw"),))
+                data = res.content_as[dict](0)
+                index = 0
+                while index < len(data["height"]):
+                    if data["height"][index] >= 5000:
+                        break
+                    index += 1
+                raw_data = {}
+                for variable in [
+                    "temperature",
+                    "sigma_temperature",
+                    "waterVapor",
+                    "sigma_waterVapor",
+                    "height",
+                ]:
+                    raw_data[variable] = data[variable][:index]
 
-        intrp_data = {}
-        res = collection.lookup_in(doc_id, (SD.get("data.1622851502.interpolated"),))
-        intrp_data = res.content_as[dict](0)
+                intrp_data = {}
+                res = collection.lookup_in(doc_id, (SD.get(f"data.{epoch}.interpolated"),))
+                intrp_data = res.content_as[dict](0)
 
-        fig = make_subplots(specs=[[{"secondary_y": True}]])
-        fig.add_trace(
-            go.Line(
-                y=raw_data["height"],
-                x=raw_data["temperature"],
-                name="raw data temperature",
-            ),
-        )
-        fig.add_trace(
-            go.Line(
-                y=intrp_data["levels"],
-                x=intrp_data["temperature"],
-                name="interpolated data temperature",
-            ),
-        )
-        fig.add_trace(
-            go.Line(
-                y=raw_data["height"],
-                x=raw_data["waterVapor"],
-                name="raw data waterVapor",
-            ),
-        )
-        fig.add_trace(
-            go.Line(
-                y=intrp_data["levels"],
-                x=intrp_data["waterVapor"],
-                name="interpolated data waterVapor",
-            ),
-        )
-
-        fig.update_layout(title="fireweather raw data vs interpolated data")
-        fig.update_traces(mode="lines+markers")
-        fig.update_traces(marker=dict(size=5))
-        fig.update_xaxes(title_text="temperature degC / waterVapor g/kg")
-        fig.update_yaxes(title_text="height/levels meters")
-        fig.show()
-    except Exception as _e:
-        pytest.fail(
-            f"*** builder_common.CommonVxIngest Error in connect_cb *** {str(_e)}"
-        )
+                fig = make_subplots(specs=[[{"secondary_y": True}]])
+                fig.add_trace(
+                    go.Line(
+                        y=raw_data["height"],
+                        x=raw_data["temperature"],
+                        name="raw data temperature",
+                    ),
+                )
+                fig.add_trace(
+                    go.Line(
+                        y=intrp_data["levels"],
+                        x=intrp_data["temperature"],
+                        name="interpolated data temperature",
+                    ),
+                )
+                fig.add_trace(
+                    go.Line(
+                        y=raw_data["height"],
+                        x=raw_data["waterVapor"],
+                        name="raw data waterVapor",
+                    ),
+                )
+                fig.add_trace(
+                    go.Line(
+                        y=intrp_data["levels"],
+                        x=intrp_data["waterVapor"],
+                        name="interpolated data waterVapor",
+                    ),
+                )
+                time_str = str(dt.datetime.utcfromtimestamp(epoch).isoformat())
+                fig.update_layout(title=f"fireweather raw data vs interpolated data {time_str}")
+                fig.update_traces(mode="lines+markers")
+                fig.update_traces(marker=dict(size=5))
+                fig.update_xaxes(title_text="temperature degC / waterVapor g/kg")
+                fig.update_yaxes(title_text="height/levels meters")
+                fig.show()
+            except Exception as _e:
+                pytest.fail(
+                    f"*** builder_common.CommonVxIngest Error in connect_cb *** {str(_e)}"
+                )
     finally:
         cluster.close()
         print("Connection closed")

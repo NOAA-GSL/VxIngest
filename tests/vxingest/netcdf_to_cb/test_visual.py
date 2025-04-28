@@ -57,7 +57,7 @@ def test_int_tropoe_visual():
         for i in range(0, 3):
             epoch = epoch + i * 21600
             doc_id = f"DD-TEST:V01:TROPOE:obs:{epoch}"
-        # doc_id = "DD-TEST:V01:TROPOE:obs:1622851502"
+            # doc_id = "DD-TEST:V01:TROPOE:obs:1622851502"
             try:
                 res = collection.lookup_in(doc_id, (SD.get(f"data.{epoch}.raw"),))
                 data = res.content_as[dict](0)
@@ -77,7 +77,9 @@ def test_int_tropoe_visual():
                     raw_data[variable] = data[variable][:index]
 
                 intrp_data = {}
-                res = collection.lookup_in(doc_id, (SD.get(f"data.{epoch}.interpolated"),))
+                res = collection.lookup_in(
+                    doc_id, (SD.get(f"data.{epoch}.interpolated"),)
+                )
                 intrp_data = res.content_as[dict](0)
 
                 fig = make_subplots(specs=[[{"secondary_y": True}]])
@@ -110,7 +112,9 @@ def test_int_tropoe_visual():
                     ),
                 )
                 time_str = str(dt.datetime.utcfromtimestamp(epoch).isoformat())
-                fig.update_layout(title=f"fireweather raw data vs interpolated data {time_str}")
+                fig.update_layout(
+                    title=f"fireweather raw data vs interpolated data {time_str}"
+                )
                 fig.update_traces(mode="lines+markers")
                 fig.update_traces(marker=dict(size=5))
                 fig.update_xaxes(title_text="temperature degC / waterVapor g/kg")

@@ -22,6 +22,7 @@ from pathlib import Path
 
 import pytest
 
+from vxingest.netcdf_to_cb.netcdf_builder_parent import NetcdfBuilder  # noqa: F401
 from vxingest.netcdf_to_cb.run_ingest_threads import VXIngest
 
 
@@ -52,7 +53,7 @@ def assert_dicts_almost_equal(dict1, dict2, rel_tol=1e-09):
             assert_dicts_almost_equal(dict1[key], dict2[key], rel_tol)
         else:
             assert dict1[key] == pytest.approx(dict2[key], rel=rel_tol), (
-                f"Values for {key} do not match"
+                f"Values for station {dict1['name']} {key} do not match dict1[key]: {dict1[key]} dict2[key]: {dict2[key]}"
             )
 
 

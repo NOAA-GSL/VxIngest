@@ -29,11 +29,11 @@ be certain that it already exists or you must create it.
       "*stationName": {
         "Ceiling": "&ceiling_transform|*skyCover,*skyLayerBase",
         "DewPoint": "&kelvin_to_fahrenheit|*dewpoint",
-        "Reported Time": "&umask_value_transform|*timeObs",
+        "Reported Time": "&retrieve_from_netcdf|*timeObs",
         "Surface Pressure": "&handle_pressure|*altimeter",
         "Temperature": "&kelvin_to_fahrenheit|*temperature",
         "Visibility": "&handle_visibility|*visibility",
-        "WD": "&umask_value_transform|*windDir",
+        "WD": "&retrieve_from_netcdf|*windDir",
         "WS": "&meterspersecond_to_milesperhour|*windSpeed",
         "name": "&handle_station|*stationName"
       }

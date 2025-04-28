@@ -168,7 +168,7 @@ SERVER VERSION IS GREATER THAN 6.5.
 
 To use the UI navigate to the UI Query page
 
-[adb-cb4-query](https://adb-cb4.gsd.esrl.noaa.gov:18091/ui/index.html#!/query
+[adb-cb4-query](https://adb-cb4.gsd.esrl.noaa.gov:18091/ui/index.html#!/query)
 
 Enter this query into the query editor and execute the query.
 

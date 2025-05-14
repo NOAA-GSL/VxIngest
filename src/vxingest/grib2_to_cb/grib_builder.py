@@ -106,7 +106,7 @@ class GribModelBuilderV01(GribBuilder):
             self.handle_document()
         return self.document_map
 
-    def load_data(self, doc, key, element):
+    def load_data(self, doc, element):
         """This method builds the data dictionary. It gets the data key ('data') and the data element
         which in this case is a map indexed by station name.
         Args:
@@ -124,7 +124,10 @@ class GribModelBuilderV01(GribBuilder):
                 elem = {}
                 for key in keys:
                     if element[key] is not None:
-                        elem[key] = element[key][i]
+                        if isinstance(element[key], list):
+                            elem[key] = element[key][i]
+                        else:
+                            elem[key] = element[key]
                     else:
                         elem[key] = None
                 doc["data"][elem["name"]] = elem

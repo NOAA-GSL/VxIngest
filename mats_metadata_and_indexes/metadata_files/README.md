@@ -32,11 +32,11 @@ be certain that it already exists or you must create it.
       "*stationName": {
         "Ceiling": "&ceiling_transform|*skyCover,*skyLayerBase",
         "DewPoint": "&kelvin_to_fahrenheit|*dewpoint",
-        "Reported Time": "&umask_value_transform|*timeObs",
+        "Reported Time": "&retrieve_from_netcdf|*timeObs",
         "Surface Pressure": "&handle_pressure|*altimeter",
         "Temperature": "&kelvin_to_fahrenheit|*temperature",
         "Visibility": "&handle_visibility|*visibility",
-        "WD": "&umask_value_transform|*windDir",
+        "WD": "&retrieve_from_netcdf|*windDir",
         "WS": "&meterspersecond_to_milesperhour|*windSpeed",
         "name": "&handle_station|*stationName"
       }
@@ -73,7 +73,7 @@ The line
 ```"builder_type": "NetcdfObsBuilderV01"```
 defines a python class. These builder classes are defined
 in the [netcdf_to_cb/netcdf_builder.py](https://github.com/NOAA-GSL/VxIngest/blob/main/netcdf_to_cb/netcdf_builder.py) file. This class will interpret the
-ingest data from a set of netcdf files retrieved from the path.
+load_spec and ingest data from a set of netcdf files retrieved from the path.
 Whether the entire result set is combined into one document or multiple documents depends on the "builder_type".
 In this example the "NetcdfObsBuilderV01" combines all
 the data into one document with the data fields ingested as top level
@@ -120,8 +120,8 @@ def ceiling_transform(self, params_dict):
 The named function routine processes a named function entry from a template.
 The '_named_function_def' looks like "&named_function|*field1,*field2,*field3..."
 where "named_function" is the literal function name of a defined function.
-The name of the function and the function parameters are separated by a "|" and
-the parameters are separated by a ','.
+The name of the function and the function parameters are seperated by a "|" and
+the parameters are seperated by a ','.
 It is expected that field1, field2, and field3 etc are all valid variable names or constants.
 Each non constant field will be translated from the netcdf file into value1, value2 etc. Each
 constant will be positioned as is in the output document.
@@ -175,7 +175,7 @@ SERVER VERSION IS GREATER THAN 6.5.
 
 To use the UI navigate to the UI Query page
 
-[adb-cb4-query](https://adb-cb4.gsd.esrl.noaa.gov:18091/ui/index.html#!/query
+[adb-cb4-query](https://adb-cb4.gsd.esrl.noaa.gov:18091/ui/index.html#!/query)
 
 Enter this query into the query editor and execute the query.
 
@@ -362,4 +362,3 @@ Running the script is pretty straightforward. cd to the root of the vxingest loc
 ```
 
 where credentials_file is the actual credentials file (full path). The script imports the document that you checked in. Typically this script is run automatically when the ingest is triggered.
-

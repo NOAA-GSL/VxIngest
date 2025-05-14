@@ -169,9 +169,12 @@ class VXIngest(CommonVxIngest):
             # put the real credentials into the load_spec
             logger.info("getting cb_credentials")
             self.cb_credentials = self.get_credentials(self.load_spec)
+            # get the intended subset (collection from the job_id)
+            id_fields = self.job_document_id.split(":")
+            self.cb_credentials["collection"] = id_fields[2]
             # establish connections to cb, collection
             self.connect_cb()
-            logger.info("connected to cb")
+            logger.info("connected to cb - collection is %s", self.collection.name)
             collection = self.load_spec["cb_connection"]["collection"]
             bucket = self.load_spec["cb_connection"]["bucket"]
             scope = self.load_spec["cb_connection"]["scope"]
@@ -193,7 +196,9 @@ class VXIngest(CommonVxIngest):
             self.load_spec["fmask"] = self.fmask
             self.load_spec["input_data_path"] = self.path
             # stash the load_job in the load_spec
-            self.load_spec["load_job_doc"] = self.build_load_job_doc("madis")
+            self.load_spec["load_job_doc"] = self.build_load_job_doc(
+                self.load_spec["cb_connection"]["collection"]
+            )
         except (RuntimeError, TypeError, NameError, KeyError):
             logger.error(
                 "*** Error occurred in Main reading load_spec: %s ***",

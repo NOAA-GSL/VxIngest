@@ -21,21 +21,39 @@ if [ "${basename_root}" != ${basename_current} ]; then
     exit 1
 fi
 
+usage() {
+    echo "Usage: $0 [-l <local_test_dir>] [-b <local_build_dir>] [-v NCEPLIBSbufr_version]" 1>&2
+    exit 1
+    echo "The local_test option requires a path to the exploded test data from the bufr-12.2.0.tgz file."
+    echo "The local_build option requires a path to a local build directory. If absent a tmdir will be used"
+    exit 1
+}
+
 local_test=false
-# Check for the local_test option
-if [ "${1:-}" == "local_test" ]; then
-    if [ -z "${2:-}" ]; then
-        echo "The local_test option requires a path to the exploded test data from the bufr-12.1.0.tgz file."
-        exit 1
-    fi
-    bufr_test_dir=$2
-    if [ ! -d ${bufr_test_dir} ]; then
-        echo "The directory ${bufr_test_dir} does not exist."
-        exit 1
-    fi
-    echo "Using the local bufr_test_dir directory: ${bufr_test_dir}"
-    local_test=true
-fi
+NCEPLIBSbufr_version="12.2.0"
+while getopts ":l:b:v:" o; do
+    case "${o}" in
+        l)
+            local_build_dir=${OPTARG}
+            [ -d ${local_build_dir} ] || usage
+            echo "Using local build directory ${local_build_dir}"
+        ;;
+        b)
+            bufr_test_dir=${OPTARG}
+            [ -d ${bufr_test_dir} ] || usage
+            local_test=true
+            echo "Using local test data directory ${bufr_test_dir}"
+        ;;
+        v)
+            NCEPLIBSbufr_version=${OPTARG}
+            echo "Using NCEPLIBSbufr version ${NCEPLIBSbufr_version}"
+        ;;
+        *)
+            usage
+        ;;
+    esac
+done
+shift $((OPTIND - 1))
 
 # do we have gfortran?
 gfortran -v
@@ -68,35 +86,41 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# NOTE: We were using the develop version for now because none of the releases support python12 yet.
-# Now that a release is made that supports python 3.12, we can switch to that.
- NCEPLIBSbufr_version="12.1.0"
-# Use a specific sha for now - we know that one builds
-#NCEPLIBSbufr_version="0d9834838df19879d5469c4c121f81d00eb13c66"
-tmp_workdir=$(mktemp -d)
+NCEPLIBSbufr_version="12.2.0"
+if [ -z ${local_build_dir} ]; then
+    # create a temporary directory for the build
+    tmp_workdir=$(mktemp -d)
+else
+    # use the local build directory
+    tmp_workdir=${local_build_dir}
+fi
 cd $tmp_workdir
 wget https://github.com/NOAA-EMC/NCEPLIBS-bufr/archive/refs/tags/v${NCEPLIBSbufr_version}.tar.gz
-#wget https://github.com/NOAA-EMC/NCEPLIBS-bufr/archive/${NCEPLIBSbufr_version}.zip
-tar -xzf v${NCEPLIBSbufr_version}.tar.gz
-#unzip ${NCEPLIBSbufr_version}.zip
-cd NCEPLIBS-bufr-${NCEPLIBSbufr_version}
-
-# Create and use a 3.12 python venv
-# Check python version
-pver=$(python --version | awk '{print $2}' | awk -F'.' '{print $1""$2}')
-if [ ${pver} != "312" ]; then
-    echo "Wrong python version - should be 3.12.x"
+if [ $? -ne 0 ]; then
+    echo "Unable to download NCEPLIBS-bufr version ${NCEPLIBSbufr_version}. Exiting."
     exit 1
 fi
+tar -xzf v${NCEPLIBSbufr_version}.tar.gz
+cd NCEPLIBS-bufr-${NCEPLIBSbufr_version}
 
+# Create and use a python venv
+# Check python version
+pver=$(python --version | awk '{print $2}' | awk -F'.' '{print $1""$2}')
+if [ ! ${pver} -ge 311 ]; then
+    echo "Wrong python version - should be greater than or equal to 3.11.x"
+    exit 1
+fi
+# capture the python version
+pyver=$(python --version | awk '{print $2}' | awk -F'.' '{print $1"."$2}')
+echo "Using python version ${pyver}"
 # get the platform
 platform=$(python -c "import sysconfig;print(sysconfig.get_platform())")
 # transform the platform string to the format used by many linux (change '-' and '.' to '_' and make it lowercase)
 platform=$(echo ${platform} | tr '[:upper:]' '[:lower:]' | tr '-' '_' | tr '.' '_')
 # create venv
-python -m venv .venv-3.12
+python -m venv .venv-${pyver}
 # activate venv
-. .venv-3.12/bin/activate
+. .venv-${pyver}/bin/activate
 # add poetry to path
 PATH=$PATH:${HOME}/.local/bin
 # upgrade pip
@@ -116,25 +140,26 @@ cd build
 if [ "${local_test}" = true ]; then
     cmake -DCMAKE_INSTALL_PREFIX=./install -DENABLE_PYTHON=ON -DTEST_FILE_DIR=${bufr_test_dir} ..
 else
-    cmake -DCMAKE_INSTALL_PREFIX=./install -DENABLE_PYTHON=ON ..
+    cmake -DCMAKE_INSTALL_PREFIX=./install -DENABLE_PYTHON=ON -DBUILD_TESTING=OFF ..
 fi
 make -j2 VERBOSE=1
 make install
+#echo "Running tests..."
 ctest --verbose --output-on-failure --rerun-failed
 if [ $? -ne 0 ]; then
     echo "ctest did not pass!"
-#    exit 1
+    exit 1
 fi
-
 # Now the poetry parts must be copied into the ${tmp_workdir} to enable the poetry build
 # linux_x86_64 appears to want to put all this lib stuff under lib64 not lib
 libdir="lib"
 if [ "$platform" = "linux_x86_64" ]; then
     libdir="lib64"
 fi
-cd ${tmp_workdir}/NCEPLIBS-bufr-${NCEPLIBSbufr_version}/build/install/${libdir}/python3.12/site-packages
+cd ${tmp_workdir}/NCEPLIBS-bufr-${NCEPLIBSbufr_version}/build/install/${libdir}/python${pyver}/site-packages
 cp -a ${VxIngest_root_dir}/third_party/NCEPLIBS-bufr/ncepbufr/* .
-
+# copy the binary library file to the standard name that the python imports expect
+cp *.so _bufrlib
 # check for poetry
 poetry -V
 if [ $? -ne 0 ]; then

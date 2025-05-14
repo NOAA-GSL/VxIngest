@@ -9,28 +9,30 @@ authors = [
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.12"
+python = "^3.13"
 pyyaml = "^6.0.2"
-xarray = "^2024.7.0"
-netcdf4 = "^1.7.1"
-cfgrib = "^0.9.14.1"
-couchbase = "^4.3.1"
-pyproj = "^3.6.1"
-numpy = "^2.1.0"
+xarray = "^2025.3.1"
+netcdf4 = "^1.7.2"
+cfgrib = "^0.9.15.0"
+couchbase = "^4.3.5"
+pyproj = "^3.7.0"
+numpy = "^2.2.4"
 metpy = "^1.6.3"
-prometheus-client = "^0.20.0"
+prometheus-client = "^0.21.1"
 mysql-connector = "^2.2.9"
 tabulate = "^0.9.0"
 ncepbufr = [
-	{ platform = "linux", markers = "platform_machine == 'x86_64'", file = "./third_party/NCEPLIBS-bufr/wheel_dist/ncepbufr-12.1.0-py312-none-linux_x86_64.whl" },
-	{ platform = "darwin", markers = "platform_machine == 'arm64'", file = "./third_party/NCEPLIBS-bufr/wheel_dist/ncepbufr-12.1.0-py312-none-macosx_14_0_arm64.whl" }
+	{ platform = "linux", markers = "platform_machine == 'x86_64'", file = "./third_party/NCEPLIBS-bufr/wheel_dist/ncepbufr-12.2.0-py313-none-linux_x86_64.whl" },
+	{ platform = "darwin", markers = "platform_machine == 'arm64'", file = "./third_party/NCEPLIBS-bufr/wheel_dist/ncepbufr-12.2.0-py313-none-macosx_15_0_arm64.whl" }
 ]
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.3.2"
-types-pyyaml = "^6.0.12.20240808"
-ruff = "^0.6.3"
-coverage = "^7.6.1"
+pytest = "^8.3.5"
+types-pyyaml = "^6.0.12.20250326"
+ruff = "^0.11.2"
+coverage = "^7.8.0"
+mypy = "^1.15.0"
+plotly = "^6.0.1"
 
 [build-system]
 requires = ["poetry-core"]

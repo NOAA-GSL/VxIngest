@@ -48,7 +48,7 @@ jobs:
           poetry env use 3.12
           poetry install
       - name: Unit test with pytest
-        run: | 
+        run: |
           poetry run coverage run -m pytest -m "not integration" tests
           poetry run coverage report
           poetry run coverage xml

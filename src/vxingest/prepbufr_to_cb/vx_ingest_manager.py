@@ -196,7 +196,7 @@ class VxIngestManager(CommonVxIngestManager):
                                         list(pb_interpolated_220.keys())
                                     ):
                                         self.debug_station_file.write(
-                                            f"level:{level} {variable}: {builder.interpolated_data[station][220]["data"][variable].get(level, None)}\n"
+                                            f"level:{level} {variable}: {builder.interpolated_data[station][220]['data'][variable].get(level, None)}\n"
                                         )
 
                                 # write station data

@@ -452,11 +452,7 @@ def process_jobs(
                         log_configurer,
                     )
                 except SystemExit as e:
-                    if e.code == 0:
-                        # Job succeeded
-                        job_succeeded = True
-                else:
-                    job_succeeded = True
+                    job_succeeded = bool(e.code == 0)
             case "netcdf":
                 # FIXME: Update calling code to raise instead of calling sys.exit
                 try:
@@ -467,11 +463,7 @@ def process_jobs(
                         log_configurer,
                     )
                 except SystemExit as e:
-                    if e.code == 0:
-                        # Job succeeded
-                        job_succeeded = True
-                else:
-                    job_succeeded = True
+                    job_succeeded = bool(e.code == 0)
             case "ctc":
                 # FIXME: Update calling code to raise instead of calling sys.exit
                 try:
@@ -497,11 +489,7 @@ def process_jobs(
                         log_configurer,
                     )
                 except SystemExit as e:
-                    if e.code == 0:
-                        # Job succeeded
-                        job_succeeded = True
-                else:
-                    job_succeeded = True
+                    job_succeeded = bool(e.code == 0)
             case "prepbufr_raob":
                 # FIXME: Update calling code to raise instead of calling sys.exit
                 try:

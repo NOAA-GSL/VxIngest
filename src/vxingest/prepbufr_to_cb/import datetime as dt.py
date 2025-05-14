@@ -3,12 +3,12 @@ import os
 import pathlib
 import sys
 
-import couchbase.subdocument as SD
 import plotly.graph_objects as go
 import pytest
 import yaml
 from couchbase.auth import PasswordAuthenticator
 from couchbase.cluster import Cluster
+from couchbase.collection import GetSpec as SD
 from couchbase.options import ClusterOptions, ClusterTimeoutOptions
 from plotly.subplots import make_subplots
 

@@ -194,6 +194,7 @@ def main():
     except Exception as e:
         print(f"Error: {e}")
 
+
 def extract_float_value(line):
     _val = round(float(line.split()[1])) if line.split()[1] != "MISSING" else None
     return _val

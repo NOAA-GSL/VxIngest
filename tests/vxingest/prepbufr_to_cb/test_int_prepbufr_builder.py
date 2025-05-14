@@ -54,9 +54,9 @@ def setup_connection():
 
 def assert_dicts_almost_equal(dict1, dict2, rel_tol=1e-09):
     """Utility function to compare potentially nested dictionaries containing floats"""
-    assert set(dict1.keys()) == set(
-        dict2.keys()
-    ), "Dictionaries do not have the same keys"
+    assert set(dict1.keys()) == set(dict2.keys()), (
+        "Dictionaries do not have the same keys"
+    )
     for key in dict1:
         if isinstance(dict1[key], dict):
             assert_dicts_almost_equal(dict1[key], dict2[key], rel_tol)
@@ -82,46 +82,6 @@ def test_one_thread_specify_file_pattern(tmp_path: Path):
     try:
         log_queue = Queue()
         vx_ingest = setup_connection()
-        # # stations = [
-        # #     "70026",
-        # #     "72393",
-        # #     "74794",
-        # #     "71119",
-        # #     "76225",
-        # #     "76256",
-        # #     "76458",
-        # #     "76526",
-        # #     "76595",
-        # #     "76612",
-        # #     "76644",
-        # #     "76654",
-        # #     "76679",
-        # #     "76692",
-        # #     "76743",
-        # #     "76903",
-        # #     "78384",
-        # #     "78397",
-        # #     "78486",
-        # #     "78526",
-        # #     "78583",
-        # #     "78954",
-        # #     "78970",
-        # #     "82022",
-        # #     "82026",
-        # #     "82099",
-        # #     "82107",
-        # #     "82193",
-        # #     "82244",
-        # #     "82332",
-        # #     "82411",
-        # #     "82532",
-        # #     "82599",
-        # #     "82705",
-        # # ]
-        # print("Testing stations: ", stations)
-        # print(f"output path is: {tmp_path}")
-        # vx_ingest.write_data_for_station_list = stations
-        # vx_ingest.write_data_for_levels = [200, 300, 500, 700, 900]
         try:
             vx_ingest.runit(
                 {
@@ -131,9 +91,6 @@ def test_one_thread_specify_file_pattern(tmp_path: Path):
                     "output_dir": f"{tmp_path}",
                     "threads": 1,
                     "file_pattern": "242130000*",  # specifically /opt/data/prepbufr_to_cb/input_files/242130000.gdas.t00z.prepbufr.nr,
-                    # "file_pattern": "242131200*",  # specifically /opt/data/prepbufr_to_cb/input_files/242131200.gdas.t00z.prepbufr.nr,
-                    # "file_pattern": "242121800*",  # specifically /opt/data/prepbufr_to_cb/input_files/242121800.gdas.t00z.prepbufr.nr,
-                    # "file_pattern": "241570000*",  # specifically /opt/data/prepbufr_to_cb/input_files/241570000.gdas.t00z.prepbufr.nr,
                 },
                 log_queue,
                 stub_worker_log_configurer,
@@ -152,20 +109,17 @@ def test_one_thread_specify_file_pattern(tmp_path: Path):
             "LJ:RAOB:vxingest.prepbufr_to_cb.run_ingest_threads:VXIngest:*.json"
         )
         num_load_job_files = len(list(tmp_path.glob(lj_doc_regex)))
-        assert (
-            num_load_job_files >= 1
-        ), f"Number of load job files is incorrect {num_load_job_files} is not >= 1"
+        assert num_load_job_files >= 1, (
+            f"Number of load job files is incorrect {num_load_job_files} is not >= 1"
+        )
 
         # Test that we have one output file per input file
         input_path = Path("/opt/data/prepbufr_to_cb/input_files")
         num_input_files = len(list(input_path.glob("242130000*")))
-        # num_input_files = len(list(input_path.glob("242131200*")))
-        # num_input_files = len(list(input_path.glob("242121800*")))
-        # num_input_files = len(list(input_path.glob("241011200*")))
         num_output_files = len(output_file_list)
-        assert (
-            num_output_files == num_input_files
-        ), f"number of output files is incorrect {num_output_files} != {num_input_files}"
+        assert num_output_files == num_input_files, (
+            f"number of output files is incorrect {num_output_files} != {num_input_files}"
+        )
 
         # Test that the output file matches the content in the database
 

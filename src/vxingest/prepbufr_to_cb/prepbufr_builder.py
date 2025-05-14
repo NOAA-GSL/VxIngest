@@ -115,7 +115,7 @@ class PrepbufrBuilder(Builder):
             new_id = ":".join(new_parts)
             return new_id
         except Exception as _e:
-            logging.exception("ApiBuilder.derive_id: Exception  error: %s")
+            logger.exception("ApiBuilder.derive_id: Exception  error: %s")
             return None
 
     def translate_template_item(self, stationName, level, variable):
@@ -209,7 +209,7 @@ class PrepbufrBuilder(Builder):
                         return value
             return value
         except Exception as _e:
-            logging.error(
+            logger.error(
                 "PrepBufrBuilder.translate_template_item: Exception  error: %s", str(_e)
             )
             return None
@@ -253,7 +253,7 @@ class PrepbufrBuilder(Builder):
             except Exception as _e1:
                 if not isinstance(_e1, ZeroDivisionError):
                     # don't log divide by zero (two adjacent levels with same)
-                    logging.error(
+                    logger.error(
                         "PrepBufrBuilder.interpolate_variable_for_level: Exception  error: %s",
                         str(_e1),
                     )
@@ -308,7 +308,7 @@ class PrepbufrBuilder(Builder):
                     )
                     return value
         except Exception as _e:
-            logging.error(
+            logger.error(
                 "PrepBufrBuilder.interpolate_level: Exception  error: %s", str(_e)
             )
             return None
@@ -432,7 +432,7 @@ class PrepbufrBuilder(Builder):
                                     level,
                                 )
                             except Exception as _e:
-                                logging.error(
+                                logger.error(
                                     "PrepBufrBuilder.interpolate_data: Exception  error: %s",
                                     str(_e),
                                 )
@@ -440,7 +440,7 @@ class PrepbufrBuilder(Builder):
                                     level
                                 ] = None
         except Exception as _e:
-            logging.error(
+            logger.error(
                 "PrepBufrBuilder.interpolate_data: Exception  error: %s", str(_e)
             )
         # set the pressure levels to the mandatory levels now that the data has all been interpolated to mandatory levels
@@ -498,19 +498,19 @@ class PrepbufrBuilder(Builder):
                     new_document = self.handle_key(new_document, level, key)
                     # put new document into document map
                     if new_document["id"]:
-                        logging.info(
+                        logger.info(
                             "PrepbufrBuilder.handle_document - adding document %s",
                             new_document["id"],
                         )
                         self.document_map[new_document["id"]] = new_document
                     else:
-                        logging.info(
+                        logger.info(
                             "PrepbufrBuilder.handle_document - cannot add document with key %s",
                             str(new_document["id"]),
                         )
                         self.document_map[new_document["id"]] = new_document
         except Exception as _e:
-            logging.error(
+            logger.error(
                 "PrepbufrBuilder.handle_document: Exception instantiating builder: %s error: %s",
                 self.__class__.__name__,
                 str(_e),
@@ -565,7 +565,7 @@ class PrepbufrBuilder(Builder):
                 doc[key] = self.translate_template_item(stationName, level, doc[key])
             return doc
         except Exception as _e:
-            logging.exception(
+            logger.exception(
                 "%s ApiBuilder.handle_key: Exception in builder",
                 self.__class__.__name__,
             )
@@ -610,7 +610,7 @@ class PrepbufrBuilder(Builder):
                 replace_with = getattr(self, func)(dict_params)
         except ValueError as _ve:
             if not isinstance(_ve, ValueError):
-                logging.error(
+                logger.error(
                     "%s handle_named_function: %s params %s: ValueError instantiating builder: %s",
                     self.__class__.__name__,
                     func,
@@ -619,7 +619,7 @@ class PrepbufrBuilder(Builder):
                 )
             raise _ve
         except Exception as _e:
-            logging.exception(
+            logger.exception(
                 "%s handle_named_function: %s params %s: Exception instantiating builder:",
                 self.__class__.__name__,
                 func,
@@ -670,7 +670,7 @@ class PrepbufrBuilder(Builder):
                             raise _ve
                         except Exception as _e:
                             replace_value = None
-                            logging.warning(
+                            logger.warning(
                                 "%s Builder.handle_data - value is None",
                                 self.__class__.__name__,
                             )
@@ -682,7 +682,7 @@ class PrepbufrBuilder(Builder):
         except AllMaskedException as _ame:
             raise _ame
         except Exception as _e:
-            logging.exception(
+            logger.exception(
                 "%s handle_data: Exception instantiating builder",
                 self.__class__.__name__,
             )
@@ -1826,7 +1826,7 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                     subset_data["obs_err"] = obs_err_data
                     # read the obs data
                     logger.debug(
-                        f"{subset_data["station_id"]}, {subset_data["report_type"]}"
+                        f"{subset_data['station_id']}, {subset_data['report_type']}"
                     )
                     # use the template for the specific report type to read the obs data
                     # see https://www.emc.ncep.noaa.gov/emc/pages/infrastructure/bufrlib/tables/CodeFlag_0_STDv42_LOC7.html#007246
@@ -2224,9 +2224,9 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                     )
                     self.report_file.write(
                         f"""header: station_id:{header["station_id"]} h-lat:{header["lat"]} h-lon:{header["lon"]} h-elev:{header["elevation"]} station-lat:{station["geo"][-1]["lat"]} station-lon:{station["geo"][-1]["lon"]} station-elev:{station["geo"][-1]["elev"]}"""
-                        + f""" highest_interpolated_level:{highest_interpolated_level} level-diff:{round(abs(params_dict["level"] - highest_interpolated_level),4)}"""
-                        + f""" lat-diff:{round(abs(lat - station["geo"][0]["lat"]),4)} lon-diff:{round(abs(lon - station["geo"][0]["lon"]),4)} elev-diff:{round(abs(elev - station["geo"][0]["elev"]),4)}"""
-                        + f""" distance_km {round(math.dist([lat, lon], [station["geo"][0]["lat"], station["geo"][0]["lon"]]) * 111,4)}\n"""
+                        + f""" highest_interpolated_level:{highest_interpolated_level} level-diff:{round(abs(params_dict["level"] - highest_interpolated_level), 4)}"""
+                        + f""" lat-diff:{round(abs(lat - station["geo"][0]["lat"]), 4)} lon-diff:{round(abs(lon - station["geo"][0]["lon"]), 4)} elev-diff:{round(abs(elev - station["geo"][0]["elev"]), 4)}"""
+                        + f""" distance_km {round(math.dist([lat, lon], [station["geo"][0]["lat"], station["geo"][0]["lon"]]) * 111, 4)}\n"""
                     )
                     self.report_file.write("observation pressures:")
                     op_str = []

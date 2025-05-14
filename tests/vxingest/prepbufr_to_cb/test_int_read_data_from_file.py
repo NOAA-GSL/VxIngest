@@ -824,13 +824,13 @@ def test_july_31_2024_0Z_data_diffs_with_legacy():
                 cb_wind_direction = cb_data["wind_direction"]
                 cb_wind_speed = cb_data["wind_speed"]
 
-                assert (
-                    f"{m_wmoid:05}" == cb_wmoid
-                ), f"wmoid mismatch: {m_wmoid} != {cb_wmoid}"
+                assert f"{m_wmoid:05}" == cb_wmoid, (
+                    f"wmoid mismatch: {m_wmoid} != {cb_wmoid}"
+                )
                 diff = abs(m_pressure - cb_pressure)
-                assert (
-                    diff <= press_tolerance
-                ), f"Pressure mismatch: diff: {diff} is not <= {press_tolerance} for wmoid {m_wmoid} and pressure {m_pressure}"
+                assert diff <= press_tolerance, (
+                    f"Pressure mismatch: diff: {diff} is not <= {press_tolerance} for wmoid {m_wmoid} and pressure {m_pressure}"
+                )
 
                 if (
                     m_height is not np.nan
@@ -843,9 +843,9 @@ def test_july_31_2024_0Z_data_diffs_with_legacy():
                         height_stat["max"] = diff
                         height_stat["max_wmoid"] = m_wmoid
                         height_stat["pressure"] = m_pressure
-                    assert (
-                        diff <= height_tolerance
-                    ), f"Height mismatch: diff: {diff} is not <= {height_tolerance} for wmoid {m_wmoid} and pressure {m_pressure}"
+                    assert diff <= height_tolerance, (
+                        f"Height mismatch: diff: {diff} is not <= {height_tolerance} for wmoid {m_wmoid} and pressure {m_pressure}"
+                    )
 
                 if (
                     m_temperature is not np.nan
@@ -858,9 +858,9 @@ def test_july_31_2024_0Z_data_diffs_with_legacy():
                         temperature_stat["max"] = diff
                         temperature_stat["max_wmoid"] = m_wmoid
                         temperature_stat["pressure"] = m_pressure
-                    assert (
-                        diff <= temperature_tolerance
-                    ), f"Temperature mismatch: diff: {diff} is not <= {temperature_tolerance} for wmoid {m_wmoid} and pressure {m_pressure}"
+                    assert diff <= temperature_tolerance, (
+                        f"Temperature mismatch: diff: {diff} is not <= {temperature_tolerance} for wmoid {m_wmoid} and pressure {m_pressure}"
+                    )
 
                 if (
                     m_dewpoint is not np.nan
@@ -873,9 +873,9 @@ def test_july_31_2024_0Z_data_diffs_with_legacy():
                         dewpoint_stat["max"] = diff
                         dewpoint_stat["max_wmoid"] = m_wmoid
                         dewpoint_stat["pressure"] = m_pressure
-                    assert (
-                        diff <= dewpoint_tolerance
-                    ), f"Dewpoint mismatch: diff: {diff} is not <= {dewpoint_tolerance} for wmoid {m_wmoid} and pressure {m_pressure}"
+                    assert diff <= dewpoint_tolerance, (
+                        f"Dewpoint mismatch: diff: {diff} is not <= {dewpoint_tolerance} for wmoid {m_wmoid} and pressure {m_pressure}"
+                    )
 
                 if (
                     m_relative_humidity is not np.nan
@@ -890,9 +890,9 @@ def test_july_31_2024_0Z_data_diffs_with_legacy():
                         relative_humidity_stat["max"] = diff
                         relative_humidity_stat["max_wmoid"] = m_wmoid
                         relative_humidity_stat["pressure"] = m_pressure
-                    assert (
-                        diff <= relative_humidity_tolerance
-                    ), f"Relative Humidity mismatch: diff: {diff} is not <= {relative_humidity_tolerance} for wmoid {m_wmoid} and pressure {m_pressure}"
+                    assert diff <= relative_humidity_tolerance, (
+                        f"Relative Humidity mismatch: diff: {diff} is not <= {relative_humidity_tolerance} for wmoid {m_wmoid} and pressure {m_pressure}"
+                    )
 
                 if (
                     m_wind_speed is not np.nan
@@ -907,9 +907,9 @@ def test_july_31_2024_0Z_data_diffs_with_legacy():
                         wind_speed_stat["max"] = diff
                         wind_speed_stat["max_wmoid"] = m_wmoid
                         wind_speed_stat["pressure"] = m_pressure
-                    assert (
-                        diff <= wind_speed_tolerance
-                    ), f"Wind Speed mismatch: diff: {diff} is not <= {wind_speed_tolerance} for wmoid {m_wmoid} and pressure {m_pressure}"
+                    assert diff <= wind_speed_tolerance, (
+                        f"Wind Speed mismatch: diff: {diff} is not <= {wind_speed_tolerance} for wmoid {m_wmoid} and pressure {m_pressure}"
+                    )
 
                 if (
                     m_wind_direction is not np.nan
@@ -930,9 +930,9 @@ def test_july_31_2024_0Z_data_diffs_with_legacy():
                         wind_direction_stat["max"] = diff
                         wind_direction_stat["max_wmoid"] = m_wmoid
                         wind_direction_stat["pressure"] = m_pressure
-                    assert (
-                        diff <= wind_direction_tolerance
-                    ), f"Wind Direction mismatch: diff: {diff} is not <= {wind_direction_tolerance} for wmoid {m_wmoid} and pressure {m_pressure}"
+                    assert diff <= wind_direction_tolerance, (
+                        f"Wind Direction mismatch: diff: {diff} is not <= {wind_direction_tolerance} for wmoid {m_wmoid} and pressure {m_pressure}"
+                    )
             except Exception as _e:
                 print("--------------------")
                 print(f"wmoid: {m_wmoid}, pressure: {m_pressure}")

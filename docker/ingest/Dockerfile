@@ -3,9 +3,11 @@
 # NOTE - avoid installing python packages via apt - they install an alternate version of Python
 
 # The builder image, used for building the virtual environment
-FROM python:3.13-slim-bookworm AS builder
+FROM python:3.14-slim-bookworm AS builder
 
+# Upgrade system packages to ensure all security patches are applied
 RUN apt-get update && \
+    apt-get upgrade -y && \
     # cftime build deps
     apt-get install -y build-essential && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
@@ -44,7 +46,7 @@ ENV VIRTUAL_ENV=/app/.venv \
 
 
 # The runtime image, used for running just the application with its dependencies
-FROM python:3.13-slim-bookworm AS prod
+FROM python:3.14-slim-bookworm AS prod
 
 ARG COMMITBRANCH=development
 ARG COMMITSHA=unspecified

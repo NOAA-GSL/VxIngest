@@ -1,6 +1,8 @@
 """
 integration tests for grib builder
 This test expects to find a valid grib file in the local directory /opt/public/data/grids/hrrr/conus/wrfprs/grib2.
+integration tests for grib builder
+This test expects to find a valid grib file in the local directory /opt/public/data/grids/hrrr/conus/wrfprs/grib2.
 This test expects to write to the local output directory /opt/data/grib_to_cb/output so that directory should exist.
 21 196 14 000018 %y %j %H %f  treating the last 6 decimals as microseconds even though they are not.
 these files are two digit year, day of year, hour, and forecast lead time (6 digit ??)
@@ -174,6 +176,12 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus(tmp_path):
                     else:
                         abs_tol = 0.001  # most fields validate between pygrib and cfgrib precisely
 
+                    assert result["data"][_k][_dk] is not None, (
+                        f"""result {_k + "." + _dk}  is None """
+                    )
+                    assert _json["data"][_k][_dk] is not None, (
+                        f"""_json {_k + "." + _dk} is None """
+                    )
                     assert math.isclose(
                         result["data"][_k][_dk],
                         _json["data"][_k][_dk],

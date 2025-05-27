@@ -40,6 +40,12 @@ import time
 
 from vxingest.builder_common.ingest_manager import CommonVxIngestManager
 from vxingest.grib2_to_cb import grib_builder as my_builder
+from vxingest.grib2_to_cb.raob_model_native_builder import (
+    RaobModelNativeLevelBuilderV01 as RaobModelNativeLevelBuilderV01,
+)
+from vxingest.grib2_to_cb.raob_model_pressure_level_builder import (
+    RaobModelPressureLevelBuilderV01 as RaobModelPressureLevelBuilderV01,
+)
 
 # Get a logger with this module's name to help with debugging
 logger = logging.getLogger(__name__)

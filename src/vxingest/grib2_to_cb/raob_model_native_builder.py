@@ -4,7 +4,7 @@ from vxingest.grib2_to_cb.grib_builder import GribModelBuilderV01
 from vxingest.grib2_to_cb.raob_grib_model_builder import RaobGribModelBuilder
 
 
-class RaobModelNativeBuilderV01(RaobGribModelBuilder):
+class RaobModelNativeLevelBuilderV01(RaobGribModelBuilder):
     """This is the builder for model data that is ingested from grib2 NATIVE levels files.
     It is a concrete builder specifically for the model raob data that are organized based
     on the models preset vertical levels. This varies quite a bit from model to model

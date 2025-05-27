@@ -20,7 +20,8 @@ if [ "${basename_root}" != ${basename_current} ]; then
     echo "This script must run from the root of the VxIngest repo."
     exit 1
 fi
-
+local_build_dir=""
+bufr_test_dir=""
 usage() {
     echo "Usage: $0 [-l <local_test_dir>] [-b <local_build_dir>] [-v NCEPLIBSbufr_version]" 1>&2
     exit 1
@@ -87,7 +88,7 @@ if [ $? -ne 0 ]; then
 fi
 
 NCEPLIBSbufr_version="12.2.0"
-if [ -z ${local_build_dir} ]; then
+if [ -z "${local_build_dir}" ]; then
     # create a temporary directory for the build
     tmp_workdir=$(mktemp -d)
 else

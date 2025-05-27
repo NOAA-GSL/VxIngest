@@ -288,5 +288,3 @@ def test_grib_builder_one_thread_file_pattern_raob_interpolated(tmp_path):
                         abs_tol=abs_tol,
                     ), f"""test_grib_builder_one_thread_file_pattern_raob_interpolated failure data not close within {abs_tol}
                     {_k}.{_dk} {result["data"][_k][_dk]} != {_json["data"][_k][_dk]} within {abs_tol} decimal places."""
-
-

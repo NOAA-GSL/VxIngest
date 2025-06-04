@@ -57,6 +57,7 @@ class CommonVxIngest:
         self.ingest_document_id = None
         self.cb_credentials = {}
         self.collection = None
+        self.common_collection = None
         self.cluster = None
         self.ingest_document_id = None
         self.ingest_document = None
@@ -153,6 +154,9 @@ class CommonVxIngest:
             self.collection = self.cluster.bucket(
                 self.cb_credentials["bucket"]
             ).collection(self.cb_credentials["collection"])
+            self.common_collection = self.cluster.bucket(
+                self.cb_credentials["bucket"]
+            ).collection("COMMON")
             # stash the credentials for the VxIngestManager - see NOTE at the top of this file.
             self.load_spec["cb_credentials"] = self.cb_credentials
             logger.info("%s: Couchbase connection success")

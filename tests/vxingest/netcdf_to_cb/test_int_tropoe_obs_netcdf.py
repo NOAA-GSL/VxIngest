@@ -67,7 +67,6 @@ def test_one_thread_specify_file_pattern(tmp_path):
         {
             "job_id": "JOB-TEST:V01:TROPOE:NETCDF:OBS",
             "credentials_file": os.environ["CREDENTIALS"],
-            "file_name_mask": "sgptropoeC1.c1.%Y%m%d.%H%M%S.nc",
             "output_dir": f"{tmp_path}",
             "threads": 1,
             "file_pattern": "*.nc",

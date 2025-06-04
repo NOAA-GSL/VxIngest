@@ -146,6 +146,7 @@ class VXIngest(CommonVxIngest):
         self.load_spec = {}
         self.cb_credentials = None
         self.collection = None
+        self.common_collection = None
         self.cluster = None
         self.ingest_document_id = None
         self.ingest_document = None
@@ -178,8 +179,8 @@ class VXIngest(CommonVxIngest):
             collection = self.load_spec["cb_connection"]["collection"]
             bucket = self.load_spec["cb_connection"]["bucket"]
             scope = self.load_spec["cb_connection"]["scope"]
-            # load the ingest document ids into the load_spec (this might be redundant)
-            ingest_document_result = self.collection.get(self.job_document_id)
+            # load the ingest document ids into the load_spec (this might be redundant) - from COMMON
+            ingest_document_result = self.common_collection.get(self.job_document_id)
             ingest_document = ingest_document_result.content_as[dict]
             self.load_spec["ingest_document_ids"] = ingest_document[
                 "ingest_document_ids"
@@ -187,13 +188,13 @@ class VXIngest(CommonVxIngest):
             # put all the ingest documents into the load_spec too
             self.load_spec["ingest_documents"] = {}
             for _id in self.load_spec["ingest_document_ids"]:
-                self.load_spec["ingest_documents"][_id] = self.collection.get(
+                self.load_spec["ingest_documents"][_id] = self.common_collection.get(
                     _id
                 ).content_as[dict]
             # load the fmask and input_data_path into the load_spec
-            self.fmask = ingest_document["file_mask"]
+            #self.fmask = ingest_document["file_mask"]
             self.path = ingest_document["input_data_path"]
-            self.load_spec["fmask"] = self.fmask
+            #self.load_spec["fmask"] = self.fmask
             self.load_spec["input_data_path"] = self.path
             # stash the load_job in the load_spec
             self.load_spec["load_job_doc"] = self.build_load_job_doc(

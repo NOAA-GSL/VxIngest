@@ -270,6 +270,11 @@ class NetcdfBuilder(Builder):
             Umatch = re.compile(".*U.*")
             if len(replacements) > 0:
                 for _ri in replacements:
+                    if _ri in self.ncdf_data_set.ncattrs():
+                        # it is a global attribute - replace ' '  with '_'
+                        tmp_value = self.ncdf_data_set.getncattr(_ri)
+                        value = str(tmp_value).replace(" ", "_")
+                        return value
                     vtype = str(self.ncdf_data_set.variables[_ri].dtype)
                     if Smatch.match(vtype) or Umatch.match(vtype):
                         make_str = True

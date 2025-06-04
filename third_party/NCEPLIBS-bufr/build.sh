@@ -107,7 +107,7 @@ cd NCEPLIBS-bufr-${NCEPLIBSbufr_version}
 # Create and use a python venv
 # Check python version
 pver=$(python --version | awk '{print $2}' | awk -F'.' '{print $1""$2}')
-if [ ! ${pver} -ge 311 ]; then
+if [ ! ${pver} -ge 313 ]; then
     echo "Wrong python version - should be greater than or equal to 3.11.x"
     exit 1
 fi
@@ -159,8 +159,6 @@ if [ "$platform" = "linux_x86_64" ]; then
 fi
 cd ${tmp_workdir}/NCEPLIBS-bufr-${NCEPLIBSbufr_version}/build/install/${libdir}/python${pyver}/site-packages
 cp -a ${VxIngest_root_dir}/third_party/NCEPLIBS-bufr/ncepbufr/* .
-# copy the binary library file to the standard name that the python imports expect
-cp *.so _bufrlib
 # check for poetry
 poetry -V
 if [ $? -ne 0 ]; then
@@ -187,5 +185,11 @@ cp ${wheel} ${VxIngest_root_dir}/third_party/NCEPLIBS-bufr/wheel_dist/${dst_name
 # deactivate the venv
 #deactivate
 cd ${VxIngest_root_dir}
-rm -rf ${tmp_workdir}
+if [ -z "${local_build_dir}" ]; then
+    # remove the temporary work directory
+    echo "Removing temporary work directory ${tmp_workdir}"
+    rm -rf ${tmp_workdir}
+else
+    echo "Using local build directory ${local_build_dir} - not removing."
+fi
 exit 0

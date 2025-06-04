@@ -8,7 +8,9 @@ authors = [
 ]
 readme = "README.md"
 license = "GNU Lesser General Public License v3.0"
-include = ["_bufrlib.cpython-313-darwin.so"]
+include = [
+    { path = "_bufrlib.cpython-313-darwin.so", format = ["sdist", "wheel"] }
+]
 
 [tool.poetry.dependencies]
 python = "^3.13"

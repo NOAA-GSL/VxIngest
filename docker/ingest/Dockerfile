@@ -3,12 +3,14 @@
 # NOTE - avoid installing python packages via apt - they install an alternate version of Python
 
 # The builder image, used for building the virtual environment
-FROM python:3.13-slim-bookworm AS builder
+FROM python:3.14-slim-bookworm AS builder
 
+# Upgrade system packages to ensure all security patches are applied
 RUN apt-get update && \
+    apt-get upgrade -y && \
     # cftime build deps
     apt-get install -y build-essential && \
-    apt-get clean && rm -rf /var/lib/apt/lists/* 
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Make sure the python tooling is up-to-date for when it's copied into the prod layer
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel
@@ -44,7 +46,7 @@ ENV VIRTUAL_ENV=/app/.venv \
 
 
 # The runtime image, used for running just the application with its dependencies
-FROM python:3.13-slim-bookworm AS prod
+FROM python:3.14-slim-bookworm AS prod
 
 ARG COMMITBRANCH=development
 ARG COMMITSHA=unspecified
@@ -80,7 +82,7 @@ RUN groupadd --gid ${ID} ${USERNAME} && \
 
 # Run OS updates
 RUN apt-get update && apt-get upgrade -y && \
-    apt-get clean && rm -rf /var/lib/apt/lists/* 
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Copy just the vxingest app
 COPY ./src/ /app/

@@ -1,7 +1,5 @@
 """
-integration tests for grib builder
-This test expects to find a valid grib file in the local directory /opt/public/data/grids/hrrr/conus/wrfprs/grib2.
-integration tests for grib builder
+integration tests for grib builder for upperair model data.
 This test expects to find a valid grib file in the local directory /opt/public/data/grids/hrrr/conus/wrfprs/grib2.
 This test expects to write to the local output directory /opt/data/grib_to_cb/output so that directory should exist.
 21 196 14 000018 %y %j %H %f  treating the last 6 decimals as microseconds even though they are not.
@@ -68,7 +66,7 @@ def connect_cb():
 
 
 @pytest.mark.integration
-def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus(tmp_path):
+def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus_raob_native(tmp_path):
     """test gribBuilder with one thread.
     This test verifies the resulting data file against the one that is in couchbase already
     in order to make sure the calculations are proper."""
@@ -83,8 +81,8 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus(tmp_path):
     credentials_file = os.environ["CREDENTIALS"]
     # remove possible existing DF test documents
     connect_cb()["cluster"].query("""DELETE
-            FROM `vxdata`._default.METAR
-            WHERE subset='METAR'
+            FROM `vxdata`._default.RAOB
+            WHERE subset='RAOB'
             AND type='DF'
             AND url LIKE "/opt/data/%""")
 
@@ -92,7 +90,7 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus(tmp_path):
     vx_ingest = VXIngest()
     vx_ingest.runit(
         {
-            "job_id": "JOB-TEST:V01:METAR:GRIB2:MODEL:HRRR",
+            "job_id": "JOB-TEST:V01:RAOB:GRIB2:NTV:MODEL:HRRR",
             "credentials_file": credentials_file,
             "file_name_mask": "%y%j%H%f",
             "output_dir": f"{tmp_path}",
@@ -122,14 +120,14 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus(tmp_path):
                     "loadSpec",
                     "note",
                 ], (
-                    f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus LJ failure key {_k} not in {_json.keys()}"
+                    f"test_grib_builder_one_thread_file_pattern_hrrr_ops_conus_raob_native LJ failure key {_k} not in {_json.keys()}"
                 )
             continue
-        _statement = f"select METAR.* from `{connect_cb()['bucket']}`._default.METAR where meta().id = '{_id}'"
+        _statement = f"select RAOB.* from `{connect_cb()['bucket']}`._default.RAOB where meta().id = '{_id}'"
         _qresult = connect_cb()["cluster"].query(_statement)
         result_rows = list(_qresult.rows())
         assert len(result_rows) > 0, (
-            f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure test document {_id} not found in couchbase"
+            f"test_grib_builder_one_thread_file_pattern_hrrr_ops_conus_raob_native failure test document {_id} not found in couchbase"
         )
 
         result = result_rows[0]
@@ -137,26 +135,26 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus(tmp_path):
         keys = _json.keys()
         for _k in result:
             assert _k in keys, (
-                f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure top level key {_k} not in {_json.keys()}"
+                f"test_grib_builder_one_thread_file_pattern_hrrr_ops_conus_raob_native failure top level key {_k} not in {_json.keys()}"
             )
         # assert the units
         assert result["units"] == _json["units"], (
-            f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure units {result['units']} != {_json['units']}"
+            f"test_grib_builder_one_thread_file_pattern_hrrr_ops_conus_raob_native failure units {result['units']} != {_json['units']}"
         )
         # assert the data
         for _k in result["data"]:
             assert _k in _json["data"], (
-                f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure data key {_k} not in {_json['data'].keys()}"
+                f"test_grib_builder_one_thread_file_pattern_hrrr_ops_conus_raob_native failure data key {_k} not in {_json['data'].keys()}"
             )
             for _dk in result["data"][_k]:
                 assert _dk in _json["data"][_k], (
-                    f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure data key {_k}.{_dk} not in {_json['data'][_k].keys()}"
+                    f"test_grib_builder_one_thread_file_pattern_hrrr_ops_conus_raob_native failure data key {_k}.{_dk} not in {_json['data'][_k].keys()}"
                 )
                 # assert data field matches to 2 decimal places
                 if _dk == "name":
                     # string compare
                     assert result["data"][_k][_dk] == _json["data"][_k][_dk], (
-                        f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure name {result['data'][_k][_dk]} != {_json['data'][_k][_dk]}"
+                        f"test_grib_builder_one_thread_file_pattern_hrrr_ops_conus_raob_native failure name {result['data'][_k][_dk]} != {_json['data'][_k][_dk]}"
                     )
                 else:
                     # math compare
@@ -176,30 +174,24 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus(tmp_path):
                     else:
                         abs_tol = 0.001  # most fields validate between pygrib and cfgrib precisely
 
-                    assert result["data"][_k][_dk] is not None, (
-                        f"""result {_k + "." + _dk}  is None """
-                    )
-                    assert _json["data"][_k][_dk] is not None, (
-                        f"""_json {_k + "." + _dk} is None """
-                    )
                     assert math.isclose(
                         result["data"][_k][_dk],
                         _json["data"][_k][_dk],
                         abs_tol=abs_tol,
-                    ), f"""TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure data not close within {abs_tol}
+                    ), f"""test_grib_builder_one_thread_file_pattern_hrrr_ops_conus_raob_native failure data not close within {abs_tol}
                     {_k}.{_dk} {result["data"][_k][_dk]} != {_json["data"][_k][_dk]} within {abs_tol} decimal places."""
 
 
 @pytest.mark.integration
-def test_grib_builder_one_thread_file_pattern_mpas(tmp_path):
+def test_grib_builder_one_thread_file_pattern_raob_interpolated(tmp_path):
     """test gribBuilder with one thread for mpas.
     This test verifies the resulting data file against the one that is in couchbase already
     in order to make sure the calculations are proper."""
     credentials_file = os.environ["CREDENTIALS"]
     # remove possible existing DF test documents
     connect_cb()["cluster"].query("""DELETE
-            FROM `vxdata`._default.METAR
-            WHERE subset='METAR'
+            FROM `vxdata`._default.RAOB
+            WHERE subset='RAOB'
             AND type='DF'
             AND url LIKE "/opt/data/%""")
 
@@ -207,7 +199,7 @@ def test_grib_builder_one_thread_file_pattern_mpas(tmp_path):
     vx_ingest = VXIngest()
     vx_ingest.runit(
         {
-            "job_id": "JOB-TEST:V01:METAR:GRIB2:MODEL:MPAS_physics_dev1",
+            "job_id": "JOB-TEST:V01:RAOB:GRIB2:MODEL:MPAS_physics_dev1",
             "credentials_file": credentials_file,
             "file_name_mask": "mpas_phys_dev1_two_%y%j%H_f%f.grib2",
             "output_dir": f"{tmp_path}",
@@ -236,14 +228,14 @@ def test_grib_builder_one_thread_file_pattern_mpas(tmp_path):
                     "loadSpec",
                     "note",
                 ], (
-                    f"TestGribBuilderV01.test_grib_builder_one_thread_file_pattern_mpas LJ failure key {_k} not in {_json.keys()}"
+                    f"test_grib_builder_one_thread_file_pattern_raob_interpolated LJ failure key {_k} not in {_json.keys()}"
                 )
             continue
-        _statement = f"select METAR.* from `{connect_cb()['bucket']}`._default.METAR where meta().id = '{_id}'"
+        _statement = f"select RAOB.* from `{connect_cb()['bucket']}`._default.RAOB where meta().id = '{_id}'"
         _qresult = connect_cb()["cluster"].query(_statement)
         result_rows = list(_qresult.rows())
         assert len(result_rows) > 0, (
-            f"TestGribBuilderV01.test_grib_builder_one_thread_file_pattern_mpas failure test document {_id} not found in couchbase"
+            f"test_grib_builder_one_thread_file_pattern_raob_interpolated failure test document {_id} not found in couchbase"
         )
 
         result = result_rows[0]
@@ -251,26 +243,26 @@ def test_grib_builder_one_thread_file_pattern_mpas(tmp_path):
         keys = _json.keys()
         for _k in result:
             assert _k in keys, (
-                f"TestGribBuilderV01.test_grib_builder_one_thread_file_pattern_mpas failure top level key {_k} not in {_json.keys()}"
+                f"test_grib_builder_one_thread_file_pattern_raob_interpolated failure top level key {_k} not in {_json.keys()}"
             )
         # assert the units
         assert result["units"] == _json["units"], (
-            f"TestGribBuilderV01.test_grib_builder_one_thread_file_pattern_mpas failure units {result['units']} != {_json['units']}"
+            f"test_grib_builder_one_thread_file_pattern_raob_interpolated failure units {result['units']} != {_json['units']}"
         )
         # assert the data
         for _k in result["data"]:
             assert _k in _json["data"], (
-                f"TestGribBuilderV01.test_grib_builder_one_thread_file_pattern_mpas failure data key {_k} not in {_json['data'].keys()}"
+                f"test_grib_builder_one_thread_file_pattern_raob_interpolated failure data key {_k} not in {_json['data'].keys()}"
             )
             for _dk in result["data"][_k]:
                 assert _dk in _json["data"][_k], (
-                    f"TestGribBuilderV01.test_grib_builder_one_thread_file_pattern_mpas failure data key {_k}.{_dk} not in {_json['data'][_k].keys()}"
+                    f"test_grib_builder_one_thread_file_pattern_raob_interpolated failure data key {_k}.{_dk} not in {_json['data'][_k].keys()}"
                 )
                 # assert data field matches to 2 decimal places
                 if _dk == "name":
                     # string compare
                     assert result["data"][_k][_dk] == _json["data"][_k][_dk], (
-                        f"TestGribBuilderV01.test_grib_builder_one_thread_file_pattern_mpas failure name {result['data'][_k][_dk]} != {_json['data'][_k][_dk]}"
+                        f"test_grib_builder_one_thread_file_pattern_raob_interpolated failure name {result['data'][_k][_dk]} != {_json['data'][_k][_dk]}"
                     )
                 else:
                     # math compare
@@ -294,75 +286,5 @@ def test_grib_builder_one_thread_file_pattern_mpas(tmp_path):
                         result["data"][_k][_dk],
                         _json["data"][_k][_dk],
                         abs_tol=abs_tol,
-                    ), f"""TestGribBuilderV01.test_grib_builder_one_thread_file_pattern_mpas failure data not close within {abs_tol}
+                    ), f"""test_grib_builder_one_thread_file_pattern_raob_interpolated failure data not close within {abs_tol}
                     {_k}.{_dk} {result["data"][_k][_dk]} != {_json["data"][_k][_dk]} within {abs_tol} decimal places."""
-
-
-@pytest.mark.integration
-def test_grib_builder_two_threads_file_pattern_hrrr_ops_conus(tmp_path):
-    """test gribBuilder multi-threaded
-    Not going to qualify the data on this one, just make sure it runs two threads properly
-    """
-    # 1632412800 fcst_len 1 -> 1632412800 - 1 * 3600 -> 1632409200 September 23, 2021 15:00:00 -> 2126615000001
-    # 1632412800 fcst_len 3 -> 1632412800 - 3 * 3600 -> 1632402000 September 23, 2021 13:00:00 -> 2126613000003
-    # 1632412800 fcst_len 15 -> 1632412800 - 15 * 3600 -> 1632358800 September 22, 2021 19:00:00  ->  (missing)
-    # 1632412800 fcst_len 18 -> 1632412800 - 18 * 3600 -> 1632348000 September 22, 2021 22:00:00 -> 2126522000018 (missing)
-    # 1632420000 September 23, 2021 18:00:00  2126616000018
-    # 1632423600  September 23, 2021 19:00:00 2126617000001
-    # first_epoch = 1634252400 - 10
-    # last_epoch = 1634252400 + 10
-    credentials_file = os.environ["CREDENTIALS"]
-    # remove possible existing DF test documents
-    connect_cb()["cluster"].query("""DELETE
-            FROM `vxdata`._default.METAR
-            WHERE subset='METAR'
-            AND type='DF'
-            AND url LIKE "/opt/data/%""")
-
-    # remove output files
-    log_queue = Queue()
-    vx_ingest = VXIngest()
-    # NOTE: the input file path is defined by the job document
-    vx_ingest.runit(
-        {
-            "job_id": "JOB-TEST:V01:METAR:GRIB2:MODEL:HRRR",
-            "credentials_file": credentials_file,
-            "file_name_mask": "%y%j%H%f",
-            "output_dir": f"{tmp_path}",
-            "threads": 2,
-            "file_pattern": "21287230000[0123456789]?",
-        },
-        log_queue,
-        stub_worker_log_configurer,
-    )
-
-
-@pytest.mark.integration
-def test_grib_builder_two_threads_file_pattern_rap_ops_130_conus(tmp_path):
-    """test gribBuilder multi-threaded
-    Not going to qualify the data on this one, just make sure it runs two threads properly
-    """
-    credentials_file = os.environ["CREDENTIALS"]
-    # remove possible existing DF test documents
-    connect_cb()["cluster"].query("""DELETE
-            FROM `vxdata`._default.METAR
-            WHERE subset='METAR'
-            AND type='DF'
-            AND url LIKE "/opt/data/%""")
-
-    # remove output files
-    log_queue = Queue()
-    vx_ingest = VXIngest()
-    # NOTE: the input file path is defined by the job document
-    vx_ingest.runit(
-        {
-            "job_id": "JOB-TEST:V01:METAR:GRIB2:MODEL:RAP_OPS_130",
-            "credentials_file": credentials_file,
-            "file_name_mask": "%y%j%H%f",
-            "output_dir": f"{tmp_path}",
-            "threads": 2,
-            "file_pattern": "23332080000[0123456789]?",
-        },
-        log_queue,
-        stub_worker_log_configurer,
-    )

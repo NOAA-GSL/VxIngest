@@ -8,6 +8,7 @@
 
 # Project-specific
 .env*
+.venv*
 [Ll]ogs/
 test_venv/
 grib2_to_cb_test/test/2119312000003

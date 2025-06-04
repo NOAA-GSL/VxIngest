@@ -34,7 +34,8 @@ def stub_worker_log_configurer(queue: Queue):
 def setup_connection():
     """test setup"""
     _vx_ingest = VXIngest()
-    _vx_ingest.credentials_file = (os.environ["CREDENTIALS"],)
+    _vx_ingest.credentials_file = os.environ["CREDENTIALS"]
+    _vx_ingest.load_spec = {}
     _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
     _vx_ingest.connect_cb()
     _vx_ingest.load_spec["ingest_document_ids"] = _vx_ingest.collection.get(
@@ -59,6 +60,12 @@ def assert_dicts_almost_equal(dict1, dict2, rel_tol=1e-09):
 
 @pytest.mark.integration
 def test_one_thread_specify_file_pattern(tmp_path):
+    _vx_ingest = setup_connection()
+    cluster = _vx_ingest.cluster
+    cluster.query(
+        "DELETE FROM `vxingest._default.METAR` WHERE meta().id = 'DF:METAR:netcdf:madis:20211108_0000'"
+    )
+
     log_queue = Queue()
     vx_ingest = VXIngest()
     vx_ingest.runit(
@@ -125,6 +132,12 @@ def test_two_threads_spedicfy_file_pattern(tmp_path):
     """
     log_queue = Queue()
     vx_ingest = VXIngest()
+    _vx_ingest = setup_connection()
+    cluster = _vx_ingest.cluster
+    cluster.query(
+        "DELETE FROM `vxingest._default.METAR` WHERE meta().id = 'DF:METAR:netcdf:madis:20211108_0000'"
+    )
+
     vx_ingest.runit(
         {
             "job_id": "JOB-TEST:V01:METAR:NETCDF:OBS",
@@ -162,6 +175,12 @@ def test_one_thread_default(tmp_path):
     """
     log_queue = Queue()
     vx_ingest = VXIngest()
+    _vx_ingest = setup_connection()
+    cluster = _vx_ingest.cluster
+    cluster.query(
+        "DELETE FROM `vxingest._default.METAR` WHERE meta().id = 'DF:METAR:netcdf:madis:20211108_0000'"
+    )
+
     vx_ingest.runit(
         {
             "job_id": "JOB-TEST:V01:METAR:NETCDF:OBS",
@@ -199,6 +218,12 @@ def test_two_threads_default(tmp_path):
     """
     log_queue = Queue()
     vx_ingest = VXIngest()
+    _vx_ingest = setup_connection()
+    cluster = _vx_ingest.cluster
+    cluster.query(
+        "DELETE FROM `vxingest._default.METAR` WHERE meta().id = 'DF:METAR:netcdf:madis:20211108_0000'"
+    )
+
     vx_ingest.runit(
         {
             "job_id": "JOB-TEST:V01:METAR:NETCDF:OBS",

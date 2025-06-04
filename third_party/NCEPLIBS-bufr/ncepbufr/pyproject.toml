@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ncepbufr"
-version = "12.0.1"
+version = "12.2.0"
 description = "packaging the ncepbufr library for use in python"
 authors = [
     "Ian McGinnis <ian.mcginnis@noaa.gov>",
@@ -8,11 +8,11 @@ authors = [
 ]
 readme = "README.md"
 license = "GNU Lesser General Public License v3.0"
-include = ["_bufrlib.cpython-312-darwin.so"]
+include = ["_bufrlib.cpython-313-darwin.so"]
 
 [tool.poetry.dependencies]
-python = "^3.12"
-numpy = "^1"
+python = "^3.13"
+numpy = "^2"
 netcdf4 = "^1"
 
 [build-system]

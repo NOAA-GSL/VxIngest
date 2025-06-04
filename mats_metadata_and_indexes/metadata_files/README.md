@@ -1,12 +1,15 @@
 # MATS metadata and ingest documents
 
-The system relies on a couple of kinds of metadata. Ingest builders use ingest documents to control how an output document is created from its input source. The running system relies on various metadata documents to define what data is available and how it should be repesented in a GUI interface.
+The system relies on a couple of kinds of metadata. Ingest builders use ingest documents to control how an output document is created from its input source. The running system relies on various metadata documents to define what data is available and how it should be represented in a GUI interface.
 
 ## Ingest documents
 
-Ingest documents contain templates that define how a builder should assemble an out document.
+Ingest documents contain templates that define how a builder should assemble an output document.
 
 ### ingest document Example
+
+NOTE: prepbufr ingest documents have an extra element called "mnemonic_mapping" that maps prepbufr mnemonics to the template variables. This extra step is necessary because prepbufr fields can vary due to an associated program code.
+For example a program code of 1 is an initial value and a program code of 8 is a virtual value. The template.mnemonic_mapping section specifies whether the event program code is meaningful and which program code value is desired. Refer to the prepbufr [README.md](https://github.com/NOAA-GSL/VxIngest/blob/72793df75696ef711d79553a82be3b8a6c04653c/src/vxingest/prepbufr_to_cb/README.md) for a complete example and explanation of the prepbufr ingest template.
 
 This is the contents of "MD:V01:METAR:obs:ingest:netcdf". If
 you intend to use a metadata ingest document you must either
@@ -61,6 +64,10 @@ be certain that it already exists or you must create it.
   "version": "V01"
 }
 ```
+
+### Ingest Template DSL
+
+Ingest templates implement a simple DSL (Domain specific Language) described here for a netcdf builder. The same syntax applies to all builder classes.
 
 The line
 ```"builder_type": "NetcdfObsBuilderV01"```

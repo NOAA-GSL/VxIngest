@@ -77,9 +77,7 @@ def test_int_tropoe_visual():
                     raw_data[variable] = data[variable][:index]
 
                 intrp_data = {}
-                res = collection.lookup_in(
-                    doc_id, (SD.get("data.0.interpolated"),)
-                )
+                res = collection.lookup_in(doc_id, (SD.get("data.0.interpolated"),))
                 intrp_data = res.content_as[dict](0)
 
                 fig = make_subplots(specs=[[{"secondary_y": True}]])

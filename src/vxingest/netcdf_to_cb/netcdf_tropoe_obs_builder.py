@@ -133,9 +133,9 @@ class NetcdfTropoeObsBuilderV01(NetcdfBuilder):
             snake_str (str): The snake_case string to convert.
         Returns:
             str: The converted camelCase string.
-            """
+        """
         if self.is_snake_case(snake_str):
-            elements = snake_str.split('_')
+            elements = snake_str.split("_")
             first = elements[0].lower()  # First element in lowercase
             others = []
             # Iterate through the remaining elements
@@ -148,15 +148,17 @@ class NetcdfTropoeObsBuilderV01(NetcdfBuilder):
             for _, element in enumerate(elements[1:]):
                 # make sure the first letter is uppercase
                 if element and element[0].islower():
-                # Capitalize the first letter of the element
+                    # Capitalize the first letter of the element
                     element = element.replace(element[0], element[0].upper(), 1)
                 # Use regex to split the element into sub-elements based on other capitalization
                 sub_elements = re.findall("[A-Z][^A-Z]*", element)
                 others.extend(sub_elements)
             # Capitalize the first letter of each remaining element
-            others = [s.capitalize() for s in others if s]  # Capitalize non-empty elements
+            others = [
+                s.capitalize() for s in others if s
+            ]  # Capitalize non-empty elements
             # Join the first element with the capitalized others
-            return ''.join([first.lower(), ''.join(others)])
+            return "".join([first.lower(), "".join(others)])
         return snake_str
 
     def get_raw_data(self, params_dict):
@@ -209,9 +211,9 @@ class NetcdfTropoeObsBuilderV01(NetcdfBuilder):
             upper_index = flat_interpolated_data["levels"].index(upper)
             for key in interpolated_data:
                 camel_key = self.snake_case_to_camel_case(key)
-                flat_interpolated_data[camel_key] = list(interpolated_data[key].values())[
-                    lower_index:upper_index
-                ]
+                flat_interpolated_data[camel_key] = list(
+                    interpolated_data[key].values()
+                )[lower_index:upper_index]
         except Exception as _e:
             logger.error(f"*** get_interpolated_data: Exception: {str(_e)}")
             raise _e

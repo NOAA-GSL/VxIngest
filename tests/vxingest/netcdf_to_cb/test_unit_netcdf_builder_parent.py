@@ -27,8 +27,8 @@ class TestNetcdfBuilder(unittest.TestCase):
     def test_get_database_connection_details(self):
         """Test retrieving database connection details."""
         queue_element = "test_file.nc"
-        bucket, scope, collection, common_collection = self.builder.get_database_connection_details(
-            queue_element
+        bucket, scope, collection, common_collection = (
+            self.builder.get_database_connection_details(queue_element)
         )
         assert bucket == "test_bucket"
         assert scope == "test_scope"

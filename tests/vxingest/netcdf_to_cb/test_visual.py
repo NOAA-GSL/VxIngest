@@ -56,10 +56,10 @@ def test_int_tropoe_visual():
         epoch = 1622851502
         for i in range(0, 3):
             epoch = epoch + i * 21600
-            doc_id = f"DD-TEST:V01:TROPOE:obs:{epoch}"
+            doc_id = f"DD-TEST:V01:TROPOE:obs:ARM_AERI:{epoch}"
             # doc_id = "DD-TEST:V01:TROPOE:obs:1622851502"
             try:
-                res = collection.lookup_in(doc_id, (SD.get(f"data.{epoch}.raw"),))
+                res = collection.lookup_in(doc_id, (SD.get("data.0.raw"),))
                 data = res.content_as[dict](0)
                 index = 0
                 while index < len(data["height"]):
@@ -69,16 +69,16 @@ def test_int_tropoe_visual():
                 raw_data = {}
                 for variable in [
                     "temperature",
-                    "sigma_temperature",
+                    "sigmaTemperature",
                     "waterVapor",
-                    "sigma_waterVapor",
+                    "sigmaWaterVapor",
                     "height",
                 ]:
                     raw_data[variable] = data[variable][:index]
 
                 intrp_data = {}
                 res = collection.lookup_in(
-                    doc_id, (SD.get(f"data.{epoch}.interpolated"),)
+                    doc_id, (SD.get("data.0.interpolated"),)
                 )
                 intrp_data = res.content_as[dict](0)
 

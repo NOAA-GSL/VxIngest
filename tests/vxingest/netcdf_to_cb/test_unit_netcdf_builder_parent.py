@@ -14,6 +14,7 @@ class TestNetcdfBuilder(unittest.TestCase):
                 "bucket": "test_bucket",
                 "scope": "test_scope",
                 "collection": "test_collection",
+                "common_collection": "COMMON",
             },
             "load_job_doc": {"id": "test_job_id"},
         }
@@ -26,12 +27,13 @@ class TestNetcdfBuilder(unittest.TestCase):
     def test_get_database_connection_details(self):
         """Test retrieving database connection details."""
         queue_element = "test_file.nc"
-        bucket, scope, collection = self.builder.get_database_connection_details(
+        bucket, scope, collection, common_collection = self.builder.get_database_connection_details(
             queue_element
         )
         assert bucket == "test_bucket"
         assert scope == "test_scope"
         assert collection == "test_collection"
+        assert common_collection == "COMMON"
         assert self.builder.file_name == "test_file.nc"
 
     def test_build_document_map_type_checks(self):

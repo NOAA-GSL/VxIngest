@@ -68,8 +68,8 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
         """
 
         try:
-            bucket, scope, collection = self.get_database_connection_details(
-                queue_element
+            bucket, scope, collection, common_collection = (
+                self.get_database_connection_details(queue_element)
             )
 
             self.ncdf_data_set = nc.Dataset(queue_element)

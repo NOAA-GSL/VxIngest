@@ -19,7 +19,8 @@ pyproj = "^3.7.0"
 numpy = "^2.2.4"
 metpy = "^1.7.0"
 prometheus-client = "^0.21.1"
-ncepbufr = { file = "./third_party/NCEPLIBS-bufr/wheel_dist/ncepbufr-12.2.0-py313-none-macosx_15_0_arm64.whl" }
+ncepbufr = { file = "./third_party/NCEPLIBS-bufr/wheel_dist/ncepbufr-12.2.0-py313-none-macosx_15_0_arm64.whl", platform = "darwin" }
+ncepbufr = { file = "./third_party/NCEPLIBS-bufr/wheel_dist/ncepbufr-12.2.0-py313-none-linux_x86_64.whl", platform = "linux" }
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.5"

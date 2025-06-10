@@ -123,9 +123,13 @@ class CommonVxIngestManager(Process):
             self.collection = self.cluster.bucket(
                 self.cb_credentials["bucket"]
             ).collection(self.cb_credentials["collection"])
+            self.common_collection = self.cluster.bucket(
+                self.cb_credentials["bucket"]
+            ).collection(self.cb_credentials["common_collection"])
             # stash the database connection for the builders to reuse
             self.load_spec["cluster"] = self.cluster
             self.load_spec["collection"] = self.collection
+            self.load_spec["common_collection"] = self.common_collection
             logger.info("Couchbase connection success")
         except Exception as _e:
             logger.exception(

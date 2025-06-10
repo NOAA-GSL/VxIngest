@@ -58,10 +58,10 @@ class NetcdfBuilder(Builder):
         bucket = self.load_spec["cb_connection"]["bucket"]
         scope = self.load_spec["cb_connection"]["scope"]
         collection = self.load_spec["cb_connection"]["collection"]
-
+        common_collection = self.load_spec["cb_connection"]["common_collection"]
         # stash the file_name so that it can be used later
         self.file_name = Path(queue_element).name
-        return bucket, scope, collection
+        return bucket, scope, collection, common_collection
 
     def build_document_map(
         self, queue_element: str, base_var_name: str, origin_type: str = None
@@ -270,6 +270,11 @@ class NetcdfBuilder(Builder):
             Umatch = re.compile(".*U.*")
             if len(replacements) > 0:
                 for _ri in replacements:
+                    if _ri in self.ncdf_data_set.ncattrs():
+                        # it is a global attribute - replace ' '  with '_'
+                        tmp_value = self.ncdf_data_set.getncattr(_ri)
+                        value = str(tmp_value).replace(" ", "_")
+                        return value
                     vtype = str(self.ncdf_data_set.variables[_ri].dtype)
                     if Smatch.match(vtype) or Umatch.match(vtype):
                         make_str = True
@@ -951,7 +956,7 @@ class NetcdfBuilder(Builder):
             try:
                 docid = "MD:STANDARD_LEVELS:COMMON:V01"
                 self.standard_levels = (
-                    self.load_spec["collection"]
+                    self.load_spec["common_collection"]
                     .lookup_in(docid, (SD.get("TROPOE"),))
                     .content_as[list](0)
                 )

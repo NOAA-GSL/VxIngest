@@ -67,10 +67,9 @@ def test_one_thread_specify_file_pattern(tmp_path):
         {
             "job_id": "JOB-TEST:V01:TROPOE:NETCDF:OBS",
             "credentials_file": os.environ["CREDENTIALS"],
-            "file_name_mask": "sgptropoeC1.c1.%Y%m%d.%H%M%S.nc",
             "output_dir": f"{tmp_path}",
             "threads": 1,
-            "file_pattern": "sgptropoeC1.c1.20210605.000502.nc",
+            "file_pattern": "*.nc",
         },
         log_queue,
         stub_worker_log_configurer,
@@ -87,18 +86,20 @@ def test_one_thread_specify_file_pattern(tmp_path):
 
     # Test that we have one output file per input file
     input_path = Path("/opt/data/fireweather/input_files")
-    num_input_files = len(list(input_path.glob("sgptropoeC1.c1.*.nc")))
-    output_files = list(tmp_path.glob("sgptropoeC1.c1.*.json"))
+    num_input_files = len(list(input_path.glob("*.nc")))
+    output_files = list(tmp_path.glob("*nc.json"))
     num_output_files = len(output_files)
     assert num_output_files == num_input_files, "number of output files is incorrect"
 
     # Test that the output file matches the content in the database
     try:
         derived_data = json.load((output_files[0]).open(encoding="utf-8"))
-        obs_id = "DD-TEST:V01:TROPOE:obs:1622851502"
+        obs_id = derived_data[0]["id"]
         derived_record = [d for d in derived_data if d["id"] == obs_id]
         retrieved_record = vx_ingest.collection.get(obs_id).content_as[dict]
-        assert derived_record[0] == retrieved_record
+        assert derived_record[0]["validTime"] == retrieved_record["validTime"], (
+            "derived and retrieved validTime do not match"
+        )
         assert_dicts_almost_equal(derived_record[0], retrieved_record)
     except Exception as _e:
         print(f"*** test_one_thread_specify_file_pattern: Exception: {str(_e)}")

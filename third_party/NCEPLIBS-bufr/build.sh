@@ -34,23 +34,23 @@ local_test=false
 NCEPLIBSbufr_version="12.2.0"
 while getopts ":l:b:v:" o; do
     case "${o}" in
-        l)
-            local_build_dir=${OPTARG}
-            [ -d ${local_build_dir} ] || usage
-            echo "Using local build directory ${local_build_dir}"
+    l)
+        local_build_dir=${OPTARG}
+        [ -d ${local_build_dir} ] || usage
+        echo "Using local build directory ${local_build_dir}"
         ;;
-        b)
-            bufr_test_dir=${OPTARG}
-            [ -d ${bufr_test_dir} ] || usage
-            local_test=true
-            echo "Using local test data directory ${bufr_test_dir}"
+    b)
+        bufr_test_dir=${OPTARG}
+        [ -d ${bufr_test_dir} ] || usage
+        local_test=true
+        echo "Using local test data directory ${bufr_test_dir}"
         ;;
-        v)
-            NCEPLIBSbufr_version=${OPTARG}
-            echo "Using NCEPLIBSbufr version ${NCEPLIBSbufr_version}"
+    v)
+        NCEPLIBSbufr_version=${OPTARG}
+        echo "Using NCEPLIBSbufr version ${NCEPLIBSbufr_version}"
         ;;
-        *)
-            usage
+    *)
+        usage
         ;;
     esac
 done
@@ -156,6 +156,8 @@ libdir="lib"
 if [ "$platform" = "linux_x86_64" ]; then
     libdir="lib64"
 fi
+# copy the platform specific .so file to a common name for the petry build
+cp ${tmp_workdir}/NCEPLIBS-bufr-${NCEPLIBSbufr_version}/build/install/${libdir}/python${pyver}/site-packages/_bufrlib.cpython-${pver}*.so ${tmp_workdir}/NCEPLIBS-bufr-${NCEPLIBSbufr_version}/build/install/${libdir}/python${pyver}/site-packages/_bufrlib.so
 cd ${tmp_workdir}/NCEPLIBS-bufr-${NCEPLIBSbufr_version}/build/install/${libdir}/python${pyver}/site-packages
 cp -a ${VxIngest_root_dir}/third_party/NCEPLIBS-bufr/ncepbufr/* .
 # check for poetry

@@ -1029,7 +1029,27 @@ description = "packaging the ncepbufr library for use in python"
 optional = false
 python-versions = ">=3.13,<4.0"
 groups = ["main"]
-markers = "sys_platform == \"linux\""
+markers = "platform_machine == \"aarch64\" and sys_platform == \"Linux\""
+files = [
+    {file = "ncepbufr-12.2.0-py313-none-linux_aarch64.whl", hash = "sha256:6847b02ab3b914a669a65287d6fb7b6534eefdbd0897d1a4c9048d3bfc0021f9"},
+]
+
+[package.dependencies]
+netcdf4 = ">=1.7.2,<2.0.0"
+numpy = ">=2.0.0,<3.0.0"
+
+[package.source]
+type = "file"
+url = "third_party/NCEPLIBS-bufr/wheel_dist/ncepbufr-12.2.0-py313-none-linux_aarch64.whl"
+
+[[package]]
+name = "ncepbufr"
+version = "12.2.0"
+description = "packaging the ncepbufr library for use in python"
+optional = false
+python-versions = ">=3.13,<4.0"
+groups = ["main"]
+markers = "platform_machine == \"x86_64\" and sys_platform == \"Linux\""
 files = [
     {file = "ncepbufr-12.2.0-py313-none-linux_x86_64.whl", hash = "sha256:d6d119a421a6cfd815fda572a83c74d3e05afa9c6518ed2c0f68f4de071ee124"},
 ]
@@ -1049,9 +1069,9 @@ description = "packaging the ncepbufr library for use in python"
 optional = false
 python-versions = ">=3.13,<4.0"
 groups = ["main"]
-markers = "sys_platform == \"darwin\""
+markers = "platform_machine == \"arm64\" and sys_platform == \"Darwin\""
 files = [
-    {file = "ncepbufr-12.2.0-py313-none-macosx_15_0_arm64.whl", hash = "sha256:828f0eeeddedc8b0a1f187fd6a4b4816e25e34acbe84cc0b2ad58702fc476ac4"},
+    {file = "ncepbufr-12.2.0-py313-none-macosx_15_0_arm64.whl", hash = "sha256:e1e416f097eb08aa3dcdb4df5ac46fa0ae8d7d293937b7a46c5356cf3c6ad19f"},
 ]
 
 [package.dependencies]
@@ -1939,4 +1959,4 @@ viz = ["cartopy", "matplotlib", "nc-time-axis", "seaborn"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.13"
-content-hash = "04e1a986d0e022a2ed9d102aab5d1e3b61c6447ad370d47cfc7a9d3d9e2a2c15"
+content-hash = "5c177b85e472a6aac8df57eb4f9503627234fc2022c03124b12fa5f227a93623"

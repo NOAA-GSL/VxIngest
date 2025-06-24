@@ -112,54 +112,14 @@ class NetcdfTropoeObsBuilderV01(NetcdfBuilder):
             )
         return None
 
-    def is_snake_case(self, input_string):
-        """
-        Check if the input string is in snake_case format.
-        Args:
-            input_string (str): The string to check.
-        Returns:
-            bool: True if the string is in snake_case, False otherwise.
-        """
-        if "_" not in input_string:
-            return False
-        if "_" in input_string:
-            return True
-        return bool(re.match("^([a-z]+(_[a-z]+)*|[a-z]+)$", input_string))
-
-    def snake_case_to_camel_case(self, snake_str):
-        """
-        Convert a snake_case string to camelCase.
-        Args:
-            snake_str (str): The snake_case string to convert.
-        Returns:
-            str: The converted camelCase string.
-        """
-        if self.is_snake_case(snake_str):
-            elements = snake_str.split("_")
-            first = elements[0].lower()  # First element in lowercase
-            others = []
-            # Iterate through the remaining elements
-            # and capitalize the first letter of each
-            # while keeping the rest of the element as is
-            # Use regex to split elements that start with a capital letter
-            # and contain lowercase letters
-            # This handles cases like "lowerTemperature" or "upperWaterVapor"
-            # where we want to split at the capital letter
-            for _, element in enumerate(elements[1:]):
-                # make sure the first letter is uppercase
-                if element and element[0].islower():
-                    # Capitalize the first letter of the element
-                    element = element.replace(element[0], element[0].upper(), 1)
-                # Use regex to split the element into sub-elements based on other capitalization
-                sub_elements = re.findall("[A-Z][^A-Z]*", element)
-                others.extend(sub_elements)
-            # Capitalize the first letter of each remaining element
-            others = [
-                s.capitalize() for s in others if s
-            ]  # Capitalize non-empty elements
-            # Join the first element with the capitalized others
-            return "".join([first.lower(), "".join(others)])
-        return snake_str
+    def to_snake_case(self, term):
+        return "_".join(
+            re.sub(
+                "([A-Z][a-z]+)",
+                r" \1",
+                re.sub("([A-Z]+)", r" \1", term.replace("-", " ")),
+            ).split()
+        ).lower()
 
     def get_raw_data(self, params_dict):
         raw_data = {}
@@ -171,8 +131,8 @@ class NetcdfTropoeObsBuilderV01(NetcdfBuilder):
             variables.append(k)
         try:
             for variable in variables:
-                camel_variable = self.snake_case_to_camel_case(variable)
-                raw_data[camel_variable] = self.ncdf_data_set[variable][
+                snake_variable = self.to_snake_case(variable)
+                raw_data[snake_variable] = self.ncdf_data_set[variable][
                     base_var_index
                 ].tolist()
             # add the height
@@ -210,8 +170,8 @@ class NetcdfTropoeObsBuilderV01(NetcdfBuilder):
             lower_index = flat_interpolated_data["levels"].index(lower)
             upper_index = flat_interpolated_data["levels"].index(upper)
             for key in interpolated_data:
-                camel_key = self.snake_case_to_camel_case(key)
-                flat_interpolated_data[camel_key] = list(
+                snake_key = self.to_snake_case(key)
+                flat_interpolated_data[snake_key] = list(
                     interpolated_data[key].values()
                 )[lower_index:upper_index]
         except Exception as _e:

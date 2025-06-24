@@ -59,7 +59,9 @@ def test_int_tropoe_visual():
             doc_id = f"DD-TEST:V01:TROPOE:obs:ARM_AERI:{epoch}"
             # doc_id = "DD-TEST:V01:TROPOE:obs:1622851502"
             try:
-                res = collection.lookup_in(doc_id, (SD.get("data." + str(epoch) + ".raw"),))
+                res = collection.lookup_in(
+                    doc_id, (SD.get("data." + str(epoch) + ".raw"),)
+                )
                 data = res.content_as[dict](0)
                 index = 0
                 while index < len(data["height"]):

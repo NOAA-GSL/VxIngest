@@ -59,7 +59,7 @@ def test_int_tropoe_visual():
             doc_id = f"DD-TEST:V01:TROPOE:obs:ARM_AERI:{epoch}"
             # doc_id = "DD-TEST:V01:TROPOE:obs:1622851502"
             try:
-                res = collection.lookup_in(doc_id, (SD.get("data.0.raw"),))
+                res = collection.lookup_in(doc_id, (SD.get("data." + str(epoch) + ".raw"),))
                 data = res.content_as[dict](0)
                 index = 0
                 while index < len(data["height"]):
@@ -69,15 +69,17 @@ def test_int_tropoe_visual():
                 raw_data = {}
                 for variable in [
                     "temperature",
-                    "sigmaTemperature",
-                    "waterVapor",
-                    "sigmaWaterVapor",
+                    "sigma_temperature",
+                    "water_vapor",
+                    "sigma_water_vapor",
                     "height",
                 ]:
                     raw_data[variable] = data[variable][:index]
 
                 intrp_data = {}
-                res = collection.lookup_in(doc_id, (SD.get("data.0.interpolated"),))
+                res = collection.lookup_in(
+                    doc_id, (SD.get("data." + str(epoch) + ".interpolated"),)
+                )
                 intrp_data = res.content_as[dict](0)
 
                 fig = make_subplots(specs=[[{"secondary_y": True}]])
@@ -98,15 +100,15 @@ def test_int_tropoe_visual():
                 fig.add_trace(
                     go.Line(
                         y=raw_data["height"],
-                        x=raw_data["waterVapor"],
-                        name="raw data waterVapor",
+                        x=raw_data["water_vapor"],
+                        name="raw data water_vapor",
                     ),
                 )
                 fig.add_trace(
                     go.Line(
                         y=intrp_data["levels"],
-                        x=intrp_data["waterVapor"],
-                        name="interpolated data waterVapor",
+                        x=intrp_data["water_vapor"],
+                        name="interpolated data water_vapor",
                     ),
                 )
                 time_str = str(dt.datetime.utcfromtimestamp(epoch).isoformat())
@@ -115,7 +117,7 @@ def test_int_tropoe_visual():
                 )
                 fig.update_traces(mode="lines+markers")
                 fig.update_traces(marker=dict(size=5))
-                fig.update_xaxes(title_text="temperature degC / waterVapor g/kg")
+                fig.update_xaxes(title_text="temperature degC / water_vapor g/kg")
                 fig.update_yaxes(title_text="height/levels meters")
                 fig.show()
             except Exception as _e:

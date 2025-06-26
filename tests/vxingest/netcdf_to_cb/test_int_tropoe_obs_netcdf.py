@@ -97,7 +97,9 @@ def test_one_thread_specify_file_pattern(tmp_path):
         obs_id = derived_data[0]["id"]
         derived_record = [d for d in derived_data if d["id"] == obs_id]
         retrieved_record = vx_ingest.collection.get(obs_id).content_as[dict]
-        assert derived_record[0]["validTime"] == retrieved_record["validTime"], "derived and retrieved validTime do not match"
+        assert derived_record[0]["validTime"] == retrieved_record["validTime"], (
+            "derived and retrieved validTime do not match"
+        )
         assert_dicts_almost_equal(derived_record[0], retrieved_record)
     except Exception as _e:
         print(f"*** test_one_thread_specify_file_pattern: Exception: {str(_e)}")

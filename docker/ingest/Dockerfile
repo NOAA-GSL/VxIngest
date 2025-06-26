@@ -5,9 +5,7 @@
 # The builder image, used for building the virtual environment
 FROM python:3.14-slim-bookworm AS builder
 
-# Upgrade system packages to ensure all security patches are applied
 RUN apt-get update && \
-    apt-get upgrade -y && \
     # cftime build deps
     apt-get install -y build-essential && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
@@ -25,7 +23,8 @@ WORKDIR /app
 
 # Install just the runtime dependencies, no dev tooling
 COPY pyproject.toml poetry.lock ./
-RUN poetry install --without dev --no-root && rm -rf $POETRY_CACHE_DIR
+COPY third_party/NCEPLIBS-bufr/wheel_dist ./third_party/NCEPLIBS-bufr/wheel_dist
+RUN ls && poetry install --without dev --no-root && rm -rf $POETRY_CACHE_DIR
 
 
 # The dev image, used for testing

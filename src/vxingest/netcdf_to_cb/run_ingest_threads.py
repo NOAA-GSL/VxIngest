@@ -192,9 +192,9 @@ class VXIngest(CommonVxIngest):
                     _id
                 ).content_as[dict]
             # load the fmask and input_data_path into the load_spec
-            #self.fmask = ingest_document["file_mask"]
-            self.path = ingest_document["input_data_path"]
-            #self.load_spec["fmask"] = self.fmask
+            self.fmask = ingest_document.get("file_mask", None)
+            self.path = ingest_document.get("input_data_path", None)
+            self.load_spec["fmask"] = self.fmask
             self.load_spec["input_data_path"] = self.path
             # stash the load_job in the load_spec
             self.load_spec["load_job_doc"] = self.build_load_job_doc(

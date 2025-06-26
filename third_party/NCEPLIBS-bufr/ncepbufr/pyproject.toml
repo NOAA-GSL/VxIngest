@@ -9,13 +9,13 @@ authors = [
 readme = "README.md"
 license = "GNU Lesser General Public License v3.0"
 include = [
-    { path = "_bufrlib.cpython-313-darwin.so", format = ["sdist", "wheel"] }
+    { path = "_bufrlib.so", format = ["sdist", "wheel"] }
 ]
 
 [tool.poetry.dependencies]
 python = "^3.13"
-numpy = "^2"
-netcdf4 = "^1"
+numpy = "^2.0.0"
+netcdf4 = "^1.7.2"
 
 [build-system]
 requires = ["poetry-core"]

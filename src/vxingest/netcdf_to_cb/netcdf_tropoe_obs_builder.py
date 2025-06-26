@@ -8,6 +8,7 @@ Colorado, NOAA/OAR/ESRL/GSL
 
 import datetime as dt
 import logging
+import re
 
 import netCDF4 as nc
 
@@ -46,7 +47,6 @@ class NetcdfTropoeObsBuilderV01(NetcdfBuilder):
             return {}
         try:
             self.same_time_rows = {}
-            # bucket, scope, collection = self.get_database_connection_details(queue_element)
             self.ncdf_data_set = nc.Dataset(queue_element)
             document_map = self.build_3d_document_map(queue_element, "time", "tropoe")
             return document_map
@@ -112,18 +112,14 @@ class NetcdfTropoeObsBuilderV01(NetcdfBuilder):
             )
         return None
 
-        # # add the height and load the raw data into the document - convert km to m
-        # data_elem["height"] = [
-        #     i * 1000 for i in self.ncdf_data_set["height"][:].tolist()
-        # ]
-        # doc["raw_data"] = data_elem
-        # # interpolate the data
-        # interpolated_data = self.interpolate_3d_data(data_elem)
-        # flat_interpolated_data = {}
-        # flat_interpolated_data["levels"] = list(interpolated_data[key].keys())
-        # for key in interpolated_data:
-        #     flat_interpolated_data[key] = list(interpolated_data[key].values())
-        # doc["data"] = flat_interpolated_data
+    def to_snake_case(self, term):
+        return "_".join(
+            re.sub(
+                "([A-Z][a-z]+)",
+                r" \1",
+                re.sub("([A-Z]+)", r" \1", term.replace("-", " ")),
+            ).split()
+        ).lower()
 
     def get_raw_data(self, params_dict):
         raw_data = {}
@@ -135,7 +131,8 @@ class NetcdfTropoeObsBuilderV01(NetcdfBuilder):
             variables.append(k)
         try:
             for variable in variables:
-                raw_data[variable] = self.ncdf_data_set[variable][
+                snake_variable = self.to_snake_case(variable)
+                raw_data[snake_variable] = self.ncdf_data_set[variable][
                     base_var_index
                 ].tolist()
             # add the height
@@ -173,9 +170,10 @@ class NetcdfTropoeObsBuilderV01(NetcdfBuilder):
             lower_index = flat_interpolated_data["levels"].index(lower)
             upper_index = flat_interpolated_data["levels"].index(upper)
             for key in interpolated_data:
-                flat_interpolated_data[key] = list(interpolated_data[key].values())[
-                    lower_index:upper_index
-                ]
+                snake_key = self.to_snake_case(key)
+                flat_interpolated_data[snake_key] = list(
+                    interpolated_data[key].values()
+                )[lower_index:upper_index]
         except Exception as _e:
             logger.error(f"*** get_interpolated_data: Exception: {str(_e)}")
             raise _e

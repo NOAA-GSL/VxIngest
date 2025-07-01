@@ -162,7 +162,7 @@ jobs:
       - name: Extract SHORT_SHA
         run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
       - name: Scan image with Trivy
-        uses: aquasecurity/trivy-action@0.30.0
+        uses: aquasecurity/trivy-action@0.31.0
         with:
           image-ref: "ghcr.io/noaa-gsl/vxingest/ingest:sha-${{ env.SHORT_SHA }}"
           format: "table" # Generate actionable output
@@ -174,7 +174,7 @@ jobs:
           TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
       - name: Generate Trivy output formatted for the GitHub Security tab
         if: always()
-        uses: aquasecurity/trivy-action@0.30.0
+        uses: aquasecurity/trivy-action@0.31.0
         with:
           image-ref: "ghcr.io/noaa-gsl/vxingest/ingest:sha-${{ env.SHORT_SHA }}"
           format: "sarif"
@@ -198,7 +198,7 @@ jobs:
       - name: Extract SHORT_SHA
         run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
       - name: Scan image with Trivy
-        uses: aquasecurity/trivy-action@0.30.0
+        uses: aquasecurity/trivy-action@0.31.0
         with:
           image-ref: "ghcr.io/noaa-gsl/vxingest/import:sha-${{ env.SHORT_SHA }}"
           format: "table" # Generate actionable output
@@ -210,7 +210,7 @@ jobs:
           TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
       - name: Generate Trivy output formatted for the GitHub Security tab
         if: always()
-        uses: aquasecurity/trivy-action@0.30.0
+        uses: aquasecurity/trivy-action@0.31.0
         with:
           image-ref: "ghcr.io/noaa-gsl/vxingest/import:sha-${{ env.SHORT_SHA }}"
           format: "sarif"

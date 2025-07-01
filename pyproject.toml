@@ -11,12 +11,12 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.13"
 pyyaml = "^6.0.2"
-xarray = "^2025.4.0"
+xarray = "^2025.6.1"
 netcdf4 = "^1.7.2"
 cfgrib = "^0.9.15.0"
 couchbase = "^4.3.5"
 pyproj = "^3.7.0"
-numpy = "^2.2.6"
+numpy = "^2.3.1"
 metpy = "1.7.0"
 prometheus-client = "^0.22.0"
 ncepbufr = [{ file = "./third_party/NCEPLIBS-bufr/wheel_dist/ncepbufr-12.2.0-py313-none-macosx_15_0_arm64.whl", platform = "Darwin", markers = "platform_machine == 'arm64' "},
@@ -25,12 +25,12 @@ ncepbufr = [{ file = "./third_party/NCEPLIBS-bufr/wheel_dist/ncepbufr-12.2.0-py3
             ]
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.3.5"
+pytest = "^8.4.1"
 types-pyyaml = "^6.0.12.20250516"
-ruff = "^0.11.12"
-coverage = "^7.8.2"
-mypy = "^1.16.0"
-plotly = "^6.1.2"
+ruff = "^0.12.1"
+coverage = "^7.9.1"
+mypy = "^1.16.1"
+plotly = "^6.2.0"
 mysql-connector-python = "^9.3.0"
 tabulate = "^0.9.0"
 

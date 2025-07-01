@@ -1,6 +1,7 @@
 """
 integration tests for grib builder for upperair model data.
-This test expects to find a valid grib file in the local directory /opt/public/data/grids/hrrr/conus/wrfprs/grib2.
+This test expects to find a valid grib file in the local directory /opt/data/grib2_to_cb/hrrr_ops/input_files/conus/wrfprs/grib2
+and grib2_to_cb/hrrr_ops/input_files/conus/wrfnat/grib2.
 This test expects to write to the local output directory /opt/data/grib_to_cb/output so that directory should exist.
 21 196 14 000018 %y %j %H %f  treating the last 6 decimals as microseconds even though they are not.
 these files are two digit year, day of year, hour, and forecast lead time (6 digit ??)
@@ -70,14 +71,6 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus_raob_native(tmp_pat
     """test gribBuilder with one thread.
     This test verifies the resulting data file against the one that is in couchbase already
     in order to make sure the calculations are proper."""
-    # 1632412800 fcst_len 1 -> 1632412800 - 1 * 3600 -> 1632409200 September 23, 2021 15:00:00 -> 2126615000001
-    # 1632412800 fcst_len 3 -> 1632412800 - 3 * 3600 -> 1632402000 September 23, 2021 13:00:00 -> 2126613000003
-    # 1632412800 fcst_len 15 -> 1632412800 - 15 * 3600 -> 1632358800 September 22, 2021 19:00:00  ->  (missing)
-    # 1632412800 fcst_len 18 -> 1632412800 - 18 * 3600 -> 1632348000 September 22, 2021 22:00:00 -> 2126522000018 (missing)
-    # 1632420000 September 23, 2021 18:00:00  2126616000018
-    # 1632423600  September 23, 2021 19:00:00 2126617000001
-    # first_epoch = 1634252400 - 10
-    # last_epoch = 1634252400 + 10
     credentials_file = os.environ["CREDENTIALS"]
     # remove possible existing DF test documents
     connect_cb()["cluster"].query("""DELETE
@@ -90,7 +83,7 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus_raob_native(tmp_pat
     vx_ingest = VXIngest()
     vx_ingest.runit(
         {
-            "job_id": "JOB-TEST:V01:RAOB:GRIB2:NTV:MODEL:HRRR",
+            "job_id": "JOB-TEST:V01:RAOB:GRIB2:NAT:MODEL:HRRR",
             "credentials_file": credentials_file,
             "file_name_mask": "%y%j%H%f",
             "output_dir": f"{tmp_path}",
@@ -199,7 +192,7 @@ def test_grib_builder_one_thread_file_pattern_raob_interpolated(tmp_path):
     vx_ingest = VXIngest()
     vx_ingest.runit(
         {
-            "job_id": "JOB-TEST:V01:RAOB:GRIB2:MODEL:MPAS_physics_dev1",
+            "job_id": "JOB-TEST:V01:RAOB:GRIB2:PRS:MODEL:HRRR",
             "credentials_file": credentials_file,
             "file_name_mask": "mpas_phys_dev1_two_%y%j%H_f%f.grib2",
             "output_dir": f"{tmp_path}",

@@ -41,3 +41,37 @@ class RaobModelPressureLevelBuilderV01(RaobGribModelBuilder):
             ingest_document,
             number_stations=number_stations,
         )
+
+    def get_raw_data(self, dataset_map):
+        """
+        Extracts raw data from the dataset map.
+        This method is overridden to handle RAOB-specific data extraction.
+        Args:
+            dataset_map (dict): A dictionary containing datasets keyed by their type of level.
+        Returns:
+            dict: A dictionary containing raw data extracted from the datasets.
+        """
+        raw_data = {}
+        for station, data in dataset_map.items():
+            # Extract relevant data for each station
+            raw_data[station] = {
+                "temperature": data.get("temperature"),
+                "pressure": data.get("pressure"),
+                "humidity": data.get("humidity"),
+                "wind_speed": data.get("wind_speed"),
+                "wind_direction": data.get("wind_direction"),
+            }
+        return raw_data
+
+    def get_interpolated_data(self, dataset_map, raw_data):
+        """
+        Interpolates data from the dataset map.
+        This method is overridden to handle RAOB-specific data interpolation.
+        Args:
+            dataset_map (dict): A dictionary containing datasets keyed by their type of level.
+            raw_data (dict): A dictionary containing raw data for each station.
+        Returns:
+            dict: A dictionary containing interpolated data for each station.
+        """
+        # This method should return a dictionary keyed by station name
+        # and containing the interpolated data for that station.

@@ -157,7 +157,7 @@ def main():
         adr_gen = ADRGenerator(adr_prefix=args.adr_prefix, base_path=args.base_path)
 
         # Get our data
-        filepath = adr_gen.generate_adr_filepath(issue_data["title"])
+        filepath = adr_gen.generate_adr_filepath(issue_data["title"], adr_number=args.adr_number)
         content = adr_gen.generate_adr_content(issue_data["title"], issue_data["body"])
 
         if args.dry_run:

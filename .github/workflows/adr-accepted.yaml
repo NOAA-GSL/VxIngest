@@ -33,7 +33,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          BRANCH="adr-auto-${{ steps.next.outputs.number }}"
+          BRANCH="adr-auto-${{ github.event.issue.number }}"
           git config --global user.email "mats.gsl@noaa.gov"
           git config --global user.name "GSL verification team ADR automation"
           # Check if the branch already exists, exit-code 2 means it doesn't, and that creating a new branch is safe.
@@ -44,10 +44,10 @@ jobs:
           if [ $branch_exists -eq 2 ]; then
             git checkout -b $BRANCH
             git add docs/decisions/architecture/*.md
-            git commit -m "Add ADR ${{ steps.next.outputs.number }}: ${{ github.event.issue.title }}"
+            git commit -m "Add ADR for: ${{ github.event.issue.title }}"
             git push -f origin $BRANCH
             gh pr create \
-                --title "Add ADR ${{ steps.next.outputs.number }} to the repo" \
+                --title "Add ADR for #${{ github.event.issue.number }} to the repo" \
                 --body "This pull request was opened automatically because #${{ github.event.issue.number }} was closed after being marked as an approved ADR. It contains a markdown file capturing the ADR body at the time the issue was closed. Please verify that the markdown is correct before merging!" || true
           else
             echo "Error - Branch $BRANCH already exists, PR will need to be created manually.

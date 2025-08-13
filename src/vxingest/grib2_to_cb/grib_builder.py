@@ -57,10 +57,10 @@ class GribModelBuilderV01(GribBuilder):
         self.same_time_rows = []
         self.time = 0
         self.interpolated_time = 0
-        self.delta = ingest_document["validTimeDelta"]
-        self.cadence = ingest_document["validTimeInterval"]
-        self.template = ingest_document["template"]
-        self.subset = self.template["subset"]
+        self.delta = ingest_document.get("validTimeDelta")
+        self.cadence = ingest_document.get("validTimeInterval")
+        self.template = ingest_document.get("template")
+        self.subset = self.template.get("subset")
         self.land_use_types = None
         # self.do_profiling = True  # set to True to enable build_document profiling
         self.do_profiling = False  # set to True to enable build_document profiling
@@ -81,7 +81,7 @@ class GribModelBuilderV01(GribBuilder):
             "type": "DF",
             "fileType": "grib2",
             "originType": origin_type,
-            "loadJobId": self.load_spec["load_job_doc"]["id"],
+            "loadJobId": self.load_spec.get("load_job_doc").get("id"),
             "dataSourceId": "GSL",
             "url": file_name,
             "projection": "lambert_conformal_conic",
@@ -117,7 +117,7 @@ class GribModelBuilderV01(GribBuilder):
         Returns:
             doc (Object): The document being created
         """
-        if "data" not in doc or doc["data"] is None:
+        if doc.get("data") is None:
             keys = list(element.keys())
             doc["data"] = {}
             for i in range(len(self.domain_stations)):
@@ -172,7 +172,7 @@ class GribModelBuilderV01(GribBuilder):
                 "Orography"
             ].values
             surface_values = []
-            if self.ds_translate_item_variables_map["Cloud ceiling"] is None:
+            if self.ds_translate_item_variables_map.get("Cloud ceiling") is None:
                 return None
             ceil_var_values = self.ds_translate_item_variables_map[
                 "Cloud ceiling"
@@ -294,9 +294,8 @@ class GribModelBuilderV01(GribBuilder):
             [int]: translated wind speed
         """
         # interpolated value cannot use rounded grid points
-        if self.ds_translate_item_variables_map["10 metre U wind component"] is None:
+        if self.ds_translate_item_variables_map.get("10 metre U wind component") is None:
             return None
-
         values = self.ds_translate_item_variables_map[
             "10 metre U wind component"
         ].values

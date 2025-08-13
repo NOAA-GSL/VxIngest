@@ -3,11 +3,9 @@ import cProfile
 import logging
 import math
 import sys
-from importlib import abc
 from pathlib import Path
 from pstats import Stats
 
-import cfgrib
 import pyproj
 import xarray as xr
 
@@ -32,9 +30,10 @@ class RaobGribModelBuilder(GribModelBuilderV01):
             if number_stations is not None
             else sys.maxsize,
         )
+        self.fcst_valid_epoch = None
+        self.fcst_len = None
 
-
-    def get_raw_data(self, dataset_map):
+    def get_raw_data(self, dataset_map, raw_data_template):
         """
         Extracts raw data from the dataset map.
         This method is overridden to handle RAOB-specific data extraction.
@@ -58,6 +57,244 @@ class RaobGribModelBuilder(GribModelBuilderV01):
         # This method should return a dictionary keyed by station name
         # and containing the interpolated data for that station.
         pass
+
+    def interpolate_variable_for_level(
+        self,
+        variable,
+        nearest_higher_pressure_index,
+        nearest_lower_pressure_index,
+        obs_data,
+        wanted_pressure_level_mb,
+    ):
+        """
+        This method interpolates the data for a given variable to the wanted level
+        using the nearest higher and lower pressure indexes. This method assumes that the variables
+        are masked arrays with the same shape. The wanted pressure is a mandatory level provided in mb
+        and the pressure masked array is also assumed to be in mb.
+        :param variable: the variable to interpolate
+        :param nearest_higher_pressure_index: the nearest higher pressure index
+        :param nearest_lower_pressure_index: the nearest lower pressure index
+        :param wanted_pressure_level_mb: the wanted pressure level in mb
+        :return: the interpolated value for the variable at the wanted pressure level
+        """
+        try:
+            value = None
+            nearest_higher_pressure = obs_data["pressure"][
+                nearest_higher_pressure_index
+            ]
+            nearest_lower_pressure = obs_data["pressure"][nearest_lower_pressure_index]
+            try:
+                weight = (float)(
+                    (
+                        math.log(nearest_higher_pressure)
+                        - math.log(wanted_pressure_level_mb)
+                    )
+                    / (
+                        math.log(nearest_higher_pressure)
+                        - math.log(nearest_lower_pressure)
+                    )
+                )
+            except Exception as _e1:
+                if not isinstance(_e1, ZeroDivisionError):
+                    # don't log divide by zero (two adjacent levels with same)
+                    logger.error(
+                        "PrepBufrBuilder.interpolate_variable_for_level: Exception  error: %s",
+                        str(_e1),
+                    )
+                return None
+            if variable == "wind_direction":  # if it is a wind_direction do this
+                # interpolates wind directions in the range 0 - 359 degrees
+                if not self.is_a_number(nearest_lower_pressure) or not self.is_a_number(
+                    nearest_higher_pressure
+                ):
+                    return None
+
+                next_higher_pressure_direction = obs_data["wind_direction"][
+                    nearest_higher_pressure_index
+                ]
+                next_lower_pressure_direction = obs_data["wind_direction"][
+                    nearest_lower_pressure_index
+                ]
+                if not self.is_a_number(
+                    next_lower_pressure_direction
+                ) or not self.is_a_number(next_higher_pressure_direction):
+                    return None
+
+                dir_dif = next_lower_pressure_direction - next_higher_pressure_direction
+                if dir_dif > 180:
+                    dir_dif -= 360
+                else:
+                    if dir_dif < -180:
+                        dir_dif += 360
+                # round the possible floating point number to the nearest integer
+                value = round(next_higher_pressure_direction + weight * (dir_dif))
+                if value < 0:
+                    value += 360
+                else:
+                    if value >= 360:
+                        value -= 360
+                return value
+            else:  # if it isn't a wind_direction do this
+                next_higher_pressure_variable_value = obs_data[variable][
+                    nearest_higher_pressure_index
+                ]
+                next_lower_pressure_variable_value = obs_data[variable][
+                    nearest_lower_pressure_index
+                ]
+                if not self.is_a_number(
+                    next_higher_pressure_variable_value
+                ) or not self.is_a_number(next_lower_pressure_variable_value):
+                    return None
+                else:
+                    value = next_higher_pressure_variable_value + weight * (
+                        next_lower_pressure_variable_value
+                        - next_higher_pressure_variable_value
+                    )
+                    return value
+        except Exception as _e:
+            logger.error(
+                "PrepBufrBuilder.interpolate_level: Exception  error: %s", str(_e)
+            )
+            return None
+
+    def interpolate_data(self, raw_obs_data):
+        """fill in the mandatory levels with interpolated data using the log difference interpolation method.
+        For each pressure level in the mandatory levels, find the nearest higher and lower pressure levels
+        and interpolate the data for each variable at the mandatory level. Set the pressure level to the mandatory level.
+        Args:
+            raw_data (): this is the raw data from the prepbufr file with missing heights having been interpolated
+            using the hypsometric equation for thickness.
+        Returns: the interpolated_data
+        """
+        try:
+            interpolated_data = {}
+            mandatory_levels = self.get_mandatory_levels()
+            for station in raw_obs_data:
+                if station not in interpolated_data:
+                    interpolated_data[station] = {}
+                for report in raw_obs_data[station]:
+                    if report not in interpolated_data[station]:
+                        interpolated_data[station][report] = {}
+                        if "data" not in interpolated_data[station][report]:
+                            interpolated_data[station][report]["data"] = {}
+                    if raw_obs_data[station][report][
+                        "obs_data"
+                    ] is None or not isinstance(
+                        raw_obs_data[station][report]["obs_data"]["pressure"],
+                        list,
+                    ):
+                        # I cannot process this station - there is no array of pressure data
+                        del interpolated_data[station]
+                        break
+                    for variable in raw_obs_data[station][report]["obs_data"]:
+                        # create masked array for the variable with ALL the mandatory levels
+                        # though the levels below the bottom level and above the top level will be masked
+                        if report == 120 and "wind" in variable.lower():
+                            # skip this one - it is handled in the 220 report
+                            continue
+                        if (
+                            report == 220
+                            and variable.lower() != "pressure"
+                            and "wind" not in variable.lower()
+                        ):
+                            # skip this one - it is handled in the 120 report - except for pressure
+                            continue
+                        if variable not in interpolated_data[station][report]["data"]:
+                            interpolated_data[station][report]["data"][variable] = {}
+                        if (
+                            raw_obs_data[station][report]["obs_data"][variable] is None
+                            or len(raw_obs_data[station][report]["obs_data"][variable])
+                            == 0
+                        ):
+                            # can't do this, there is no raw data for this variable
+                            interpolated_data[station][report]["data"][variable] = None
+                            continue
+                        # now we can interpolate the levels for each variable
+                        for level in mandatory_levels:
+                            # find the nearest higher and lower pressure to this level
+                            p_arr = np.asarray(
+                                raw_obs_data[station][report]["obs_data"]["pressure"]
+                            )
+                            if (
+                                np.isnan(p_arr).all()
+                                or level > p_arr.max()
+                                or level < p_arr.min()
+                            ):
+                                # this level is outside the range of the data - have to skip it
+                                interpolated_data[station][report]["data"][variable][
+                                    level
+                                ] = None
+                                continue
+                            p_no_nan_arr = p_arr[~np.isnan(p_arr)]
+                            if level > p_no_nan_arr.max() or level < p_no_nan_arr.min():
+                                # this level is outside the range of the data - have to skip it
+                                interpolated_data[station][report]["data"][variable][
+                                    level
+                                ] = None
+                                continue
+                            nearest_higher_pressure = p_no_nan_arr[
+                                p_no_nan_arr >= level
+                            ].min()
+                            nearest_higher_i = raw_obs_data[station][report][
+                                "obs_data"
+                            ]["pressure"].index(nearest_higher_pressure)
+                            nearest_lower_pressure = p_no_nan_arr[
+                                p_no_nan_arr <= level
+                            ].max()
+                            nearest_lower_i = raw_obs_data[station][report]["obs_data"][
+                                "pressure"
+                            ].index(nearest_lower_pressure)
+
+                            if (
+                                nearest_higher_i == nearest_lower_i
+                                and nearest_higher_pressure == level
+                            ):
+                                # this is the level we want - it matches the mandatory level
+                                interpolated_data[station][report]["data"][variable][
+                                    level
+                                ] = (
+                                    raw_obs_data[station][report]["obs_data"][variable][
+                                        nearest_lower_i
+                                    ]
+                                    if self.is_a_number(
+                                        raw_obs_data[station][report]["obs_data"][
+                                            variable
+                                        ][nearest_lower_i]
+                                    )
+                                    else None
+                                )
+                                continue
+                            # have to interpolate the data for this variable and level
+                            try:
+                                interpolated_data[station][report]["data"][variable][
+                                    level
+                                ] = self.interpolate_variable_for_level(
+                                    variable,
+                                    nearest_higher_i,
+                                    nearest_lower_i,
+                                    raw_obs_data[station][report]["obs_data"],
+                                    level,
+                                )
+                            except Exception as _e:
+                                logger.error(
+                                    "PrepBufrBuilder.interpolate_data: Exception  error: %s",
+                                    str(_e),
+                                )
+                                interpolated_data[station][report]["data"][variable][
+                                    level
+                                ] = None
+        except Exception as _e:
+            logger.error(
+                "PrepBufrBuilder.interpolate_data: Exception  error: %s", str(_e)
+            )
+        # set the pressure levels to the mandatory levels now that the data has all been interpolated to mandatory levels
+        for station in raw_obs_data:
+            for report in raw_obs_data[station]:
+                for _l in mandatory_levels:
+                    if station not in interpolated_data:
+                        continue
+                    interpolated_data[station][report]["data"]["pressure"][_l] = _l
+        return interpolated_data
 
     def get_mandatory_levels(self):
         """
@@ -188,15 +425,15 @@ class RaobGribModelBuilder(GribModelBuilderV01):
 
     def build_document(self, queue_element):
         """
-         This is the entry point for theRAOB gribBuilders from the ingestManager.
+         This is the entry point for the RAOB gribBuilders from the ingestManager.
          The ingest manager is giving us a grib file to process from the queue.
          These documents are id'd by valid time and fcstLen. The data section is a dictionary
          indexed by RAOB station name each element of which contains variable data and a station name.
-         To process this file we need to iterate the domain_stations list and process the
+         To process this file we need to iterate the stations list and process the
          station name along with all the required variables.
          1) get the first epoch - if none was specified get the latest one from the db
          2) transform the projection from the grib file
-         3) determine the stations for this domain, adding gridpoints to each station - build a station list
+         3) determine the stations, adding gridpoints to each station - build a station list
          4) enable profiling if requested
          5) handle_document - iterate the template and process all the keys and values
          6) build a datafile document to record that this file has been processed
@@ -230,12 +467,16 @@ class RaobGribModelBuilder(GribModelBuilderV01):
             bucket = self.load_spec["cb_connection"]["bucket"]
             scope = self.load_spec["cb_connection"]["scope"]
             collection = self.load_spec["cb_connection"]["collection"]
+            # change collection to RAOB
+            collection = "RAOB"
 
             datasetMap = {}
-            template_dataset_gribname_longname = self.ingest_document[
-                "template_dataset_gribname_longname"
-            ]
-            for key in template_dataset_gribname_longname:
+            # The raw_data keys are the dataset names
+            # The dataset names are the typeOfLevel values in the grib file
+            # For example, for a grib file with isobaricInhPa levels,
+            # the raw_data_template keys of interest will only be ['isobaricInhPa']
+            raw_data_template = self.ingest_document.get("raw_data_template")
+            for key in raw_data_template:
                 datasetMap[key] = xr.open_dataset(
                     queue_element,
                     engine="cfgrib",
@@ -247,21 +488,21 @@ class RaobGribModelBuilder(GribModelBuilderV01):
                         "read_keys": ["projString"],
                         "indexpath": "",
                     },
+                    decode_timedelta=True,
                 )
             # translate the projection from the grib file
             # The projection is the same for all the variables in the grib file,
-            first_dataset = next(iter(datasetMap))
+            first_dataset = datasetMap.get(next(iter(datasetMap)))
             in_proj = pyproj.Proj(proj="latlon")
-            proj_string = first_dataset.r.attrs["GRIB_projString"]
-            max_x = first_dataset.r.attrs["GRIB_Nx"]
-            max_y = first_dataset.r.attrs["GRIB_Ny"]
-            spacing = first_dataset.r.attrs["GRIB_DxInMetres"]
-            latitude_of_first_grid_point_in_degrees = first_dataset.r.attrs[
-                "GRIB_latitudeOfFirstGridPointInDegrees"
-            ]
-            longitude_of_first_grid_point_in_degrees = first_dataset.r.attrs[
+            proj_string = first_dataset.r.attrs.get("GRIB_projString")
+            max_x = first_dataset.r.attrs.get("GRIB_Nx")
+            max_y = first_dataset.r.attrs.get("GRIB_Ny")
+            spacing = first_dataset.r.attrs.get("GRIB_DxInMetres")
+            latitude_of_first_grid_point_in_degrees = first_dataset.r.attrs.get(
+                "GRIB_latitudeOfFirstGridPointInDegrees")
+            longitude_of_first_grid_point_in_degrees = first_dataset.r.attrs.get(
                 "GRIB_longitudeOfFirstGridPointInDegrees"
-            ]
+            )
             proj_params_dict = self.get_proj_params_from_string(proj_string)
             in_proj = pyproj.Proj(proj="latlon")
             out_proj = self.get_grid(
@@ -283,20 +524,18 @@ class RaobGribModelBuilder(GribModelBuilderV01):
                 ).astype("uint32")
             if self.fcst_len is None:
                 self.fcst_len = (int)(first_dataset.step.step.values / 1e9 / 3600)
-            self.raw_data = self.get_raw_data(datasetMap)
-            self.interpolated_data = self.get_interpolated_data(datasetMap, self.raw_data)
             # reset the builders document_map for a new file
             self.initialize_document_map()
             # get stations from couchbase and filter them so
             # that we retain only the ones for this models domain which is derived from the projection
             # also fill in the gridpoints for each station and for each geo within each station
             # NOTE: this is not about regions, this is about models
-            self.domain_stations = []
+            self.stations = []
             limit_clause = ";"
             if self.number_stations != sys.maxsize:
                 limit_clause = f" limit {self.number_stations};"
             result = self.load_spec["cluster"].query(
-                f"""SELECT geo, name
+                f"""SELECT geo, wmoid
                         from `{bucket}`.{scope}.{collection}
                         where type='MD'
                         and docType='station'
@@ -306,6 +545,7 @@ class RaobGribModelBuilder(GribModelBuilderV01):
             )
             for row in result:
                 station = copy.deepcopy(row)
+                station["wmoid"] = row.get("wmoid")
                 for geo_index in range(len(row["geo"])):
                     lat = row["geo"][geo_index]["lat"]
                     lon = row["geo"][geo_index]["lon"]
@@ -343,7 +583,14 @@ class RaobGribModelBuilder(GribModelBuilderV01):
                     if "x_gridpoint" not in elem or "y_gridpoint" not in elem:
                         has_gridpoints = False
                 if has_gridpoints:
-                    self.domain_stations.append(station)
+                    self.stations.append(station)
+
+            # get the raw and the interpolated data
+            self.raw_data_template = self.get_raw_data(datasetMap, raw_data_template)
+            self.interpolated_data = self.get_interpolated_data(
+                datasetMap, self.raw_data_template
+            )
+
             # if we have asked for profiling go ahead and do it
             if self.do_profiling:
                 with cProfile.Profile() as _pr:
@@ -377,15 +624,6 @@ class RaobGribModelBuilder(GribModelBuilderV01):
             document_map[data_file_doc["id"]] = data_file_doc
             self.delete_idx_file(queue_element)
             return document_map
-        except (FileNotFoundError, cfgrib.IOProblemError):
-            logger.error(
-                "%s: Exception with builder build_document: file_name: %s, error: file not found or problem reading file - skipping this file",
-                self.__class__.__name__,
-                queue_element,
-            )
-            # remove any idx file that may have been created
-            self.delete_idx_file(queue_element)
-            return {}
         except Exception as _e:
             logger.exception(
                 "%s: Exception with builder build_document: file_name: %s, exception %s",

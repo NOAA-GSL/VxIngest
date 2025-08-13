@@ -1,6 +1,5 @@
 import sys
 
-from vxingest.grib2_to_cb.grib_builder import GribModelBuilderV01
 from vxingest.grib2_to_cb.raob_grib_model_builder import RaobGribModelBuilder
 
 
@@ -36,12 +35,11 @@ class RaobModelNativeLevelBuilderV01(RaobGribModelBuilder):
         ingest_document,
         number_stations=sys.maxsize,
     ):
-        GribModelBuilderV01.__init__(
+        RaobGribModelBuilder.__init__(
             self,
             load_spec,
             ingest_document,
             number_stations=number_stations,
-
         )
 
     def get_raw_data(self, dataset_map):

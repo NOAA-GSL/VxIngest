@@ -1,6 +1,5 @@
 import sys
 
-from vxingest.grib2_to_cb.grib_builder import GribModelBuilderV01
 from vxingest.grib2_to_cb.raob_grib_model_builder import RaobGribModelBuilder
 
 
@@ -35,14 +34,14 @@ class RaobModelPressureLevelBuilderV01(RaobGribModelBuilder):
         ingest_document,
         number_stations=sys.maxsize,
     ):
-        GribModelBuilderV01.__init__(
+        RaobGribModelBuilder.__init__(
             self,
             load_spec,
             ingest_document,
             number_stations=number_stations,
         )
 
-    def get_raw_data(self, dataset_map):
+    def get_raw_data(self, dataset_map, raw_data_template):
         """
         Extracts raw data from the dataset map.
         This method is overridden to handle RAOB-specific data extraction.
@@ -52,15 +51,26 @@ class RaobModelPressureLevelBuilderV01(RaobGribModelBuilder):
             dict: A dictionary containing raw data extracted from the datasets.
         """
         raw_data = {}
-        for station, data in dataset_map.items():
-            # Extract relevant data for each station
-            raw_data[station] = {
-                "temperature": data.get("temperature"),
-                "pressure": data.get("pressure"),
-                "humidity": data.get("humidity"),
-                "wind_speed": data.get("wind_speed"),
-                "wind_direction": data.get("wind_direction"),
-            }
+        dataset_map_keys = list(dataset_map.keys())
+        first_dataset = dataset_map.get(dataset_map_keys[0])
+        steps = first_dataset[dataset_map_keys[0]].shape[0]
+
+        for step in range(steps):
+            level = first_dataset[dataset_map_keys[0]][step].item()
+            raw_data[level] = {}
+            for station in self.stations:
+                lat = station["geo"][0]["x_gridpoint"]
+                lon = station["geo"][0]["y_gridpoint"]
+                wmoid = station["wmoid"]
+                if lat is not None and lon is not None:
+                    raw_data[wmoid] = {
+                        "station_name": wmoid,
+                        "latitude": lat,
+                        "longitude": lon,
+                    }
+                    for dmkey in dataset_map_keys:
+                        for var_long_name, var_name in raw_data_template[dmkey].items():
+                            raw_data[level][wmoid][var_long_name] = dataset_map[dmkey][var_name][step, lat, lon].item()
         return raw_data
 
     def get_interpolated_data(self, dataset_map, raw_data):
@@ -75,3 +85,4 @@ class RaobModelPressureLevelBuilderV01(RaobGribModelBuilder):
         """
         # This method should return a dictionary keyed by station name
         # and containing the interpolated data for that station.
+

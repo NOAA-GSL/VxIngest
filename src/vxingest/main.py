@@ -202,7 +202,7 @@ def create_dirs(paths: list[Path]) -> None:
         path.mkdir(parents=True, exist_ok=True)
 
 
-class JobDoc(TypedDict):
+class processDoc(TypedDict):
     """A type class describing the expected return result from Couchbase"""
 
     id: str
@@ -211,12 +211,71 @@ class JobDoc(TypedDict):
     run_priority: int
     sub_type: str
 
+def get_runtime_job_doc(
+    cluster: Cluster,
+    creds: dict[str, str],
+    job_id: Optional[str] = None,
+) -> processDoc | None:
+    """
+    Queries the Couchbase database for a specific job document by its ID.
+    This is used to retrieve the newer runtime job documents type "JS" for processing.
+
+    Args:
+        cluster (Cluster): The Couchbase cluster instance to use for querying.
+        creds (dict[str, str]): A dictionary containing Couchbase credentials, including 'cb_bucket' and 'cb_scope'.
+        job_id (Optional[str], optional): The ID of the job document to retrieve. Must be provided.
+
+    Returns:
+        processDoc | None: The job document if found, otherwise None.
+
+    Raises:
+        ValueError: If job_id is not provided.
+    """
+    if not job_id:
+        raise ValueError("job_id must be provided to get_runtime_job_doc")
+
+    # Build the query to fetch a specific job document by ID
+    query = (
+        "SELECT meta().id AS id, "
+        "LOWER(META().id) as name, "
+        "subType",
+        "subset",
+        "processSpecIds",
+        "status"
+        f"FROM {creds['cb_bucket']}._default.RUNTIME"
+        f"WHERE id='{job_id}' "
+            "AND type = 'JS' "
+            "AND version = 'V01' "
+            "AND (status = 'active'  OR status = 'test') "
+    )
+
+    row_iter = cluster.query(query, QueryOptions(read_only=True))  # type: ignore[assignment]
+    for row in row_iter:
+        return row
+    return None
 
 def get_job_docs(
     cluster: Cluster,
     creds: dict[str, str],
     job_id: Optional[str] = None,
-) -> list[JobDoc]:
+) -> list[processDoc]:
+    """
+    Queries Couchbase for job documents based on the provided parameters. This is used to
+    retrieve the older type "JOB" or "JOB-TEST" documents.
+
+    Depending on the arguments and environment variables, this function performs one of the following:
+    - If a `job_id` is provided, fetches the specific job document with that ID.
+    - If the environment variable `VXINGEST_IGNORE_JOB_SCHEDULE` is set to "true", fetches all active job documents regardless of schedule.
+    - Otherwise, fetches all active job documents whose schedule is valid within the past 15 minutes.
+
+    Args:
+        cluster (Cluster): The Couchbase cluster instance to use for querying.
+        creds (dict[str, str]): A dictionary containing Couchbase credentials and configuration, including bucket, scope, and collection names.
+        job_id (Optional[str], optional): The ID of a specific job document to fetch. If not provided, fetches jobs based on schedule and status.
+
+    Returns:
+        list[processDoc]: A list of job documents matching the query criteria.
+    """
     """Queries Couchbase for the given job doc or job docs in need of processing if no job ID is given"""
 
     # TODO - We're doing this query at the cluster level. Would it be better to query at the scope level if we're using Couchbase 7?
@@ -226,13 +285,18 @@ def get_job_docs(
         """Builds a query to fetch a specific job document by ID"""
         # fmt: off
         # Disable formatting to keep the Couchbase query readable
+        # the older job documents are kept in the COMMON collection along with other metadata.
+        # Eventually they will be replaced by newer JS documents that are in the RUNTIM collection
+        # and deleted entirely.
+        # TODO remove JOB documents from the COMMON collection as they are superceded by JS documents
+        # in the RUNTIME collection
         return (
             "SELECT meta().id AS id, "
                 "LOWER(META().id) as name, "
                 "run_priority, "
                 "offset_minutes, "
                 "LOWER(subType) as sub_type "
-            f"FROM {creds['cb_bucket']}.{creds['cb_scope']}.{creds['cb_collection']} "
+            f"FROM {creds['cb_bucket']}._default.COMMON "
             f"WHERE id='{job_id}' "
                 "AND (type = 'JOB-TEST' or type = 'JOB') "
                 "AND version = 'V01' "
@@ -250,7 +314,7 @@ def get_job_docs(
                 "run_priority, "
                 "offset_minutes, "
                 "LOWER(subType) as sub_type "
-            f"FROM {creds['cb_bucket']}.{creds['cb_scope']}.{creds['cb_collection']} "
+            f"FROM {creds['cb_bucket']}._default.COMMON "
             "LET millis = ROUND(CLOCK_MILLIS()), "
                 "sched = SPLIT(schedule,' '), "
                 "minute = CASE WHEN sched[0] = '*' THEN DATE_PART_MILLIS(millis, 'minute', 'UTC') ELSE TO_NUMBER(sched[0]) END, "
@@ -281,7 +345,7 @@ def get_job_docs(
                 "run_priority, "
                 "offset_minutes, "
                 "LOWER(subType) as sub_type "
-            f"FROM {creds['cb_bucket']}.{creds['cb_scope']}.{creds['cb_collection']} "
+            f"FROM {creds['cb_bucket']}.._default.COMMON "
             "WHERE type='JOB' "
                 "AND version='V01' "
                 "AND status='active' "
@@ -290,7 +354,7 @@ def get_job_docs(
         )
         # fmt: on
 
-    def execute_query(query: str) -> list[JobDoc]:
+    def execute_query(query: str) -> list[processDoc]:
         """Executes the given query and returns the results"""
         row_iter = cluster.query(query, QueryOptions(read_only=True))  # type: ignore[assignment]
         return [row for row in row_iter]
@@ -339,12 +403,6 @@ def connect_cb(creds: dict[str, str]) -> Cluster:
 
     # Wait until the cluster is ready for use.
     cluster.wait_until_ready(timedelta(seconds=5))
-
-    # Set the cluster to use the correct bucket and collection
-    # TODO - is this needed? The couchbase docs seemed to indicate it was
-    bucket = cluster.bucket(creds["cb_bucket"])
-    bucket.scope(creds["cb_scope"]).collection(creds["cb_collection"])
-
     return cluster
 
 
@@ -373,8 +431,9 @@ def make_tarfile(output_tarfile: Path, source_dir: Path):
         tar.add(source_dir, arcname=Path(source_dir).name)
 
 
-def process_jobs(
-    job_docs: list[JobDoc],
+def process_docs(
+    cluster: Cluster,
+    process_docs: list[processDoc],
     startime: datetime,
     args,
     log_configurer: Callable,
@@ -406,13 +465,13 @@ def process_jobs(
 
     success_count = 0
     fail_count = 0
-    for job in job_docs:
-        logger.info(f"Processing job: {job}")
+    for proc in process_docs:
+        logger.info(f"Processing job: {proc}")
         # translate _ to __ and : to _ for the name field
         # TODO - why is this needed?
-        name = job["name"].replace("_", "__").replace(":", "_")
+        name = proc["name"].replace("_", "__").replace(":", "_")
 
-        # Add a logging file handler with a unique name for just this job
+        # Add a logging file handler with a unique name for just this proc
         logpath = (
             args.log_dir / f"{name}-{startime.strftime('%Y-%m-%dT%H:%M:%S%z')}.log"
         )
@@ -421,26 +480,47 @@ def process_jobs(
         metric_name = f"{name}"
         logger.info(f"metric_name {metric_name}")
 
-        # create an output directory with the time this job was started.
+        # create an output directory with the time this proc was started.
         output_dir = (
             Path(args.output_dir)
-            / f"{job['sub_type']}_to_cb"
+            / f"{proc['sub_type']}_to_cb"
             / "output"
             / f"{startime.strftime('%Y%m%d%H%M%S')}"
         )
         create_dirs([output_dir])
 
-        config = {
-            "job_id": job["id"],
-            "credentials_file": str(args.credentials_file),
-            "output_dir": str(output_dir),
-            "threads": args.threads,
-            "first_epoch": args.start_epoch,  # TODO - this arg is only supported in the CTC & SUM builders
-            "last_epoch": args.end_epoch,  # TODO - this arg is only supported in the CTC & SUM builders
-            "file_pattern": args.file_pattern,  # TODO - this arg is only supported in the grib & netcdf builders
-        }
-        job_succeeded = False
-        match job["sub_type"]:
+        # get config values from the runtime document heirachy for this process
+        runtime_collection = cluster.bucket("vxdata").scope("_default").collection("RUNTIME")
+        job_spec = runtime_collection.get("JS:METAR:OBS:NETCDF:schedule:job:V01").content_as[
+            dict
+        ]
+        process_id = job_spec["processSpecIds"][0]
+        process_spec = runtime_collection.get(process_id).content_as[dict]
+        ingest_document_ids = process_spec["ingestDocumentIds"]
+        data_source_id = process_spec["dataSourceId"]
+        data_source_spec = runtime_collection.get(data_source_id).content_as[dict]
+        collection = process_spec["subset"]
+        input_data_path = data_source_spec["sourceDataUri"]
+        file_mask = data_source_spec["fileMask"]
+        ingest_document_ids = []
+
+        # Create the config dictionary for this job
+        config = (
+            {
+                "credentials_file": str(args.credentials_file),
+                "collection": collection,
+                "file_mask": file_mask,
+                "input_data_path": input_data_path,
+                "ingest_document_ids": ingest_document_ids,
+                "output_dir": str(output_dir),
+                "threads": args.threads,
+                "first_epoch": args.start_epoch,  # TODO - this arg is only supported in the CTC & SUM builders
+                "last_epoch": args.end_epoch,  # TODO - this arg is only supported in the CTC & SUM builders
+                "file_pattern": args.file_pattern,  # TODO - this arg is only supported in the grib & netcdf builders
+            },
+        )
+        proc_succeeded = False
+        match proc["sub_type"]:
             case "grib2":
                 # FIXME: Update calling code to raise instead of calling sys.exit
                 try:
@@ -453,9 +533,9 @@ def process_jobs(
                 except SystemExit as e:
                     if e.code == 0:
                         # Job succeeded
-                        job_succeeded = True
+                        proc_succeeded = True
                 else:
-                    job_succeeded = True
+                    proc_succeeded = True
             case "netcdf":
                 # FIXME: Update calling code to raise instead of calling sys.exit
                 try:
@@ -468,9 +548,9 @@ def process_jobs(
                 except SystemExit as e:
                     if e.code == 0:
                         # Job succeeded
-                        job_succeeded = True
+                        proc_succeeded = True
                 else:
-                    job_succeeded = True
+                    proc_succeeded = True
             case "ctc":
                 # FIXME: Update calling code to raise instead of calling sys.exit
                 try:
@@ -483,9 +563,9 @@ def process_jobs(
                 except SystemExit as e:
                     if e.code == 0:
                         # Job succeeded
-                        job_succeeded = True
+                        proc_succeeded = True
                 else:
-                    job_succeeded = True
+                    proc_succeeded = True
             case "partial_sums":
                 # FIXME: Update calling code to raise instead of calling sys.exit
                 try:
@@ -498,13 +578,13 @@ def process_jobs(
                 except SystemExit as e:
                     if e.code == 0:
                         # Job succeeded
-                        job_succeeded = True
+                        proc_succeeded = True
                 else:
-                    job_succeeded = True
+                    proc_succeeded = True
             case _:
-                logger.error(f"No ingest method for {job['sub_type']}")
-                job_succeeded = False
-        if job_succeeded:
+                logger.error(f"No ingest method for {proc['sub_type']}")
+                proc_succeeded = False
+        if proc_succeeded:
             success_count += 1
             # Update prometheus metrics
             prom_successes.inc()
@@ -513,9 +593,9 @@ def process_jobs(
             fail_count += 1
             # Update prometheus metrics
             prom_failures.inc()
-        logger.info(f"Done processing job: {job}")
-        logger.info(f"exit_code:{0 if job_succeeded else 1}")
-        # Remove the filehandler with the unique filename for this job
+        logger.info(f"Done processing  proc: {proc}")
+        logger.info(f"exit_code:{0 if proc_succeeded else 1}")
+        # Remove the filehandler with the unique filename for this proc
         remove_logfile(f_handler, ql)
         # Move the logfile to the output dir
         logpath.rename(
@@ -565,16 +645,24 @@ def run_ingest() -> None:
         )
         sys.exit(1)
 
-    logger.info("Getting job docs")
-    docs = get_job_docs(cluster, creds, args.job_id)
+    logger.info("Getting proc docs")
+    if args.job_id and args.job_id.startswith("JS:"):
+        # this is a newer type of proc doc that doesn't have scheduling info
+        # just retrieve it and process it, don't schedule it
+        job_doc = get_runtime_job_doc(cluster, creds, args.job_id)
+        docs = job_doc["processSpecIds"]
+    else:
+        # this is an older type of proc doc that has scheduling info
+        docs = get_job_docs(cluster, creds, args.job_id)
     if not docs:
-        logger.info("No job docs found")
+        logger.info("No proc docs found")
         sys.exit(0)
-    logger.info(f"Found {len(docs)} job docs")
+    logger.info(f"Found {len(docs)} proc docs")
     logger.debug(f"Job docs to process: {docs}")
 
-    logger.info("Processing job docs")
-    process_jobs(
+    logger.info("Processing proc docs")
+    process_docs(
+        cluster,
         docs,
         runtime,
         args,
@@ -583,7 +671,7 @@ def run_ingest() -> None:
         log_queue_listener,
     )
     endtime = datetime.now()
-    logger.info("Done processing job docs")
+    logger.info("Done processing proc docs")
 
     # Write prometheus metrics
     duration = endtime - runtime

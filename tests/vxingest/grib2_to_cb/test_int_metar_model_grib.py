@@ -182,7 +182,9 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus(tmp_path: Path):
                         f"""_json {_k + "." + _dk} is None """
                     )
                     # Only compare with math.isclose if both are numbers
-                    if isinstance(result["data"][_k][_dk], (int, float)) and isinstance(_json["data"][_k][_dk], (int, float)):
+                    if isinstance(result["data"][_k][_dk], (int, float)) and isinstance(
+                        _json["data"][_k][_dk], (int, float)
+                    ):
                         assert math.isclose(
                             result["data"][_k][_dk],
                             _json["data"][_k][_dk],
@@ -193,6 +195,7 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus(tmp_path: Path):
                         assert result["data"][_k][_dk] == _json["data"][_k][_dk], (
                             f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure non-numeric data {result['data'][_k][_dk]} != {_json['data'][_k][_dk]}"
                         )
+
 
 @pytest.mark.integration
 def test_grib_builder_one_thread_file_pattern_rrfs_a_conus(tmp_path: Path):
@@ -315,6 +318,7 @@ def test_grib_builder_one_thread_file_pattern_rrfs_a_conus(tmp_path: Path):
                 except Exception as e:
                     print(f"KeyError {_k} {_dk} in {_json['data'][_k].keys()}")
                     raise e
+
 
 @pytest.mark.integration
 def test_grib_builder_one_thread_file_pattern_mpas(tmp_path: Path):

@@ -172,16 +172,17 @@ class CommonVxIngest:
 
     def get_file_list(self, df_query, directory, file_pattern, file_mask):
         """This method accepts a file path (directory), a query statement (df_query),
-        and a file pattern (file_pattern). It uses the df_query statement to retrieve a
+        a file pattern (file_pattern), and a file mask (file_mask). It uses the df_query statement to retrieve a
         list of file {url:file_url, mtime:mtime} records from DataFile
         objects and compares the file names in the directory that match the file_pattern (using glob)
-        to the file url list that is returned from the df_query.
-        Any file names that are not in the returned url list are added and any files
+        to the file url list that is returned from the df_query. The glob pattern matches the entire path.
+        It uses the file_mask to filter the file names that represent string date times. Any file names that are not in the returned url list are added and any files
         that are in the list but have newer mtime entries are also added.
         Args:
             df_query (string): this is a query statement that should return a list of {url:file_url, mtime:mtime}
             directory (string): The full path to a directory that contains files to be ingested
             file_pattern (string): A file glob pattern that matches the files desired.
+            file-mask (string): A date-time format string that is applied to the file name only (not the path)
         Raises:
             Exception: general exception
         """
@@ -198,11 +199,21 @@ class CommonVxIngest:
             df_full_names = [element["url"] for element in df_elements]
             if pathlib.Path(directory).exists() and pathlib.Path(directory).is_dir():
                 # the file list is sorted by getmtime so that the oldest files are processed first
+                sort_function = os.path.getmtime if file_mask else str
                 file_list = sorted(
-                    pathlib.Path(directory).glob(file_pattern), key=os.path.getmtime
+                    pathlib.Path(directory).glob(file_pattern), key=sort_function
                 )
                 for filename in file_list:
                     try:
+                        try:
+                            if file_mask:
+                                # if the file_mask is defined then try to parse the filename
+                                # according to the mask as a datetime
+                                # it will throw a ValueError if it doesn't match
+                                # the file_mask is applied to the filename only - not the pat
+                                _dt = dt.datetime.strptime(filename.name, file_mask)
+                        except ValueError:
+                            continue
                         # check to see if this file has already been ingested
                         # (if it is not in the df_full_names - add it)
                         if str(filename) not in df_full_names:

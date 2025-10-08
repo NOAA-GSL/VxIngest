@@ -102,6 +102,9 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus(tmp_path: Path):
     )
     # check the output files to see if they match the documents that were
     # previously created by the real ingest process
+    # check the number of files created
+    if len(list(tmp_path.glob("*.json"))) < 2:
+        pytest.fail("Not enough output files created")
     for _f in tmp_path.glob("*.json"):
         # read in the output file
         _json = None
@@ -230,6 +233,9 @@ def test_grib_builder_one_thread_file_pattern_rrfs_a_conus(tmp_path: Path):
     )
     # check the output files to see if they match the documents that were
     # previously created by the real ingest process
+    # check the number of files created
+    if len(list(tmp_path.glob("*.json"))) < 2:
+        pytest.fail("Not enough output files created")
     for _f in tmp_path.glob("*.json"):
         # read in the output file
         _json = None
@@ -348,6 +354,9 @@ def test_grib_builder_one_thread_file_pattern_mpas(tmp_path: Path):
     )
     # check the output files to see if they match the documents that were
     # previously created by the real ingest process
+    # check the number of files created
+    if len(list(tmp_path.glob("*.json"))) < 2:
+        pytest.fail("Not enough output files created")
     for _f in tmp_path.glob("*.json"):
         # read in the output file
         _json = None

@@ -86,7 +86,7 @@ def test_one_thread_specify_file_pattern_job_spec(tmp_path: Path):
             "ingest_document_ids": ingest_document_ids,
             "output_dir": f"{tmp_path}",
             "threads": 1,
-            "file_pattern": "20211108_0000",
+            "file_pattern": "20250911_1500",
         },
         log_queue,
         stub_worker_log_configurer,
@@ -103,12 +103,12 @@ def test_one_thread_specify_file_pattern_job_spec(tmp_path: Path):
 
     # Test that we have one output file per input file
     input_path = Path("/opt/data/netcdf_to_cb/input_files")
-    num_input_files = len(list(input_path.glob("20211108_0000")))
-    num_output_files = len(list(tmp_path.glob("20211108*.json")))
+    num_input_files = len(list(input_path.glob("20250911_1500")))
+    num_output_files = len(list(tmp_path.glob("20250911_1500.json")))
     assert num_output_files == num_input_files, "number of output files is incorrect"
 
     # Test that the output file matches the content in the database
-    derived_data = json.load((tmp_path / "20211108_0000.json").open(encoding="utf-8"))
+    derived_data = json.load((tmp_path / "20250911_1500.json").open(encoding="utf-8"))
     station_id = ""
     derived_station = {}
     obs_id = ""

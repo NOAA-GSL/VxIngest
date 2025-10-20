@@ -55,6 +55,12 @@ env DEBUG=true poetry run ingest \
     -j JOB-TEST:V01:METAR:CTC:CEILING:MODEL:OPS
 ```
 
+### An example of running the netcdf builder for METAR obs
+
+```bash
+poetry run ingest  -m /tmp/output/metrics -o /tmp/output/out -x /tmp/output/xfer -l /tmp/output/log -c /Users/randy.pierce/adb-cb1-credentials -j JOB-TEST:V01:METAR:NETCDF:OBS -f 20250911_1500
+```
+
 ## Developer tools
 
 Linting, formatting, type checking, and unit testing can be done through Poetry like so:

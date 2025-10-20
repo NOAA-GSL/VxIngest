@@ -201,7 +201,14 @@ class VXIngest(CommonVxIngest):
                 self.load_spec["ingest_documents"][_id] = self.collection.get(
                     _id
                 ).content_as[dict]
-            # load the fmask and input_data_path into the load_spec
+            # load the file_pattern if it either wasn't given as an arg
+            # or if it is the default value and if it is in the ingest_document
+            # This will override the command line argument file_pattern if
+            # the file_pattern is a "*" i.e. the default
+            if self.file_pattern == "*" and "file_pattern" in ingest_document:
+                self.file_pattern = ingest_document["file_pattern"]
+            # stash the file_pattern in the load_spec
+            self.load_spec["file_pattern"] = self.file_pattern
             self.fmask = ingest_document["file_mask"]
             self.path = ingest_document["input_data_path"]
             self.load_spec["fmask"] = self.fmask
@@ -239,6 +246,10 @@ class VXIngest(CommonVxIngest):
             AND originType='{model}'
             order by url;
             """
+        # walk the directory structure, if there is one, and get the files that match
+        # the file_pattern and the file_mask
+
+        logger.info("Querying for existing datafiles with %s", file_query)
         file_names = self.get_file_list(
             file_query, self.path, self.file_pattern, self.fmask
         )

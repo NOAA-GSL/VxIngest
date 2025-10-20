@@ -771,7 +771,16 @@ class GribBuilder(Builder):
                 for geo_index in range(len(row["geo"])):
                     lat = row["geo"][geo_index]["lat"]
                     lon = row["geo"][geo_index]["lon"]
-                    if lat == -90 and lon == 180:
+                    if lat == -90 and lon == 180 or lat == 0 or lon == 0:
+                        # skip stations with bad lat/lon
+                        # these are probably buoys or ships or mistakes.
+                        logger.error(
+                            "%s: builder build_document skipping station with bad lat/lon: name: %s, lat: %s, lon: %s",
+                            self.__class__.__name__,
+                            row["name"],
+                            str(lat),
+                            str(lon),
+                        )
                         continue  # don't know how to transform that station
                     (
                         _x,

@@ -20,10 +20,10 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install poetry
         run: pipx install poetry
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
       - name: Install dependencies
@@ -39,10 +39,10 @@ jobs:
     permissions:
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install poetry
         run: pipx install poetry
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
       - name: Install dependencies
@@ -79,7 +79,7 @@ jobs:
     permissions:
       packages: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Generate image metadata
         uses: docker/metadata-action@v5
         id: meta
@@ -120,7 +120,7 @@ jobs:
     permissions:
       packages: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Generate image metadata
         uses: docker/metadata-action@v5
         id: meta
@@ -158,11 +158,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-ingest
     steps:
-      - uses: actions/checkout@v4 # Supply git info to upload-serif
+      - uses: actions/checkout@v5 # Supply git info to upload-serif
       - name: Extract SHORT_SHA
         run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
       - name: Scan image with Trivy
-        uses: aquasecurity/trivy-action@0.32.0
+        uses: aquasecurity/trivy-action@0.33.1
         with:
           image-ref: "ghcr.io/noaa-gsl/vxingest/ingest:sha-${{ env.SHORT_SHA }}"
           format: "table" # Generate actionable output
@@ -174,7 +174,7 @@ jobs:
           TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
       - name: Generate Trivy output formatted for the GitHub Security tab
         if: always()
-        uses: aquasecurity/trivy-action@0.32.0
+        uses: aquasecurity/trivy-action@0.33.1
         with:
           image-ref: "ghcr.io/noaa-gsl/vxingest/ingest:sha-${{ env.SHORT_SHA }}"
           format: "sarif"
@@ -194,11 +194,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-import
     steps:
-      - uses: actions/checkout@v4 # Supply git info to upload-serif
+      - uses: actions/checkout@v5 # Supply git info to upload-serif
       - name: Extract SHORT_SHA
         run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
       - name: Scan image with Trivy
-        uses: aquasecurity/trivy-action@0.32.0
+        uses: aquasecurity/trivy-action@0.33.1
         with:
           image-ref: "ghcr.io/noaa-gsl/vxingest/import:sha-${{ env.SHORT_SHA }}"
           format: "table" # Generate actionable output
@@ -210,7 +210,7 @@ jobs:
           TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
       - name: Generate Trivy output formatted for the GitHub Security tab
         if: always()
-        uses: aquasecurity/trivy-action@0.32.0
+        uses: aquasecurity/trivy-action@0.33.1
         with:
           image-ref: "ghcr.io/noaa-gsl/vxingest/import:sha-${{ env.SHORT_SHA }}"
           format: "sarif"

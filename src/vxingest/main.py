@@ -148,7 +148,7 @@ def process_cli():
         type=str,
         required=False,
         default="*",
-        help="The filename pattern to use when searching for files to process. Only valid for GRIB & NetCDF jobs",
+        help="The filename pattern to use when searching for files to process. Only valid for GRIB & NetCDF jobs - this arg can be overridden by the template.",
     )
     parser.add_argument(
         "-t",

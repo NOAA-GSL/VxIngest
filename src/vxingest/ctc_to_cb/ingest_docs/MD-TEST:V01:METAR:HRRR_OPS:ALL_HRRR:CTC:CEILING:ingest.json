@@ -1,6 +1,6 @@
 {
   "id": "MD-TEST:V01:METAR:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest",
-  "builder_type": "CTCModelObsBuilderV01",
+  "builderType": "CTCModelObsBuilderV01",
   "docType": "ingest",
   "subDocType": "CEILING",
   "type": "MD-TEST",

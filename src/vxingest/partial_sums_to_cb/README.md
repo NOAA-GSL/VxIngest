@@ -77,7 +77,7 @@ be certain that it already exists in the couchbase cluster or you must create it
 ```json
   {
     "id": "MD:V01:METAR:HRRR_OPS:E_US:SUMS:SURFACE:ingest",
-    "builder_type": "PartialSumsSurfaceModelObsBuilderV01",
+    "builderType": "PartialSumsSurfaceModelObsBuilderV01",
     "docType": "ingest",
     "type": "MD",
     "version": "V01",
@@ -106,7 +106,7 @@ be certain that it already exists in the couchbase cluster or you must create it
 ```
 
 The line
-```"builder_type": "PartialSumsSurfaceModelObsBuilderV01"```
+```"builderType": "PartialSumsSurfaceModelObsBuilderV01"```
 refers to a python class. This builder class is defined
 in the sums_builder.py file. This class will interpret the
 load_spec and ingest data from a set of model and observation documents to create the sums documents.
@@ -163,7 +163,7 @@ and MUST contain these keywords...
   "docType": "ingest",  - required to be 'ingest'
   "subset": "METAR",  - required set to whatever is appropriate
   "version": "V01",  - the version of the template
-  "builder_type": "some builder class"
+  "builderType": "some builder class"
 
 ```
 

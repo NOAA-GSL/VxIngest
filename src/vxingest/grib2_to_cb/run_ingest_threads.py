@@ -189,7 +189,7 @@ class VXIngest(CommonVxIngest):
             # establish connections to cb, collection
             self.connect_cb()
             # load the ingest document ids into the load_spec (this might be redundant)
-            ingest_document_result = self.collection.get(self.job_document_id)
+            ingest_document_result = self.common_collection.get(self.job_document_id)
             ingest_document = ingest_document_result.content_as[dict]
             self.load_spec["ingest_document_ids"] = ingest_document[
                 "ingest_document_ids"

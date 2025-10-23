@@ -184,9 +184,14 @@ class VXIngest(CommonVxIngest):
             # put all the ingest documents into the load_spec too
             self.load_spec["ingest_documents"] = {}
             for _id in self.load_spec["ingest_document_ids"]:
-                self.load_spec["ingest_documents"][_id] = self.common_collection.get(
-                    _id
-                ).content_as[dict]
+                if _id.startswith("MD"):
+                    self.load_spec["ingest_documents"][_id] = self.common_collection.get(
+                        _id
+                    ).content_as[dict]
+                else:
+                    self.load_spec["ingest_documents"][_id] = self.runtime_collection.get(
+                        _id
+                    ).content_as[dict]
             self.load_spec["fmask"] = self.fmask
             self.load_spec["input_data_path"] = self.input_data_path
             # stash the load_job in the load_spec

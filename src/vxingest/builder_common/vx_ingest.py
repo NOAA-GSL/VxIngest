@@ -100,17 +100,18 @@ class CommonVxIngest:
             if "ingest_document_ids" in self.load_spec
             else None
         )
-        subset = _document_id.split(":")[2]
+        id_parts = _document_id.split(":")
+        subset = id_parts[2] if id_parts[0].startswith("MD") else id_parts[1]
         self.load_job_id = f"LJ:{subset}:{self.__module__}:{self.__class__.__name__}:{str(int(time.time()))}"
         lj_doc = {
             "id": self.load_job_id,
             "subset": subset,
-            "type": "LJ",
-            "lineageId": lineage,
-            "script": __file__,
-            "scriptVersion": git_hash,
-            "loadSpec": self.spec_file,
-            "note": "",
+        "type": "LJ",
+        "lineageId": lineage,
+        "script": __file__,
+        "scriptVersion": git_hash,
+        "loadSpec": self.spec_file,
+        "note": "",
         }
         return lj_doc
 
@@ -153,12 +154,16 @@ class CommonVxIngest:
                 )
             # The common collection is always "COMMON" so we can hardcode it here
             self.cb_credentials["common_collection"] = "COMMON"
+            self.cb_credentials["runtime_collection"] = "RUNTIME"
             self.collection = self.cluster.bucket(
                 self.cb_credentials["bucket"]
             ).collection(self.cb_credentials["collection"])
             self.common_collection = self.cluster.bucket(
                 self.cb_credentials["bucket"]
             ).collection(self.cb_credentials["common_collection"])
+            self.runtime_collection = self.cluster.bucket(
+                self.cb_credentials["bucket"]
+            ).collection(self.cb_credentials["runtime_collection"])
             # stash the credentials for the VxIngestManager - see NOTE at the top of this file.
             self.load_spec["cb_credentials"] = self.cb_credentials
             logger.info("%s: Couchbase connection success")
@@ -197,6 +202,17 @@ class CommonVxIngest:
             result = self.cluster.query(df_query)
             df_elements = list(result)
             df_full_names = [element["url"] for element in df_elements]
+            # Handle if the directory is a URL or a local path
+            if str(directory).startswith("http://") or str(directory).startswith("https://"):
+                logger.warning("get_file_list: Directory is a URL, skipping local file glob.")
+                file_list = []
+            elif str(directory).startswith("s3://"):
+                logger.warning("get_file_list: Directory is an S3 path, skipping local file glob.")
+                file_list = []
+            elif str(directory).startswith("file://"):
+                # local file path with file:// prefix
+                self.load_spec["input_data_path"] = pathlib.Path(directory[7:]).as_posix()
+                directory = directory[7:]
             if pathlib.Path(directory).exists() and pathlib.Path(directory).is_dir():
                 # the file list is sorted by getmtime so that the oldest files are processed first
                 sort_function = os.path.getmtime if file_mask else str

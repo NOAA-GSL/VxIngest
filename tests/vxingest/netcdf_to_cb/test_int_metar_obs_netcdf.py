@@ -47,7 +47,7 @@ def setup_connection():
 def assert_dicts_almost_equal(dict1, dict2, rel_tol=1e-09):
     """Utility function to compare potentially nested dictionaries containing floats"""
     assert set(dict1.keys()) == set(dict2.keys()), (
-        "Dictionaries do not have the same keys"
+        f"Dictionaries do not have the same keys {dict1.keys()} vs {dict2.keys()}"
     )
     for key in dict1:
         if isinstance(dict1[key], dict):
@@ -57,15 +57,18 @@ def assert_dicts_almost_equal(dict1, dict2, rel_tol=1e-09):
                 f"Values for station {dict1['name']} {key} do not match dict1[key]: {dict1[key]} dict2[key]: {dict2[key]}"
             )
 
+
 @pytest.mark.integration
 def test_one_thread_specify_file_pattern_job_spec(tmp_path: Path):
     log_queue = Queue()
     vx_ingest = setup_connection()
     # these normally come from the jobSpec->ProcessSpec->DataSourceSpec
-    runtime_collection = vx_ingest.cluster.bucket("vxdata").scope("_default").collection("RUNTIME")
-    job_spec = runtime_collection.get("JS:METAR:OBS:NETCDF:schedule:job:V01").content_as[
-        dict
-    ]
+    runtime_collection = (
+        vx_ingest.cluster.bucket("vxdata").scope("_default").collection("RUNTIME")
+    )
+    job_spec = runtime_collection.get(
+        "JS:METAR:OBS:NETCDF:schedule:job:V01"
+    ).content_as[dict]
     process_id = job_spec["processSpecIds"][0]
     process_spec = runtime_collection.get(process_id).content_as[dict]
     ingest_document_ids = process_spec["ingestDocumentIds"]
@@ -74,7 +77,6 @@ def test_one_thread_specify_file_pattern_job_spec(tmp_path: Path):
     collection = process_spec["subset"]
     input_data_path = data_source_spec["sourceDataUri"]
     file_mask = data_source_spec["fileMask"]
-    ingest_document_ids = []
 
     # file_pattern is optional and is used to specify a subset of files to process
     vx_ingest.runit(
@@ -114,25 +116,33 @@ def test_one_thread_specify_file_pattern_job_spec(tmp_path: Path):
     obs_id = ""
     derived_obs = {}
     for item in derived_data:
-        if item["docType"] == "station" and item["name"] == "KDEN":
-            station_id = item["id"]
-            derived_station = item
-        else:
-            if item["docType"] == "obs":
-                obs_id = item["id"]
-                derived_obs = item
-        if derived_station and derived_obs:
-            break
-    retrieved_station = vx_ingest.collection.get(station_id).content_as[dict]
-    retrieved_obs = vx_ingest.collection.get(obs_id).content_as[dict]
-    # make sure the updateTime is the same in both the derived and retrieved station
-    retrieved_station["updateTime"] = derived_station["updateTime"]
-    # make sure the firstTime and lastTime are the same in both the derived and retrieved station['geo']
-    retrieved_station["geo"][0]["firstTime"] = derived_station["geo"][0]["firstTime"]
-    retrieved_station["geo"][0]["lastTime"] = derived_station["geo"][0]["lastTime"]
-
+        try:
+            if item["type"] == "DF":
+                continue
+            if item["docType"] == "station" and item["name"] == "KDEN":
+                station_id = item["id"]
+                derived_station = item
+            else:
+                if item["docType"] == "obs":
+                    obs_id = item["id"]
+                    derived_obs = item
+            if derived_station and derived_obs:
+                break
+        except Exception as e:
+            pytest.fail(f"Error processing derived data item: {e}")
+    try:
+        retrieved_station = vx_ingest.collection.get(station_id).content_as[dict]
+        retrieved_obs = vx_ingest.collection.get(obs_id).content_as[dict]
+        # make sure the updateTime is the same in both the derived and retrieved station
+        retrieved_station["updateTime"] = derived_station["updateTime"]
+        # make sure the firstTime and lastTime are the same in both the derived and retrieved station['geo']
+        retrieved_station["geo"][0]["firstTime"] = derived_station["geo"][0][
+            "firstTime"
+        ]
+        retrieved_station["geo"][0]["lastTime"] = derived_station["geo"][0]["lastTime"]
+    except Exception as e:
+        pytest.fail(f"Error retrieving documents from database: {e}")
     assert derived_station == retrieved_station
-
     assert_dicts_almost_equal(derived_obs, retrieved_obs)
 
 
@@ -140,10 +150,9 @@ def test_one_thread_specify_file_pattern_job_spec(tmp_path: Path):
 def test_one_thread_specify_file_pattern(tmp_path: Path):
     log_queue = Queue()
     vx_ingest = setup_connection()
-
-    job = vx_ingest.collection.get(
-        "JOB-TEST:V01:METAR:NETCDF:OBS"
-    ).content_as[dict]
+    job = vx_ingest.common_collection.get("JOB-TEST:V01:METAR:NETCDF:OBS").content_as[
+        dict
+    ]
     ingest_document_ids = job["ingest_document_ids"]
     collection = job["subset"]
     input_data_path = job["input_data_path"]
@@ -213,12 +222,21 @@ def test_two_threads_spedicfy_file_pattern(tmp_path: Path):
     integration test for testing multithreaded capability
     """
     log_queue = Queue()
-    vx_ingest = VXIngest()
+    vx_ingest = setup_connection()
+    job = vx_ingest.common_collection.get("JOB-TEST:V01:METAR:NETCDF:OBS").content_as[
+        dict
+    ]
+    ingest_document_ids = job["ingest_document_ids"]
+    collection = job["subset"]
+    input_data_path = job["input_data_path"]
+
     vx_ingest.runit(
         {
-            "job_id": "JOB-TEST:V01:METAR:NETCDF:OBS",
             "credentials_file": os.environ["CREDENTIALS"],
-            "file_name_mask": "%Y%m%d_%H%M",
+            "collection": collection,
+            "file_mask": "%Y%m%d_%H%M",
+            "input_data_path": input_data_path,
+            "ingest_document_ids": ingest_document_ids,
             "output_dir": f"{tmp_path}",
             "threads": 2,
             "file_pattern": "20211105*",
@@ -250,12 +268,20 @@ def test_one_thread_default(tmp_path: Path):
     you will need to run the scripts in the matsmetadata directory to load the local metadata.
     """
     log_queue = Queue()
-    vx_ingest = VXIngest()
+    vx_ingest = setup_connection()
+    job = vx_ingest.common_collection.get("JOB-TEST:V01:METAR:NETCDF:OBS").content_as[
+        dict
+    ]
+    ingest_document_ids = job["ingest_document_ids"]
+    collection = job["subset"]
+    input_data_path = job["input_data_path"]
     vx_ingest.runit(
         {
-            "job_id": "JOB-TEST:V01:METAR:NETCDF:OBS",
             "credentials_file": os.environ["CREDENTIALS"],
-            "file_name_mask": "%Y%m%d_%H%M",
+            "collection": collection,
+            "file_mask": "%Y%m%d_%H%M",
+            "input_data_path": input_data_path,
+            "ingest_document_ids": ingest_document_ids,
             "output_dir": f"{tmp_path}",
             "file_pattern": "[0123456789]???????_[0123456789]???",
             "threads": 1,
@@ -287,13 +313,22 @@ def test_two_threads_default(tmp_path: Path):
     you will need to run the scripts in the matsmetadata directory to load the local metadata.
     """
     log_queue = Queue()
-    vx_ingest = VXIngest()
+    vx_ingest = setup_connection()
+    job = vx_ingest.common_collection.get("JOB-TEST:V01:METAR:NETCDF:OBS").content_as[
+        dict
+    ]
+    ingest_document_ids = job["ingest_document_ids"]
+    collection = job["subset"]
+    input_data_path = job["input_data_path"]
     vx_ingest.runit(
         {
-            "job_id": "JOB-TEST:V01:METAR:NETCDF:OBS",
             "credentials_file": os.environ["CREDENTIALS"],
-            "file_name_mask": "%Y%m%d_%H%M",
+            "collection": collection,
+            "file_mask": "%Y%m%d_%H%M",
+            "input_data_path": input_data_path,
+            "ingest_document_ids": ingest_document_ids,
             "output_dir": f"{tmp_path}",
+            "file_pattern": "[0123456789]???????_[0123456789]???",
             "threads": 2,
         },
         log_queue,

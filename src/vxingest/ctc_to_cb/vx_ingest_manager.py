@@ -117,7 +117,7 @@ class VxIngestManager(CommonVxIngestManager):
         try:
             self.ingest_type_builder_name = self.load_spec["ingest_documents"][
                 queue_element
-            ]["builder_type"]
+            ]["builderType"]
         except Exception as _e:
             logger.exception(
                 "%s: process_element: Exception getting ingest document for %s",

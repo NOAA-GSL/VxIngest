@@ -209,7 +209,7 @@ class processDoc(TypedDict):
     name: str
     offset_minutes: int
     run_priority: int
-    sub_type: str
+    subType: str
 
 def get_runtime_job_doc(
     cluster: Cluster,
@@ -235,19 +235,18 @@ def get_runtime_job_doc(
         raise ValueError("job_id must be provided to get_runtime_job_doc")
 
     # Build the query to fetch a specific job document by ID
-    query = (
-        "SELECT meta().id AS id, "
-        "LOWER(META().id) as name, "
-        "subType",
-        "subset",
-        "processSpecIds",
-        "status"
-        f"FROM {creds['cb_bucket']}._default.RUNTIME"
-        f"WHERE id='{job_id}' "
-            "AND type = 'JS' "
-            "AND version = 'V01' "
-            "AND (status = 'active'  OR status = 'test') "
-    )
+    query = f"""
+        SELECT meta().id AS id,
+        LOWER(META().id) as name,
+        subType,
+        subset,
+        processSpecIds,
+        status
+        FROM {creds['cb_bucket']}._default.RUNTIME
+        WHERE id='{job_id}'
+            AND type = 'JS'
+            AND version = 'V01'
+            AND (status = 'active'  OR status = 'Test') """
 
     row_iter = cluster.query(query, QueryOptions(read_only=True))  # type: ignore[assignment]
     for row in row_iter:
@@ -295,7 +294,7 @@ def get_job_docs(
                 "LOWER(META().id) as name, "
                 "run_priority, "
                 "offset_minutes, "
-                "LOWER(subType) as sub_type "
+                "LOWER(subType) as subType "
             f"FROM {creds['cb_bucket']}._default.COMMON "
             f"WHERE id='{job_id}' "
                 "AND (type = 'JOB-TEST' or type = 'JOB') "
@@ -313,7 +312,7 @@ def get_job_docs(
                 "LOWER(META().id) as name, "
                 "run_priority, "
                 "offset_minutes, "
-                "LOWER(subType) as sub_type "
+                "LOWER(subType) as subType "
             f"FROM {creds['cb_bucket']}._default.COMMON "
             "LET millis = ROUND(CLOCK_MILLIS()), "
                 "sched = SPLIT(schedule,' '), "
@@ -344,7 +343,7 @@ def get_job_docs(
                 "LOWER(META().id) as name, "
                 "run_priority, "
                 "offset_minutes, "
-                "LOWER(subType) as sub_type "
+                "LOWER(subType) as subType "
             f"FROM {creds['cb_bucket']}.._default.COMMON "
             "WHERE type='JOB' "
                 "AND version='V01' "
@@ -458,19 +457,17 @@ def process_docs(
         'name': 'job:v01:metar:ctc:ceiling:model:hrrr_rap_130',
         'offset_minutes': 0,
         'run_priority': 6,
-        'sub_type': 'ctc'
+        'subType': 'ctc'
     }
     """
     logger.info("Processing the job docs")
 
     success_count = 0
     fail_count = 0
-    for proc in process_docs:
-        logger.info(f"Processing job: {proc}")
-        # translate _ to __ and : to _ for the name field
-        # TODO - why is this needed?
-        name = proc["name"].replace("_", "__").replace(":", "_")
-
+    for procId in process_docs:
+        logger.info(f"Processing job: {procId}")
+        proc = cluster.bucket("vxdata").scope("_default").collection("RUNTIME").get(procId).content_as[dict]
+        name = proc["id"].replace("_", "__").replace(":", "_")
         # Add a logging file handler with a unique name for just this proc
         logpath = (
             args.log_dir / f"{name}-{startime.strftime('%Y-%m-%dT%H:%M:%S%z')}.log"
@@ -483,7 +480,7 @@ def process_docs(
         # create an output directory with the time this proc was started.
         output_dir = (
             Path(args.output_dir)
-            / f"{proc['sub_type']}_to_cb"
+            / f"{proc['subType']}_to_cb"
             / "output"
             / f"{startime.strftime('%Y%m%d%H%M%S')}"
         )
@@ -502,11 +499,9 @@ def process_docs(
         collection = process_spec["subset"]
         input_data_path = data_source_spec["sourceDataUri"]
         file_mask = data_source_spec["fileMask"]
-        ingest_document_ids = []
 
         # Create the config dictionary for this job
-        config = (
-            {
+        config = {
                 "credentials_file": str(args.credentials_file),
                 "collection": collection,
                 "file_mask": file_mask,
@@ -517,11 +512,10 @@ def process_docs(
                 "first_epoch": args.start_epoch,  # TODO - this arg is only supported in the CTC & SUM builders
                 "last_epoch": args.end_epoch,  # TODO - this arg is only supported in the CTC & SUM builders
                 "file_pattern": args.file_pattern,  # TODO - this arg is only supported in the grib & netcdf builders
-            },
-        )
+            }
         proc_succeeded = False
-        match proc["sub_type"]:
-            case "grib2":
+        match proc["subType"]:
+            case "GRIB2":
                 # FIXME: Update calling code to raise instead of calling sys.exit
                 try:
                     grib_ingest = GRIBIngest()
@@ -536,7 +530,7 @@ def process_docs(
                         proc_succeeded = True
                 else:
                     proc_succeeded = True
-            case "netcdf":
+            case "NETCDF":
                 # FIXME: Update calling code to raise instead of calling sys.exit
                 try:
                     netcdf_ingest = NetCDFIngest()
@@ -551,7 +545,7 @@ def process_docs(
                         proc_succeeded = True
                 else:
                     proc_succeeded = True
-            case "ctc":
+            case "CTC":
                 # FIXME: Update calling code to raise instead of calling sys.exit
                 try:
                     ctc_ingest = CTCIngest()
@@ -566,7 +560,7 @@ def process_docs(
                         proc_succeeded = True
                 else:
                     proc_succeeded = True
-            case "partial_sums":
+            case "PARTIAL_SUMS":
                 # FIXME: Update calling code to raise instead of calling sys.exit
                 try:
                     partial_sums_ingest = PartialSumsIngest()
@@ -582,7 +576,7 @@ def process_docs(
                 else:
                     proc_succeeded = True
             case _:
-                logger.error(f"No ingest method for {proc['sub_type']}")
+                logger.error(f"No ingest method for {proc['subType']}")
                 proc_succeeded = False
         if proc_succeeded:
             success_count += 1

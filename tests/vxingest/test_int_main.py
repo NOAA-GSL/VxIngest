@@ -12,7 +12,7 @@ from vxingest.main import run_ingest
 def test_one_thread_specify_file_pattern(tmp_path):
     # Save original sys.argv
     original_argv = sys.argv.copy()
-    job_id = "JS:METAR:NETCDF:obs:schedule:V01"
+    job_id = "JS-TEST:METAR:OBS:NETCDF:schedule:job:V01"
     # need these args
     sys.argv = [
         "run_ingest",

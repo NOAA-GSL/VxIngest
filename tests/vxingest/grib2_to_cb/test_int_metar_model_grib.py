@@ -14,6 +14,7 @@ from multiprocessing import Queue
 from pathlib import Path
 
 import pytest
+from couchbase.options import QueryOptions, QueryScanConsistency
 
 from vxingest.grib2_to_cb.run_ingest_threads import VXIngest
 
@@ -476,6 +477,13 @@ def test_grib_builder_two_threads_file_pattern_hrrr_ops_conus(tmp_path: Path):
     # first_epoch = 1634252400 - 10
     # last_epoch = 1634252400 + 10
     vx_ingest = setup_connection()
+    # these normally come from the jobSpec->ProcessSpec->DataSourceSpec
+    vx_ingest.cluster.query("""DELETE
+            FROM `vxdata`._default.METAR
+            WHERE subset='METAR'
+            AND type='DF'
+            AND url LIKE "/opt/data/%""")
+
     log_queue = Queue()
     job = vx_ingest.common_collection.get(
         "JOB-TEST:V01:METAR:GRIB2:MODEL:HRRR"
@@ -617,11 +625,14 @@ def test_grib_builder_two_threads_file_pattern_rap_ops_130_conus(tmp_path: Path)
     """
     vx_ingest = setup_connection()
     # these normally come from the jobSpec->ProcessSpec->DataSourceSpec
-    vx_ingest.cluster.query("""DELETE
+    statement = """DELETE
             FROM `vxdata`._default.METAR
             WHERE subset='METAR'
             AND type='DF'
-            AND url LIKE "/opt/data/%""")
+            AND url LIKE '/opt/data/%'"""
+    vx_ingest.cluster.query(
+        statement, QueryOptions(scanConsistency=QueryScanConsistency.REQUEST_PLUS)
+    )
 
     log_queue = Queue()
     job = vx_ingest.common_collection.get(
@@ -637,6 +648,7 @@ def test_grib_builder_two_threads_file_pattern_rap_ops_130_conus(tmp_path: Path)
             "credentials_file": os.environ["CREDENTIALS"],
             "collection": collection,
             "file_mask": file_mask,
+            "file_pattern": "233320800000*",
             "input_data_path": input_data_path,
             "ingest_document_ids": ingest_document_ids,
             "output_dir": f"{tmp_path}",

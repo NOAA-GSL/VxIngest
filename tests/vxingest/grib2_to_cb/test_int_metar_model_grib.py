@@ -14,7 +14,7 @@ from multiprocessing import Queue
 from pathlib import Path
 
 import pytest
-from couchbase.options import QueryOptions, QueryScanConsistency
+from couchbase.options import QueryOptions
 
 from vxingest.grib2_to_cb.run_ingest_threads import VXIngest
 
@@ -34,6 +34,18 @@ def setup_connection():
     _vx_ingest.credentials_file = credentials
     _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
     _vx_ingest.connect_cb()
+    try:
+        vx_ingest = setup_connection(_vx_ingest)
+        id_query = """DELETE
+                FROM `vxdata`.`_default`.`METAR` f
+                WHERE f.subset = 'METAR'
+                AND f.type = 'DF'
+                AND f.url LIKE '/opt/data/%' RETURNING f.id AS id;"""
+        row_iter = vx_ingest.cluster.query(id_query, QueryOptions(metrics=True, read_only=False))
+        for row in row_iter:
+            print (f"Deleted {row['id']}")
+    except Exception as e:
+        print(f"Error occurred: {e}")
     return _vx_ingest
 
 
@@ -52,13 +64,6 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus(tmp_path: Path):
     # last_epoch = 1634252400 + 10
     # remove possible existing DF test documents
     vx_ingest = setup_connection()
-    # these normally come from the jobSpec->ProcessSpec->DataSourceSpec
-    vx_ingest.cluster.query("""DELETE
-            FROM `vxdata`._default.METAR
-            WHERE subset='METAR'
-            AND type='DF'
-            AND url LIKE "/opt/data/%""")
-
     log_queue = Queue()
     job = vx_ingest.common_collection.get(
         "JOB-TEST:V01:METAR:GRIB2:MODEL:HRRR"
@@ -189,13 +194,6 @@ def test_grib_builder_one_thread_file_pattern_rrfs_a_conus(tmp_path: Path):
     This test verifies the resulting data file against the one that is in couchbase already
     in order to make sure the calculations are proper."""
     vx_ingest = setup_connection()
-    # these normally come from the jobSpec->ProcessSpec->DataSourceSpec
-    vx_ingest.cluster.query("""DELETE
-            FROM `vxdata`._default.METAR
-            WHERE subset='METAR'
-            AND type='DF'
-            AND url LIKE "/opt/data/%""")
-
     log_queue = Queue()
     job = vx_ingest.common_collection.get(
         "JOB-TEST:V01:METAR:GRIB2:MODEL:HRRR"
@@ -325,13 +323,6 @@ def test_grib_builder_one_thread_file_pattern_mpas(tmp_path: Path):
     This test verifies the resulting data file against the one that is in couchbase already
     in order to make sure the calculations are proper."""
     vx_ingest = setup_connection()
-    # these normally come from the jobSpec->ProcessSpec->DataSourceSpec
-    vx_ingest.cluster.query("""DELETE
-            FROM `vxdata`._default.METAR
-            WHERE subset='METAR'
-            AND type='DF'
-            AND url LIKE "/opt/data/%""")
-
     log_queue = Queue()
     job = vx_ingest.common_collection.get(
         "JOB-TEST:V01:METAR:GRIB2:MODEL:MPAS_physics_dev1"
@@ -477,13 +468,6 @@ def test_grib_builder_two_threads_file_pattern_hrrr_ops_conus(tmp_path: Path):
     # first_epoch = 1634252400 - 10
     # last_epoch = 1634252400 + 10
     vx_ingest = setup_connection()
-    # these normally come from the jobSpec->ProcessSpec->DataSourceSpec
-    vx_ingest.cluster.query("""DELETE
-            FROM `vxdata`._default.METAR
-            WHERE subset='METAR'
-            AND type='DF'
-            AND url LIKE "/opt/data/%""")
-
     log_queue = Queue()
     job = vx_ingest.common_collection.get(
         "JOB-TEST:V01:METAR:GRIB2:MODEL:HRRR"
@@ -624,16 +608,6 @@ def test_grib_builder_two_threads_file_pattern_rap_ops_130_conus(tmp_path: Path)
     Not going to qualify the data on this one, just make sure it runs two threads properly
     """
     vx_ingest = setup_connection()
-    # these normally come from the jobSpec->ProcessSpec->DataSourceSpec
-    statement = """DELETE
-            FROM `vxdata`._default.METAR
-            WHERE subset='METAR'
-            AND type='DF'
-            AND url LIKE '/opt/data/%'"""
-    vx_ingest.cluster.query(
-        statement, QueryOptions(scanConsistency=QueryScanConsistency.REQUEST_PLUS)
-    )
-
     log_queue = Queue()
     job = vx_ingest.common_collection.get(
         "JOB-TEST:V01:METAR:GRIB2:MODEL:RAP_OPS_130"

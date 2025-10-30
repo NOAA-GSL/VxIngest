@@ -21,6 +21,7 @@ from multiprocessing import Queue
 from pathlib import Path
 
 import pytest
+from couchbase.options import QueryOptions
 
 from vxingest.netcdf_to_cb.netcdf_builder_parent import NetcdfBuilder  # noqa: F401
 from vxingest.netcdf_to_cb.run_ingest_threads import VXIngest
@@ -41,6 +42,19 @@ def setup_connection():
     _vx_ingest.credentials_file = credentials
     _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
     _vx_ingest.connect_cb()
+    try:
+        vx_ingest = setup_connection(_vx_ingest)
+        id_query = """DELETE
+                FROM `vxdata`.`_default`.`METAR` f
+                WHERE f.subset = 'METAR'
+                AND f.type = 'DF'
+                AND f.url LIKE '/opt/data/%' RETURNING f.id AS id;"""
+        row_iter = vx_ingest.cluster.query(id_query, QueryOptions(metrics=True, read_only=False))
+        for row in row_iter:
+            print (f"Deleted {row['id']}")
+    except Exception as e:
+        print(f"Error occurred: {e}")
+
     return _vx_ingest
 
 

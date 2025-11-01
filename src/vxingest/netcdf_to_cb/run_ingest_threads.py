@@ -161,7 +161,8 @@ class VXIngest(CommonVxIngest):
 
         self.credentials_file = config.get("credentials_file", None)
         self.thread_count = config.get("threads", 1)
-        self.output_dir = config.get("output_dir", None).strip()
+        self.output_dir = config.get("output_dir", "/tmp").strip()
+        self.job_document_id = config.get("job_id", None)
         self.file_pattern = config.get("file_pattern", "*").strip()
         self.ingest_document_ids = config.get("ingest_document_ids", None)
         self.fmask = config.get("file_mask", None)
@@ -185,9 +186,9 @@ class VXIngest(CommonVxIngest):
             self.load_spec["ingest_documents"] = {}
             for _id in self.load_spec["ingest_document_ids"]:
                 if _id.startswith("MD"):
-                    self.load_spec["ingest_documents"][_id] = self.common_collection.get(
-                        _id
-                    ).content_as[dict]
+                    self.load_spec["ingest_documents"][_id] = (
+                        self.common_collection.get(_id).content_as[dict]
+                    )
                 else:
                     self.load_spec["ingest_documents"][_id] = self.runtime_collection.get(
                         _id

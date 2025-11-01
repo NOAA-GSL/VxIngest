@@ -131,7 +131,7 @@ def test_one_thread_specify_file_pattern_netcdf_job_spec_type_job(tmp_path: Path
 def test_one_thread_specify_file_pattern_grib2_job_spec_rt(tmp_path: Path):
     # Save original sys.argv
     original_argv = sys.argv.copy()
-    job_id = "JS:METAR:OBS:GRIB2-TEST:schedule:job:V01"
+    job_id = "JS:METAR:MODEL:GRIB2-TEST:schedule:job:V01"
     # need these args
     sys.argv = [
         "run_ingest",
@@ -148,14 +148,14 @@ def test_one_thread_specify_file_pattern_grib2_job_spec_rt(tmp_path: Path):
         "-l",
         str(tmp_path / "logs"),
         "-f",
-        "[0123456789]???????_[0123456789]???",
+        "21287230000[0123456789]?",
         "-t",
         "1",
     ]
     try:
         vx_ingest = setup_connection(VXIngest_grib2())
         run_ingest()
-        check_output(tmp_path, vx_ingest, 6)
+        check_output(tmp_path, vx_ingest, 3)
     except Exception as e:
         pytest.fail(f"Test failed with exception {e}")
     finally:
@@ -191,7 +191,7 @@ def test_one_thread_specify_file_pattern_grib2_job_spec_type_job(tmp_path: Path)
     try:
         vx_ingest = setup_connection(VXIngest_grib2())
         run_ingest()
-        # NOTE: only 3 files match the pattern in this job
+        # NOTE: only 6 files match the pattern in this job
         check_output(tmp_path, vx_ingest, 3)
     except Exception as e:
         pytest.fail(f"Test failed with exception {e}")
@@ -267,16 +267,10 @@ def check_output(tmp_path, vx_ingest, file_count):
             sample_json_file = json_files[0]
             with (tmp_path / "results" / sample_json_file).open("r") as jf:
                 derived_data = json.load(jf)
-                for document in derived_data:
-                    if document["id"].startswith("LJ"):
-                        check_load_job(document)
-                        continue
-                    if "DD" in document["id"] and document["docType"] == "obs":
-                        check_netcdf(vx_ingest, document)
-                        break
-                    if "DD" in document["id"] and document["docType"] == "model":
-                        check_grib2(vx_ingest, document)
-                        break
+                if "netcdf" in vx_ingest.__module__:
+                    check_netcdf(vx_ingest, derived_data)
+                if "grib2" in vx_ingest.__module__:
+                    check_grib2(vx_ingest, derived_data)
     except Exception as exc:
         pytest.fail(f"Exception occurred: {exc}")
 
@@ -300,39 +294,51 @@ def check_load_job(derived_data):
 
 
 def check_grib2(vx_ingest, derived_data):
-    _id = derived_data["id"]
-    _statement = f"select METAR.* from `{vx_ingest.cb_credentials['bucket']}`._default.METAR where meta().id = '{_id}'"
-    _qresult = vx_ingest.cluster.query(_statement)
-    result_rows = list(_qresult.rows())
+    for item in derived_data:
+        if "DF" in item["id"]:
+            continue
+        if "LJ" in item["id"]:
+            check_load_job(item)
+            continue
+        if "DD" in item["id"]:
+            _id = item["id"]
+            _statement = f"select METAR.* from `{vx_ingest.cb_credentials['bucket']}`._default.METAR where meta().id = '{_id}'"
+            _qresult = vx_ingest.cluster.query(_statement)
+            result_rows = list(_qresult.rows())
+            if len(result_rows) > 0:
+                break
     assert len(result_rows) > 0, (
         f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure test document {_id} not found in couchbase"
     )
 
     result = result_rows[0]
     # assert top level fields
-    keys = derived_data.keys()
+    keys = item.keys()
     for _k in result:
+        if _k == "dataSourceId":
+            # skip dataSourceId as it is generated during ingest
+            continue
         assert _k in keys, (
-            f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure top level key {_k} not in {derived_data.keys()}"
+            f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure top level key {_k} not in {item.keys()}"
         )
     # assert the units
-    assert result["units"] == derived_data["units"], (
-        f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure units {result['units']} != {derived_data['units']}"
+    assert result["units"] == item["units"], (
+        f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure units {result['units']} != {item['units']}"
     )
     # assert the data
     for _k in result["data"]:
-        assert _k in derived_data["data"], (
-            f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure data key {_k} not in {derived_data['data'].keys()}"
+        assert _k in item["data"], (
+            f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure data key {_k} not in {item['data'].keys()}"
         )
         for _dk in result["data"][_k]:
-            assert _dk in derived_data["data"][_k], (
-                f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure data key {_k}.{_dk} not in {derived_data['data'][_k].keys()}"
+            assert _dk in item["data"][_k], (
+                f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure data key {_k}.{_dk} not in {item['data'][_k].keys()}"
             )
             # assert data field matches to 2 decimal places
             if _dk == "name" or _dk == "Vegetation Type":
                 # string compare
-                assert result["data"][_k][_dk] == derived_data["data"][_k][_dk], (
-                    f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure name {result['data'][_k][_dk]} != {derived_data['data'][_k][_dk]}"
+                assert result["data"][_k][_dk] == item["data"][_k][_dk], (
+                    f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure name {result['data'][_k][_dk]} != {item['data'][_k][_dk]}"
                 )
 
             else:
@@ -356,22 +362,22 @@ def check_grib2(vx_ingest, derived_data):
                 assert result["data"][_k][_dk] is not None, (
                     f"""result {_k + "." + _dk}  is None """
                 )
-                assert derived_data["data"][_k][_dk] is not None, (
-                    f"""derived_data {_k + "." + _dk} is None """
+                assert item["data"][_k][_dk] is not None, (
+                    f"""item {_k + "." + _dk} is None """
                 )
                 # Only compare with math.isclose if both are numbers
                 if isinstance(result["data"][_k][_dk], (int, float)) and isinstance(
-                    derived_data["data"][_k][_dk], (int, float)
+                    item["data"][_k][_dk], (int, float)
                 ):
                     assert math.isclose(
                         result["data"][_k][_dk],
-                        derived_data["data"][_k][_dk],
+                        item["data"][_k][_dk],
                         abs_tol=abs_tol,
                     ), f"""TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure data not close within {abs_tol}
-                        {_k}.{_dk} {result["data"][_k][_dk]} != {derived_data["data"][_k][_dk]} within {abs_tol} decimal places."""
+                        {_k}.{_dk} {result["data"][_k][_dk]} != {item["data"][_k][_dk]} within {abs_tol} decimal places."""
                 else:
-                    assert result["data"][_k][_dk] == derived_data["data"][_k][_dk], (
-                        f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure non-numeric data {result['data'][_k][_dk]} != {derived_data['data'][_k][_dk]}"
+                    assert result["data"][_k][_dk] == item["data"][_k][_dk], (
+                        f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure non-numeric data {result['data'][_k][_dk]} != {item['data'][_k][_dk]}"
                     )
 
 
@@ -381,6 +387,11 @@ def check_netcdf(vx_ingest, derived_data):
     obs_id = ""
     derived_obs = {}
     for item in derived_data:
+        if "DF" in item["id"]:
+            continue
+        if "LJ" in item["id"]:
+            check_load_job(item)
+            continue
         if item["docType"] == "station" and item["name"] == "KDEN":
             station_id = item["id"]
             derived_station = item

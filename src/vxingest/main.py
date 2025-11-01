@@ -622,7 +622,9 @@ def run_ingest() -> None:
     """entrypoint"""
     # Force new processes to start with a clean environment
     # "fork" is the default on Linux and can be unsafe
-    set_start_method("spawn")
+    if not hasattr(run_ingest, "_start_method_set"):
+        set_start_method("spawn")
+        run_ingest._start_method_set = True
 
     args = process_cli()
 

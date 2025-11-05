@@ -16,7 +16,6 @@ from couchbase.cluster import Cluster
 from couchbase.options import (
     ClusterOptions,
     ClusterTimeoutOptions,
-    GetOptions,
     QueryOptions,
 )
 
@@ -36,6 +35,7 @@ from vxingest.partial_sums_to_cb.run_ingest_threads import VXIngest
 cb_model_obs_data = []
 mysql_model_obs_data = []
 stations = []
+
 
 def setup_connection(_vx_ingest):
     """test setup"""
@@ -60,6 +60,7 @@ def setup_connection(_vx_ingest):
     except Exception as e:
         pytest.fail(f"Error during setup connection: {e}")
     return _vx_ingest
+
 
 def get_latest_model_obs_epoch(_vx_ingest, subset, model):
     # try to find the first and last epoch from the data in couchbase.
@@ -251,9 +252,7 @@ def test_ps_builder_surface_hrrr_ops_all_hrrr():
         Path(_f).unlink()
     log_queue = Queue()
     vx_ingest = setup_connection(VXIngest())
-    job = vx_ingest.common_collection.get(
-        job_id
-    ).content_as[dict]
+    job = vx_ingest.common_collection.get(job_id).content_as[dict]
     latest_epoch = get_latest_model_obs_epoch(vx_ingest, "METAR", "HRRR_OPS")
     config = {
         "job_id": job_id,

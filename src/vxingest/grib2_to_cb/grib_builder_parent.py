@@ -851,7 +851,8 @@ class GribBuilder(Builder):
             logger.error(
                 "%s: Exception with builder build_document: file_name: %s, error: file not found or problem reading file - skipping this file: %s",
                 self.__class__.__name__,
-                queue_element, _e,
+                queue_element,
+                _e,
             )
             # remove any idx file that may have been created
             self.delete_idx_file(queue_element)

@@ -682,7 +682,8 @@ class NetcdfBuilder(Builder):
         except Exception as _e:
             logger.exception(
                 "%s NetcdfBuilder.handle_key: %s - Exception in builder",
-                self.__class__.__name__, key
+                self.__class__.__name__,
+                key,
             )
         return doc
 

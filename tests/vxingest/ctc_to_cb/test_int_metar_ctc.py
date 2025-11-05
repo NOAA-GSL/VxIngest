@@ -37,6 +37,7 @@ cb_model_obs_data = []
 mysql_model_obs_data = []
 stations = []
 
+
 def setup_connection(_vx_ingest):
     """test setup"""
     # Ensure credentials_file is a string, not a tuple
@@ -60,6 +61,7 @@ def setup_connection(_vx_ingest):
     except Exception as e:
         pytest.fail(f"Error during setup connection: {e}")
     return _vx_ingest
+
 
 def get_latest_model_obs_epoch(_vx_ingest, subset, model):
     # try to find the first and last epoch from the data in couchbase.
@@ -278,16 +280,22 @@ def calculate_cb_ctc(
     )
     model_id = f"DD:V01:{subset}:{model}:{epoch}:{fcst_len}"
     try:
-        full_model_data = load_spec["collection"].get(model_id, GetOptions(timeout=timedelta(seconds=120))).content_as[dict]
+        full_model_data = (
+            load_spec["collection"]
+            .get(model_id, GetOptions(timeout=timedelta(seconds=120)))
+            .content_as[dict]
+        )
     except Exception:
         time.sleep(0.25)
         full_model_data = load_spec["collection"].get(model_id).content_as[dict]
     cb_model_obs_data = []
     try:
         # Increase timeout for get operation
-        full_obs_data = load_spec["collection"].get(
-            obs_id, GetOptions(timeout=timedelta(seconds=120))
-        ).content_as[dict]
+        full_obs_data = (
+            load_spec["collection"]
+            .get(obs_id, GetOptions(timeout=timedelta(seconds=120)))
+            .content_as[dict]
+        )
     except Exception:
         time.sleep(0.25)
         full_obs_data = load_spec["collection"].get(obs_id).content_as[dict]
@@ -555,8 +563,12 @@ def test_ctc_builder_ceiling_MPAS_physics_dev1_all_hrrr():
                     print(f"cb_ctc is None for threshold {str(_t)}- continuing")
                     continue
     except Exception as e:
-        print(f"Exception occurred in test_ctc_builder_ceiling_MPAS_physics_dev1_all_hrrr: {e}")
-        pytest.fail(f"Exception in test_ctc_builder_ceiling_MPAS_physics_dev1_all_hrrr: {e}")
+        print(
+            f"Exception occurred in test_ctc_builder_ceiling_MPAS_physics_dev1_all_hrrr: {e}"
+        )
+        pytest.fail(
+            f"Exception in test_ctc_builder_ceiling_MPAS_physics_dev1_all_hrrr: {e}"
+        )
 
 
 @pytest.mark.integration
@@ -659,7 +671,9 @@ def test_ctc_builder_visibility_hrrr_ops_all_hrrr():
                     print(f"cb_ctc is None for threshold {str(_threshold)}- continuing")
                     continue
     except Exception as e:
-        print(f"Exception occurred in test_ctc_builder_visibility_hrrr_ops_all_hrrr: {e}")
+        print(
+            f"Exception occurred in test_ctc_builder_visibility_hrrr_ops_all_hrrr: {e}"
+        )
         pytest.fail(f"Exception in test_ctc_builder_visibility_hrrr_ops_all_hrrr: {e}")
 
 

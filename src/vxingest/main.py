@@ -444,12 +444,12 @@ def process_jobs(
     ql,
 ) -> None:
     """
-       Parses the given job docs with the appropriate method
-       Example job criteria (old style):
-        [{'id': 'JOB-TEST:V01:METAR:NETCDF:OBS', 'name': 'job-test:v01:metar:netcdf:obs', 'offset_minutes': 0, 'run_priority': 2, 'subType': 'netcdf'}]
+    Parses the given job docs with the appropriate method
+    Example job criteria (old style):
+     [{'id': 'JOB-TEST:V01:METAR:NETCDF:OBS', 'name': 'job-test:v01:metar:netcdf:obs', 'offset_minutes': 0, 'run_priority': 2, 'subType': 'netcdf'}]
 
-       Example runtime job_run_criteria:
-       ['PS:METAR:NETCDF:OBS:MADIS-TEST:V01']
+    Example runtime job_run_criteria:
+    ['PS:METAR:NETCDF:OBS:MADIS-TEST:V01']
     """
     logger.info("Processing the job docs")
     # explicitly set the prometheus metrics to zero before starting (in multiple runs these can get confused)
@@ -460,15 +460,13 @@ def process_jobs(
     runtime_collection = (
         cluster.bucket("vxdata").scope("_default").collection("RUNTIME")
     )
-    common_collection = (
-        cluster.bucket("vxdata").scope("_default").collection("COMMON")
-    )
+    common_collection = cluster.bucket("vxdata").scope("_default").collection("COMMON")
     for job in job_run_criteria:
         logger.info(f"Processing job: {job}")
-        if job['id'].startswith("PS:"):
+        if job["id"].startswith("PS:"):
             # this is a newer runtime job document
             proc = runtime_collection.get(job["id"]).content_as[dict]
-            job['sub_type'] = proc['subType']
+            job["sub_type"] = proc["subType"]
             # get config values from the runtime document heirachy for this process
             ingest_document_ids = proc["ingestDocumentIds"]
             data_source_id = proc["dataSourceId"]
@@ -477,7 +475,7 @@ def process_jobs(
             file_mask = data_source_spec["fileMask"]
             collection = data_source_spec["subset"]
         else:
-            proc = common_collection.get(job['id']).content_as[dict]
+            proc = common_collection.get(job["id"]).content_as[dict]
             file_mask = proc["file_mask"]
             input_data_path = proc["input_data_path"]
             ingest_document_ids = proc["ingest_document_ids"]

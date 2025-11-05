@@ -49,9 +49,11 @@ def setup_connection():
                 WHERE f.subset = 'METAR'
                 AND f.type = 'DF'
                 AND f.url LIKE '/opt/data/%' RETURNING f.id AS id;"""
-        row_iter = vx_ingest.cluster.query(id_query, QueryOptions(metrics=True, read_only=False))
+        row_iter = vx_ingest.cluster.query(
+            id_query, QueryOptions(metrics=True, read_only=False)
+        )
         for row in row_iter:
-            print (f"Deleted {row['id']}")
+            print(f"Deleted {row['id']}")
     except Exception as e:
         print(f"Error occurred: {e}")
 

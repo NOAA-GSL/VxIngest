@@ -106,12 +106,12 @@ class CommonVxIngest:
         lj_doc = {
             "id": self.load_job_id,
             "subset": subset,
-        "type": "LJ",
-        "lineageId": lineage,
-        "script": __file__,
-        "scriptVersion": git_hash,
-        "loadSpec": self.spec_file,
-        "note": "",
+            "type": "LJ",
+            "lineageId": lineage,
+            "script": __file__,
+            "scriptVersion": git_hash,
+            "loadSpec": self.spec_file,
+            "note": "",
         }
         return lj_doc
 
@@ -203,15 +203,23 @@ class CommonVxIngest:
             df_elements = list(result)
             df_full_names = [element["url"] for element in df_elements]
             # Handle if the directory is a URL or a local path
-            if str(directory).startswith("http://") or str(directory).startswith("https://"):
-                logger.warning("get_file_list: Directory is a URL, skipping local file glob.")
+            if str(directory).startswith("http://") or str(directory).startswith(
+                "https://"
+            ):
+                logger.warning(
+                    "get_file_list: Directory is a URL, skipping local file glob."
+                )
                 file_list = []
             elif str(directory).startswith("s3://"):
-                logger.warning("get_file_list: Directory is an S3 path, skipping local file glob.")
+                logger.warning(
+                    "get_file_list: Directory is an S3 path, skipping local file glob."
+                )
                 file_list = []
             elif str(directory).startswith("file://"):
                 # local file path with file:// prefix
-                self.load_spec["input_data_path"] = pathlib.Path(directory[7:]).as_posix()
+                self.load_spec["input_data_path"] = pathlib.Path(
+                    directory[7:]
+                ).as_posix()
                 directory = directory[7:]
             if pathlib.Path(directory).exists() and pathlib.Path(directory).is_dir():
                 # the file list is sorted by getmtime so that the oldest files are processed first

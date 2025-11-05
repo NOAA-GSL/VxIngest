@@ -165,6 +165,7 @@ def test_one_thread_specify_file_pattern_grib2_job_spec_rt(tmp_path: Path):
         # Restore original sys.argv
         sys.argv = original_argv
 
+
 @pytest.mark.integration
 def test_one_thread_specify_file_pattern_grib2_job_spec_type_job(tmp_path: Path):
     # Save original sys.argv
@@ -201,6 +202,7 @@ def test_one_thread_specify_file_pattern_grib2_job_spec_type_job(tmp_path: Path)
         # Restore original sys.argv
         sys.argv = original_argv
 
+
 @pytest.mark.integration
 def test_one_thread_specify_file_pattern_ctc_job_spec_rt(tmp_path: Path):
     # NOTE: CTC tests do not require a special job type because they do not require input data files,
@@ -225,7 +227,7 @@ def test_one_thread_specify_file_pattern_ctc_job_spec_rt(tmp_path: Path):
         result = vx_ingest.cluster.query(
             stmnt, QueryOptions(metrics=True, read_only=True)
         )
-        max_obs = list(result.rows())[0]['$1']
+        max_obs = list(result.rows())[0]["$1"]
         stmnt = """SELECT MAX(fve.fcstValidEpoch)
             FROM vxdata._default.METAR fve
             WHERE fve.type='DD'
@@ -268,6 +270,7 @@ def test_one_thread_specify_file_pattern_ctc_job_spec_rt(tmp_path: Path):
     finally:
         # Restore original sys.argv
         sys.argv = original_argv
+
 
 @pytest.mark.integration
 def test_one_thread_specify_file_pattern_partial_sums_job_spec_rt(tmp_path: Path):
@@ -384,7 +387,10 @@ def check_output(tmp_path, vx_ingest, file_count, success_count=1):
         with metrics_file.open("r") as f:
             metrics_content = f.read()
             try:
-                assert f"run_ingest_success_count_total {str(success_count)}.0" in metrics_content
+                assert (
+                    f"run_ingest_success_count_total {str(success_count)}.0"
+                    in metrics_content
+                )
                 assert "run_ingest_failure_count_total 0.0" in metrics_content
             except AssertionError as e:
                 pytest.fail(f"Metrics check failed: {e}")
@@ -437,7 +443,9 @@ def check_load_job(derived_data):
             ], (
                 f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus LJ failure key {_k} not in {derived_data.keys()}"
             )
-def check_partial_sums (vx_ingest, derived_data):
+
+
+def check_partial_sums(vx_ingest, derived_data):
     for item in derived_data:
         if "DF" in item["id"]:
             continue
@@ -465,7 +473,11 @@ def check_partial_sums (vx_ingest, derived_data):
                     "subset",
                     "type",
                     "units",
-                    "version"], f"test_one_thread_specify_file_pattern_partial_sums_job_spec_rt failure key {_k} not in {item.keys()}"
+                    "version",
+                ], (
+                    f"test_one_thread_specify_file_pattern_partial_sums_job_spec_rt failure key {_k} not in {item.keys()}"
+                )
+
 
 def check_ctc(vx_ingest, derived_data):
     for item in derived_data:
@@ -493,7 +505,10 @@ def check_ctc(vx_ingest, derived_data):
                     "subDocType",
                     "subset",
                     "type",
-                    "version"], f"test_one_thread_specify_file_pattern_ctc_job_spec_rt failure key {_k} not in {item.keys()}"
+                    "version",
+                ], (
+                    f"test_one_thread_specify_file_pattern_ctc_job_spec_rt failure key {_k} not in {item.keys()}"
+                )
 
 
 def check_grib2(vx_ingest, derived_data):

@@ -160,7 +160,7 @@ class VXIngest(CommonVxIngest):
         self.ingest_document = None
         super().__init__()
 
-    def runit(self, args, log_queue: Queue, log_configurer: Callable[[Queue], None]):
+    def runit(self, config, log_queue: Queue, log_configurer: Callable[[Queue], None]):
         """
         This is the entry point for run_ingest_threads.py
         """
@@ -168,15 +168,15 @@ class VXIngest(CommonVxIngest):
         logger.info("--- *** --- Start --- *** ---")
         logger.info("Begin a_time: %s", begin_time)
 
-        self.credentials_file = args["credentials_file"].strip()
-        self.thread_count = args["threads"]
-        self.output_dir = args["output_dir"].strip()
-        self.job_document_id = args["job_id"].strip()
-        _args_keys = args.keys()
+        self.credentials_file = config["credentials_file"].strip()
+        self.thread_count = config["threads"]
+        self.output_dir = config["output_dir"].strip()
+        self.job_document_id = config["job_id"].strip()
+        _args_keys = config.keys()
         if "first_epoch" in _args_keys and "last_epoch" in _args_keys:
             self.first_last_params = {
-                "first_epoch": args["first_epoch"],
-                "last_epoch": args["last_epoch"],
+                "first_epoch": config["first_epoch"],
+                "last_epoch": config["last_epoch"],
             }
         else:
             self.first_last_params = {}
@@ -190,21 +190,28 @@ class VXIngest(CommonVxIngest):
         )
         try:
             # put the real credentials into the load_spec
+            logger.info("getting cb_credentials")
             self.cb_credentials = self.get_credentials(self.load_spec)
+            # get the intended subset (collection from the job_id)
+            self.cb_credentials["collection"] = config["collection"]
             # establish connections to cb, collection
             self.connect_cb()
-            # load the ingest document ids into the load_spec (this might be redundant)
-            ingest_document_result = self.collection.get(self.job_document_id)
-            ingest_document = ingest_document_result.content_as[dict]
-            self.load_spec["ingest_document_ids"] = ingest_document[
-                "ingest_document_ids"
-            ]
+            logger.info("connected to cb - collection is %s", self.collection.name)
+            # load the ingest document ids into the load_spec (this might be redundant) - from COMMON
+            self.load_spec["ingest_document_ids"] = config['ingest_document_ids']
             # put all the ingest documents into the load_spec too
             self.load_spec["ingest_documents"] = {}
             for _id in self.load_spec["ingest_document_ids"]:
-                self.load_spec["ingest_documents"][_id] = self.collection.get(
-                    _id
-                ).content_as[dict]
+                if _id.startswith("MD"):
+                    self.load_spec["ingest_documents"][_id] = (
+                        self.common_collection.get(_id).content_as[dict]
+                    )
+                else:
+                    self.load_spec["ingest_documents"][_id] = self.runtime_collection.get(
+                        _id
+                    ).content_as[dict]
+            self.load_spec["fmask"] = config['file_mask']
+            self.load_spec["input_data_path"] = config['input_data_path']
             # stash the load_job in the load_spec
             self.load_spec["load_job_doc"] = self.build_load_job_doc(
                 "partial_sums_surface"
@@ -245,6 +252,7 @@ class VXIngest(CommonVxIngest):
                 logger.info(f"Started thread: VxIngestManager-{thread_count + 1}")
             except Exception as _e:
                 logger.error("*** Error in VXIngest %s***", str(_e))
+                raise _e
         # be sure to join all the threads to wait on them
         finished = [proc.join() for proc in ingest_manager_list]
         logger.info("Finished processes")

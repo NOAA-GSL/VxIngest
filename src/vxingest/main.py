@@ -2,6 +2,7 @@
 # Responsible for checking the existing jobs documents and determining which need to be run
 
 import argparse
+import contextlib
 import logging
 import os
 import shutil
@@ -451,7 +452,9 @@ def process_jobs(
        ['PS:METAR:NETCDF:OBS:MADIS-TEST:V01']
     """
     logger.info("Processing the job docs")
-
+    # explicitly set the prometheus metrics to zero before starting (in multiple runs these can get confused)
+    prom_successes._value.set(0)
+    prom_failures._value.set(0)
     success_count = 0
     fail_count = 0
     runtime_collection = (
@@ -623,7 +626,8 @@ def run_ingest() -> None:
     # Force new processes to start with a clean environment
     # "fork" is the default on Linux and can be unsafe
     if not hasattr(run_ingest, "_start_method_set"):
-        set_start_method("spawn")
+        with contextlib.suppress(RuntimeError):
+            set_start_method("spawn")
         run_ingest._start_method_set = True
 
     args = process_cli()

@@ -8,10 +8,13 @@ from pathlib import Path
 import pytest
 from couchbase.options import QueryOptions
 
-# from vxingest.ctc_to_cb.run_ingest_threads import VXIngest_ctc
+from vxingest.ctc_to_cb.run_ingest_threads import VXIngest as VXIngest_ctc
 from vxingest.grib2_to_cb.run_ingest_threads import VXIngest as VXIngest_grib2
 from vxingest.main import run_ingest
 from vxingest.netcdf_to_cb.run_ingest_threads import VXIngest as VXIngest_netcdf
+from vxingest.partial_sums_to_cb.run_ingest_threads import (
+    VXIngest as VXIngest_partial_sums,
+)
 
 # from vxingest.partial_sums_to_cb.run_ingest_threads import VXIngest_partial_sums
 
@@ -76,14 +79,14 @@ def test_one_thread_specify_file_pattern_netcdf_job_spec_rt(tmp_path: Path):
         "-l",
         str(tmp_path / "logs"),
         "-f",
-        "[0123456789]???????_[0123456789]???",
+        "20211105_*",
         "-t",
         "1",
     ]
     try:
         vx_ingest = setup_connection(VXIngest_netcdf())
         run_ingest()
-        check_output(tmp_path, vx_ingest, 6)
+        check_output(tmp_path, vx_ingest, 2)
     except Exception as e:
         pytest.fail(f"Test failed with exception {e}")
     finally:
@@ -112,14 +115,14 @@ def test_one_thread_specify_file_pattern_netcdf_job_spec_type_job(tmp_path: Path
         "-l",
         str(tmp_path / "logs"),
         "-f",
-        "[0123456789]???????_[0123456789]???",
+        "20211105_*",
         "-t",
         "1",
     ]
     try:
         vx_ingest = setup_connection(VXIngest_netcdf())
         run_ingest()
-        check_output(tmp_path, vx_ingest, 6)
+        check_output(tmp_path, vx_ingest, 2)
     except Exception as e:
         pytest.fail(f"Test failed with exception {e}")
     finally:
@@ -162,7 +165,6 @@ def test_one_thread_specify_file_pattern_grib2_job_spec_rt(tmp_path: Path):
         # Restore original sys.argv
         sys.argv = original_argv
 
-
 @pytest.mark.integration
 def test_one_thread_specify_file_pattern_grib2_job_spec_type_job(tmp_path: Path):
     # Save original sys.argv
@@ -199,8 +201,145 @@ def test_one_thread_specify_file_pattern_grib2_job_spec_type_job(tmp_path: Path)
         # Restore original sys.argv
         sys.argv = original_argv
 
+@pytest.mark.integration
+def test_one_thread_specify_file_pattern_ctc_job_spec_rt(tmp_path: Path):
+    # NOTE: CTC tests do not require a special job type because they do not require input data files,
+    # just run the standard CTC job spec and use the arguments -s "first_epoch" and -e "last_epoch" to bound
+    # the data processed for the test. Those values are chosen to be the latest two hours of model/obs
+    # data in the couchbase test data.
+    # THIS IS A VERY LONG RUNNING TEST.
+    # Save original sys.argv
+    original_argv = sys.argv.copy()
+    job_id = "JS:METAR:CTC:HRRR_OPS:schedule:job:V01"
+    try:
+        # try to find the first and last epoch from the data in couchbase.
+        # The ctc_builder won't build any data that has already been built (except for the very last one).
+        # The test will process the CTC documents but not upsert them.
+        vx_ingest = setup_connection(VXIngest_ctc())
+        stmnt = """SELECT MAX(fve.fcstValidEpoch)
+            FROM vxdata._default.METAR fve
+            WHERE fve.type='DD'
+            AND fve.docType='obs'
+            AND fve.version='V01'
+            AND fve.subset='METAR';"""
+        result = vx_ingest.cluster.query(
+            stmnt, QueryOptions(metrics=True, read_only=True)
+        )
+        max_obs = list(result.rows())[0]['$1']
+        stmnt = """SELECT MAX(fve.fcstValidEpoch)
+            FROM vxdata._default.METAR fve
+            WHERE fve.type='DD'
+            AND fve.docType='model'
+            AND fve.model='HRRR_OPS'
+            AND fve.version='V01'
+            AND fve.subset='METAR';"""
+        result = vx_ingest.cluster.query(
+            stmnt, QueryOptions(metrics=True, read_only=True)
+        )
+        max_model = list(result.rows())[0]["$1"]
+        max_epoch = min(max_obs, max_model)
+        # need these args
+        sys.argv = [
+            "run_ingest",
+            "-j",
+            job_id,
+            "-c",
+            os.environ["CREDENTIALS"],
+            "-m",
+            str(tmp_path / "metrics"),
+            "-o",
+            str(tmp_path / "output"),
+            "-x",
+            str(tmp_path / "transfer"),
+            "-l",
+            str(tmp_path / "logs"),
+            "-t",
+            "1",
+            "-s",
+            str(max_epoch),
+            "-e",
+            str(max_epoch),
+        ]
 
-def check_output(tmp_path, vx_ingest, file_count):
+        run_ingest()
+        check_output(tmp_path, vx_ingest, 5, success_count=2)
+    except Exception as e:
+        pytest.fail(f"Test failed with exception {e}")
+    finally:
+        # Restore original sys.argv
+        sys.argv = original_argv
+
+@pytest.mark.integration
+def test_one_thread_specify_file_pattern_partial_sums_job_spec_rt(tmp_path: Path):
+    # NOTE: PARTIAL_SUMS tests do not require a special job type because they do not require input data files,
+    # just run the standard partial_sums job spec and use the arguments -s "first_epoch" and -e "last_epoch" to bound
+    # the data processed for the test. Those values are chosen to be the latest two hours of model/obs
+    # data in the couchbase test data.
+    # THIS IS A VERY LONG RUNNING TEST.
+    # Save original sys.argv
+    original_argv = sys.argv.copy()
+    job_id = "JS:METAR:SUMS:HRRR_OPS:schedule:job:V01"
+    try:
+        # try to find the first and last epoch from the data in couchbase.
+        # The ctc_builder won't build any data that has already been built (except for the very last one).
+        # The test will process the CTC documents but not upsert them.
+        vx_ingest = setup_connection(VXIngest_partial_sums())
+        stmnt = """SELECT MAX(fve.fcstValidEpoch)
+            FROM vxdata._default.METAR fve
+            WHERE fve.type='DD'
+            AND fve.docType='obs'
+            AND fve.version='V01'
+            AND fve.subset='METAR';"""
+        result = vx_ingest.cluster.query(
+            stmnt, QueryOptions(metrics=True, read_only=True)
+        )
+        max_obs = list(result.rows())[0]["$1"]
+        stmnt = """SELECT MAX(fve.fcstValidEpoch)
+            FROM vxdata._default.METAR fve
+            WHERE fve.type='DD'
+            AND fve.docType='model'
+            AND fve.model='HRRR_OPS'
+            AND fve.version='V01'
+            AND fve.subset='METAR';"""
+        result = vx_ingest.cluster.query(
+            stmnt, QueryOptions(metrics=True, read_only=True)
+        )
+        max_model = list(result.rows())[0]["$1"]
+        max_epoch = min(max_obs, max_model)
+        # last_epoch = first_epoch + 7200  # two hours later
+        # need these args
+        sys.argv = [
+            "run_ingest",
+            "-j",
+            job_id,
+            "-c",
+            os.environ["CREDENTIALS"],
+            "-m",
+            str(tmp_path / "metrics"),
+            "-o",
+            str(tmp_path / "output"),
+            "-x",
+            str(tmp_path / "transfer"),
+            "-l",
+            str(tmp_path / "logs"),
+            "-t",
+            "1",
+            "-s",
+            str(max_epoch),
+            "-e",
+            str(max_epoch),
+        ]
+
+        run_ingest()
+        check_output(tmp_path, vx_ingest, 5, success_count=1)
+    except Exception as e:
+        pytest.fail(f"Test failed with exception {e}")
+    finally:
+        # Restore original sys.argv
+        sys.argv = original_argv
+
+
+def check_output(tmp_path, vx_ingest, file_count, success_count=1):
     # do the output checking here
     # something like this:
     # ├── logs
@@ -244,11 +383,14 @@ def check_output(tmp_path, vx_ingest, file_count):
         metrics_file = metrics_files[0]
         with metrics_file.open("r") as f:
             metrics_content = f.read()
-            assert "run_ingest_success_count_total 1.0" in metrics_content
-            assert "run_ingest_failure_count_total 0.0" in metrics_content
+            try:
+                assert f"run_ingest_success_count_total {str(success_count)}.0" in metrics_content
+                assert "run_ingest_failure_count_total 0.0" in metrics_content
+            except AssertionError as e:
+                pytest.fail(f"Metrics check failed: {e}")
         assert (tmp_path / "transfer").exists()
         transfer_files = list((tmp_path / "transfer").glob("*.tar.gz"))
-        assert len(transfer_files) == 1
+        assert len(transfer_files) == success_count
         # check the contents of the tar.gz file
         tarFile = transfer_files[0]
         (tmp_path / "results").mkdir()
@@ -271,6 +413,10 @@ def check_output(tmp_path, vx_ingest, file_count):
                     check_netcdf(vx_ingest, derived_data)
                 if "grib2" in vx_ingest.__module__:
                     check_grib2(vx_ingest, derived_data)
+                if "ctc" in vx_ingest.__module__:
+                    check_ctc(vx_ingest, derived_data)
+                if "partial_sums" in vx_ingest.__module__:
+                    check_partial_sums(vx_ingest, derived_data)
     except Exception as exc:
         pytest.fail(f"Exception occurred: {exc}")
 
@@ -291,6 +437,63 @@ def check_load_job(derived_data):
             ], (
                 f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus LJ failure key {_k} not in {derived_data.keys()}"
             )
+def check_partial_sums (vx_ingest, derived_data):
+    for item in derived_data:
+        if "DF" in item["id"]:
+            continue
+        if "LJ" in item["id"]:
+            check_load_job(item)
+            continue
+        if "DD" in item["id"]:
+            # this document will not exist in the database because it is the last epoch processed
+            # this test just checks that the proper keys exits in the item
+            # in the future we might want to calculate the PARTIAL_SUMS like the other integration tests.
+            for _k in item:
+                assert _k in [
+                    "data",
+                    "dataFileId",
+                    "dataSourceId",
+                    "docType",
+                    "fcstLen",
+                    "fcstValidEpoch",
+                    "fcstValidISO",
+                    "id",
+                    "model",
+                    "region",
+                    "subDocType",
+                    "subType",
+                    "subset",
+                    "type",
+                    "units",
+                    "version"], f"test_one_thread_specify_file_pattern_partial_sums_job_spec_rt failure key {_k} not in {item.keys()}"
+
+def check_ctc(vx_ingest, derived_data):
+    for item in derived_data:
+        if "DF" in item["id"]:
+            continue
+        if "LJ" in item["id"]:
+            check_load_job(item)
+            continue
+        if "DD" in item["id"]:
+            # this document will not exist in the database because it is the last epoch processed
+            # this test just checks that the proper keys exits in the item
+            # in the future we might want to calculate the CTC like the other integration tests.
+            for _k in item:
+                assert _k in [
+                    "data",
+                    "dataFileId",
+                    "dataSourceId",
+                    "docType",
+                    "fcstLen",
+                    "fcstValidEpoch",
+                    "fcstValidISO",
+                    "id",
+                    "model",
+                    "region",
+                    "subDocType",
+                    "subset",
+                    "type",
+                    "version"], f"test_one_thread_specify_file_pattern_ctc_job_spec_rt failure key {_k} not in {item.keys()}"
 
 
 def check_grib2(vx_ingest, derived_data):

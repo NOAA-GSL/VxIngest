@@ -196,7 +196,7 @@ def test_grib_builder_one_thread_file_pattern_rrfs_a_conus(tmp_path: Path):
     vx_ingest = setup_connection()
     log_queue = Queue()
     job = vx_ingest.common_collection.get(
-        "JOB-TEST:V01:METAR:GRIB2:MODEL:HRRR"
+        "JOB-TEST:V01:METAR:GRIB2:MODEL:RRFS_A"
     ).content_as[dict]
     ingest_document_ids = job["ingest_document_ids"]
     collection = job["subset"]

@@ -254,6 +254,10 @@ class VXIngest(CommonVxIngest):
         file_names = self.get_file_list(
             file_query, self.input_data_path, self.file_pattern, self.fmask
         )
+        if len(file_names) == 0:
+            logger.info("No files to process...exiting")
+            sys.exit(0)
+        logger.info("Number of files to be processed: %s", str(len(file_names)))
         for _f in file_names:
             _q.put(_f)
 

@@ -73,7 +73,7 @@ def assert_dicts_almost_equal(dict1, dict2, rel_tol=1e-09):
 
 
 @pytest.mark.integration
-def test_one_thread_specify_file_pattern_job_spec(tmp_path: Path):
+def test_one_thread_specify_file_pattern_job_spec_rt(tmp_path: Path):
     log_queue = Queue()
     vx_ingest = setup_connection()
     # these normally come from the jobSpec->ProcessSpec->DataSourceSpec
@@ -81,7 +81,7 @@ def test_one_thread_specify_file_pattern_job_spec(tmp_path: Path):
         vx_ingest.cluster.bucket("vxdata").scope("_default").collection("RUNTIME")
     )
     job_spec = runtime_collection.get(
-        "JS:METAR:OBS:NETCDF:schedule:job:V01"
+        "JS:METAR:OBS:NETCDF-TEST:schedule:job:V01"
     ).content_as[dict]
     process_id = job_spec["processSpecIds"][0]
     process_spec = runtime_collection.get(process_id).content_as[dict]

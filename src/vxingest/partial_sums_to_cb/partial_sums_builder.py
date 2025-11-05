@@ -341,7 +341,7 @@ class PartialSumsBuilder(Builder):
                     obs_id = re.sub(":" + str(fve["fcstLen"]) + "$", "", fve["id"])
                     # substitute the model part for obs
                     obs_id = re.sub(self.model, "obs", obs_id)
-                    logger.info("Looking up model document: %s", fve["id"])
+                    # logger.info("Looking up model document: %s", fve["id"])
                     try:
                         _model_doc = self.load_spec["collection"].get(fve["id"])
                         self.model_data = _model_doc.content_as[dict]

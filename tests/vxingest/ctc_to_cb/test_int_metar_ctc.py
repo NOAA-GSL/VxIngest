@@ -13,7 +13,12 @@ import pytest
 import yaml
 from couchbase.auth import PasswordAuthenticator
 from couchbase.cluster import Cluster
-from couchbase.options import ClusterOptions, ClusterTimeoutOptions
+from couchbase.options import (
+    ClusterOptions,
+    ClusterTimeoutOptions,
+    GetOptions,
+    QueryOptions,
+)
 
 from vxingest.ctc_to_cb import ctc_builder
 from vxingest.ctc_to_cb.run_ingest_threads import VXIngest
@@ -31,6 +36,54 @@ from vxingest.ctc_to_cb.run_ingest_threads import VXIngest
 cb_model_obs_data = []
 mysql_model_obs_data = []
 stations = []
+
+def setup_connection(_vx_ingest):
+    """test setup"""
+    # Ensure credentials_file is a string, not a tuple
+    credentials = os.environ["CREDENTIALS"]
+    if isinstance(credentials, tuple):
+        credentials = credentials[0]
+    _vx_ingest.credentials_file = credentials
+    _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
+    _vx_ingest.connect_cb()
+    try:
+        id_query = """DELETE
+                FROM `vxdata`.`_default`.`METAR` f
+                WHERE f.subset = 'METAR'
+                AND f.type = 'DF'
+                AND f.url LIKE '/opt/data/%' RETURNING f.id AS id;"""
+        row_iter = _vx_ingest.cluster.query(
+            id_query, QueryOptions(metrics=True, read_only=False)
+        )
+        for row in row_iter:
+            print(f"Deleted {row['id']}")
+    except Exception as e:
+        pytest.fail(f"Error during setup connection: {e}")
+    return _vx_ingest
+
+def get_latest_model_obs_epoch(_vx_ingest, subset, model):
+    # try to find the first and last epoch from the data in couchbase.
+    # The ctc_builder won't build any data that has already been built (except for the very last one).
+    # The test will process the CTC documents but not upsert them.
+    stmnt = f"""SELECT MAX(fve.fcstValidEpoch)
+            FROM vxdata._default.{subset} fve
+            WHERE fve.type='DD'
+            AND fve.docType='obs'
+            AND fve.version='V01'
+            AND fve.subset='{subset}';"""
+    result = _vx_ingest.cluster.query(stmnt, QueryOptions(metrics=True, read_only=True))
+    max_obs = list(result.rows())[0]["$1"]
+    stmnt = f"""SELECT MAX(fve.fcstValidEpoch)
+            FROM vxdata._default.{subset} fve
+            WHERE fve.type='DD'
+            AND fve.docType='model'
+            AND fve.model='{model}'
+            AND fve.version='V01'
+            AND fve.subset='{subset}';"""
+    result = _vx_ingest.cluster.query(stmnt, QueryOptions(metrics=True, read_only=True))
+    max_model = list(result.rows())[0]["$1"]
+    max_epoch = min(max_obs, max_model)
+    return max_epoch
 
 
 def stub_worker_log_configurer(queue: Queue):
@@ -225,13 +278,16 @@ def calculate_cb_ctc(
     )
     model_id = f"DD:V01:{subset}:{model}:{epoch}:{fcst_len}"
     try:
-        full_model_data = load_spec["collection"].get(model_id).content_as[dict]
+        full_model_data = load_spec["collection"].get(model_id, GetOptions(timeout=timedelta(seconds=120))).content_as[dict]
     except Exception:
         time.sleep(0.25)
         full_model_data = load_spec["collection"].get(model_id).content_as[dict]
     cb_model_obs_data = []
     try:
-        full_obs_data = load_spec["collection"].get(obs_id).content_as[dict]
+        # Increase timeout for get operation
+        full_obs_data = load_spec["collection"].get(
+            obs_id, GetOptions(timeout=timedelta(seconds=120))
+        ).content_as[dict]
     except Exception:
         time.sleep(0.25)
         full_obs_data = load_spec["collection"].get(obs_id).content_as[dict]
@@ -303,81 +359,96 @@ def test_ctc_builder_ceiling_hrrr_ops_all_hrrr():
     global cb_model_obs_data
     global stations
 
-    credentials_file = os.environ["CREDENTIALS"]
-    job_id = "JOB-TEST:V01:METAR:CTC:CEILING:MODEL:OPS"
-    outdir = Path("/opt/data/ctc_to_cb/hrrr_ops/ceiling/output")
-    if not outdir.exists():
-        # Create a new directory because it does not exist
-        outdir.mkdir(parents=True)
-    files = outdir.glob("*.json")
-    for _f in files:
-        Path(_f).unlink()
-    log_queue = Queue()
-    vx_ingest = VXIngest()
-    # These CTC's might already have been ingested in which case this won't do anything.
-    vx_ingest.runit(
-        {
+    try:
+        credentials_file = os.environ["CREDENTIALS"]
+        job_id = "JOB-TEST:V01:METAR:CTC:CEILING:MODEL:OPS"
+        outdir = Path("/opt/data/ctc_to_cb/hrrr_ops/ceiling/output")
+        if not outdir.exists():
+            # Create a new directory because it does not exist
+            outdir.mkdir(parents=True)
+        files = outdir.glob("*.json")
+        for _f in files:
+            Path(_f).unlink()
+        log_queue = Queue()
+        vx_ingest = setup_connection(VXIngest())
+
+        # These CTC's might already have been ingested in which case this won't do anything.
+        job = vx_ingest.common_collection.get(
+            "JOB-TEST:V01:METAR:CTC:CEILING:MODEL:OPS"
+        ).content_as[dict]
+        latest_epoch = get_latest_model_obs_epoch(vx_ingest, "METAR", "HRRR_OPS")
+        config = {
             "job_id": job_id,
             "credentials_file": credentials_file,
+            "ingest_document_ids": job["ingest_document_ids"],
+            "collection": job["subset"],
+            "input_data_path": "",
+            "file_mask": "",
             "output_dir": str(outdir),
+            "file_pattern": "",
+            "first_epoch": latest_epoch,
+            "last_epoch": latest_epoch,
             "threads": 1,
-            "first_epoch": 1638489600,
-            "last_epoch": 1638496800,
-        },
-        log_queue,
-        stub_worker_log_configurer,
-    )
+        }
+        vx_ingest.runit(
+            config,
+            log_queue,
+            stub_worker_log_configurer,
+        )
 
-    list_of_output_files = outdir.glob("*")
-    latest_output_file = min(list_of_output_files, key=os.path.getctime)
+        list_of_output_files = outdir.glob("*")
+        latest_output_file = min(list_of_output_files, key=os.path.getctime)
 
-    # Opening JSON file
-    with latest_output_file.open(encoding="utf8") as output_file:
-        # returns JSON object as a dictionary
-        vx_ingest_output_data = json.load(output_file)
-    # if this is an LJ document then the CTC's were already ingested
-    # and the test should stop here
-    if vx_ingest_output_data[0]["type"] == "LJ":
-        return
-    # get the last fcstValidEpochs
-    fcst_valid_epochs = {doc["fcstValidEpoch"] for doc in vx_ingest_output_data}
-    # take a fcstValidEpoch in the middle of the list
-    fcst_valid_epoch = list(fcst_valid_epochs)[int(len(fcst_valid_epochs) / 2)]
-    _thresholds = ["500", "1000", "3000", "60000"]
-    # get all the documents that have the chosen fcstValidEpoch
-    docs = [
-        _doc
-        for _doc in vx_ingest_output_data
-        if _doc["fcstValidEpoch"] == fcst_valid_epoch
-    ]
-    # get all the fcstLens for those docs
-    fcst_lens = []
-    for _elem in docs:
-        fcst_lens.append(_elem["fcstLen"])
-
-    for _i in fcst_lens:
-        _elem = None
-        # find the document for this fcst_len
+        # Opening JSON file
+        with latest_output_file.open(encoding="utf8") as output_file:
+            # returns JSON object as a dictionary
+            vx_ingest_output_data = json.load(output_file)
+        # if this is an LJ document then the CTC's were already ingested
+        # and the test should stop here
+        if vx_ingest_output_data[0]["type"] == "LJ":
+            return
+        # get the last fcstValidEpochs
+        fcst_valid_epochs = {doc["fcstValidEpoch"] for doc in vx_ingest_output_data}
+        # take a fcstValidEpoch in the middle of the list
+        fcst_valid_epoch = list(fcst_valid_epochs)[int(len(fcst_valid_epochs) / 2)]
+        _thresholds = ["500", "1000", "3000", "60000"]
+        # get all the documents that have the chosen fcstValidEpoch
+        docs = [
+            _doc
+            for _doc in vx_ingest_output_data
+            if _doc["fcstValidEpoch"] == fcst_valid_epoch
+        ]
+        # get all the fcstLens for those docs
+        fcst_lens = []
         for _elem in docs:
-            if _elem["fcstLen"] == _i:
-                break
-        # process all the thresholds
-        for _t in _thresholds:
-            print(
-                f"Asserting derived CTC for fcstValidEpoch: {_elem['fcstValidEpoch']} model: HRRR_OPS region: ALL_HRRR fcst_len: {_i} threshold: {_t}"
-            )
-            cb_ctc = calculate_cb_ctc(
-                epoch=_elem["fcstValidEpoch"],
-                fcst_len=_i,
-                threshold=int(_t),
-                model="HRRR_OPS",
-                subset="METAR",
-                doc_sub_type="Ceiling",
-                region="ALL_HRRR",
-            )
-            if cb_ctc is None:
-                print(f"cb_ctc is None for threshold {str(_t)}- continuing")
-                continue
+            fcst_lens.append(_elem["fcstLen"])
+
+        for _i in fcst_lens:
+            _elem = None
+            # find the document for this fcst_len
+            for _elem in docs:
+                if _elem["fcstLen"] == _i:
+                    break
+            # process all the thresholds
+            for _t in _thresholds:
+                print(
+                    f"Asserting derived CTC for fcstValidEpoch: {_elem['fcstValidEpoch']} model: HRRR_OPS region: ALL_HRRR fcst_len: {_i} threshold: {_t}"
+                )
+                cb_ctc = calculate_cb_ctc(
+                    epoch=_elem["fcstValidEpoch"],
+                    fcst_len=_i,
+                    threshold=int(_t),
+                    model="HRRR_OPS",
+                    subset="METAR",
+                    doc_sub_type="Ceiling",
+                    region="ALL_HRRR",
+                )
+                if cb_ctc is None:
+                    print(f"cb_ctc is None for threshold {str(_t)}- continuing")
+                    continue
+    except Exception as e:
+        print(f"Exception occurred in test_ctc_builder_ceiling_hrrr_ops_all_hrrr: {e}")
+        pytest.fail(f"Exception in test_ctc_builder_ceiling_hrrr_ops_all_hrrr: {e}")
 
 
 @pytest.mark.integration
@@ -395,81 +466,97 @@ def test_ctc_builder_ceiling_MPAS_physics_dev1_all_hrrr():
     global cb_model_obs_data
     global stations
 
-    credentials_file = os.environ["CREDENTIALS"]
-    job_id = "JOB-TEST:V01:METAR:CTC:CEILING:MODEL:MPAS_physics_dev1"
-    outdir = Path("/opt/data/ctc_to_cb/mpas_physics_dev1/ceiling/output")
-    if not outdir.exists():
-        # Create a new directory because it does not exist
-        outdir.mkdir(parents=True)
-    files = outdir.glob("*.json")
-    for _f in files:
-        Path(_f).unlink()
-    log_queue = Queue()
-    vx_ingest = VXIngest()
-    # These CTC's might already have been ingested in which case this won't do anything.
-    vx_ingest.runit(
-        {
+    try:
+        credentials_file = os.environ["CREDENTIALS"]
+        job_id = "JOB-TEST:V01:METAR:CTC:CEILING:MODEL:MPAS_physics_dev1"
+        outdir = Path("/opt/data/ctc_to_cb/mpas_physics_dev1/ceiling/output")
+        if not outdir.exists():
+            # Create a new directory because it does not exist
+            outdir.mkdir(parents=True)
+        files = outdir.glob("*.json")
+        for _f in files:
+            Path(_f).unlink()
+        log_queue = Queue()
+        vx_ingest = setup_connection(VXIngest())
+        # These CTC's might already have been ingested in which case this won't do anything.
+        job = vx_ingest.common_collection.get(
+            "JOB-TEST:V01:METAR:CTC:CEILING:MODEL:OPS"
+        ).content_as[dict]
+        latest_epoch = get_latest_model_obs_epoch(
+            vx_ingest, "METAR", "MPAS_physics_dev1"
+        )
+        config = {
             "job_id": job_id,
             "credentials_file": credentials_file,
+            "ingest_document_ids": job["ingest_document_ids"],
+            "collection": job["subset"],
+            "input_data_path": "",
+            "file_mask": "",
             "output_dir": str(outdir),
+            "file_pattern": "",
+            "first_epoch": latest_epoch,
+            "last_epoch": latest_epoch,
             "threads": 1,
-            "first_epoch": 1740942000,
-            "last_epoch": 1740945600,
-        },
-        log_queue,
-        stub_worker_log_configurer,
-    )
+        }
+        vx_ingest.runit(
+            config,
+            log_queue,
+            stub_worker_log_configurer,
+        )
 
-    list_of_output_files = outdir.glob("*")
-    latest_output_file = min(list_of_output_files, key=os.path.getctime)
+        list_of_output_files = outdir.glob("*")
+        latest_output_file = min(list_of_output_files, key=os.path.getctime)
 
-    # Opening JSON file
-    with latest_output_file.open(encoding="utf8") as output_file:
-        # returns JSON object as a dictionary
-        vx_ingest_output_data = json.load(output_file)
-    # if this is an LJ document then the CTC's were already ingested
-    # and the test should stop here
-    if vx_ingest_output_data[0]["type"] == "LJ":
-        return
-    # get the last fcstValidEpochs
-    fcst_valid_epochs = {doc["fcstValidEpoch"] for doc in vx_ingest_output_data}
-    # take a fcstValidEpoch in the middle of the list
-    fcst_valid_epoch = list(fcst_valid_epochs)[int(len(fcst_valid_epochs) / 2)]
-    _thresholds = ["500", "1000", "3000", "60000"]
-    # get all the documents that have the chosen fcstValidEpoch
-    docs = [
-        _doc
-        for _doc in vx_ingest_output_data
-        if _doc["fcstValidEpoch"] == fcst_valid_epoch
-    ]
-    # get all the fcstLens for those docs
-    fcst_lens = []
-    for _elem in docs:
-        fcst_lens.append(_elem["fcstLen"])
-
-    for _i in fcst_lens:
-        _elem = None
-        # find the document for this fcst_len
+        # Opening JSON file
+        with latest_output_file.open(encoding="utf8") as output_file:
+            # returns JSON object as a dictionary
+            vx_ingest_output_data = json.load(output_file)
+        # if this is an LJ document then the CTC's were already ingested
+        # and the test should stop here
+        if vx_ingest_output_data[0]["type"] == "LJ":
+            return
+        # get the last fcstValidEpochs
+        fcst_valid_epochs = {doc["fcstValidEpoch"] for doc in vx_ingest_output_data}
+        # take a fcstValidEpoch in the middle of the list
+        fcst_valid_epoch = list(fcst_valid_epochs)[int(len(fcst_valid_epochs) / 2)]
+        _thresholds = ["500", "1000", "3000", "60000"]
+        # get all the documents that have the chosen fcstValidEpoch
+        docs = [
+            _doc
+            for _doc in vx_ingest_output_data
+            if _doc["fcstValidEpoch"] == fcst_valid_epoch
+        ]
+        # get all the fcstLens for those docs
+        fcst_lens = []
         for _elem in docs:
-            if _elem["fcstLen"] == _i:
-                break
-        # process all the thresholds
-        for _t in _thresholds:
-            print(
-                f"Asserting derived CTC for fcstValidEpoch: {_elem['fcstValidEpoch']} model: HRRR_OPS region: ALL_HRRR fcst_len: {_i} threshold: {_t}"
-            )
-            cb_ctc = calculate_cb_ctc(
-                epoch=_elem["fcstValidEpoch"],
-                fcst_len=_i,
-                threshold=int(_t),
-                model="MPAS_physics_dev1",
-                subset="METAR",
-                doc_sub_type="Ceiling",
-                region="ALL_HRRR",
-            )
-            if cb_ctc is None:
-                print(f"cb_ctc is None for threshold {str(_t)}- continuing")
-                continue
+            fcst_lens.append(_elem["fcstLen"])
+
+        for _i in fcst_lens:
+            _elem = None
+            # find the document for this fcst_len
+            for _elem in docs:
+                if _elem["fcstLen"] == _i:
+                    break
+            # process all the thresholds
+            for _t in _thresholds:
+                print(
+                    f"Asserting derived CTC for fcstValidEpoch: {_elem['fcstValidEpoch']} model: HRRR_OPS region: ALL_HRRR fcst_len: {_i} threshold: {_t}"
+                )
+                cb_ctc = calculate_cb_ctc(
+                    epoch=_elem["fcstValidEpoch"],
+                    fcst_len=_i,
+                    threshold=int(_t),
+                    model="MPAS_physics_dev1",
+                    subset="METAR",
+                    doc_sub_type="Ceiling",
+                    region="ALL_HRRR",
+                )
+                if cb_ctc is None:
+                    print(f"cb_ctc is None for threshold {str(_t)}- continuing")
+                    continue
+    except Exception as e:
+        print(f"Exception occurred in test_ctc_builder_ceiling_MPAS_physics_dev1_all_hrrr: {e}")
+        pytest.fail(f"Exception in test_ctc_builder_ceiling_MPAS_physics_dev1_all_hrrr: {e}")
 
 
 @pytest.mark.integration
@@ -486,82 +573,94 @@ def test_ctc_builder_visibility_hrrr_ops_all_hrrr():
 
     global cb_model_obs_data
     global stations
-
-    credentials_file = os.environ["CREDENTIALS"]
-    job_id = "JOB-TEST:V01:METAR:CTC:VISIBILITY:MODEL:OPS"
-    outdir = Path("/opt/data/ctc_to_cb/hrrr_ops/visibility/output")
-    if not outdir.exists():
-        # Create a new directory because it does not exist
-        outdir.mkdir(parents=True)
-    files = outdir.glob("*.json")
-    for _f in files:
-        _f.unlink()
-    log_queue = Queue()
-
-    vx_ingest = VXIngest()
-    # These CTC's might already have been ingested in which case this won't do anything.
-    vx_ingest.runit(
-        {
+    try:
+        credentials_file = os.environ["CREDENTIALS"]
+        job_id = "JOB-TEST:V01:METAR:CTC:VISIBILITY:MODEL:OPS"
+        outdir = Path("/opt/data/ctc_to_cb/hrrr_ops/visibility/output")
+        if not outdir.exists():
+            # Create a new directory because it does not exist
+            outdir.mkdir(parents=True)
+        files = outdir.glob("*.json")
+        for _f in files:
+            _f.unlink()
+        log_queue = Queue()
+        vx_ingest = setup_connection(VXIngest())
+        # These CTC's might already have been ingested in which case this won't do anything.
+        job = vx_ingest.common_collection.get(
+            "JOB-TEST:V01:METAR:CTC:CEILING:MODEL:OPS"
+        ).content_as[dict]
+        latest_epoch = get_latest_model_obs_epoch(vx_ingest, "METAR", "HRRR_OPS")
+        config = {
             "job_id": job_id,
             "credentials_file": credentials_file,
+            "ingest_document_ids": job["ingest_document_ids"],
+            "collection": job["subset"],
+            "input_data_path": "",
+            "file_mask": "",
             "output_dir": str(outdir),
+            "file_pattern": "",
+            "first_epoch": latest_epoch,
+            "last_epoch": latest_epoch,
             "threads": 1,
-            "first_epoch": 1638489600,
-            "last_epoch": 1638496800,
-        },
-        log_queue,
-        stub_worker_log_configurer,
-    )
+        }
+        vx_ingest.runit(
+            config,
+            log_queue,
+            stub_worker_log_configurer,
+        )
 
-    list_of_output_files = outdir.glob("*")
-    latest_output_file = min(list_of_output_files, key=os.path.getctime)
-    # Opening JSON file
-    with latest_output_file.open(encoding="utf8") as output_file:
-        # returns JSON object as a dictionary
-        vx_ingest_output_data = json.load(output_file)
-    # if this is an LJ document then the CTC's were already ingested
-    # and the test should stop here
-    if vx_ingest_output_data[0]["type"] == "LJ":
-        return
-    # get the last fcstValidEpochs
-    fcst_valid_epochs = {doc["fcstValidEpoch"] for doc in vx_ingest_output_data}
-    # take a fcstValidEpoch in the middle of the list
-    fcst_valid_epoch = list(fcst_valid_epochs)[int(len(fcst_valid_epochs) / 2)]
-    _thresholds = ["0.5", "1.0", "3.0", "5.0", "10.0"]
-    # get all the documents that have the chosen fcstValidEpoch
-    docs = [
-        _doc
-        for _doc in vx_ingest_output_data
-        if _doc["fcstValidEpoch"] == fcst_valid_epoch
-    ]
-    # get all the fcstLens for those docs
-    fcst_lens = []
-    for _elem in docs:
-        fcst_lens.append(_elem["fcstLen"])
-
-    for _i in fcst_lens:
-        _elem = None
-        # find the document for this fcst_len
+        list_of_output_files = outdir.glob("*")
+        latest_output_file = min(list_of_output_files, key=os.path.getctime)
+        # Opening JSON file
+        with latest_output_file.open(encoding="utf8") as output_file:
+            # returns JSON object as a dictionary
+            vx_ingest_output_data = json.load(output_file)
+        # if this is an LJ document then the CTC's were already ingested
+        # and the test should stop here
+        if vx_ingest_output_data[0]["type"] == "LJ":
+            return
+        # get the last fcstValidEpochs
+        fcst_valid_epochs = {doc["fcstValidEpoch"] for doc in vx_ingest_output_data}
+        # take a fcstValidEpoch in the middle of the list
+        fcst_valid_epoch = list(fcst_valid_epochs)[int(len(fcst_valid_epochs) / 2)]
+        _thresholds = ["0.5", "1.0", "3.0", "5.0", "10.0"]
+        # get all the documents that have the chosen fcstValidEpoch
+        docs = [
+            _doc
+            for _doc in vx_ingest_output_data
+            if _doc["fcstValidEpoch"] == fcst_valid_epoch
+        ]
+        # get all the fcstLens for those docs
+        fcst_lens = []
         for _elem in docs:
-            if _elem["fcstLen"] == _i:
-                break
-        # process all the thresholds
-        for _threshold in _thresholds:
-            print(
-                f"Asserting derived CTC for fcstValidEpoch: {_elem['fcstValidEpoch']} model: HRRR_OPS region: ALL_HRRR fcst_len: {_i} threshold: {_threshold}"
-            )
-            cb_ctc = calculate_cb_ctc(
-                epoch=_elem["fcstValidEpoch"],
-                fcst_len=_i,
-                threshold=float(_threshold),
-                model="HRRR_OPS",
-                subset="METAR",
-                doc_sub_type="Visibility",
-                region="ALL_HRRR",
-            )
-            if cb_ctc is None:
-                print(f"cb_ctc is None for threshold {str(_threshold)}- continuing")
-                continue
+            fcst_lens.append(_elem["fcstLen"])
+
+        for _i in fcst_lens:
+            _elem = None
+            # find the document for this fcst_len
+            for _elem in docs:
+                if _elem["fcstLen"] == _i:
+                    break
+            # process all the thresholds
+            for _threshold in _thresholds:
+                print(
+                    f"Asserting derived CTC for fcstValidEpoch: {_elem['fcstValidEpoch']} model: HRRR_OPS region: ALL_HRRR fcst_len: {_i} threshold: {_threshold}"
+                )
+                cb_ctc = calculate_cb_ctc(
+                    epoch=_elem["fcstValidEpoch"],
+                    fcst_len=_i,
+                    threshold=float(_threshold),
+                    model="HRRR_OPS",
+                    subset="METAR",
+                    doc_sub_type="Visibility",
+                    region="ALL_HRRR",
+                )
+                if cb_ctc is None:
+                    print(f"cb_ctc is None for threshold {str(_threshold)}- continuing")
+                    continue
+    except Exception as e:
+        print(f"Exception occurred in test_ctc_builder_visibility_hrrr_ops_all_hrrr: {e}")
+        pytest.fail(f"Exception in test_ctc_builder_visibility_hrrr_ops_all_hrrr: {e}")
 
 
 @pytest.mark.integration

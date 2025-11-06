@@ -487,9 +487,7 @@ def test_ctc_builder_ceiling_MPAS_physics_dev1_all_hrrr():
         log_queue = Queue()
         vx_ingest = setup_connection(VXIngest())
         # These CTC's might already have been ingested in which case this won't do anything.
-        job = vx_ingest.common_collection.get(
-            "JOB-TEST:V01:METAR:CTC:CEILING:MODEL:OPS"
-        ).content_as[dict]
+        job = vx_ingest.common_collection.get(job_id).content_as[dict]
         latest_epoch = get_latest_model_obs_epoch(
             vx_ingest, "METAR", "MPAS_physics_dev1"
         )
@@ -548,7 +546,7 @@ def test_ctc_builder_ceiling_MPAS_physics_dev1_all_hrrr():
             # process all the thresholds
             for _t in _thresholds:
                 print(
-                    f"Asserting derived CTC for fcstValidEpoch: {_elem['fcstValidEpoch']} model: HRRR_OPS region: ALL_HRRR fcst_len: {_i} threshold: {_t}"
+                    f"Asserting derived CTC for fcstValidEpoch: {_elem['fcstValidEpoch']} model: MPAS_physics_dev1 region: ALL_HRRR fcst_len: {_i} threshold: {_t}"
                 )
                 cb_ctc = calculate_cb_ctc(
                     epoch=_elem["fcstValidEpoch"],

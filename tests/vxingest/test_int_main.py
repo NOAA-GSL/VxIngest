@@ -504,6 +504,7 @@ def check_ctc(vx_ingest, derived_data):
                     "region",
                     "subDocType",
                     "subset",
+                    "subType",
                     "type",
                     "version",
                 ], (

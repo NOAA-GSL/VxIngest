@@ -1,4 +1,3 @@
-from __future__ import print_function
 import ncepbufr
 
 hdstr = "SID XOB YOB DHR TYP ELV SAID T29"

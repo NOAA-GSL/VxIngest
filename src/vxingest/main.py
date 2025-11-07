@@ -9,10 +9,11 @@ import shutil
 import sys
 import tarfile
 import time
+from collections.abc import Callable
 from datetime import datetime, timedelta
 from multiprocessing import Queue, set_start_method
 from pathlib import Path
-from typing import Callable, Optional, TypedDict
+from typing import TypedDict
 
 import yaml
 from couchbase.auth import PasswordAuthenticator  # type: ignore
@@ -219,7 +220,7 @@ class JobRunCriterion(TypedDict):
 def get_runtime_job_criteria(
     cluster: Cluster,
     creds: dict[str, str],
-    job_id: Optional[str] = None,
+    job_id: str | None = None,
 ) -> JobRunCriterion | None:
     """
     Queries the Couchbase database for a specific job document by its ID.
@@ -228,7 +229,7 @@ def get_runtime_job_criteria(
     Args:
         cluster (Cluster): The Couchbase cluster instance to use for querying.
         creds (dict[str, str]): A dictionary containing Couchbase credentials, including 'cb_bucket' and 'cb_scope'.
-        job_id (Optional[str], optional): The ID of the job document to retrieve. Must be provided.
+        job_id str | None = None, optional): The ID of the job document to retrieve. Must be provided.
 
     Returns:
         processDoc | None: The job document if found, otherwise None.
@@ -262,7 +263,7 @@ def get_runtime_job_criteria(
 def get_older_job_doc_criteria(
     cluster: Cluster,
     creds: dict[str, str],
-    job_id: Optional[str] = None,
+    job_id: str | None = None,
 ) -> list[JobRunCriterion]:
     """
     Queries Couchbase for job documents based on the provided parameters. This is used to
@@ -276,7 +277,7 @@ def get_older_job_doc_criteria(
     Args:
         cluster (Cluster): The Couchbase cluster instance to use for querying.
         creds (dict[str, str]): A dictionary containing Couchbase credentials and configuration, including bucket, scope, and collection names.
-        job_id (Optional[str], optional): The ID of a specific job document to fetch. If not provided, fetches jobs based on schedule and status.
+        job_id (str | None, optional): The ID of a specific job document to fetch. If not provided, fetches jobs based on schedule and status.
 
     Returns:
         list[processDoc]: A list of job documents matching the query criterion.

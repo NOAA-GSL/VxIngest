@@ -1,4 +1,3 @@
-from __future__ import print_function
 import ncepbufr
 
 hdrstr = "YEAR MNTH DAYS HOUR MINU PCCF ELRC SAID PTID GEODU"
@@ -11,7 +10,7 @@ while bufr.advance() == 0:
     print(bufr.msg_counter, bufr.msg_type, bufr.msg_date)
     while bufr.load_subset() == 0:
         hdr = bufr.read_subset(hdrstr).squeeze()
-        yyyymmddhh = "%04i%02i%02i%02i%02i" % tuple(hdr[0:5])
+        yyyymmddhh = f"{int(hdr[0]):04d}{int(hdr[1]):02d}{int(hdr[2]):02d}{int(hdr[3]):02d}{int(hdr[4]):02d}"
         satid = int(hdr[7])
         ptid = int(hdr[8])
         nreps_this_ROSEQ2 = bufr.read_subset("{ROSEQ2}").squeeze()

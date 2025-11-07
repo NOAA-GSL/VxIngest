@@ -1,6 +1,6 @@
-from __future__ import print_function
-import ncepbufr
 import sys
+
+import ncepbufr
 
 # print inventory of specified bufr file
 
@@ -9,7 +9,7 @@ nsubsets = 0
 inv = bufr.inventory()
 for n, msg in enumerate(inv):
     out = (n + 1,) + msg
-    print("message %s: %s %s %s %s subsets" % out)
+    print("message {}: {} {} {} {} subsets".format(*out))
     nsubsets += out[4]
 bufr.close()
-print("%s total subsets in %s messages" % (nsubsets, len(inv)))
+print(f"{nsubsets} total subsets in {len(inv)} messages")

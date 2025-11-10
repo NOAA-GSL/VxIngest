@@ -37,8 +37,6 @@ def setup_connection():
     _vx_ingest = VXIngest()
     # Ensure credentials_file is a string, not a tuple
     credentials = os.environ["CREDENTIALS"]
-    if isinstance(credentials, tuple):
-        credentials = credentials[0]
     _vx_ingest.credentials_file = credentials
     _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
     _vx_ingest.connect_cb()

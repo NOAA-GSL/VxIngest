@@ -152,18 +152,10 @@ class CommonVxIngest:
                 raise CouchbaseException(
                     "Could not connect to couchbase after 3 attempts"
                 )
-            # The common collection is always "COMMON" so we can hardcode it here
-            self.cb_credentials["common_collection"] = "COMMON"
-            self.cb_credentials["runtime_collection"] = "RUNTIME"
-            self.collection = self.cluster.bucket(
-                self.cb_credentials["bucket"]
-            ).collection(self.cb_credentials["collection"])
-            self.common_collection = self.cluster.bucket(
-                self.cb_credentials["bucket"]
-            ).collection(self.cb_credentials["common_collection"])
-            self.runtime_collection = self.cluster.bucket(
-                self.cb_credentials["bucket"]
-            ).collection(self.cb_credentials["runtime_collection"])
+            # The common collection is always "COMMON" so we can hardcode it here - likewise for RUNTIME
+            self.collection = self.cluster.bucket(self.cb_credentials["bucket"]).collection(self.cb_credentials["collection"])
+            self.common_collection = self.cluster.bucket(self.cb_credentials["bucket"]).collection("COMMON")
+            self.runtime_collection = self.cluster.bucket(self.cb_credentials["bucket"]).collection("RUNTIME")
             # stash the credentials for the VxIngestManager - see NOTE at the top of this file.
             self.load_spec["cb_credentials"] = self.cb_credentials
             logger.info("%s: Couchbase connection success")
@@ -206,15 +198,15 @@ class CommonVxIngest:
             if str(directory).startswith("http://") or str(directory).startswith(
                 "https://"
             ):
-                logger.warning(
+                logger.debug(
                     "get_file_list: Directory is a URL, skipping local file glob."
                 )
-                file_list = []
+                return [] # handle this in the future
             elif str(directory).startswith("s3://"):
-                logger.warning(
+                logger.debug(
                     "get_file_list: Directory is an S3 path, skipping local file glob."
                 )
-                file_list = []
+                return [] # handle this in the future
             elif str(directory).startswith("file://"):
                 # local file path with file:// prefix
                 self.load_spec["input_data_path"] = pathlib.Path(

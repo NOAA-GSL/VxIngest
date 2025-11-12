@@ -80,8 +80,9 @@ def test_one_thread_specify_file_pattern_job_spec_rt(tmp_path: Path):
     runtime_collection = (
         vx_ingest.cluster.bucket("vxdata").scope("_default").collection("RUNTIME")
     )
+    job_id = "JS:METAR:OBS:NETCDF-TEST:schedule:job:V01"
     job_spec = runtime_collection.get(
-        "JS:METAR:OBS:NETCDF-TEST:schedule:job:V01"
+        job_id
     ).content_as[dict]
     process_id = job_spec["processSpecIds"][0]
     process_spec = runtime_collection.get(process_id).content_as[dict]
@@ -95,6 +96,7 @@ def test_one_thread_specify_file_pattern_job_spec_rt(tmp_path: Path):
     # file_pattern is optional and is used to specify a subset of files to process
     vx_ingest.runit(
         {
+            "job_id": job_id,
             "credentials_file": os.environ["CREDENTIALS"],
             "collection": collection,
             "file_mask": file_mask,
@@ -119,8 +121,8 @@ def test_one_thread_specify_file_pattern_job_spec_rt(tmp_path: Path):
 
     # Test that we have one output file per input file
     input_path = Path("/opt/data/netcdf_to_cb/input_files")
-    num_input_files = len(list(input_path.glob("20250911_1500")))
-    num_output_files = len(list(tmp_path.glob("20250911_1500.json")))
+    num_input_files = len(list(input_path.glob("20211108_0000")))
+    num_output_files = len(list(tmp_path.glob("20211108*.json")))
     assert num_output_files == num_input_files, "number of output files is incorrect"
 
     # Test that the output file matches the content in the database
@@ -237,7 +239,8 @@ def test_two_threads_spedicfy_file_pattern(tmp_path: Path):
     """
     log_queue = Queue()
     vx_ingest = setup_connection()
-    job = vx_ingest.common_collection.get("JOB-TEST:V01:METAR:NETCDF:OBS").content_as[
+    job_id = "JOB-TEST:V01:METAR:NETCDF:OBS"
+    job = vx_ingest.common_collection.get(job_id).content_as[
         dict
     ]
     ingest_document_ids = job["ingest_document_ids"]
@@ -246,6 +249,7 @@ def test_two_threads_spedicfy_file_pattern(tmp_path: Path):
 
     vx_ingest.runit(
         {
+            "job_id": job_id,
             "credentials_file": os.environ["CREDENTIALS"],
             "collection": collection,
             "file_mask": "%Y%m%d_%H%M",
@@ -283,7 +287,8 @@ def test_one_thread_default(tmp_path: Path):
     """
     log_queue = Queue()
     vx_ingest = setup_connection()
-    job = vx_ingest.common_collection.get("JOB-TEST:V01:METAR:NETCDF:OBS").content_as[
+    job_id = "JOB-TEST:V01:METAR:NETCDF:OBS"
+    job = vx_ingest.common_collection.get(job_id).content_as[
         dict
     ]
     ingest_document_ids = job["ingest_document_ids"]
@@ -291,6 +296,7 @@ def test_one_thread_default(tmp_path: Path):
     input_data_path = job["input_data_path"]
     vx_ingest.runit(
         {
+            "job_id": job_id,
             "credentials_file": os.environ["CREDENTIALS"],
             "collection": collection,
             "file_mask": "%Y%m%d_%H%M",

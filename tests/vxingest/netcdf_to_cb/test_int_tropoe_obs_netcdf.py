@@ -63,14 +63,14 @@ def assert_dicts_almost_equal(dict1, dict2, rel_tol=1e-09):
 def test_one_thread_specify_file_pattern(tmp_path):
     log_queue = Queue()
     vx_ingest = setup_connection()
-    job = vx_ingest.common_collection.get("JOB-TEST:V01:TROPOE:NETCDF:OBS").content_as[
-        dict
-    ]
+    job_id = "JOB-TEST:V01:TROPOE:NETCDF:OBS"
+    job = vx_ingest.common_collection.get(job_id).content_as[dict]
     ingest_document_ids = job["ingest_document_ids"]
     collection = job["subset"]
     input_data_path = job["input_data_path"]
     vx_ingest.runit(
         {
+            "job_id": job_id,
             "credentials_file": os.environ["CREDENTIALS"],
             "collection": collection,
             "input_data_path": input_data_path,

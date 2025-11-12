@@ -152,10 +152,18 @@ class CommonVxIngest:
                 raise CouchbaseException(
                     "Could not connect to couchbase after 3 attempts"
                 )
-            # The common collection is always "COMMON" so we can hardcode it here - likewise for RUNTIME
+            if "common_collection" not in self.cb_credentials:
+                self.cb_credentials["common_collection"] = "COMMON"
+            if "runtime_collection" not in self.cb_credentials:
+                self.cb_credentials["runtime_collection"] = "RUNTIME"
+
             self.collection = self.cluster.bucket(self.cb_credentials["bucket"]).collection(self.cb_credentials["collection"])
-            self.common_collection = self.cluster.bucket(self.cb_credentials["bucket"]).collection("COMMON")
-            self.runtime_collection = self.cluster.bucket(self.cb_credentials["bucket"]).collection("RUNTIME")
+            self.common_collection = self.cluster.bucket(
+                self.cb_credentials["bucket"]
+            ).collection(self.cb_credentials["common_collection"])
+            self.runtime_collection = self.cluster.bucket(
+                self.cb_credentials["bucket"]
+            ).collection(self.cb_credentials["runtime_collection"])
             # stash the credentials for the VxIngestManager - see NOTE at the top of this file.
             self.load_spec["cb_credentials"] = self.cb_credentials
             logger.info("%s: Couchbase connection success")

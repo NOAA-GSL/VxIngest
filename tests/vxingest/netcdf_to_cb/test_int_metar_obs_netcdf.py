@@ -21,6 +21,7 @@ from multiprocessing import Queue
 from pathlib import Path
 
 import pytest
+from couchbase.options import QueryOptions
 
 from vxingest.netcdf_to_cb.netcdf_builder_parent import NetcdfBuilder  # noqa: F401
 from vxingest.netcdf_to_cb.run_ingest_threads import VXIngest
@@ -34,19 +35,33 @@ def stub_worker_log_configurer(queue: Queue):
 def setup_connection():
     """test setup"""
     _vx_ingest = VXIngest()
-    _vx_ingest.credentials_file = (os.environ["CREDENTIALS"],)
+    # Ensure credentials_file is a string, not a tuple
+    credentials = os.environ["CREDENTIALS"]
+    _vx_ingest.credentials_file = credentials
     _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
     _vx_ingest.connect_cb()
-    _vx_ingest.load_spec["ingest_document_ids"] = _vx_ingest.collection.get(
-        "JOB-TEST:V01:METAR:NETCDF:OBS"
-    ).content_as[dict]["ingest_document_ids"]
+    try:
+        vx_ingest = setup_connection(_vx_ingest)
+        id_query = """DELETE
+                FROM `vxdata`.`_default`.`METAR` f
+                WHERE f.subset = 'METAR'
+                AND f.type = 'DF'
+                AND f.url LIKE '/opt/data/%' RETURNING f.id AS id;"""
+        row_iter = vx_ingest.cluster.query(
+            id_query, QueryOptions(metrics=True, read_only=False)
+        )
+        for row in row_iter:
+            print(f"Deleted {row['id']}")
+    except Exception as e:
+        print(f"Error occurred: {e}")
+
     return _vx_ingest
 
 
 def assert_dicts_almost_equal(dict1, dict2, rel_tol=1e-09):
     """Utility function to compare potentially nested dictionaries containing floats"""
     assert set(dict1.keys()) == set(dict2.keys()), (
-        "Dictionaries do not have the same keys"
+        f"Dictionaries do not have the same keys {dict1.keys()} vs {dict2.keys()}"
     )
     for key in dict1:
         if isinstance(dict1[key], dict):
@@ -58,17 +73,26 @@ def assert_dicts_almost_equal(dict1, dict2, rel_tol=1e-09):
 
 
 @pytest.mark.integration
-def test_one_thread_specify_file_pattern(tmp_path):
+def test_one_thread_specify_file_pattern(tmp_path: Path):
     log_queue = Queue()
-    vx_ingest = VXIngest()
+    vx_ingest = setup_connection()
+    job_id = "JOB-TEST:V01:METAR:NETCDF:OBS"
+    job = vx_ingest.common_collection.get(job_id).content_as[dict]
+    ingest_document_ids = job["ingest_document_ids"]
+    collection = job["subset"]
+    input_data_path = job["input_data_path"]
+    file_mask = job["file_mask"]
     vx_ingest.runit(
         {
-            "job_id": "JOB-TEST:V01:METAR:NETCDF:OBS",
+            "job_id": job_id,
             "credentials_file": os.environ["CREDENTIALS"],
-            "file_name_mask": "%Y%m%d_%H%M",
+            "collection": collection,
+            "file_mask": file_mask,
+            "input_data_path": input_data_path,
+            "ingest_document_ids": ingest_document_ids,
             "output_dir": f"{tmp_path}",
             "threads": 1,
-            "file_pattern": "20250911_1500",
+            "file_pattern": "20211108_0000",
         },
         log_queue,
         stub_worker_log_configurer,
@@ -85,12 +109,12 @@ def test_one_thread_specify_file_pattern(tmp_path):
 
     # Test that we have one output file per input file
     input_path = Path("/opt/data/netcdf_to_cb/input_files")
-    num_input_files = len(list(input_path.glob("20250911_1500")))
-    num_output_files = len(list(tmp_path.glob("20250911_1500.json")))
+    num_input_files = len(list(input_path.glob("20211108_0000")))
+    num_output_files = len(list(tmp_path.glob("20211108*.json")))
     assert num_output_files == num_input_files, "number of output files is incorrect"
 
     # Test that the output file matches the content in the database
-    derived_data = json.load((tmp_path / "20250911_1500.json").open(encoding="utf-8"))
+    derived_data = json.load((tmp_path / "20211108_0000.json").open(encoding="utf-8"))
     station_id = ""
     derived_station = {}
     obs_id = ""
@@ -119,17 +143,26 @@ def test_one_thread_specify_file_pattern(tmp_path):
 
 
 @pytest.mark.integration
-def test_two_threads_spedicfy_file_pattern(tmp_path):
+def test_two_threads_spedicfy_file_pattern(tmp_path: Path):
     """
     integration test for testing multithreaded capability
     """
     log_queue = Queue()
-    vx_ingest = VXIngest()
+    vx_ingest = setup_connection()
+    job_id = "JOB-TEST:V01:METAR:NETCDF:OBS"
+    job = vx_ingest.common_collection.get(job_id).content_as[dict]
+    ingest_document_ids = job["ingest_document_ids"]
+    collection = job["subset"]
+    input_data_path = job["input_data_path"]
+
     vx_ingest.runit(
         {
-            "job_id": "JOB-TEST:V01:METAR:NETCDF:OBS",
+            "job_id": job_id,
             "credentials_file": os.environ["CREDENTIALS"],
-            "file_name_mask": "%Y%m%d_%H%M",
+            "collection": collection,
+            "file_mask": "%Y%m%d_%H%M",
+            "input_data_path": input_data_path,
+            "ingest_document_ids": ingest_document_ids,
             "output_dir": f"{tmp_path}",
             "threads": 2,
             "file_pattern": "20211105*",
@@ -154,19 +187,27 @@ def test_two_threads_spedicfy_file_pattern(tmp_path):
 
 
 @pytest.mark.integration
-def test_one_thread_default(tmp_path):
+def test_one_thread_default(tmp_path: Path):
     """This test will start one thread of the ingestManager and simply make sure it runs with no Exceptions.
     It will attempt to process any files that are in the input directory that match the file_name_mask.
     TIP: you might want to use local credentials to a local couchbase. If you do
     you will need to run the scripts in the matsmetadata directory to load the local metadata.
     """
     log_queue = Queue()
-    vx_ingest = VXIngest()
+    vx_ingest = setup_connection()
+    job_id = "JOB-TEST:V01:METAR:NETCDF:OBS"
+    job = vx_ingest.common_collection.get(job_id).content_as[dict]
+    ingest_document_ids = job["ingest_document_ids"]
+    collection = job["subset"]
+    input_data_path = job["input_data_path"]
     vx_ingest.runit(
         {
-            "job_id": "JOB-TEST:V01:METAR:NETCDF:OBS",
+            "job_id": job_id,
             "credentials_file": os.environ["CREDENTIALS"],
-            "file_name_mask": "%Y%m%d_%H%M",
+            "collection": collection,
+            "file_mask": "%Y%m%d_%H%M",
+            "input_data_path": input_data_path,
+            "ingest_document_ids": ingest_document_ids,
             "output_dir": f"{tmp_path}",
             "file_pattern": "[0123456789]???????_[0123456789]???",
             "threads": 1,
@@ -191,20 +232,29 @@ def test_one_thread_default(tmp_path):
 
 
 @pytest.mark.integration
-def test_two_threads_default(tmp_path):
+def test_two_threads_default(tmp_path: Path):
     """This test will start one thread of the ingestManager and simply make sure it runs with no Exceptions.
     It will attempt to process any files that are in the input directory that atch the file_name_mask.
     TIP: you might want to use local credentials to a local couchbase. If you do
     you will need to run the scripts in the matsmetadata directory to load the local metadata.
     """
     log_queue = Queue()
-    vx_ingest = VXIngest()
+    vx_ingest = setup_connection()
+    job_id = "JOB-TEST:V01:METAR:NETCDF:OBS"
+    job = vx_ingest.common_collection.get(job_id).content_as[dict]
+    ingest_document_ids = job["ingest_document_ids"]
+    collection = job["subset"]
+    input_data_path = job["input_data_path"]
     vx_ingest.runit(
         {
-            "job_id": "JOB-TEST:V01:METAR:NETCDF:OBS",
+            "job_id": job_id,
             "credentials_file": os.environ["CREDENTIALS"],
-            "file_name_mask": "%Y%m%d_%H%M",
+            "collection": collection,
+            "file_mask": "%Y%m%d_%H%M",
+            "input_data_path": input_data_path,
+            "ingest_document_ids": ingest_document_ids,
             "output_dir": f"{tmp_path}",
+            "file_pattern": "[0123456789]???????_[0123456789]???",
             "threads": 2,
         },
         log_queue,

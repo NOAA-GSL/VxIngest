@@ -13,7 +13,7 @@ import pytest
 import yaml
 from couchbase.auth import PasswordAuthenticator
 from couchbase.cluster import Cluster
-from couchbase.options import ClusterOptions, ClusterTimeoutOptions
+from couchbase.options import ClusterOptions, ClusterTimeoutOptions, GetOptions
 
 from vxingest.ctc_to_cb import ctc_builder
 from vxingest.ctc_to_cb.run_ingest_threads import VXIngest
@@ -54,15 +54,15 @@ def test_check_fcst_valid_epoch_fcst_valid_iso():
     _collection = yaml_data["cb_collection"]
     _scope = yaml_data["cb_scope"]
 
-    timeout_options = ClusterTimeoutOptions(
-        kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
+    my_timeout_options = ClusterTimeoutOptions(
+        kv_timeout=timedelta(seconds=125), query_timeout=timedelta(seconds=180)
     )
-    options = ClusterOptions(
-        PasswordAuthenticator(_user, _password), timeout_options=timeout_options
+    cluster = Cluster.connect(
+        _host,
+        ClusterOptions(
+            PasswordAuthenticator(_user, _password), timeout_options=my_timeout_options
+        ),
     )
-    cluster = Cluster(_host, options)
-    options = ClusterOptions(PasswordAuthenticator(_user, _password))
-    cluster = Cluster(_host, options)
     stmnt = f"""SELECT m0.fcstValidEpoch fve, fcstValidISO fvi
         FROM `{_bucket}`.{_scope}.{_collection} m0
         WHERE
@@ -101,14 +101,17 @@ def test_get_stations_geo_search():
     _collection = yaml_data["cb_collection"]
     _scope = yaml_data["cb_scope"]
 
-    timeout_options = ClusterTimeoutOptions(
-        kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
+    my_timeout_options = ClusterTimeoutOptions(
+        kv_timeout=timedelta(seconds=125), query_timeout=timedelta(seconds=180)
     )
-    options = ClusterOptions(
-        PasswordAuthenticator(_user, _password), timeout_options=timeout_options
+    cluster = Cluster.connect(
+        _host,
+        ClusterOptions(
+            PasswordAuthenticator(_user, _password), timeout_options=my_timeout_options
+        ),
     )
-    cluster = Cluster(_host, options)
-    collection = cluster.bucket(_bucket).scope(_scope).collection(_collection)
+    bucket = cluster.bucket(_bucket)
+    collection = bucket.scope(_scope).collection(_collection)
     load_spec = {}
     load_spec["cluster"] = cluster
     load_spec["collection"] = collection
@@ -195,19 +198,24 @@ def calculate_cb_ctc(
     _collection = yaml_data["cb_collection"]
     _scope = yaml_data["cb_scope"]
 
-    timeout_options = ClusterTimeoutOptions(
-        kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
+    my_timeout_options = ClusterTimeoutOptions(
+        kv_timeout=timedelta(seconds=125), query_timeout=timedelta(seconds=180)
     )
-    options = ClusterOptions(
-        PasswordAuthenticator(_user, _password), timeout_options=timeout_options
+    cluster = Cluster.connect(
+        _host,
+        ClusterOptions(
+            PasswordAuthenticator(_user, _password), timeout_options=my_timeout_options
+        ),
     )
-    cluster = Cluster(_host, options)
-    collection = cluster.bucket(_bucket).scope(_scope).collection(_collection)
+    bucket = cluster.bucket(_bucket)
+    # Wait for the bucket to be ready
+    collection = bucket.scope(_scope).collection(_collection)
     load_spec = {}
     load_spec["cluster"] = cluster
     load_spec["collection"] = collection
     ingest_document_result = load_spec["collection"].get(
-        f"MD:V01:{subset}:{model}:ALL_HRRR:CTC:{doc_sub_type.upper()}:ingest"
+        f"MD:V01:{subset}:{model}:ALL_HRRR:CTC:{doc_sub_type.upper()}:ingest",
+        GetOptions(timeout=timedelta(seconds=120)),
     )
     ingest_document = ingest_document_result.content_as[dict]
     # instantiate a ctcBuilder so we can use its get_station methods
@@ -224,17 +232,17 @@ def calculate_cb_ctc(
         [station for station in legacy_stations if station not in reject_stations]
     )
     model_id = f"DD:V01:{subset}:{model}:{epoch}:{fcst_len}"
-    try:
-        full_model_data = load_spec["collection"].get(model_id).content_as[dict]
-    except Exception:
-        time.sleep(0.25)
-        full_model_data = load_spec["collection"].get(model_id).content_as[dict]
+    full_model_data = (
+        load_spec["collection"]
+        .get(model_id, GetOptions(timeout=timedelta(seconds=120)))
+        .content_as[dict]
+    )
     cb_model_obs_data = []
-    try:
-        full_obs_data = load_spec["collection"].get(obs_id).content_as[dict]
-    except Exception:
-        time.sleep(0.25)
-        full_obs_data = load_spec["collection"].get(obs_id).content_as[dict]
+    full_obs_data = (
+        load_spec["collection"]
+        .get(obs_id, GetOptions(timeout=timedelta(seconds=120)))
+        .content_as[dict]
+    )
     for station in stations:
         # find observation data for this station
         if station not in full_obs_data["data"]:
@@ -585,13 +593,15 @@ def test_ctc_ceiling_data_hrrr_ops_all_hrrr():
     _collection = yaml_data["cb_collection"]
     _scope = yaml_data["cb_scope"]
 
-    timeout_options = ClusterTimeoutOptions(
-        kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
+    my_timeout_options = ClusterTimeoutOptions(
+        kv_timeout=timedelta(seconds=125), query_timeout=timedelta(seconds=180)
     )
-    options = ClusterOptions(
-        PasswordAuthenticator(_user, _password), timeout_options=timeout_options
+    cluster = Cluster.connect(
+        _host,
+        ClusterOptions(
+            PasswordAuthenticator(_user, _password), timeout_options=my_timeout_options
+        ),
     )
-    cluster = Cluster(_host, options)
     # get available fcstValidEpochs for couchbase
 
     result = cluster.query(
@@ -695,15 +705,16 @@ def test_ctc_ceiling_data_mpas_physics_dev1_all_hrrr():
     _collection = yaml_data["cb_collection"]
     _scope = yaml_data["cb_scope"]
 
-    timeout_options = ClusterTimeoutOptions(
-        kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
+    my_timeout_options = ClusterTimeoutOptions(
+        kv_timeout=timedelta(seconds=125), query_timeout=timedelta(seconds=180)
     )
-    options = ClusterOptions(
-        PasswordAuthenticator(_user, _password), timeout_options=timeout_options
+    cluster = Cluster.connect(
+        _host,
+        ClusterOptions(
+            PasswordAuthenticator(_user, _password), timeout_options=my_timeout_options
+        ),
     )
-    cluster = Cluster(_host, options)
     # get available fcstValidEpochs for couchbase
-
     result = cluster.query(
         f"""SELECT RAW fcstValidEpoch
         FROM `{_bucket}`.{_scope}.{_collection}
@@ -805,15 +816,16 @@ def test_ctc_visibility_data_hrrr_ops_all_hrrr():
     _collection = yaml_data["cb_collection"]
     _scope = yaml_data["cb_scope"]
 
-    timeout_options = ClusterTimeoutOptions(
-        kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
+    my_timeout_options = ClusterTimeoutOptions(
+        kv_timeout=timedelta(seconds=125), query_timeout=timedelta(seconds=180)
     )
-    options = ClusterOptions(
-        PasswordAuthenticator(_user, _password), timeout_options=timeout_options
+    cluster = Cluster.connect(
+        _host,
+        ClusterOptions(
+            PasswordAuthenticator(_user, _password), timeout_options=my_timeout_options
+        ),
     )
-    cluster = Cluster(_host, options)
     # get available fcstValidEpochs for couchbase
-
     stmnt = f"""SELECT RAW fcstValidEpoch
     FROM `{_bucket}`.{_scope}.{_collection}
     WHERE type="DD"

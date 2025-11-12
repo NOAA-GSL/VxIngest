@@ -34,14 +34,14 @@ def stub_worker_log_configurer(queue: Queue):
 def setup_connection():
     """test setup"""
     _vx_ingest = VXIngest()
-    _vx_ingest.credentials_file = (os.environ["CREDENTIALS"],)
+    credentials = os.environ["CREDENTIALS"]
+    if isinstance(credentials, tuple):
+        credentials = credentials[0]
+    _vx_ingest.credentials_file = credentials
     _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
     # override the collection to TROPOE
     _vx_ingest.load_spec["cb_connection"]["collection"] = "TROPOE"
     _vx_ingest.connect_cb()
-    _vx_ingest.load_spec["ingest_document_ids"] = _vx_ingest.collection.get(
-        "JOB-TEST:V01:TROPOE:NETCDF:OBS"
-    ).content_as[dict]["ingest_document_ids"]
     return _vx_ingest
 
 
@@ -62,11 +62,19 @@ def assert_dicts_almost_equal(dict1, dict2, rel_tol=1e-09):
 @pytest.mark.integration
 def test_one_thread_specify_file_pattern(tmp_path):
     log_queue = Queue()
-    vx_ingest = VXIngest()
+    vx_ingest = setup_connection()
+    job_id = "JOB-TEST:V01:TROPOE:NETCDF:OBS"
+    job = vx_ingest.common_collection.get(job_id).content_as[dict]
+    ingest_document_ids = job["ingest_document_ids"]
+    collection = job["subset"]
+    input_data_path = job["input_data_path"]
     vx_ingest.runit(
         {
-            "job_id": "JOB-TEST:V01:TROPOE:NETCDF:OBS",
+            "job_id": job_id,
             "credentials_file": os.environ["CREDENTIALS"],
+            "collection": collection,
+            "input_data_path": input_data_path,
+            "ingest_document_ids": ingest_document_ids,
             "output_dir": f"{tmp_path}",
             "threads": 1,
             "file_pattern": "*.nc",

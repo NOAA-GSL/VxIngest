@@ -324,9 +324,7 @@ def test_grib_builder_one_thread_file_pattern_mpas(tmp_path: Path):
     vx_ingest = setup_connection()
     log_queue = Queue()
     job_id = "JOB-TEST:V01:METAR:GRIB2:MODEL:MPAS_physics_dev1"
-    job = vx_ingest.common_collection.get(
-        job_id
-    ).content_as[dict]
+    job = vx_ingest.common_collection.get(job_id).content_as[dict]
     ingest_document_ids = job["ingest_document_ids"]
     collection = job["subset"]
     input_data_path = job["input_data_path"]
@@ -436,7 +434,9 @@ def test_grib_builder_one_thread_file_pattern_mpas(tmp_path: Path):
                             f"""result {_k + "." + _dk} is None when _json is not None"""
                         )
                     try:
-                        if isinstance(result["data"][_k][_dk], numbers.Number) and isinstance(_json["data"][_k][_dk], numbers.Number):
+                        if isinstance(
+                            result["data"][_k][_dk], numbers.Number
+                        ) and isinstance(_json["data"][_k][_dk], numbers.Number):
                             assert math.isclose(
                                 result["data"][_k][_dk],
                                 _json["data"][_k][_dk],

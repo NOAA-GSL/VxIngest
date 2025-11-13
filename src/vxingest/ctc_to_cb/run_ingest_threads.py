@@ -195,8 +195,6 @@ class VXIngest(CommonVxIngest):
             # put the real credentials into the load_spec
             logger.info("getting cb_credentials")
             self.cb_credentials = self.get_credentials(self.load_spec)
-            # get the intended subset (collection from the job_id)
-            self.cb_credentials["collection"] = config["collection"]
             # establish connections to cb, collection
             self.connect_cb()
             logger.info("connected to cb - collection is %s", self.collection.name)

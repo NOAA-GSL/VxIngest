@@ -8,10 +8,11 @@ import shutil
 import sys
 import tarfile
 import time
+from collections.abc import Callable
 from datetime import datetime, timedelta
 from multiprocessing import Queue, set_start_method
 from pathlib import Path
-from typing import Callable, Optional, TypedDict
+from typing import TypedDict
 
 import yaml
 from couchbase.auth import PasswordAuthenticator  # type: ignore
@@ -215,7 +216,7 @@ class JobDoc(TypedDict):
 def get_job_docs(
     cluster: Cluster,
     creds: dict[str, str],
-    job_id: Optional[str] = None,
+    job_id: str | None = None,
 ) -> list[JobDoc]:
     """Queries Couchbase for the given job doc or job docs in need of processing if no job ID is given"""
 

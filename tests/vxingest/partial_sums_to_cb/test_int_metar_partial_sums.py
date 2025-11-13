@@ -13,7 +13,11 @@ import pytest
 import yaml
 from couchbase.auth import PasswordAuthenticator
 from couchbase.cluster import Cluster
-from couchbase.options import ClusterOptions, ClusterTimeoutOptions
+from couchbase.options import (
+    ClusterOptions,
+    ClusterTimeoutOptions,
+    QueryOptions,
+)
 
 from vxingest.partial_sums_to_cb import partial_sums_builder
 from vxingest.partial_sums_to_cb.run_ingest_threads import VXIngest
@@ -31,6 +35,55 @@ from vxingest.partial_sums_to_cb.run_ingest_threads import VXIngest
 cb_model_obs_data = []
 mysql_model_obs_data = []
 stations = []
+
+
+def setup_connection():
+    """test setup"""
+    _vx_ingest = VXIngest()
+    # Ensure credentials_file is a string, not a tuple
+    credentials = os.environ["CREDENTIALS"]
+    _vx_ingest.credentials_file = credentials
+    _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
+    _vx_ingest.connect_cb()
+    try:
+        id_query = """DELETE
+                FROM `vxdata`.`_default`.`METAR` f
+                WHERE f.subset = 'METAR'
+                AND f.type = 'DF'
+                AND f.url LIKE '/opt/data/%' RETURNING f.id AS id;"""
+        row_iter = _vx_ingest.cluster.query(
+            id_query, QueryOptions(metrics=True, read_only=False)
+        )
+        for row in row_iter:
+            print(f"Deleted {row['id']}")
+    except Exception as e:
+        pytest.fail(f"Error during setup connection: {e}")
+    return _vx_ingest
+
+
+def get_latest_model_obs_epoch(_vx_ingest, subset, model):
+    # try to find the first and last epoch from the data in couchbase.
+    # The ctc_builder won't build any data that has already been built (except for the very last one).
+    # The test will process the CTC documents but not upsert them.
+    stmnt = f"""SELECT MAX(fve.fcstValidEpoch)
+            FROM vxdata._default.{subset} fve
+            WHERE fve.type='DD'
+            AND fve.docType='obs'
+            AND fve.version='V01'
+            AND fve.subset='{subset}';"""
+    result = _vx_ingest.cluster.query(stmnt, QueryOptions(metrics=True, read_only=True))
+    max_obs = list(result.rows())[0]["$1"]
+    stmnt = f"""SELECT MAX(fve.fcstValidEpoch)
+            FROM vxdata._default.{subset} fve
+            WHERE fve.type='DD'
+            AND fve.docType='model'
+            AND fve.model='{model}'
+            AND fve.version='V01'
+            AND fve.subset='{subset}';"""
+    result = _vx_ingest.cluster.query(stmnt, QueryOptions(metrics=True, read_only=True))
+    max_model = list(result.rows())[0]["$1"]
+    max_epoch = min(max_obs, max_model)
+    return max_epoch
 
 
 def stub_worker_log_configurer(queue: Queue):
@@ -197,17 +250,26 @@ def test_ps_builder_surface_hrrr_ops_all_hrrr():
     for _f in files:
         Path(_f).unlink()
     log_queue = Queue()
-    vx_ingest = VXIngest()
+    vx_ingest = setup_connection()
+    job = vx_ingest.common_collection.get(job_id).content_as[dict]
+    latest_epoch = get_latest_model_obs_epoch(vx_ingest, "METAR", "HRRR_OPS")
+    config = {
+        "job_id": job_id,
+        "credentials_file": credentials_file,
+        "ingest_document_ids": job["ingest_document_ids"],
+        "collection": job["subset"],
+        "input_data_path": "",
+        "file_mask": "",
+        "output_dir": str(outdir),
+        "file_pattern": "",
+        "first_epoch": latest_epoch,
+        "last_epoch": latest_epoch,
+        "threads": 1,
+    }
+
     # These SUM's might already have been ingested in which case this won't do anything.
     vx_ingest.runit(
-        {
-            "job_id": job_id,
-            "credentials_file": credentials_file,
-            "output_dir": str(outdir),
-            "threads": 1,
-            "first_epoch": 1638489600,
-            "last_epoch": 1638496800,
-        },
+        config,
         log_queue,
         stub_worker_log_configurer,
     )
@@ -273,17 +335,26 @@ def test_ps_builder_surface_mpas_physics_dev1_all_hrrr():
     for _f in files:
         Path(_f).unlink()
     log_queue = Queue()
-    vx_ingest = VXIngest()
+    vx_ingest = setup_connection()
+    job = vx_ingest.common_collection.get(job_id).content_as[dict]
+    latest_epoch = get_latest_model_obs_epoch(vx_ingest, "METAR", "MPAS_physics_dev1")
+    config = {
+        "job_id": job_id,
+        "credentials_file": credentials_file,
+        "ingest_document_ids": job["ingest_document_ids"],
+        "collection": job["subset"],
+        "input_data_path": "",
+        "file_mask": "",
+        "output_dir": str(outdir),
+        "file_pattern": "",
+        "first_epoch": latest_epoch,
+        "last_epoch": latest_epoch,
+        "threads": 1,
+    }
+
     # These SUM's might already have been ingested in which case this won't do anything.
     vx_ingest.runit(
-        {
-            "job_id": job_id,
-            "credentials_file": credentials_file,
-            "output_dir": str(outdir),
-            "threads": 1,
-            "first_epoch": 1740942000,
-            "last_epoch": 1740952800,
-        },
+        config,
         log_queue,
         stub_worker_log_configurer,
     )

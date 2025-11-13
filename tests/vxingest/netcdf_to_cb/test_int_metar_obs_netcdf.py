@@ -41,7 +41,7 @@ def setup_connection():
     _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
     _vx_ingest.connect_cb()
     try:
-        vx_ingest = setup_connection(_vx_ingest)
+        vx_ingest = setup_connection()
         id_query = """DELETE
                 FROM `vxdata`.`_default`.`METAR` f
                 WHERE f.subset = 'METAR'
@@ -143,7 +143,7 @@ def test_one_thread_specify_file_pattern(tmp_path: Path):
 
 
 @pytest.mark.integration
-def test_two_threads_spedicfy_file_pattern(tmp_path: Path):
+def test_two_threads_specify_file_pattern(tmp_path: Path):
     """
     integration test for testing multithreaded capability
     """
@@ -234,7 +234,7 @@ def test_one_thread_default(tmp_path: Path):
 @pytest.mark.integration
 def test_two_threads_default(tmp_path: Path):
     """This test will start one thread of the ingestManager and simply make sure it runs with no Exceptions.
-    It will attempt to process any files that are in the input directory that atch the file_name_mask.
+    It will attempt to process any files that are in the input directory that match the file_name_mask.
     TIP: you might want to use local credentials to a local couchbase. If you do
     you will need to run the scripts in the matsmetadata directory to load the local metadata.
     """

@@ -33,7 +33,7 @@ def setup_connection():
     _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
     _vx_ingest.connect_cb()
     try:
-        vx_ingest = setup_connection(_vx_ingest)
+        vx_ingest = setup_connection()
         id_query = """DELETE
                 FROM `vxdata`.`_default`.`METAR` f
                 WHERE f.subset = 'METAR'
@@ -324,8 +324,9 @@ def test_grib_builder_one_thread_file_pattern_mpas(tmp_path: Path):
     in order to make sure the calculations are proper."""
     vx_ingest = setup_connection()
     log_queue = Queue()
+    job_id = "JOB-TEST:V01:METAR:GRIB2:MODEL:MPAS_physics_dev1"
     job = vx_ingest.common_collection.get(
-        "JOB-TEST:V01:METAR:GRIB2:MODEL:MPAS_physics_dev1"
+        job_id
     ).content_as[dict]
     ingest_document_ids = job["ingest_document_ids"]
     collection = job["subset"]
@@ -333,7 +334,7 @@ def test_grib_builder_one_thread_file_pattern_mpas(tmp_path: Path):
     file_mask = job["file_mask"]
     vx_ingest.runit(
         {
-            "job_id": "JOB-TEST:V01:METAR:GRIB2:MODEL:RRFS_A",
+            "job_id": job_id,
             "credentials_file": os.environ["CREDENTIALS"],
             "collection": collection,
             "file_mask": file_mask,
@@ -436,10 +437,7 @@ def test_grib_builder_one_thread_file_pattern_mpas(tmp_path: Path):
                             f"""result {_k + "." + _dk} is None when _json is not None"""
                         )
                     try:
-                        if isinstance(result["data"][_k][_dk], (numbers.Number)) and (
-                            _json["data"][_k][_dk],
-                            (numbers.Number),
-                        ):
+                        if isinstance(result["data"][_k][_dk], numbers.Number) and isinstance(_json["data"][_k][_dk], numbers.Number):
                             assert math.isclose(
                                 result["data"][_k][_dk],
                                 _json["data"][_k][_dk],
@@ -553,7 +551,6 @@ def test_grib_builder_two_threads_file_pattern_hrrr_ops_conus(tmp_path: Path):
                 else:
                     # math compare
                     # print(f"result {_k} {_dk} ", result["data"][_k][_dk])
-                    abs_tol = 0.0
                     if _dk == "Ceiling":
                         abs_tol = 0.002  # ceiling values don't always have four decimals of resolution
                     elif _dk == "DewPoint":
@@ -582,10 +579,9 @@ def test_grib_builder_two_threads_file_pattern_hrrr_ops_conus(tmp_path: Path):
                             f"""result {_k + "." + _dk} is None when _json is not None"""
                         )
                     try:
-                        if isinstance(result["data"][_k][_dk], (numbers.Number)) and (
-                            _json["data"][_k][_dk],
-                            (numbers.Number),
-                        ):
+                        if isinstance(
+                            result["data"][_k][_dk], numbers.Number
+                        ) and isinstance(_json["data"][_k][_dk], numbers.Number):
                             assert math.isclose(
                                 result["data"][_k][_dk],
                                 _json["data"][_k][_dk],
@@ -622,11 +618,11 @@ def test_grib_builder_two_threads_file_pattern_rap_ops_130_conus(tmp_path: Path)
             "credentials_file": os.environ["CREDENTIALS"],
             "collection": collection,
             "file_mask": file_mask,
-            "file_pattern": "233320800000*",
+            "file_pattern": "23332080000[0123456789]?",
             "input_data_path": input_data_path,
             "ingest_document_ids": ingest_document_ids,
             "output_dir": f"{tmp_path}",
-            "threads": 1,
+            "threads": 2,
         },
         log_queue,
         stub_worker_log_configurer,
@@ -693,7 +689,6 @@ def test_grib_builder_two_threads_file_pattern_rap_ops_130_conus(tmp_path: Path)
                 else:
                     # math compare
                     # print(f"result {_k} {_dk} ", result["data"][_k][_dk])
-                    abs_tol = 0.0
                     if _dk == "Ceiling":
                         abs_tol = 0.002  # ceiling values don't always have four decimals of resolution
                     elif _dk == "DewPoint":
@@ -722,10 +717,9 @@ def test_grib_builder_two_threads_file_pattern_rap_ops_130_conus(tmp_path: Path)
                             f"""result {_k + "." + _dk} is None when _json is not None"""
                         )
                     try:
-                        if isinstance(result["data"][_k][_dk], (numbers.Number)) and (
-                            _json["data"][_k][_dk],
-                            (numbers.Number),
-                        ):
+                        if isinstance(
+                            result["data"][_k][_dk], numbers.Number
+                        ) and isinstance(_json["data"][_k][_dk], numbers.Number):
                             assert math.isclose(
                                 result["data"][_k][_dk],
                                 _json["data"][_k][_dk],

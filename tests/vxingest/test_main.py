@@ -10,7 +10,7 @@ from vxingest.main import (
     create_dirs,
     determine_num_processes,
     get_credentials,
-    get_job_docs,
+    get_older_job_doc_criteria,
     make_tarfile,
 )
 
@@ -76,14 +76,14 @@ def mock_cluster():
 def test_get_job_docs_with_job_id(mock_cluster):
     creds = {"cb_bucket": "bucket", "cb_scope": "scope", "cb_collection": "collection"}
     job_id = "job1"
-    result = get_job_docs(mock_cluster, creds, job_id)
+    result = get_older_job_doc_criteria(mock_cluster, creds, job_id)
     assert result == mock_cluster.query("fake_query")
 
 
 # FIXME: Explore less brittle approaches for these tests
 def test_get_job_docs_without_job_id(mock_cluster):
     creds = {"cb_bucket": "bucket", "cb_scope": "scope", "cb_collection": "collection"}
-    result = get_job_docs(mock_cluster, creds)
+    result = get_older_job_doc_criteria(mock_cluster, creds)
     assert result == mock_cluster.query("fake_query")
 
 

@@ -1,6 +1,6 @@
 [
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "docType": "ingest",
     "id": "MD:V01:METAR:HRRR:ingest",
     "statement": "set @FirstTime = {first_epoch}; set @LastTime = {last_epoch}; select m.time, m.fcst_len, m.sta_id as madis_id, m.temp, m.press  as slp, m.dp, m.rh, m.wd, m.ws, m.vgtyp, c.ceil, v.vis100 as vis, m.sta_id, s.id, s.net, s.name from madis3.HRRRqp m, madis3.stations as s, ceiling2.HRRR c, visibility.HRRR v where 1 = 1 AND m.time >= @FirstTime and m.time <= @LastTime AND m.time = c.time AND m.time = v.time and m.sta_id = c.madis_id and m.sta_id = v.madis_id and m.fcst_len = c.fcst_len and m.fcst_len = v.fcst_len and m.sta_id = s.id and s.net = 'METAR' order by time, fcst_len, name;",
@@ -36,7 +36,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "docType": "ingest",
     "id": "MD:V01:METAR:HRRR_ALL_HRRR_CTC:ingest",
     "statement": "set @FirstTime = {first_epoch}; set @LastTime = {last_epoch}; select time, fcst_len, trsh*10 as threshold, yy as hits, yn as false_alarms, ny as misses, nn as correct_negatives from ceiling_sums2.HRRR_ALL_HRRR WHERE time >= @FirstTime and time <= @LastTime order by time, fcst_len, threshold;",
@@ -66,7 +66,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "docType": "ingest",
     "id": "MD:V01:METAR:HRRR_E_HRRR_CTC:ingest",
     "statement": "set @FirstTime = {first_epoch}; set @LastTime = {last_epoch}; set @FirstTime = {first_epoch}; set @LastTime = {last_epoch}; select time, fcst_len, trsh*10 as threshold, yy as hits, yn as false_alarms, ny as misses, nn as correct_negatives from ceiling_sums2.HRRR_E_HRRR WHERE time >= @FirstTime and time <= @LastTime order by time, fcst_len, threshold;",
@@ -96,7 +96,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "docType": "ingest",
     "id": "MD:V01:METAR:HRRR_E_US_CTC:ingest",
     "statement": "set @FirstTime = {first_epoch}; set @LastTime = {last_epoch}; select time, fcst_len, trsh*10 as threshold, yy as hits, yn as false_alarms, ny as misses, nn as correct_negatives from ceiling_sums2.HRRR_E_US WHERE time >= @FirstTime and time <= @LastTime order by time, fcst_len, threshold;",
@@ -126,7 +126,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "docType": "ingest",
     "id": "MD:V01:METAR:HRRR_GtLk_CTC:ingest",
     "statement": "set @FirstTime = {first_epoch}; set @LastTime = {last_epoch}; select time, fcst_len, trsh*10 as threshold, yy as hits, yn as false_alarms, ny as misses, nn as correct_negatives from ceiling_sums2.HRRR_GtLk WHERE time >= @FirstTime and time <= @LastTime order by time, fcst_len, threshold;",
@@ -156,7 +156,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "docType": "ingest",
     "id": "MD:V01:METAR:HRRR_OPS:ingest",
     "statement": "set @FirstTime = {first_epoch}; set @LastTime = {last_epoch}; select m.time, m.fcst_len, m.sta_id as madis_id, m.temp, m.press  as slp, m.dp, m.rh, m.wd, m.ws, m.vgtyp, c.ceil, v.vis100 as vis, m.sta_id, s.id, s.net, s.name from madis3.HRRR_OPSqp m, madis3.stations as s, ceiling2.HRRR_OPS c, visibility.HRRR_OPS v where 1 = 1 AND m.time >= @FirstTime and m.time <= @LastTime AND m.time = c.time AND m.time = v.time and m.sta_id = c.madis_id and m.sta_id = v.madis_id and m.fcst_len = c.fcst_len and m.fcst_len = v.fcst_len and m.sta_id = s.id and s.net = 'METAR' order by time, fcst_len, name;",
@@ -192,7 +192,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "docType": "ingest",
     "id": "MD:V01:METAR:HRRR_OPS_ALL_HRRR_CTC:ingest",
     "statement": "set @FirstTime = {first_epoch}; set @LastTime = {last_epoch}; select time, fcst_len, trsh*10 as threshold, yy as hits, yn as false_alarms, ny as misses, nn as correct_negatives from ceiling_sums2.HRRR_OPS_ALL_HRRR WHERE time >= @FirstTime and time <= @LastTime order by time, fcst_len, threshold;",
@@ -222,7 +222,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "docType": "ingest",
     "id": "MD:V01:METAR:HRRR_OPS_E_HRRR_CTC:ingest",
     "statement": "set @FirstTime = {first_epoch}; set @LastTime = {last_epoch}; select time, fcst_len, trsh*10 as threshold, yy as hits, yn as false_alarms, ny as misses, nn as correct_negatives from ceiling_sums2.HRRR_OPS_E_HRRR WHERE time >= @FirstTime and time <= @LastTime order by time, fcst_len, threshold;",
@@ -252,7 +252,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "docType": "ingest",
     "id": "MD:V01:METAR:HRRR_OPS_E_US_CTC:ingest",
     "statement": "set @FirstTime = {first_epoch}; set @LastTime = {last_epoch}; select time, fcst_len, trsh*10 as threshold, yy as hits, yn as false_alarms, ny as misses, nn as correct_negatives from ceiling_sums2.HRRR_OPS_E_US WHERE time >= @FirstTime and time <= @LastTime order by time, fcst_len, threshold;",
@@ -282,7 +282,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "docType": "ingest",
     "id": "MD:V01:METAR:HRRR_OPS_GtLk_CTC:ingest",
     "statement": "set @FirstTime = {first_epoch}; set @LastTime = {last_epoch}; select time, fcst_len, trsh*10 as threshold, yy as hits, yn as false_alarms, ny as misses, nn as correct_negatives from ceiling_sums2.HRRR_OPS_GtLk WHERE time >= @FirstTime and time <= @LastTime order by time, fcst_len, threshold;",
@@ -312,7 +312,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "docType": "ingest",
     "id": "MD:V01:METAR:HRRR_OPS_W_HRRR_CTC:ingest",
     "statement": "set @FirstTime = {first_epoch}; set @LastTime = {last_epoch}; select time, fcst_len, trsh*10 as threshold, yy as hits, yn as false_alarms, ny as misses, nn as correct_negatives from ceiling_sums2.HRRR_OPS_W_HRRR WHERE time >= @FirstTime and time <= @LastTime order by time, fcst_len, threshold;",
@@ -342,7 +342,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "docType": "ingest",
     "id": "MD:V01:METAR:HRRR_W_HRRR_CTC:ingest",
     "statement": "set @FirstTime = {first_epoch}; set @LastTime = {last_epoch}; select time, fcst_len, trsh*10 as threshold, yy as hits, yn as false_alarms, ny as misses, nn as correct_negatives from ceiling_sums2.HRRR_W_HRRR WHERE time >= @FirstTime and time <= @LastTime order by time, fcst_len, threshold;",
@@ -372,7 +372,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "docType": "ingest",
     "id": "MD:V01:METAR:RAP_OPS:ingest",
     "statement": "set @FirstTime = {first_epoch}; set @LastTime = {last_epoch}; select m.time, m.fcst_len, m.sta_id as madis_id, m.temp, m.press  as slp, m.dp, m.rh, m.wd, m.ws, m.vgtyp, c.ceil, m.sta_id, s.id, s.net, s.name from madis3.RAP_OPSqp m, madis3.stations as s, ceiling2.RAP_OPS c, where 1 = 1 AND m.time >= @FirstTime and m.time <= @LastTime AND m.time = c.time and m.sta_id = c.madis_id and m.fcst_len = c.fcst_len and m.sta_id = s.id and s.net = 'METAR' order by time, fcst_len, name;",
@@ -407,7 +407,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "docType": "ingest",
     "id": "MD:V01:METAR:RRFS_dev1:ingest",
     "statement": "set @FirstTime = {first_epoch}; set @LastTime = {last_epoch}; select m.time, m.fcst_len, m.sta_id as madis_id, m.temp, m.press  as slp, m.dp, m.rh, m.wd, m.ws, m.vgtyp, c.ceil, v.vis100 as vis, m.sta_id, s.id, s.net, s.name from madis3.RRFS_dev1qp m, madis3.stations as s, ceiling2.RRFS_dev1 c, visibility.RRFS_dev1 v where 1 = 1 AND m.time >= @FirstTime and m.time <= @LastTime AND m.time = c.time AND m.time = v.time and m.sta_id = c.madis_id and m.sta_id = v.madis_id and m.fcst_len = c.fcst_len and m.fcst_len = v.fcst_len and m.sta_id = s.id and s.net = 'METAR' order by time, fcst_len, name;",
@@ -443,7 +443,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "docType": "ingest",
     "id": "MD:V01:METAR:RRFS_dev1_ALL_HRRR_CTC:ingest",
     "statement": "set @FirstTime = {first_epoch}; set @LastTime = {last_epoch}; select time, fcst_len, trsh*10 as threshold, yy as hits, yn as false_alarms, ny as misses, nn as correct_negatives from ceiling_sums2.RRFS_dev1_ALL_HRRR WHERE time >= @FirstTime and time <= @LastTime order by time, fcst_len, threshold;",
@@ -473,7 +473,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "docType": "ingest",
     "id": "MD:V01:METAR:RRFS_dev1_E_HRRR_CTC:ingest",
     "statement": "set @FirstTime = {first_epoch}; set @LastTime = {last_epoch}; select time, fcst_len, trsh*10 as threshold, yy as hits, yn as false_alarms, ny as misses, nn as correct_negatives from ceiling_sums2.RRFS_dev1_E_HRRR WHERE time >= @FirstTime and time <= @LastTime order by time, fcst_len, threshold;",
@@ -503,7 +503,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "docType": "ingest",
     "id": "MD:V01:METAR:RRFS_dev1_E_US_CTC:ingest",
     "statement": "set @FirstTime = {first_epoch}; set @LastTime = {last_epoch}; select time, fcst_len, trsh*10 as threshold, yy as hits, yn as false_alarms, ny as misses, nn as correct_negatives from ceiling_sums2.RRFS_dev1_E_US WHERE time >= @FirstTime and time <= @LastTime order by time, fcst_len, threshold;",
@@ -533,7 +533,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "docType": "ingest",
     "id": "MD:V01:METAR:RRFS_dev1_GtLk_CTC:ingest",
     "statement": "set @FirstTime = {first_epoch}; set @LastTime = {last_epoch}; select time, fcst_len, trsh*10 as threshold, yy as hits, yn as false_alarms, ny as misses, nn as correct_negatives from ceiling_sums2.RRFS_dev1_GtLk WHERE time >= @FirstTime and time <= @LastTime order by time, fcst_len, threshold;",
@@ -563,7 +563,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "docType": "ingest",
     "id": "MD:V01:METAR:RRFS_dev1_W_HRRR_CTC:ingest",
     "statement": "set @FirstTime = {first_epoch}; set @LastTime = {last_epoch}; select time, fcst_len, trsh*10 as threshold, yy as hits, yn as false_alarms, ny as misses, nn as correct_negatives from ceiling_sums2.RRFS_dev1_W_HRRR WHERE time >= @FirstTime and time <= @LastTime order by time, fcst_len, threshold;",
@@ -593,7 +593,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlObsBuilderV01",
+    "builderType": "SqlObsBuilderV01",
     "cadence": 3600,
     "delta": 1800,
     "docType": "ingest",
@@ -631,7 +631,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlStationsBuilderV01",
+    "builderType": "SqlStationsBuilderV01",
     "docType": "ingest",
     "id": "MD:V01:METAR:stations:ingest",
     "singularData": true,

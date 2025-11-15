@@ -121,7 +121,12 @@ class VxIngestManager(CommonVxIngestManager):
         """
         if self.ingest_type_builder_name is None:
             try:
-                self.ingest_type_builder_name = self.ingest_document["builder_type"]
+                # determine if this is a metadata document or a runtime document
+                # the older ingest documents used builder_type, the newer ones use builderType
+                if self.ingest_document["id"].startswith("MD"):
+                    self.ingest_type_builder_name = self.ingest_document["builder_type"]
+                else:
+                    self.ingest_type_builder_name = self.ingest_document["builderType"]
             except Exception as _e:
                 logger.exception(
                     "%s: process_element: Exception getting ingest document for %s ",

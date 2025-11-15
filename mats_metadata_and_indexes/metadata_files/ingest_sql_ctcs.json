@@ -1,7 +1,7 @@
 [
   {
     "id": "MD:V01:METAR:HRRR:E_US:CTC:SQL:ingest",
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "docType": "ingest",
     "subDocType": "SQL",
     "type": "MD",
@@ -37,7 +37,7 @@
   },
   {
     "id": "MD:V01:METAR:HRRR:ALL_HRRR:CTC:SQL:ingest",
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "docType": "ingest",
     "subDocType": "SQL",
     "type": "MD",
@@ -73,7 +73,7 @@
   },
   {
     "id": "MD:V01:METAR:HRRR:E_HRRR:CTC:SQL:ingest",
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "docType": "ingest",
     "subDocType": "SQL",
     "type": "MD",
@@ -109,7 +109,7 @@
   },
   {
     "id": "MD:V01:METAR:HRRR:W_HRRR:CTC:SQL:ingest",
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "docType": "ingest",
     "subDocType": "SQL",
     "type": "MD",
@@ -145,7 +145,7 @@
   },
   {
     "id": "MD:V01:METAR:HRRR:GtLk:CTC:SQL:ingest",
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "docType": "ingest",
     "subDocType": "SQL",
     "type": "MD",
@@ -181,7 +181,7 @@
   },
   {
     "id": "MD:V01:METAR:HRRR_OPS:E_US:CTC:SQL:ingest",
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "docType": "ingest",
     "subDocType": "SQL",
     "type": "MD",
@@ -217,7 +217,7 @@
   },
   {
     "id": "MD:V01:METAR:HRRR_OPS:ALL_HRRR:CTC:SQL:ingest",
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "docType": "ingest",
     "subDocType": "SQL",
     "type": "MD",
@@ -253,7 +253,7 @@
   },
   {
     "id": "MD:V01:METAR:HRRR_OPS:E_HRRR:CTC:SQL:ingest",
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "docType": "ingest",
     "subDocType": "SQL",
     "type": "MD",
@@ -289,7 +289,7 @@
   },
   {
     "id": "MD:V01:METAR:HRRR_OPS:W_HRRR:CTC:SQL:ingest",
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "docType": "ingest",
     "subDocType": "SQL",
     "type": "MD",
@@ -325,7 +325,7 @@
   },
   {
     "id": "MD:V01:METAR:HRRR_OPS:GtLk:CTC:SQL:ingest",
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "docType": "ingest",
     "subDocType": "SQL",
     "type": "MD",
@@ -361,7 +361,7 @@
   },
   {
     "id": "MD:V01:METAR:RRFS_dev1:E_US:CTC:SQL:ingest",
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "docType": "ingest",
     "subDocType": "SQL",
     "type": "MD",
@@ -397,7 +397,7 @@
   },
   {
     "id": "MD:V01:METAR:RRFS_dev1:ALL_HRRR:CTC:SQL:ingest",
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "docType": "ingest",
     "subDocType": "SQL",
     "type": "MD",
@@ -433,7 +433,7 @@
   },
   {
     "id": "MD:V01:METAR:RRFS_dev1:E_HRRR:CTC:SQL:ingest",
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "docType": "ingest",
     "subDocType": "SQL",
     "type": "MD",
@@ -469,7 +469,7 @@
   },
   {
     "id": "MD:V01:METAR:RRFS_dev1:W_HRRR:CTC:SQL:ingest",
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "docType": "ingest",
     "subDocType": "SQL",
     "type": "MD",
@@ -505,7 +505,7 @@
   },
   {
     "id": "MD:V01:METAR:RRFS_dev1:GtLk:CTC:SQL:ingest",
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "docType": "ingest",
     "subDocType": "SQL",
     "type": "MD",

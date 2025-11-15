@@ -14,7 +14,7 @@ be certain that it already exists or you must create it.
 
 ```json
 {
-  "builder_type": "NetcdfMetarObsBuilderV01",
+  "builderType": "NetcdfMetarObsBuilderV01",
   "validTimeInterval": 3600,
   "validTimeDelta": 1800,
   "docType": "ingest",
@@ -63,11 +63,11 @@ be certain that it already exists or you must create it.
 ```
 
 The line
-```"builder_type": "NetcdfObsBuilderV01"```
+```"builderType": "NetcdfObsBuilderV01"```
 defines a python class. These builder classes are defined
 in the [netcdf_to_cb/netcdf_builder.py](https://github.com/NOAA-GSL/VxIngest/blob/main/netcdf_to_cb/netcdf_builder.py) file. This class will interpret the
 load_spec and ingest data from a set of netcdf files retrieved from the path.
-Whether the entire result set is combined into one document or multiple documents depends on the "builder_type".
+Whether the entire result set is combined into one document or multiple documents depends on the "builderType".
 In this example the "NetcdfObsBuilderV01" combines all
 the data into one document with the data fields ingested as top level
 entries.
@@ -141,7 +141,7 @@ and MUST contain these keywords...
   "subset": "METAR",  - required set to whatever is appropriate
   "version": "V01",  - the version of the template
   "product": "stations"
-  "builder_type": "some builder class"
+  "builderType": "some builder class"
 ```
 
 ### ingest document source location

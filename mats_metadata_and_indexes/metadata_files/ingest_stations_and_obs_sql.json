@@ -1,6 +1,6 @@
 [
   {
-    "builder_type": "SqlObsBuilderV01",
+    "builderType": "SqlObsBuilderV01",
     "docType": "ingest",
     "subDocType": "sql",
     "type": "MD",
@@ -39,7 +39,7 @@
     }
   },
   {
-    "builder_type": "SqlStationsBuilderV01",
+    "builderType": "SqlStationsBuilderV01",
     "type": "MD",
     "version": "V01",
     "docType": "ingest",

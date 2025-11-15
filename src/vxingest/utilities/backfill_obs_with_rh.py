@@ -33,7 +33,7 @@ def setup_connection():
         _f.close()
 
         timeout_options = ClusterTimeoutOptions(
-            kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
+            kv_timeout=timedelta(seconds=125), query_timeout=timedelta(seconds=120)
         )
         options = ClusterOptions(
             PasswordAuthenticator(_user, _password), timeout_options=timeout_options

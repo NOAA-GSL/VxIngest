@@ -757,15 +757,14 @@ class GribBuilder(Builder):
             limit_clause = ";"
             if self.number_stations != sys.maxsize:
                 limit_clause = f" limit {self.number_stations};"
-            result = self.load_spec["cluster"].query(
-                f"""SELECT geo, name
+            stmnt = f"""SELECT geo, name
                     from `{bucket}`.{scope}.{collection}
                     where type='MD'
                     and docType='station'
                     and subset='{self.subset}'
                     and version='V01'
                     {limit_clause}"""
-            )
+            result = self.load_spec["cluster"].query(stmnt)
             for row in result:
                 station = copy.deepcopy(row)
                 for geo_index in range(len(row["geo"])):
@@ -774,7 +773,7 @@ class GribBuilder(Builder):
                     if lat == -90 and lon == 180 or lat == 0 or lon == 0:
                         # skip stations with bad lat/lon
                         # these are probably buoys or ships or mistakes.
-                        logger.error(
+                        logger.info(
                             "%s: builder build_document skipping station with bad lat/lon: name: %s, lat: %s, lon: %s",
                             self.__class__.__name__,
                             row["name"],
@@ -848,11 +847,12 @@ class GribBuilder(Builder):
             document_map[data_file_doc["id"]] = data_file_doc
             self.delete_idx_file(queue_element)
             return document_map
-        except (FileNotFoundError, cfgrib.IOProblemError):
+        except (FileNotFoundError, cfgrib.IOProblemError) as _e:
             logger.error(
-                "%s: Exception with builder build_document: file_name: %s, error: file not found or problem reading file - skipping this file",
+                "%s: Exception with builder build_document: file_name: %s, error: file not found or problem reading file - skipping this file: %s",
                 self.__class__.__name__,
                 queue_element,
+                _e,
             )
             # remove any idx file that may have been created
             self.delete_idx_file(queue_element)

@@ -1,6 +1,6 @@
 {
   "id": "MD:V01:METAR:HRRR_OPS:ALL_HRRR:SUMS:SURFACE:ingest",
-  "builder_type": "PartialSumsSurfaceModelObsBuilderV01",
+  "builderType": "PartialSumsSurfaceModelObsBuilderV01",
   "docType": "ingest",
   "type": "MD",
   "version": "V01",

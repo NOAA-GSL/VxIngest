@@ -123,6 +123,10 @@ class CommonVxIngestManager(Process):
             self.collection = self.cluster.bucket(
                 self.cb_credentials["bucket"]
             ).collection(self.cb_credentials["collection"])
+            if "common_collection" not in self.cb_credentials:
+                self.cb_credentials["common_collection"] = "COMMON"
+            if "runtime_collection" not in self.cb_credentials:
+                self.cb_credentials["runtime_collection"] = "RUNTIME"
             self.common_collection = self.cluster.bucket(
                 self.cb_credentials["bucket"]
             ).collection(self.cb_credentials["common_collection"])

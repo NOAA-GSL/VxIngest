@@ -1,6 +1,6 @@
 [
   {
-    "builder_type": "GribModelBuilderV01",
+    "builderType": "GribModelBuilderV01",
     "validTimeInterval": 3600,
     "validTimeDelta": 1800,
     "docType": "ingest",
@@ -56,7 +56,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "GribModelBuilderV01",
+    "builderType": "GribModelBuilderV01",
     "validTimeInterval": 3600,
     "validTimeDelta": 1800,
     "docType": "ingest",

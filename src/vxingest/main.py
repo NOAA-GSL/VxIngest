@@ -435,7 +435,7 @@ def make_tarfile(output_tarfile: Path, source_dir: Path):
 # docs are either the older job docs represented as <JobRunCriterion> or the newer processSpecification docs
 # represented by processSpecId. The criterion has an id and some othre fields. The other
 # fields are not used for the newer processSpecification docs, just the id is used.
-def process_jobs(
+def process_run_configurations(
     cluster: Cluster,
     job_run_criteria: list[JobRunCriterion],
     startime: datetime,
@@ -678,7 +678,7 @@ def run_ingest() -> None:
     logger.debug(f"Job docs to process: {run_criteria}")
 
     logger.info("Processing proc docs")
-    process_jobs(
+    process_run_configurations(
         cluster,
         run_criteria,
         runtime,

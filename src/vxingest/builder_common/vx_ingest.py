@@ -157,7 +157,9 @@ class CommonVxIngest:
             if "runtime_collection" not in self.cb_credentials:
                 self.cb_credentials["runtime_collection"] = "RUNTIME"
 
-            self.collection = self.cluster.bucket(self.cb_credentials["bucket"]).collection(self.cb_credentials["collection"])
+            self.collection = self.cluster.bucket(
+                self.cb_credentials["bucket"]
+            ).collection(self.cb_credentials["collection"])
             self.common_collection = self.cluster.bucket(
                 self.cb_credentials["bucket"]
             ).collection(self.cb_credentials["common_collection"])
@@ -209,12 +211,12 @@ class CommonVxIngest:
                 logger.debug(
                     "get_file_list: Directory is a URL, skipping local file glob."
                 )
-                return [] # handle this in the future
+                return []  # handle this in the future
             elif str(directory).startswith("s3://"):
                 logger.debug(
                     "get_file_list: Directory is an S3 path, skipping local file glob."
                 )
-                return [] # handle this in the future
+                return []  # handle this in the future
             elif str(directory).startswith("file://"):
                 # local file path with file:// prefix
                 self.load_spec["input_data_path"] = pathlib.Path(

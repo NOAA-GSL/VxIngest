@@ -81,9 +81,7 @@ def test_one_thread_specify_file_pattern_job_spec_rt(tmp_path: Path):
         vx_ingest.cluster.bucket("vxdata").scope("_default").collection("RUNTIME")
     )
     job_id = "JS:METAR:OBS:NETCDF-TEST:schedule:job:V01"
-    job_spec = runtime_collection.get(
-        job_id
-    ).content_as[dict]
+    job_spec = runtime_collection.get(job_id).content_as[dict]
     process_id = job_spec["processSpecIds"][0]
     process_spec = runtime_collection.get(process_id).content_as[dict]
     ingest_document_ids = process_spec["ingestDocumentIds"]

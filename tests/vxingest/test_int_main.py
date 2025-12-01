@@ -29,6 +29,7 @@ def setup_connection(_vx_ingest):
     _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
     _vx_ingest.connect_cb()
     try:
+        # Clean up any previous test data - this data came from /opt/data/% so we know it is test data
         id_query = """DELETE
                 FROM `vxdata`.`_default`.`METAR` f
                 WHERE f.subset = 'METAR'

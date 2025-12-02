@@ -163,7 +163,7 @@ def test_one_thread_specify_file_pattern_grib2_job_spec_rt(tmp_path: Path):
         vx_ingest = setup_connection(VXIngest_grib2())
         initial_success_count = prom_successes._value.get()
         run_ingest()
-        check_output(tmp_path, vx_ingest, 3,  initial_success_count + 1)
+        check_output(tmp_path, vx_ingest, 3, initial_success_count + 1)
     except Exception as e:
         pytest.fail(f"Test failed with exception {e}")
     finally:
@@ -201,7 +201,7 @@ def test_one_thread_specify_file_pattern_grib2_job_spec_type_job(tmp_path: Path)
         initial_success_count = prom_successes._value.get()
         run_ingest()
         # NOTE: only 6 files match the pattern in this job
-        check_output(tmp_path, vx_ingest, 3,  initial_success_count + 1)
+        check_output(tmp_path, vx_ingest, 3, initial_success_count + 1)
     except Exception as e:
         pytest.fail(f"Test failed with exception {e}")
     finally:
@@ -397,7 +397,12 @@ def check_output(tmp_path, vx_ingest, file_count, success_count=1):
                 assert re.search(pattern, metrics_content), (
                     "Expected regex 'run_ingest_success_count_total [1,2,3,4,5,6,7,8,9].0' in metrics_content"
                 )
-                got_success_count = int(re.search(pattern, metrics_content).group().split()[-1].split(".")[0])
+                got_success_count = int(
+                    re.search(pattern, metrics_content)
+                    .group()
+                    .split()[-1]
+                    .split(".")[0]
+                )
                 assert got_success_count == success_count, (
                     f"Expected run_ingest_success_count_total to equal {success_count}.0 in metrics_content but it is {got_success_count}.0"
                 )
@@ -413,9 +418,9 @@ def check_output(tmp_path, vx_ingest, file_count, success_count=1):
             # List all files in the archive
             names = tar.getnames()
             numFiles = len(names)
-            assert (
-                numFiles == file_count + 3
-            ) , f"Expected {file_count + 3} files in the tar archive but found {numFiles} - {names}" # including log file, LJ file, and directory
+            assert numFiles == file_count + 3, (
+                f"Expected {file_count + 3} files in the tar archive but found {numFiles} - {names}"
+            )  # including log file, LJ file, and directory
             # Extract all files to the results directory
             tar.extractall(path=tmp_path / "results")
             # get one of the json files and check its contents

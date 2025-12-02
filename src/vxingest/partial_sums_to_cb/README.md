@@ -61,11 +61,9 @@ The builder is [PartialSumsSurfaceModelObsBuilderV01](partial_sums_builder.py)
 
 There is a base PartialSumsBuilder which has the generic code for reading a pair of documents and generating model obs sums and then there is a specialized PartialSumsSurfaceModelObsBuilderV01 that inherits from the generic class. Specific information for these classes is available in the docstring for each class.
 
-
 ## ingest documents - metadata
 
 Refer to [ingest documents and metadata](https://github.com/NOAA-GSL/VxIngest/blob/77b73babf031a19ba9623a7fed60de3583c9475b/mats_metadata_and_indexes/metadata_files/README.md#L11)
-
 
 ## Examples of running the ingest programs
 

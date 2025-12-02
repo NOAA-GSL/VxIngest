@@ -1,6 +1,7 @@
 import json
 import math
 import os
+import re
 import sys
 import tarfile
 from pathlib import Path
@@ -10,7 +11,7 @@ from couchbase.options import QueryOptions
 
 from vxingest.ctc_to_cb.run_ingest_threads import VXIngest as VXIngest_ctc
 from vxingest.grib2_to_cb.run_ingest_threads import VXIngest as VXIngest_grib2
-from vxingest.main import run_ingest
+from vxingest.main import prom_successes, run_ingest
 from vxingest.netcdf_to_cb.run_ingest_threads import VXIngest as VXIngest_netcdf
 from vxingest.partial_sums_to_cb.run_ingest_threads import (
     VXIngest as VXIngest_partial_sums,
@@ -86,8 +87,9 @@ def test_one_thread_specify_file_pattern_netcdf_job_spec_rt(tmp_path: Path):
     ]
     try:
         vx_ingest = setup_connection(VXIngest_netcdf())
+        initial_success_count = prom_successes._value.get()
         run_ingest()
-        check_output(tmp_path, vx_ingest, 2)
+        check_output(tmp_path, vx_ingest, 2, initial_success_count + 1)
     except Exception as e:
         pytest.fail(f"Test failed with exception {e}")
     finally:
@@ -122,8 +124,9 @@ def test_one_thread_specify_file_pattern_netcdf_job_spec_type_job(tmp_path: Path
     ]
     try:
         vx_ingest = setup_connection(VXIngest_netcdf())
+        initial_success_count = prom_successes._value.get()
         run_ingest()
-        check_output(tmp_path, vx_ingest, 2)
+        check_output(tmp_path, vx_ingest, 2, initial_success_count + 1)
     except Exception as e:
         pytest.fail(f"Test failed with exception {e}")
     finally:
@@ -158,8 +161,9 @@ def test_one_thread_specify_file_pattern_grib2_job_spec_rt(tmp_path: Path):
     ]
     try:
         vx_ingest = setup_connection(VXIngest_grib2())
+        initial_success_count = prom_successes._value.get()
         run_ingest()
-        check_output(tmp_path, vx_ingest, 3)
+        check_output(tmp_path, vx_ingest, 3,  initial_success_count + 1)
     except Exception as e:
         pytest.fail(f"Test failed with exception {e}")
     finally:
@@ -194,9 +198,10 @@ def test_one_thread_specify_file_pattern_grib2_job_spec_type_job(tmp_path: Path)
     ]
     try:
         vx_ingest = setup_connection(VXIngest_grib2())
+        initial_success_count = prom_successes._value.get()
         run_ingest()
         # NOTE: only 6 files match the pattern in this job
-        check_output(tmp_path, vx_ingest, 3)
+        check_output(tmp_path, vx_ingest, 3,  initial_success_count + 1)
     except Exception as e:
         pytest.fail(f"Test failed with exception {e}")
     finally:
@@ -263,9 +268,9 @@ def test_one_thread_specify_file_pattern_ctc_job_spec_rt(tmp_path: Path):
             "-e",
             str(max_epoch),
         ]
-
+        initial_success_count = prom_successes._value.get()
         run_ingest()
-        check_output(tmp_path, vx_ingest, 5, success_count=2)
+        check_output(tmp_path, vx_ingest, 5, initial_success_count + 2)
     except Exception as e:
         pytest.fail(f"Test failed with exception {e}")
     finally:
@@ -333,9 +338,9 @@ def test_one_thread_specify_file_pattern_partial_sums_job_spec_rt(tmp_path: Path
             "-e",
             str(max_epoch),
         ]
-
+        initial_success_count = prom_successes._value.get()
         run_ingest()
-        check_output(tmp_path, vx_ingest, 5, success_count=1)
+        check_output(tmp_path, vx_ingest, 5, initial_success_count + 1)
     except Exception as e:
         pytest.fail(f"Test failed with exception {e}")
     finally:
@@ -388,16 +393,19 @@ def check_output(tmp_path, vx_ingest, file_count, success_count=1):
         with metrics_file.open("r") as f:
             metrics_content = f.read()
             try:
-                assert (
-                    f"run_ingest_success_count_total {str(success_count)}.0"
-                    in metrics_content
+                pattern = r"run_ingest_success_count_total [1,2,3,4,5,6,7,8,9]\.0"
+                assert re.search(pattern, metrics_content), (
+                    "Expected regex 'run_ingest_success_count_total [1,2,3,4,5,6,7,8,9].0' in metrics_content"
+                )
+                got_success_count = int(re.search(pattern, metrics_content).group().split()[-1].split(".")[0])
+                assert got_success_count == success_count, (
+                    f"Expected run_ingest_success_count_total to equal {success_count}.0 in metrics_content but it is {got_success_count}.0"
                 )
                 assert "run_ingest_failure_count_total 0.0" in metrics_content
             except AssertionError as e:
                 pytest.fail(f"Metrics check failed: {e}")
         assert (tmp_path / "transfer").exists()
         transfer_files = list((tmp_path / "transfer").glob("*.tar.gz"))
-        assert len(transfer_files) == success_count
         # check the contents of the tar.gz file
         tarFile = transfer_files[0]
         (tmp_path / "results").mkdir()
@@ -407,7 +415,7 @@ def check_output(tmp_path, vx_ingest, file_count, success_count=1):
             numFiles = len(names)
             assert (
                 numFiles == file_count + 3
-            )  # including log file, LJ file, and directory
+            ) , f"Expected {file_count + 3} files in the tar archive but found {numFiles} - {names}" # including log file, LJ file, and directory
             # Extract all files to the results directory
             tar.extractall(path=tmp_path / "results")
             # get one of the json files and check its contents

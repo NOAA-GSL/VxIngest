@@ -214,7 +214,7 @@ class JobRunCriterion(TypedDict):
     name: str
     offset_minutes: int
     run_priority: int
-    subType: str
+    sub_type: str
 
 
 def get_runtime_job_criteria(
@@ -346,7 +346,7 @@ def get_older_job_doc_criteria(
                 "run_priority, "
                 "offset_minutes, "
                 "LOWER(subType) as subType "
-            f"FROM {creds['cb_bucket']}.._default.COMMON "
+            f"FROM {creds['cb_bucket']}._default.COMMON "
             "WHERE type='JOB' "
                 "AND version='V01' "
                 "AND status='active' "
@@ -453,9 +453,6 @@ def process_run_configurations(
     ['PS:METAR:NETCDF:OBS:MADIS-TEST:V01']
     """
     logger.info("Processing the job docs")
-    # explicitly set the prometheus metrics to zero before starting (in multiple runs these can get confused)
-    prom_successes._value.set(0)
-    prom_failures._value.set(0)
     success_count = 0
     fail_count = 0
     runtime_collection = (

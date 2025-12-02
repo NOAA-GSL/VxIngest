@@ -280,7 +280,6 @@ cbimport json --cluster couchbase://adb-cb4.gsd.esrl.noaa.gov --bucket mdata --u
 A strategy might be to seperate data into multiple files and run a different cbimport
 instance on each file.
 
-
 ### N1QL metadata queries
 
 These are mostly oriented around cb-ceiling but they are illustrative.

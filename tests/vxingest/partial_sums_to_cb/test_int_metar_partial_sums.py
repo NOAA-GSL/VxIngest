@@ -37,12 +37,11 @@ mysql_model_obs_data = []
 stations = []
 
 
-def setup_connection(_vx_ingest):
+def setup_connection():
     """test setup"""
+    _vx_ingest = VXIngest()
     # Ensure credentials_file is a string, not a tuple
     credentials = os.environ["CREDENTIALS"]
-    if isinstance(credentials, tuple):
-        credentials = credentials[0]
     _vx_ingest.credentials_file = credentials
     _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
     _vx_ingest.connect_cb()
@@ -252,7 +251,7 @@ def test_ps_builder_surface_hrrr_ops_all_hrrr():
     for _f in files:
         Path(_f).unlink()
     log_queue = Queue()
-    vx_ingest = setup_connection(VXIngest())
+    vx_ingest = setup_connection()
     job = vx_ingest.common_collection.get(job_id).content_as[dict]
     latest_epoch = get_latest_model_obs_epoch(vx_ingest, "METAR", "HRRR_OPS")
     config = {
@@ -337,7 +336,7 @@ def test_ps_builder_surface_mpas_physics_dev1_all_hrrr():
     for _f in files:
         Path(_f).unlink()
     log_queue = Queue()
-    vx_ingest = setup_connection(VXIngest())
+    vx_ingest = setup_connection()
     job = vx_ingest.common_collection.get(job_id).content_as[dict]
     latest_epoch = get_latest_model_obs_epoch(vx_ingest, "METAR", "MPAS_physics_dev1")
     config = {

@@ -304,6 +304,9 @@ class CommonVxIngest:
                 )
             with pathlib.Path(self.credentials_file).open(encoding="utf-8") as _f:
                 _yaml_data = yaml.load(_f, yaml.SafeLoader)
+            if _yaml_data is None:
+                logger.error("*** Error: Credential file is empty or invalid YAML ***")
+                sys.exit("*** Credential file is empty or invalid YAML! ***")
             load_spec["cb_connection"] = {}
             load_spec["cb_connection"]["host"] = _yaml_data["cb_host"]
             load_spec["cb_connection"]["user"] = _yaml_data["cb_user"]

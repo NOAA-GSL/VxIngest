@@ -1,6 +1,6 @@
 [
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "docType": "ingest",
     "type": "MD",
     "version": "V01",
@@ -37,7 +37,7 @@
     }
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "docType": "ingest",
     "type": "MD",
     "version": "V01",
@@ -74,7 +74,7 @@
     }
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "docType": "ingest",
     "type": "MD",
     "version": "V01",
@@ -110,7 +110,7 @@
     }
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "docType": "ingest",
     "type": "MD",
     "version": "V01",

@@ -137,7 +137,6 @@ class VXIngest(CommonVxIngest):
         self.load_time_start = time.perf_counter()
         self.credentials_file = ""
         self.thread_count = ""
-        self.path = None
         self.fmask = None
         self.file_pattern = "*"
         self.output_dir = None
@@ -152,7 +151,7 @@ class VXIngest(CommonVxIngest):
         self.ingest_document = None
         super().__init__()
 
-    def runit(self, args, log_queue: Queue, log_configurer: Callable[[Queue], None]):
+    def runit(self, config, log_queue: Queue, log_configurer: Callable[[Queue], None]):
         """
         This is the entry point for run_ingest_threads.py
         """
@@ -160,19 +159,21 @@ class VXIngest(CommonVxIngest):
         logger.info("--- *** --- Start --- *** ---")
         logger.info("Begin a_time: %s", begin_time)
 
-        self.credentials_file = args["credentials_file"].strip()
-        self.thread_count = args["threads"]
-        self.output_dir = args["output_dir"].strip()
-        self.job_document_id = args["job_id"].strip()
-        if "file_pattern" in args:
-            self.file_pattern = args["file_pattern"].strip()
+        self.credentials_file = config.get("credentials_file", None)
+        self.thread_count = config.get("threads", 1)
+        self.output_dir = config.get("output_dir", "/tmp").strip()
+        self.job_document_id = config.get("job_id", None)
+        self.file_pattern = config.get("file_pattern", "*").strip()
+        self.ingest_document_ids = config.get("ingest_document_ids", None)
+        self.fmask = config.get("file_mask", None)
+        self.input_data_path = config.get("input_data_path", None)
+
         try:
             # put the real credentials into the load_spec
             logger.info("getting cb_credentials")
             self.cb_credentials = self.get_credentials(self.load_spec)
             # get the intended subset (collection from the job_id)
-            id_fields = self.job_document_id.split(":")
-            self.cb_credentials["collection"] = id_fields[2]
+            self.cb_credentials["collection"] = config["collection"]
             # establish connections to cb, collection
             self.connect_cb()
             logger.info("connected to cb - collection is %s", self.collection.name)
@@ -180,22 +181,20 @@ class VXIngest(CommonVxIngest):
             bucket = self.load_spec["cb_connection"]["bucket"]
             scope = self.load_spec["cb_connection"]["scope"]
             # load the ingest document ids into the load_spec (this might be redundant) - from COMMON
-            ingest_document_result = self.common_collection.get(self.job_document_id)
-            ingest_document = ingest_document_result.content_as[dict]
-            self.load_spec["ingest_document_ids"] = ingest_document[
-                "ingest_document_ids"
-            ]
+            self.load_spec["ingest_document_ids"] = self.ingest_document_ids
             # put all the ingest documents into the load_spec too
             self.load_spec["ingest_documents"] = {}
             for _id in self.load_spec["ingest_document_ids"]:
-                self.load_spec["ingest_documents"][_id] = self.common_collection.get(
-                    _id
-                ).content_as[dict]
-            # load the fmask and input_data_path into the load_spec
-            self.fmask = ingest_document.get("file_mask", None)
-            self.path = ingest_document.get("input_data_path", None)
+                if _id.startswith("MD"):
+                    self.load_spec["ingest_documents"][_id] = (
+                        self.common_collection.get(_id).content_as[dict]
+                    )
+                else:
+                    self.load_spec["ingest_documents"][_id] = (
+                        self.runtime_collection.get(_id).content_as[dict]
+                    )
             self.load_spec["fmask"] = self.fmask
-            self.load_spec["input_data_path"] = self.path
+            self.load_spec["input_data_path"] = self.input_data_path
             # stash the load_job in the load_spec
             self.load_spec["load_job_doc"] = self.build_load_job_doc(
                 self.load_spec["cb_connection"]["collection"]
@@ -229,7 +228,7 @@ class VXIngest(CommonVxIngest):
             """
         # file_pattern is a glob string not a python file match string
         file_names = self.get_file_list(
-            file_query, self.path, self.file_pattern, self.fmask
+            file_query, self.input_data_path, self.file_pattern, self.fmask
         )
         for _f in file_names:
             _q.put(_f)

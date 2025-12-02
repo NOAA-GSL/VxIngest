@@ -1,6 +1,6 @@
 [
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "validTimeInterval": 3600,
     "validTimeDelta": 1800,
     "docType": "ingest",
@@ -36,7 +36,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "validTimeInterval": 3600,
     "validTimeDelta": 1800,
     "docType": "ingest",
@@ -72,7 +72,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "validTimeInterval": 3600,
     "validTimeDelta": 1800,
     "docType": "ingest",
@@ -108,7 +108,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "validTimeInterval": 3600,
     "validTimeDelta": 1800,
     "docType": "ingest",
@@ -144,7 +144,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "validTimeInterval": 3600,
     "validTimeDelta": 1800,
     "docType": "ingest",
@@ -180,7 +180,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "validTimeInterval": 3600,
     "validTimeDelta": 1800,
     "docType": "ingest",
@@ -219,7 +219,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "validTimeInterval": 3600,
     "validTimeDelta": 1800,
     "docType": "ingest",
@@ -255,7 +255,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "validTimeInterval": 3600,
     "validTimeDelta": 1800,
     "docType": "ingest",
@@ -291,7 +291,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "validTimeInterval": 3600,
     "validTimeDelta": 1800,
     "docType": "ingest",
@@ -327,7 +327,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "validTimeInterval": 3600,
     "validTimeDelta": 1800,
     "docType": "ingest",
@@ -363,7 +363,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "validTimeInterval": 3600,
     "validTimeDelta": 1800,
     "docType": "ingest",
@@ -399,7 +399,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "validTimeInterval": 3600,
     "validTimeDelta": 1800,
     "docType": "ingest",
@@ -437,7 +437,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "validTimeInterval": 3600,
     "validTimeDelta": 1800,
     "docType": "ingest",
@@ -475,7 +475,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "validTimeInterval": 3600,
     "validTimeDelta": 1800,
     "docType": "ingest",
@@ -511,7 +511,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "validTimeInterval": 3600,
     "validTimeDelta": 1800,
     "docType": "ingest",
@@ -547,7 +547,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "validTimeInterval": 3600,
     "validTimeDelta": 1800,
     "docType": "ingest",
@@ -583,7 +583,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "validTimeInterval": 3600,
     "validTimeDelta": 1800,
     "docType": "ingest",
@@ -619,7 +619,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "validTimeInterval": 3600,
     "validTimeDelta": 1800,
     "docType": "ingest",
@@ -655,7 +655,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlModelBuilderV01",
+    "builderType": "SqlModelBuilderV01",
     "validTimeInterval": 3600,
     "validTimeDelta": 1800,
     "docType": "ingest",
@@ -693,7 +693,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlObsBuilderV01",
+    "builderType": "SqlObsBuilderV01",
     "validTimeInterval": 3600,
     "validTimeDelta": 1800,
     "docType": "ingest",
@@ -731,7 +731,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "SqlStationsBuilderV01",
+    "builderType": "SqlStationsBuilderV01",
     "docType": "ingest",
     "id": "MD:V01:METAR:stations:ingest",
     "singularData": true,

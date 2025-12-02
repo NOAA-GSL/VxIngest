@@ -115,9 +115,16 @@ class VxIngestManager(CommonVxIngestManager):
         if queue_element is None:
             raise ValueError("ingest_document queue_element is undefined")
         try:
-            self.ingest_type_builder_name = self.load_spec["ingest_documents"][
-                queue_element
-            ]["builder_type"]
+            # determine if this is a metadata document or a runtime document
+            # the older ingest documents used builder_type, the newer ones use builderType
+            if self.load_spec["ingest_documents"][queue_element]["id"].startswith("MD"):
+                self.ingest_type_builder_name = self.load_spec["ingest_documents"][
+                    queue_element
+                ]["builder_type"]
+            else:
+                self.ingest_type_builder_name = self.load_spec["ingest_documents"][
+                    queue_element
+                ]["builderType"]
         except Exception as _e:
             logger.exception(
                 "%s: process_element: Exception getting ingest document for %s",

@@ -1,4 +1,2 @@
-USE ONE OF THESE
+USE 
 BUILD INDEX ON `vxdata`.`_default`.`METAR` ((SELECT RAW name FROM system:indexes WHERE state = "deferred"));
-OR
-BUILD INDEX ON `vxdatatest`.`_default`.`METAR` ((SELECT RAW name FROM system:indexes WHERE state = "deferred"));

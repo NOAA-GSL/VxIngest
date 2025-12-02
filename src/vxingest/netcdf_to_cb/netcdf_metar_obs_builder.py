@@ -136,6 +136,8 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
             mask_array = self.ncdf_data_set["skyLayerBase"][
                 params_dict["base_var_index"]
             ].mask.tolist()
+            if not mask_array:
+                return None
             # mask_array = ma.getmaskarray(skyLayerBase)
             skyCover_array = skyCover[1:-1].replace("'", "").split(" ")
             # check for unmasked ceiling values - broken, overcast, vertical visibility - return associated skyLayerBase
@@ -148,7 +150,7 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
                     return math.floor(skyLayerBase[index] * 3.281)
             # check for unmasked ceiling values - all the others - CLR, SKC, NSC, FEW, SCT - return 60000
             for index, sca_val in enumerate(skyCover_array):
-                # 60000 is aldready feet
+                # 60000 is already feet
                 if (not mask_array[index]) and (
                     mCLR.match(sca_val)
                     or mSKC.match(sca_val)

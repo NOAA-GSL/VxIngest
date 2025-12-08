@@ -147,7 +147,7 @@ class VXIngest(CommonVxIngest):
         self.thread_count = ""
         self.path = None
         self.fmask = None
-        self.file_pattern = "*"
+        self.file_pattern = None
         self.output_dir = None
         self.job_document_id = None
         # optional: used to limit the number of stations processed
@@ -176,7 +176,7 @@ class VXIngest(CommonVxIngest):
         self.thread_count = config.get("threads", 1)
         self.output_dir = config.get("output_dir", "/tmp").strip()
         self.job_document_id = config.get("job_id", None)
-        self.file_pattern = config.get("file_pattern", "*").strip()
+        self.file_pattern = config.get("file_pattern").strip()
         self.ingest_document_ids = config.get("ingest_document_ids", None)
         self.fmask = config.get("file_mask", None)
         self.input_data_path = config.get("input_data_path", None)

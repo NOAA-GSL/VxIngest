@@ -15,7 +15,6 @@ import sys
 from pathlib import Path
 from pstats import Stats
 
-import cfgrib
 import pyproj
 import xarray as xr
 

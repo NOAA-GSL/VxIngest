@@ -191,7 +191,7 @@ def test_one_thread_specify_file_pattern_grib2_retro_job_spec_rt(tmp_path: Path)
         "-l",
         str(tmp_path / "logs"),
         "-f",
-        "rrfs.t02z.prslev.f000.conus.grib2",
+        "rrfs.t01z.prslev.f000.conus.grib2",
         "-t",
         "1",
     ]
@@ -199,7 +199,7 @@ def test_one_thread_specify_file_pattern_grib2_retro_job_spec_rt(tmp_path: Path)
         vx_ingest = setup_connection(VXIngest_grib2())
         initial_success_count = prom_successes._value.get()
         run_ingest()
-        check_output(tmp_path, vx_ingest, 3, initial_success_count + 1)
+        check_output(tmp_path, vx_ingest, 1, initial_success_count + 1)
     except Exception as e:
         pytest.fail(f"Test failed with exception {e}")
     finally:

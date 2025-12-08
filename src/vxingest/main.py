@@ -151,7 +151,7 @@ def process_cli():
         "--file_pattern",
         type=str,
         required=False,
-        default="*",
+        default="",
         help="The filename pattern to use when searching for files to process. Only valid for GRIB & NetCDF jobs - this arg can be overridden by the template.",
     )
     parser.add_argument(
@@ -257,6 +257,7 @@ def get_runtime_job_criteria(
     row_iter = cluster.query(query, QueryOptions(read_only=True))  # type: ignore[assignment]
     for row in row_iter:
         return row
+    logger.warning(f"No runtime job document found with ID: {job_id}")
     return None
 
 
@@ -471,6 +472,7 @@ def process_run_configurations(
             data_source_spec = runtime_collection.get(data_source_id).content_as[dict]
             input_data_path = data_source_spec["sourceDataUri"]
             file_mask = data_source_spec["fileMask"]
+            file_pattern = data_source_spec.get("filePattern", "*")
             collection = data_source_spec["subset"]
         else:
             proc = common_collection.get(job["id"]).content_as[dict]
@@ -479,6 +481,9 @@ def process_run_configurations(
             ingest_document_ids = proc["ingest_document_ids"]
             collection = proc.get("subset")
         name = proc["id"].replace("_", "__").replace(":", "_")
+        # override file_pattern if given on command line
+        if args.file_pattern:
+            file_pattern = args.file_pattern
 
         # Add a logging file handler with a unique name for just this proc
         logpath = (
@@ -503,13 +508,13 @@ def process_run_configurations(
             "collection": collection,
             "job_id": args.job_id,
             "file_mask": file_mask,
+            "file_pattern": file_pattern,
             "input_data_path": input_data_path,
             "ingest_document_ids": ingest_document_ids,
             "output_dir": str(output_dir),
             "threads": args.threads,
             "first_epoch": args.start_epoch,  # TODO - this arg is only supported in the CTC & SUM builders
-            "last_epoch": args.end_epoch,  # TODO - this arg is only supported in the CTC & SUM builders
-            "file_pattern": args.file_pattern,  # TODO - this arg is only supported in the grib & netcdf builders
+            "last_epoch": args.end_epoch,  # TODO - this arg is only supported in the grib & netcdf builders
         }
         proc_succeeded = False
         match proc["subType"]:

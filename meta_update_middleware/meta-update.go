@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"fmt"
 	"log"
 	"os"
 	"time"
@@ -63,8 +62,6 @@ func main() {
 		log.Println("meta-update, settings file:" + settingsFilePath + ",credentials file:" + credentialsFilePath + ",app:[all apps in settings file]")
 	}
 
-	conf := ConfigJSON{}
-
 	conf, err := parseConfig(settingsFilePath)
 	if err != nil {
 		log.Fatal("Unable to parse config")
@@ -73,7 +70,10 @@ func main() {
 
 	credentials := getCredentials(credentialsFilePath)
 
-	conn := getDbConnection(credentials)
+	conn, err := getDbConnection(credentials)
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
 
 	//testGetSingleCTC(conn)
 	//testGetCTCCount(connSrc)
@@ -89,20 +89,28 @@ func main() {
 			updateMedataForAppDocType(conn, conf.Metadata[ds].Name, conf.Metadata[ds].App, conf.Metadata[ds].DocType[dt], conf.Metadata[ds].SubDocType)
 		}
 	}
-	log.Println(fmt.Sprintf("\tmeta update finished in %v", time.Since(start)))
+	log.Printf("\tmeta update finished in %v", time.Since(start))
 }
 
 func updateMedataForAppDocType(conn CbConnection, name string, app string, doctype string, subDocType string) {
 	log.Println("updateMedataForAppDocType(" + name + "," + doctype + ")")
 
 	// get needed models
-	models := getModels(conn, name, app, doctype, subDocType)
+	models, err := getModels(conn, name, app, doctype, subDocType)
+	if err != nil {
+		log.Printf("Error getting models: %v", err)
+		return
+	}
 	log.Println("models:")
 	printStringArray(models)
 
 	// get models having metadata but no data (remove metadata for these)
 	// (note 'like %' is changed to 'like %25')
-	models_with_metatada_but_no_data := getModelsNoData(conn, name, app, doctype, subDocType)
+	models_with_metatada_but_no_data, err := getModelsNoData(conn, name, app, doctype, subDocType)
+	if err != nil {
+		log.Printf("Error getting models with metadata but no data: %v", err)
+		return
+	}
 	log.Println("models_with_metatada_but_no_data:")
 	printStringArray(models_with_metatada_but_no_data)
 
@@ -132,20 +140,50 @@ func updateMedataForAppDocType(conn CbConnection, name string, app string, docty
 	metadata.Updated = 0
 
 	for i, m := range models {
+		var err error
+		var thresholds []string
 		model := Model{Name: m}
-		thresholds := getDistinctThresholds(conn, name, app, doctype, subDocType, m)
+		thresholds, err = getDistinctThresholds(conn, name, app, doctype, subDocType, m)
+		if err != nil {
+			log.Printf("Error getting distinct thresholds: %v", err)
+			continue
+		}
 		log.Println(thresholds)
-		fcstLen := getDistinctFcstLen(conn, name, app, doctype, subDocType, m)
+		fcstLen, err := getDistinctFcstLen(conn, name, app, doctype, subDocType, m)
+		if err != nil {
+			log.Printf("Error getting distinct forecast lengths: %v", err)
+			continue
+		}
 		log.Println(fcstLen)
-		region := getDistinctRegion(conn, name, app, doctype, subDocType, m)
+		region, err := getDistinctRegion(conn, name, app, doctype, subDocType, m)
+		if err != nil {
+			log.Printf("Error getting distinct region: %v", err)
+			continue
+		}
 		log.Println(region)
-		displayText := getDistinctDisplayText(conn, name, app, doctype, subDocType, m)
+		displayText, err := getDistinctDisplayText(conn, name, app, doctype, subDocType, m)
+		if err != nil {
+			log.Printf("Error getting distinct display text: %v", err)
+			continue
+		}
 		log.Println(displayText)
-		displayCategory := getDistinctDisplayCategory(conn, name, app, doctype, subDocType, m)
+		displayCategory, err := getDistinctDisplayCategory(conn, name, app, doctype, subDocType, m)
+		if err != nil {
+			log.Printf("Error getting distinct display category: %v", err)
+			continue
+		}
 		log.Println(displayCategory)
-		displayOrder := getDistinctDisplayOrder(conn, name, app, doctype, subDocType, m, i)
+		displayOrder, err := getDistinctDisplayOrder(conn, name, app, doctype, subDocType, m, i)
+		if err != nil {
+			log.Printf("Error getting distinct display order: %v", err)
+			continue
+		}
 		log.Println(displayOrder)
-		minMaxCountFloor := getMinMaxCountFloor(conn, name, app, doctype, subDocType, m)
+		minMaxCountFloor, err := getMinMaxCountFloor(conn, name, app, doctype, subDocType, m)
+		if err != nil {
+			log.Printf("Error getting min/max/count/floor: %v", err)
+			continue
+		}
 		log.Println(jsonPrettyPrintStruct(minMaxCountFloor[0].(map[string]interface{})))
 
 		// ./sqls/getDistinctThresholds.sql returns list of variables for SUMS DocType, like in Surface

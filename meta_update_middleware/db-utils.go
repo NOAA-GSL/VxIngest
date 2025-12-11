@@ -22,7 +22,7 @@ func init() {
 	log.Println("db-utils:init()")
 }
 
-func getDbConnection(cred Credentials) (conn CbConnection) {
+func getDbConnection(cred Credentials) (conn CbConnection, err error) {
 	log.Println("getDbConnection()")
 
 	conn = CbConnection{}
@@ -41,8 +41,8 @@ func getDbConnection(cred Credentials) (conn CbConnection) {
 
 	cluster, err := gocb.Connect(connectionString, options)
 	if err != nil {
-		log.Fatal(err)
-		return
+		err = fmt.Errorf("failed to connect to cluster: %w", err)
+		return conn, err
 	}
 
 	conn.Cluster = cluster
@@ -54,36 +54,42 @@ func getDbConnection(cred Credentials) (conn CbConnection) {
 
 	err = conn.Bucket.WaitUntilReady(5*time.Second, nil)
 	if err != nil {
-		log.Fatal(err)
-		return
+		return conn, err
 	}
 
 	conn.Scope = conn.Bucket.Scope(cred.Cb_scope)
-	return conn
+	return conn, nil
 }
 
-func queryWithSQLFile(scope *gocb.Scope, file string) (jsonOut []string) {
+func queryWithSQLFile(scope *gocb.Scope, file string) (jsonOut []string, err error) {
 	fileContent, err := os.ReadFile(file)
 	if err != nil {
-		log.Fatal(err)
+		log.Println("Error reading file:", err)
+		return nil, err
 	}
 
 	// Convert []byte to string
 	text := string(fileContent)
 	fmt.Println(text)
-
-	return queryWithSQLStringSA(scope, text)
+	result, err := queryWithSQLStringSA(scope, text)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
-func queryWithSQLStringSA(scope *gocb.Scope, text string) (rv []string) {
+func queryWithSQLStringSA(scope *gocb.Scope, text string) (rv []string, err error) {
 	log.Println("queryWithSQLStringSA(\n" + text + "\n)")
 
 	queryResult, err := scope.Query(
 		fmt.Sprintf(text),
-		&gocb.QueryOptions{Adhoc: true},
+		&gocb.QueryOptions{
+			Adhoc:   true,
+			Timeout: 300 * time.Second, // Set an explicit timeout
+		},
 	)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	// Interfaces for handling streaming return values
@@ -95,23 +101,23 @@ func queryWithSQLStringSA(scope *gocb.Scope, text string) (rv []string) {
 		var row interface{}
 		err := queryResult.Row(&row)
 		if err != nil {
-			log.Fatal(err)
+			return nil, err
 		}
 		retValues = append(retValues, row.(string))
 	}
 
-	return retValues
+	return retValues, nil
 }
 
-func queryWithSQLStringFA(scope *gocb.Scope, text string) (rv []float64) {
+func queryWithSQLStringFA(scope *gocb.Scope, text string) (rv []float64, err error) {
 	log.Println("queryWithSQLStringFA(\n" + text + "\n)")
 
 	queryResult, err := scope.Query(
 		fmt.Sprintf(text),
-		&gocb.QueryOptions{Adhoc: true},
+		&gocb.QueryOptions{Adhoc: true, Timeout: 300 * time.Second},
 	)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	retValues := make([]float64, 0)
@@ -122,23 +128,23 @@ func queryWithSQLStringFA(scope *gocb.Scope, text string) (rv []float64) {
 		var row interface{}
 		err := queryResult.Row(&row)
 		if err != nil {
-			log.Fatal(err)
+			return nil, err
 		}
 		retValues = append(retValues, row.(float64))
 	}
 
-	return retValues
+	return retValues, nil
 }
 
-func queryWithSQLStringIA(scope *gocb.Scope, text string) (rv []int) {
+func queryWithSQLStringIA(scope *gocb.Scope, text string) (rv []int, err error) {
 	log.Println("queryWithSQLStringFA(\n" + text + "\n)")
 
 	queryResult, err := scope.Query(
 		fmt.Sprintf(text),
-		&gocb.QueryOptions{Adhoc: true},
+		&gocb.QueryOptions{Adhoc: true, Timeout: 300 * time.Second},
 	)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	retValues := make([]int, 0)
@@ -149,28 +155,28 @@ func queryWithSQLStringIA(scope *gocb.Scope, text string) (rv []int) {
 		var row interface{}
 		err := queryResult.Row(&row)
 		if err != nil {
-			log.Fatal(err)
+			return nil, err
 		}
-		switch row.(type) {
+		switch v := row.(type) {
 		case float64:
-			retValues = append(retValues, int(row.(float64)))
+			retValues = append(retValues, int(v))
 		case int:
-			retValues = append(retValues, row.(int))
+			retValues = append(retValues, v)
 		}
 	}
 
-	return retValues
+	return retValues, nil
 }
 
-func queryWithSQLStringMAP(scope *gocb.Scope, text string) (jsonOut []interface{}) {
+func queryWithSQLStringMAP(scope *gocb.Scope, text string) (jsonOut []interface{}, err error) {
 	log.Println("queryWithSQLStringMAP(\n" + text + "\n)")
 
 	queryResult, err := scope.Query(
 		fmt.Sprintf(text),
-		&gocb.QueryOptions{Adhoc: true},
+		&gocb.QueryOptions{Adhoc: true, Timeout: 300 * time.Second},
 	)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	rows := make([]interface{}, 0)
@@ -179,18 +185,18 @@ func queryWithSQLStringMAP(scope *gocb.Scope, text string) (jsonOut []interface{
 		var row interface{}
 		err := queryResult.Row(&row)
 		if err != nil {
-			log.Fatal(err)
+			return nil, err
 		}
 		m := row.(map[string]interface{})
 		rows = append(rows, m)
 	}
-	return rows
+	return rows, nil
 }
 
-func queryWithSQLFileJustPrint(scope *gocb.Scope, file string) {
+func queryWithSQLFileJustPrint(scope *gocb.Scope, file string) error {
 	fileContent, err := os.ReadFile(file)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	// Convert []byte to string
@@ -199,22 +205,22 @@ func queryWithSQLFileJustPrint(scope *gocb.Scope, file string) {
 
 	queryResult, err := scope.Query(
 		fmt.Sprintf(text),
-		&gocb.QueryOptions{Adhoc: true},
+		&gocb.QueryOptions{Adhoc: true, Timeout: 300 * time.Second},
 	)
 	if err != nil {
-		log.Fatal(err)
-	} else {
-		printQueryResult(queryResult)
+		return err
 	}
+	return printQueryResult(queryResult)
 }
 
-func printQueryResult(queryResult *gocb.QueryResult) {
+func printQueryResult(queryResult *gocb.QueryResult) error {
 	for queryResult.Next() {
 		var result interface{}
 		err := queryResult.Row(&result)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 		fmt.Println(result)
 	}
+	return nil
 }

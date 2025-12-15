@@ -259,6 +259,10 @@ func run(startEpoch, endEpoch int64, outputDir string) error {
 			log.Printf("data field not found or not a map in document with ID %s", row.ID)
 			continue
 		}
+		if doc["dataVersion"] != nil {
+			// Skip documents that already have dataVersion
+			continue
+		}
 
 		for station := range data {
 			stationData, ok := data[station].(map[string]interface{})
@@ -292,8 +296,11 @@ func run(startEpoch, endEpoch int64, outputDir string) error {
 				continue
 			}
 			stationPressure := AltimeterToStationPressure(surfacePressure, elev)
-			doc["data"].(map[string]interface{})[station].(map[string]interface{})["station_pressure"] = stationPressure
+			doc["data"].(map[string]interface{})[station].(map[string]interface{})["Surface Pressure"] = stationPressure
+			doc["data"].(map[string]interface{})[station].(map[string]interface{})["Altimeter Pressure"] = surfacePressure
 		}
+		doc["dataVersion"] = "1.0.1"
+
 		// Write the updated document to a file in the outputDir named after the row.ID
 		outputPath := fmt.Sprintf("%s/%s.json", outputDir, row.ID)
 		file, err := os.Create(outputPath)

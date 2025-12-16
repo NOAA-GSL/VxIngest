@@ -513,8 +513,8 @@ def process_run_configurations(
             "ingest_document_ids": ingest_document_ids,
             "output_dir": str(output_dir),
             "threads": args.threads,
-            "first_epoch": args.start_epoch,  # TODO - this arg is only supported in the CTC & SUM builders
-            "last_epoch": args.end_epoch,  # TODO - this arg is only supported in the grib & netcdf builders
+            "first_epoch": args.start_epoch,
+            "last_epoch": args.end_epoch,
         }
         proc_succeeded = False
         match proc["subType"]:

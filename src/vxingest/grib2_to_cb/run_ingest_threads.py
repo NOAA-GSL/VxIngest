@@ -180,8 +180,18 @@ class VXIngest(CommonVxIngest):
         self.ingest_document_ids = config.get("ingest_document_ids", None)
         self.fmask = config.get("file_mask", None)
         self.input_data_path = config.get("input_data_path", None)
-
+        self.first_epoch = config.get("first_epoch", None)
+        self.last_epoch = config.get("last_epoch", None)
         _args_keys = config.keys()
+        if "first_epoch" in _args_keys and "last_epoch" in _args_keys:
+            self.first_last_params = {
+                "first_epoch": _args_keys["first_epoch"],
+                "last_epoch": _args_keys["last_epoch"],
+            }
+        else:
+            self.first_last_params = {}
+            self.first_last_params["first_epoch"] = 0
+            self.first_last_params["last_epoch"] = sys.maxsize
         if "number_stations" in _args_keys:
             self.number_stations = config["number_stations"]
         else:

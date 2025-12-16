@@ -167,6 +167,19 @@ class VXIngest(CommonVxIngest):
         self.ingest_document_ids = config.get("ingest_document_ids", None)
         self.fmask = config.get("file_mask", None)
         self.input_data_path = config.get("input_data_path", None)
+        _args_keys = config.keys()
+        if "first_epoch" in _args_keys and "last_epoch" in _args_keys:
+            self.first_last_params = {
+                "first_epoch": _args_keys["first_epoch"],
+                "last_epoch": _args_keys["last_epoch"],
+            }
+        else:
+            self.first_last_params = {}
+            self.first_last_params["first_epoch"] = 0
+            self.first_last_params["last_epoch"] = sys.maxsize
+        # stash the first_last_params into the load spec
+        self.load_spec["first_last_params"] = self.first_last_params
+
 
         try:
             # put the real credentials into the load_spec

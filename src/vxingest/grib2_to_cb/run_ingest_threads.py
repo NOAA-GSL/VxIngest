@@ -124,6 +124,23 @@ def parse_args(args):
         default=sys.maxsize,
         help="The maximum number of stations to process",
     )
+    parser.add_argument(
+        "-s",
+        "--start_epoch",
+        type=int,
+        required=False,
+        default=0,
+        help="The first epoch to process jobs for, inclusive.",
+    )
+    parser.add_argument(
+        "-e",
+        "--end_epoch",
+        type=int,
+        required=False,
+        default=sys.maxsize,
+        help="The last epoch to process jobs for, exclusive.",
+    )
+
     # get the command line arguments
     args = parser.parse_args(args)
     return args
@@ -176,23 +193,21 @@ class VXIngest(CommonVxIngest):
         self.thread_count = config.get("threads", 1)
         self.output_dir = config.get("output_dir", "/tmp").strip()
         self.job_document_id = config.get("job_id", None)
-        self.file_pattern = config.get("file_pattern").strip()
+        self.file_pattern = config.get("file_pattern","*").strip()
         self.ingest_document_ids = config.get("ingest_document_ids", None)
         self.fmask = config.get("file_mask", None)
         self.input_data_path = config.get("input_data_path", None)
-        self.first_epoch = config.get("first_epoch", None)
-        self.last_epoch = config.get("last_epoch", None)
-        _args_keys = config.keys()
-        if "first_epoch" in _args_keys and "last_epoch" in _args_keys:
+
+        if "start_epoch" in config and "end_epoch" in config:
             self.first_last_params = {
-                "first_epoch": _args_keys["first_epoch"],
-                "last_epoch": _args_keys["last_epoch"],
+                "first_epoch": config["start_epoch"],
+                "last_epoch": config["end_epoch"],
             }
         else:
             self.first_last_params = {}
             self.first_last_params["first_epoch"] = 0
             self.first_last_params["last_epoch"] = sys.maxsize
-        if "number_stations" in _args_keys:
+        if "number_stations" in config:
             self.number_stations = config["number_stations"]
         else:
             self.number_stations = sys.maxsize

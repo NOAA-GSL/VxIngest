@@ -238,6 +238,8 @@ class CommonVxIngest:
                                 # it will throw a ValueError if it doesn't match
                                 # the file_mask is applied to the filename only - not the pat
                                 _dt = dt.datetime.strptime(filename.name, file_mask)
+                                # if we get here then the file matched the mask
+                                # check to see if this file is in the first_latst_params range
                         except ValueError:
                             continue
                         # check to see if this file has already been ingested

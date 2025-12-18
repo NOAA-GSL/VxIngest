@@ -116,6 +116,22 @@ def parse_args(args):
         default="/tmp",
         help="Specify the output directory to put the json output files",
     )
+    parser.add_argument(
+        "-s",
+        "--start_epoch",
+        type=int,
+        required=False,
+        default=0,
+        help="The first epoch to process jobs for, inclusive.",
+    )
+    parser.add_argument(
+        "-e",
+        "--end_epoch",
+        type=int,
+        required=False,
+        default=sys.maxsize,
+        help="The last epoch to process jobs for, exclusive.",
+    )
     # get the command line arguments
     args = parser.parse_args(args)
     return args
@@ -167,11 +183,10 @@ class VXIngest(CommonVxIngest):
         self.ingest_document_ids = config.get("ingest_document_ids", None)
         self.fmask = config.get("file_mask", None)
         self.input_data_path = config.get("input_data_path", None)
-        _args_keys = config.keys()
-        if "first_epoch" in _args_keys and "last_epoch" in _args_keys:
+        if "start_epoch" in config and "end_epoch" in config:
             self.first_last_params = {
-                "first_epoch": _args_keys["first_epoch"],
-                "last_epoch": _args_keys["last_epoch"],
+                "first_epoch": config["start_epoch"],
+                "last_epoch": config["end_epoch"],
             }
         else:
             self.first_last_params = {}

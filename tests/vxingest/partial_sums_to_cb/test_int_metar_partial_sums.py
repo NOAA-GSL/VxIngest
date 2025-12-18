@@ -263,8 +263,8 @@ def test_ps_builder_surface_hrrr_ops_all_hrrr():
         "file_mask": "",
         "output_dir": str(outdir),
         "file_pattern": "",
-        "first_epoch": latest_epoch,
-        "last_epoch": latest_epoch,
+        "start_epoch": latest_epoch,
+        "end_epoch": latest_epoch,
         "threads": 1,
     }
 
@@ -348,8 +348,8 @@ def test_ps_builder_surface_mpas_physics_dev1_all_hrrr():
         "file_mask": "",
         "output_dir": str(outdir),
         "file_pattern": "",
-        "first_epoch": latest_epoch,
-        "last_epoch": latest_epoch,
+        "start_epoch": latest_epoch,
+        "end_epoch": latest_epoch,
         "threads": 1,
     }
 

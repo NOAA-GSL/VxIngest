@@ -193,7 +193,7 @@ class VXIngest(CommonVxIngest):
         self.thread_count = config.get("threads", 1)
         self.output_dir = config.get("output_dir", "/tmp").strip()
         self.job_document_id = config.get("job_id", None)
-        self.file_pattern = config.get("file_pattern","*").strip()
+        self.file_pattern = config.get("file_pattern", "*").strip()
         self.ingest_document_ids = config.get("ingest_document_ids", None)
         self.fmask = config.get("file_mask", None)
         self.input_data_path = config.get("input_data_path", None)
@@ -277,7 +277,11 @@ class VXIngest(CommonVxIngest):
         # the file_pattern and the file_mask
 
         file_names = self.get_file_list(
-            file_query, self.input_data_path, self.file_pattern, self.fmask, self.first_last_params
+            file_query,
+            self.input_data_path,
+            self.file_pattern,
+            self.fmask,
+            self.first_last_params,
         )
         if len(file_names) == 0:
             logger.info("No files to process...exiting")

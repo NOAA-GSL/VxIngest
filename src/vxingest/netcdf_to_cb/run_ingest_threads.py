@@ -195,7 +195,6 @@ class VXIngest(CommonVxIngest):
         # stash the first_last_params into the load spec
         self.load_spec["first_last_params"] = self.first_last_params
 
-
         try:
             # put the real credentials into the load_spec
             logger.info("getting cb_credentials")
@@ -256,7 +255,11 @@ class VXIngest(CommonVxIngest):
             """
         # file_pattern is a glob string not a python file match string
         file_names = self.get_file_list(
-            file_query, self.input_data_path, self.file_pattern, self.fmask, self.first_last_params
+            file_query,
+            self.input_data_path,
+            self.file_pattern,
+            self.fmask,
+            self.first_last_params,
         )
         for _f in file_names:
             _q.put(_f)

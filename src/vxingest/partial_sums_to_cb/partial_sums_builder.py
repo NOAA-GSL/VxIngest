@@ -346,9 +346,15 @@ class PartialSumsBuilder(Builder):
                     logger.info("Looking up model document: %s", fve["id"])
                     try:
                         # Use a singleton to avoid redundant gets for the same model doc
-                        if not hasattr(self, "_model_doc_singleton") or self._model_doc_singleton.get("id") != fve["id"]:
+                        if (
+                            not hasattr(self, "_model_doc_singleton")
+                            or self._model_doc_singleton.get("id") != fve["id"]
+                        ):
                             _model_doc = self.load_spec["collection"].get(fve["id"])
-                            self._model_doc_singleton = {"id": fve["id"], "doc": _model_doc}
+                            self._model_doc_singleton = {
+                                "id": fve["id"],
+                                "doc": _model_doc,
+                            }
                         else:
                             _model_doc = self._model_doc_singleton["doc"]
                         self.model_data = _model_doc.content_as[dict]
@@ -385,9 +391,15 @@ class PartialSumsBuilder(Builder):
                             or (_obs_data["id"] != obs_id)
                             or not self.obs_data
                         ):
-                            if not hasattr(self, "_obs_doc_singleton") or self._obs_doc_singleton.get("id") != obs_id:
+                            if (
+                                not hasattr(self, "_obs_doc_singleton")
+                                or self._obs_doc_singleton.get("id") != obs_id
+                            ):
                                 _obs_doc = self.load_spec["collection"].get(obs_id)
-                                self._obs_doc_singleton = {"id": obs_id, "doc": _obs_doc}
+                                self._obs_doc_singleton = {
+                                    "id": obs_id,
+                                    "doc": _obs_doc,
+                                }
                             else:
                                 _obs_doc = self._obs_doc_singleton["doc"]
                             _obs_data = _obs_doc.content_as[dict]
@@ -524,12 +536,15 @@ class PartialSumsBuilder(Builder):
             # get the model fcstValidEpochs (models don't have regions) that are > the last ctc epoch
             # for the lower boundary use the max ctc fcstValidEpoch or the first_epoch from first_last_params if
             # there is a first_last_params. Let the first_last_params override the max ctc epoch.
-            if "first_last_params" in self.load_spec and "first_epoch" in self.load_spec["first_last_params"]:
-                    min_valid_epochs = self.load_spec["first_last_params"]["first_epoch"]
-                    max_valid_epochs = self.load_spec["first_last_params"]["last_epoch"]
+            if (
+                "first_last_params" in self.load_spec
+                and "first_epoch" in self.load_spec["first_last_params"]
+            ):
+                min_valid_epochs = self.load_spec["first_last_params"]["first_epoch"]
+                max_valid_epochs = self.load_spec["first_last_params"]["last_epoch"]
             else:
-                    min_valid_epochs = max_partialsums_fcst_valid_epochs
-                    max_valid_epochs = sys.maxsize
+                min_valid_epochs = max_partialsums_fcst_valid_epochs
+                max_valid_epochs = sys.maxsize
             error_count = 0
             success = False
             while error_count < 3 and success is False:

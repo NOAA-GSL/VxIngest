@@ -96,6 +96,7 @@ def test_one_thread_specify_file_pattern_netcdf_job_spec_rt(tmp_path: Path):
         # Restore original sys.argv
         sys.argv = original_argv
 
+
 @pytest.mark.integration
 def test_one_thread_specify_file_pattern_netcdf_job_spec_rt_start_end(tmp_path: Path):
     # Save original sys.argv
@@ -210,6 +211,7 @@ def test_one_thread_specify_file_pattern_grib2_job_spec_rt(tmp_path: Path):
         # Restore original sys.argv
         sys.argv = original_argv
 
+
 @pytest.mark.integration
 def test_one_thread_specify_file_pattern_grib2_job_spec_rt_start_end(tmp_path: Path):
     # Save original sys.argv
@@ -249,6 +251,7 @@ def test_one_thread_specify_file_pattern_grib2_job_spec_rt_start_end(tmp_path: P
     finally:
         # Restore original sys.argv
         sys.argv = original_argv
+
 
 @pytest.mark.integration
 def test_one_thread_specify_file_pattern_grib2_retro_job_spec_rt(tmp_path: Path):

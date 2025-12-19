@@ -116,6 +116,22 @@ def parse_args(args):
         default="/tmp",
         help="Specify the output directory to put the json output files",
     )
+    parser.add_argument(
+        "-s",
+        "--start_epoch",
+        type=int,
+        required=False,
+        default=0,
+        help="The first epoch to process jobs for, inclusive.",
+    )
+    parser.add_argument(
+        "-e",
+        "--end_epoch",
+        type=int,
+        required=False,
+        default=sys.maxsize,
+        help="The last epoch to process jobs for, exclusive.",
+    )
     # get the command line arguments
     args = parser.parse_args(args)
     return args
@@ -167,6 +183,17 @@ class VXIngest(CommonVxIngest):
         self.ingest_document_ids = config.get("ingest_document_ids", None)
         self.fmask = config.get("file_mask", None)
         self.input_data_path = config.get("input_data_path", None)
+        if "start_epoch" in config and "end_epoch" in config:
+            self.first_last_params = {
+                "first_epoch": config["start_epoch"],
+                "last_epoch": config["end_epoch"],
+            }
+        else:
+            self.first_last_params = {}
+            self.first_last_params["first_epoch"] = 0
+            self.first_last_params["last_epoch"] = sys.maxsize
+        # stash the first_last_params into the load spec
+        self.load_spec["first_last_params"] = self.first_last_params
 
         try:
             # put the real credentials into the load_spec
@@ -228,7 +255,11 @@ class VXIngest(CommonVxIngest):
             """
         # file_pattern is a glob string not a python file match string
         file_names = self.get_file_list(
-            file_query, self.input_data_path, self.file_pattern, self.fmask
+            file_query,
+            self.input_data_path,
+            self.file_pattern,
+            self.fmask,
+            self.first_last_params,
         )
         for _f in file_names:
             _q.put(_f)

@@ -177,7 +177,9 @@ class CommonVxIngest:
                 "*** builder_common.CommonVxIngest Error when connecting to cb database: "
             )
 
-    def get_file_list(self, df_query, directory, file_pattern, file_mask):
+    def get_file_list(
+        self, df_query, directory, file_pattern, file_mask, first_last_params=None
+    ):
         """This method accepts a file path (directory), a query statement (df_query),
         a file pattern (file_pattern), and a file mask (file_mask). It uses the df_query statement to retrieve a
         list of file {url:file_url, mtime:mtime} records from DataFile
@@ -238,6 +240,24 @@ class CommonVxIngest:
                                 # it will throw a ValueError if it doesn't match
                                 # the file_mask is applied to the filename only - not the pat
                                 _dt = dt.datetime.strptime(filename.name, file_mask)
+                                # if we get here then the file matched the mask
+                                # check to see if this file is in the first_latst_params range
+                                if first_last_params:
+                                    first_epoch = first_last_params.get(
+                                        "first_epoch", 0
+                                    )
+                                    last_epoch = first_last_params.get(
+                                        "last_epoch", sys.maxsize
+                                    )
+                                    file_epoch = int(_dt.timestamp())
+                                    if (
+                                        file_epoch < first_epoch
+                                        or file_epoch > last_epoch
+                                    ):
+                                        continue
+                            else:
+                                # no file mask so just accept the file
+                                pass
                         except ValueError:
                             continue
                         # check to see if this file has already been ingested

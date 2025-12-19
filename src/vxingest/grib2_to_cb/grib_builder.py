@@ -552,8 +552,9 @@ class GribModelBuilderV01(GribBuilder):
         Returns:
             string: iso time
         """
-        return dt.datetime.utcfromtimestamp(
-            (int)(self.ds_translate_item_variables_map["fcst_valid_epoch"])
+        return dt.datetime.fromtimestamp(
+            int(self.ds_translate_item_variables_map["fcst_valid_epoch"]),
+            tz=dt.timezone.utc,
         ).isoformat()
 
     def handle_fcst_len(self, params_dict):

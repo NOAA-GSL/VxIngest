@@ -252,7 +252,7 @@ def calculate_cb_ctc(
     _scope = yaml_data["cb_scope"]
 
     timeout_options = ClusterTimeoutOptions(
-        kv_timeout=timedelta(seconds=125), query_timeout=timedelta(seconds=120)
+        kv_timeout=timedelta(seconds=300), query_timeout=timedelta(seconds=120)
     )
     options = ClusterOptions(
         PasswordAuthenticator(_user, _password), timeout_options=timeout_options
@@ -283,7 +283,7 @@ def calculate_cb_ctc(
     try:
         full_model_data = (
             load_spec["collection"]
-            .get(model_id, GetOptions(timeout=timedelta(seconds=120)))
+            .get(model_id, GetOptions(timeout=timedelta(seconds=300)))
             .content_as[dict]
         )
     except Exception:
@@ -294,7 +294,7 @@ def calculate_cb_ctc(
         # Increase timeout for get operation
         full_obs_data = (
             load_spec["collection"]
-            .get(obs_id, GetOptions(timeout=timedelta(seconds=120)))
+            .get(obs_id, GetOptions(timeout=timedelta(seconds=300)))
             .content_as[dict]
         )
     except Exception:
@@ -395,8 +395,8 @@ def test_ctc_builder_ceiling_hrrr_ops_all_hrrr():
             "file_mask": "",
             "output_dir": str(outdir),
             "file_pattern": "",
-            "first_epoch": latest_epoch,
-            "last_epoch": latest_epoch,
+            "start_epoch": latest_epoch,
+            "end_epoch": latest_epoch,
             "threads": 1,
         }
         vx_ingest.runit(
@@ -501,8 +501,8 @@ def test_ctc_builder_ceiling_MPAS_physics_dev1_all_hrrr():
             "file_mask": "",
             "output_dir": str(outdir),
             "file_pattern": "",
-            "first_epoch": latest_epoch,
-            "last_epoch": latest_epoch,
+            "start_epoch": latest_epoch,
+            "end_epoch": latest_epoch,
             "threads": 1,
         }
         vx_ingest.runit(
@@ -610,8 +610,8 @@ def test_ctc_builder_visibility_hrrr_ops_all_hrrr():
             "file_mask": "",
             "output_dir": str(outdir),
             "file_pattern": "",
-            "first_epoch": latest_epoch,
-            "last_epoch": latest_epoch,
+            "start_epoch": latest_epoch,
+            "end_epoch": latest_epoch,
             "threads": 1,
         }
         vx_ingest.runit(

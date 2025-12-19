@@ -136,7 +136,7 @@ def process_cli():
         type=int,
         required=False,
         default=0,
-        help="The first epoch to process jobs for, inclusive. Only valid for CTC & SUM jobs",
+        help="The first epoch to process jobs for, inclusive.",
     )
     parser.add_argument(
         "-e",
@@ -144,7 +144,7 @@ def process_cli():
         type=int,
         required=False,
         default=sys.maxsize,
-        help="The last epoch to process jobs for, exclusive. Only valid for CTC & SUM jobs",
+        help="The last epoch to process jobs for, exclusive.",
     )
     parser.add_argument(
         "-f",
@@ -513,8 +513,8 @@ def process_run_configurations(
             "ingest_document_ids": ingest_document_ids,
             "output_dir": str(output_dir),
             "threads": args.threads,
-            "first_epoch": args.start_epoch,  # TODO - this arg is only supported in the CTC & SUM builders
-            "last_epoch": args.end_epoch,  # TODO - this arg is only supported in the grib & netcdf builders
+            "start_epoch": args.start_epoch,
+            "end_epoch": args.end_epoch,
         }
         proc_succeeded = False
         match proc["subType"]:

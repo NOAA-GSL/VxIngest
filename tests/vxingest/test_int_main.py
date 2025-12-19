@@ -98,6 +98,47 @@ def test_one_thread_specify_file_pattern_netcdf_job_spec_rt(tmp_path: Path):
 
 
 @pytest.mark.integration
+def test_one_thread_specify_file_pattern_netcdf_job_spec_rt_start_end(tmp_path: Path):
+    # Save original sys.argv
+    original_argv = sys.argv.copy()
+    job_id = "JS:METAR:OBS:NETCDF-TEST:schedule:job:V01"
+    # need these args
+    sys.argv = [
+        "run_ingest",
+        "-j",
+        job_id,
+        "-c",
+        os.environ["CREDENTIALS"],
+        "-m",
+        str(tmp_path / "metrics"),
+        "-o",
+        str(tmp_path / "output"),
+        "-x",
+        str(tmp_path / "transfer"),
+        "-l",
+        str(tmp_path / "logs"),
+        "-f",
+        "2021110*",
+        "-s",
+        "1636174800",
+        "-e",
+        "1636174800",
+        "-t",
+        "1",
+    ]
+    try:
+        vx_ingest = setup_connection(VXIngest_netcdf())
+        initial_success_count = prom_successes._value.get()
+        run_ingest()
+        check_output(tmp_path, vx_ingest, 1, initial_success_count + 1)
+    except Exception as e:
+        pytest.fail(f"Test failed with exception {e}")
+    finally:
+        # Restore original sys.argv
+        sys.argv = original_argv
+
+
+@pytest.mark.integration
 def test_one_thread_specify_file_pattern_netcdf_job_spec_type_job(tmp_path: Path):
     # Save original sys.argv
     original_argv = sys.argv.copy()
@@ -156,6 +197,47 @@ def test_one_thread_specify_file_pattern_grib2_job_spec_rt(tmp_path: Path):
         str(tmp_path / "logs"),
         "-f",
         "21287230000[0123456789]?",
+        "-t",
+        "1",
+    ]
+    try:
+        vx_ingest = setup_connection(VXIngest_grib2())
+        initial_success_count = prom_successes._value.get()
+        run_ingest()
+        check_output(tmp_path, vx_ingest, 3, initial_success_count + 1)
+    except Exception as e:
+        pytest.fail(f"Test failed with exception {e}")
+    finally:
+        # Restore original sys.argv
+        sys.argv = original_argv
+
+
+@pytest.mark.integration
+def test_one_thread_specify_file_pattern_grib2_job_spec_rt_start_end(tmp_path: Path):
+    # Save original sys.argv
+    original_argv = sys.argv.copy()
+    job_id = "JS:METAR:MODEL:GRIB2-TEST:schedule:job:V01"
+    # need these args
+    sys.argv = [
+        "run_ingest",
+        "-j",
+        job_id,
+        "-c",
+        os.environ["CREDENTIALS"],
+        "-m",
+        str(tmp_path / "metrics"),
+        "-o",
+        str(tmp_path / "output"),
+        "-x",
+        str(tmp_path / "transfer"),
+        "-l",
+        str(tmp_path / "logs"),
+        "-f",
+        "212*",
+        "-s",
+        "1634274000",
+        "-e",
+        "1634274000",
         "-t",
         "1",
     ]
@@ -459,7 +541,7 @@ def check_output(tmp_path, vx_ingest, file_count, success_count=1):
                 f"Expected {file_count + 3} files in the tar archive but found {numFiles} - {names}"
             )  # including log file, LJ file, and directory
             # Extract all files to the results directory
-            tar.extractall(path=tmp_path / "results")
+            tar.extractall(path=tmp_path / "results", filter="tar")
             # get one of the json files and check its contents
             json_files = [n for n in names if n.endswith(".json") and "LJ:" not in n]
             assert len(json_files) == file_count

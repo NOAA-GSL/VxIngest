@@ -255,6 +255,9 @@ class CommonVxIngest:
                                         or file_epoch > last_epoch
                                     ):
                                         continue
+                            else:
+                                # no file mask so just accept the file
+                                pass
                         except ValueError:
                             continue
                         # check to see if this file has already been ingested

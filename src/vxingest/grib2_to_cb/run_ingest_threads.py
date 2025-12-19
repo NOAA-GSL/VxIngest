@@ -277,7 +277,7 @@ class VXIngest(CommonVxIngest):
         # the file_pattern and the file_mask
 
         file_names = self.get_file_list(
-            file_query, self.input_data_path, self.file_pattern, self.fmask
+            file_query, self.input_data_path, self.file_pattern, self.fmask, self.first_last_params
         )
         if len(file_names) == 0:
             logger.info("No files to process...exiting")

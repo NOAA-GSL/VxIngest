@@ -256,7 +256,7 @@ class VXIngest(CommonVxIngest):
             """
         # file_pattern is a glob string not a python file match string
         file_names = self.get_file_list(
-            file_query, self.input_data_path, self.file_pattern, self.fmask
+            file_query, self.input_data_path, self.file_pattern, self.fmask, self.first_last_params
         )
         for _f in file_names:
             _q.put(_f)

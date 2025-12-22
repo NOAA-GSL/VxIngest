@@ -19,7 +19,7 @@ from pstats import Stats
 import couchbase.subdocument as SD
 import netCDF4 as nc
 import numpy.ma as ma
-from metpy.calc import relative_humidity_from_dewpoint, wind_components
+from metpy.calc import altimeter_to_station_pressure, relative_humidity_from_dewpoint, wind_components
 from metpy.units import units
 
 from vxingest.builder_common.builder import Builder
@@ -1153,6 +1153,7 @@ class NetcdfBuilder(Builder):
         """Retrieves a pressure value and converts it to millibars from pascals
         Args:
             params_dict (dict): named function parameters
+                A single-element dict, where value is name of netcdf pressure variable
         Returns:
             float: the pressure in millibars
         """
@@ -1162,6 +1163,44 @@ class NetcdfBuilder(Builder):
                 # convert to millibars (from pascals) and round
                 value = float(value) / 100
             return value
+        except Exception as _e:
+            logger.error(
+                "%s handle_pressure: Exception in named function:  error: %s",
+                self.__class__.__name__,
+                str(_e),
+            )
+            return None
+    
+    def handle_altimeter_pressure(self, params_dict):
+        """Retrieves a METAR altimeter value and converts it to surface pressure in millibars,
+            using metpy altimter_to_station_pressure function.
+        Args:
+            params_dict (dict): netcdf variable names for altimeter and elevation
+        Returns:
+            float: the pressure in millibars
+        """
+        try:
+            _altimeter = self.retrieve_from_netcdf(
+                {
+                    "base_var_index": params_dict["base_var_index"],
+                    "altimeter": params_dict["altimeter"],
+                }
+            )
+            _elevation = self.retrieve_from_netcdf(
+                {
+                    "base_var_index": params_dict["base_var_index"],
+                    "elevation": params_dict["elevation"],
+                }
+            )
+            if _altimeter is None or _elevation is None:
+                return None
+
+            # convert altimeter pressure to from Pa to mb & assign units for metpy calc
+            _altimeter_mb = float(_altimeter) / 100 * units.mbar 
+            _elevation_m = _elevation * units.m
+            _station_pressure_mb = altimeter_to_station_pressure(_altimeter_mb, _elevation_m)
+            return _station_pressure_mb
+        
         except Exception as _e:
             logger.error(
                 "%s handle_pressure: Exception in named function:  error: %s",

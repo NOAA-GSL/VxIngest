@@ -121,7 +121,7 @@ func AltimeterToStationPressure(altimeterValueHpa, heightMeters float64) float64
 	// Constants
 	const (
 		p0    = 1013.25  // standard sea-level pressure in hPa
-		t0    = 288.0    // standard sea-level temperature in K
+		t0    = 288.15    // standard sea-level temperature in K
 		gamma = 0.0065   // lapse rate in K/m
 		Rd    = 287.05   // gas constant for dry air in J/(kg·K)
 		g     = 9.80665  // gravity in m/s^2

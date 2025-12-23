@@ -1198,7 +1198,7 @@ class NetcdfBuilder(Builder):
             # convert altimeter pressure to from Pa to mb & assign units for metpy calc
             _altimeter_mb = float(_altimeter) / 100 * units.mbar 
             _elevation_m = _elevation * units.m
-            _station_pressure_mb = altimeter_to_station_pressure(_altimeter_mb, _elevation_m)
+            _station_pressure_mb = altimeter_to_station_pressure(_altimeter_mb, _elevation_m).magnitude
             return _station_pressure_mb
         
         except Exception as _e:

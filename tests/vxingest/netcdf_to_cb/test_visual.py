@@ -1,4 +1,5 @@
 import datetime as dt
+import json
 import os
 import pathlib
 import sys
@@ -11,6 +12,8 @@ from couchbase.auth import PasswordAuthenticator
 from couchbase.cluster import Cluster
 from couchbase.options import ClusterOptions, ClusterTimeoutOptions
 from plotly.subplots import make_subplots
+
+from vxingest.main import connect_cb, get_credentials
 
 """
     _summary_
@@ -129,3 +132,52 @@ def test_int_tropoe_visual():
     finally:
         cluster.close()
         print("Connection closed")
+
+
+def test_int_metar_surface_pressure_visual():
+    doc_id = 'DD:V01:METAR:obs:1638266400'
+    
+    # establish connection
+    credentials_file = os.environ["CREDENTIALS"]
+    if not pathlib.Path(credentials_file).is_file():
+        pytest.fail(
+            "*** credentials_file file " + credentials_file + " can not be found!"
+        )
+    creds = get_credentials(pathlib.Path(credentials_file))
+    cluster = connect_cb(creds)
+
+    # get obs doc
+    # and make a dict of surface pressure by station
+    collection = cluster.bucket('vxdata').collection('METAR')
+    try:
+        get_doc_result = collection.get(doc_id)
+    except Exception as _e:
+        pytest.fail(
+            "*** Failed to retrieve doc " + doc_id
+        )
+    obs = get_doc_result.value
+    press_dict = {sta:obs['data'][sta]['Surface Pressure'] for sta in obs['data']}
+
+    # we need elevation from metar station metadata:
+    #   query the metadata docs, convert the result to list, make dict of elev by station
+    # note that we are using the most recent station elevation, which may not be appropriate 
+    #   depending on when the data doc is from
+    metar_geo = cluster.query(
+        'SELECT METAR.name, METAR.geo FROM `vxdata`.`_default`.`METAR` ' \
+        'WHERE type="MD" AND version="V01" AND subset="METAR" AND docType="station"')   
+
+    metar_geo_list = [row for row in metar_geo.rows()]
+    elev_dict = {sta['name']:sta['geo'][-1]['elev'] for sta in metar_geo_list}
+
+
+    # prepare to plot
+    stations_to_plot = [sta for sta in press_dict if (press_dict[sta] and elev_dict[sta]<9000)]
+    press_list = [press_dict[sta] for sta in stations_to_plot]
+    elev_list = [elev_dict[sta] for sta in stations_to_plot]  
+
+    fig = go.Figure(data=go.Scatter(x=elev_list, y=press_list, mode='markers', text=stations_to_plot),
+                    layout=dict(title=dict(text=doc_id)))
+    fig.update_xaxes(title_text="Station elevation (m)")
+    fig.update_yaxes(title_text="Station surface pressure (mb)")        
+    fig.show()     
+                    

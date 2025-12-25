@@ -135,6 +135,12 @@ def test_int_tropoe_visual():
 
 
 def test_int_metar_surface_pressure_visual():
+    """
+    This test will retrieves a metar observation doc (hard-coded as doc_id) from the couchbase database and then
+    plots the surface pressure from all stations vs station elevation, as a sanity check for surface pressure values.
+    
+    The plot will be displayed on the local browser.
+    """
     doc_id = 'DD:V01:METAR:obs:1638266400'
     
     # establish connection

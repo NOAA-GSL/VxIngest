@@ -1171,13 +1171,15 @@ class NetcdfBuilder(Builder):
             )
             return None
     
-    def handle_altimeter_pressure(self, params_dict):
+    def handle_altimeter_pressure(self, params_dict, use_metpy_func=False):
         """Retrieves a METAR altimeter value and converts it to surface pressure in millibars,
-            using metpy altimter_to_station_pressure function.
+            using the MADIS calculation (per m_altprs.f)
         Args:
             params_dict (dict): netcdf variable names for altimeter and elevation
+            use_metpy_func (bool, default False): to be used for testing
+                Performs the conversion using metpy's altimeter_to_station_pressure()
         Returns:
-            float: the pressure in millibars
+            float : the pressure in millibars
         """
         try:
             _altimeter = self.retrieve_from_netcdf(
@@ -1195,11 +1197,29 @@ class NetcdfBuilder(Builder):
             if _altimeter is None or _elevation is None:
                 return None
 
-            # convert altimeter pressure to from Pa to mb & assign units for metpy calc
-            _altimeter_mb = float(_altimeter) / 100 * units.mbar 
-            _elevation_m = _elevation * units.m
-            _station_pressure_mb = altimeter_to_station_pressure(_altimeter_mb, _elevation_m).magnitude
-            return _station_pressure_mb
+            if use_metpy_func:
+                # convert altimeter pressure to from Pa to mb & assign units for metpy calc
+                altimeter_mb = float(_altimeter) / 100 * units.mbar 
+                elevation_m = _elevation * units.m
+                station_pressure_mb = altimeter_to_station_pressure(altimeter_mb, elevation_m).magnitude
+            
+            else:
+                #constants
+                const = 0.190284    # R * gamma_std / g
+                mslp = 1013.25      # sea-level pressure for std atmosphere (mb)
+                lapse = 0.0065      # std atmos lapse rate = 6.5 K / 1000 m
+                t_std = 288.15      # temperature at sea-level in std atmos (K)
+                exp = 1/const
+                height_adj = 0.3    # pressure diff to account for 3-m height of 
+                                    #   altimeter above runway (mb)                
+
+                altimeter_mb = float(_altimeter) / 100
+                elevation_m = float(_elevation)
+
+                factor = (mslp/altimeter_mb)**const
+                station_pressure_mb = altimeter_mb * (1-(lapse*elevation_m*factor/t_std))**exp + height_adj
+            
+            return station_pressure_mb
         
         except Exception as _e:
             logger.error(

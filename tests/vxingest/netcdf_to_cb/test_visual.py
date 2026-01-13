@@ -133,6 +133,7 @@ def test_int_tropoe_visual():
         cluster.close()
         print("Connection closed")
 
+
 @pytest.mark.integration
 def test_int_metar_surface_pressure_visual():
     """

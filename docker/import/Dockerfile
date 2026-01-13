@@ -1,7 +1,7 @@
 # syntax = docker/dockerfile:1.2
 
 # The import image, used for running just the import script
-FROM debian:bookworm-slim AS import
+FROM debian:trixie-slim AS import
 
 ARG COMMITBRANCH=development
 ARG COMMITSHA=unspecified

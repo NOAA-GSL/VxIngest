@@ -110,6 +110,7 @@ func GetConnection(credentials Credentials) (*gocb.Cluster, error) {
 // Station pressure is the atmospheric pressure at the designated station elevation.
 // Finding the station pressure can be helpful for calculating sea-level pressure
 // or other parameters.
+// There is an assumed surface level adjustment (from MADIS - stan benjamin et al) of 0.3 hPa.
 // Parameters:
 //   - altimeterValue: The altimeter setting in hectopascals (hPa), typically reported by weather stations.
 //   - height: The elevation of the station above mean sea level in meters.

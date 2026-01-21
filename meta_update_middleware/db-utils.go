@@ -37,6 +37,9 @@ func getDbConnection(cred Credentials) (conn CbConnection) {
 			Username: username,
 			Password: password,
 		},
+		TimeoutsConfig: gocb.TimeoutsConfig{
+			QueryTimeout: 2400 * time.Second,
+		},
 	}
 
 	cluster, err := gocb.Connect(connectionString, options)

@@ -275,7 +275,9 @@ class CommonVxIngestManager(Process):
             else:
                 Path(self.output_dir).mkdir(parents=True, exist_ok=True)
                 try:
-                    file_name = Path(file_name).name + ".json"
+                    # replace any os separator in the file name with an underscore to avoid directory issues
+                    # but still keep the original file name structure as much as possible
+                    file_name = file_name.replace(os.sep, "__") + ".json"
                     complete_file_name = Path(self.output_dir) / file_name
                     # how many documents are we writing? Log it for alert
                     num_documents = len(list(document_map.values()))

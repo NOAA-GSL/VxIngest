@@ -25,12 +25,33 @@ COPY third_party/NCEPLIBS-bufr/wheel_dist ./third_party/NCEPLIBS-bufr/wheel_dist
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv sync --locked --no-install-project
+    uv sync --locked --no-install-project --no-dev
 
 # Install the app
 COPY . /app
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked
+
+# The dev image, used for testing
+FROM builder AS dev
+# Use like the following:
+# docker build --target=dev -f Dockerfile -t vxingest:dev .
+# docker run --rm --mount type=bind,src=$(pwd)/tmp/test-data/opt/data,dst=/opt/data -it vxingest:dev bash
+# uv run pytest tests
+
+COPY . /app/
+
+# Have uv install dev dependencies
+ENV UV_NO_DEV=0
+
+# Set up Python environment
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    uv sync --locked --no-install-project
+
+# Place executables in the environment at the front of the path
+ENV PATH="/app/.venv/bin:$PATH"
 
 # The runtime image, used for running just the application with its dependencies
 FROM python:3.13-slim-trixie AS prod

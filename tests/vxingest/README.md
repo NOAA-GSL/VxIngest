@@ -8,24 +8,24 @@ You need credential files in your home directory which can be retrieved (if you 
 
 ## Running tests
 
-Use Poetry to run your tests. Make sure your virtual environment is setup with `poetry install`
+Use uv to run your tests. Make sure your virtual environment is setup with `uv sync --locked`
 
 ```shell
-CREDENTIALS=config.yaml poetry run pytest tests
+CREDENTIALS=config.yaml uv run pytest tests
 ```
 
 You can specify certain directories to limit which tests are run.
 
 ```shell
-CREDENTIALS=config.yaml poetry run pytest tests/vxingest/ctc_to_cb
+CREDENTIALS=config.yaml uv run pytest tests/vxingest/ctc_to_cb
 ```
 
 You can create a coverage report with:
 
 ```shell
-CREDENTIALS=config.yaml poetry run coverage run -m pytest tests
-poetry run coverage report
-poetry run coverage html
+CREDENTIALS=config.yaml uv run coverage run -m pytest tests
+uv run coverage report
+uv run coverage html
 ```
 
 Then open `./htmlcov/index.html` in your browser for a detailed dive into what lines were run by the test suite.
@@ -33,7 +33,7 @@ Then open `./htmlcov/index.html` in your browser for a detailed dive into what l
 Lastly, you can disable tests that require external resources (database connections & raw data files) like so:
 
 ```shell
-CREDENTIALS=config.yaml poetry run pytest -m "not integration" tests
+CREDENTIALS=config.yaml uv run pytest -m "not integration" tests
 ```
 
 Note that this currently (as of 1/2024) disables most of the tests.

@@ -956,7 +956,7 @@ class CTCModelObsBuilderV01(CTCBuilder):
             string: ISO time string
         """
         return dt.datetime.fromtimestamp(
-            self.model_data["fcstValidEpoch"], tz=dt.timezone.utc
+            self.model_data["fcstValidEpoch"], tz=dt.UTC
         ).isoformat()
 
     def handle_fcst_len(self, params_dict):

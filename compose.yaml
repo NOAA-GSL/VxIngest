@@ -24,7 +24,7 @@ services:
       - CREDENTIALS_FILE
     environment:
     - CREDENTIALS=/run/secrets/CREDENTIALS_FILE
-    command: poetry run pytest tests
+    command: uv run pytest tests
   # FIXME - add a way to specify unit & integration tests
   ingest:
     image: ghcr.io/noaa-gsl/vxingest/ingest:main

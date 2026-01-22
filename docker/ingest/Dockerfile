@@ -57,7 +57,7 @@ RUN groupadd --gid ${ID} ${USERNAME} && \
     useradd --shell /bin/bash --create-home --uid ${ID} --gid ${ID} ${USERNAME}
 
 # Update the image's built in Python tooling before we activate the virtual environment
-RUN pip install --no-cache-dir --upgrade pip setuptools
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
 # Run OS updates
 RUN apt-get update && apt-get upgrade -y && \

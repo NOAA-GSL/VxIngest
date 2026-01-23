@@ -13,6 +13,8 @@ import sys
 from pathlib import Path
 
 import numpy as np
+from metpy.calc import virtual_temperature_from_dewpoint
+from metpy.units import units
 
 from vxingest.builder_common.builder_utilities import get_geo_index
 from vxingest.grib2_to_cb.grib_builder_parent import GribBuilder
@@ -226,14 +228,99 @@ class GribModelBuilderV01(GribBuilder):
     def handle_surface_pressure(self, params_dict):
         """
         translate all the pressures(one per station location) to millibars
+        This is a straight interpolation of surface pressure from the nearest grid points
         """
         pressures = []
         for _v, v_intrp_pressure in list(params_dict.values())[0]:
             # Convert from pascals to millibars
             pressures.append(float(v_intrp_pressure) / 100)
         return pressures
+    
+    def get_normalized_surface_pressure(self, params_dict):
+        """
+        Compute surface (2 m) pressure at station locations, adjusted for station elevation by using hypsometric equation to 
+        extrapolate from interpolated pressure and elevation to documented station elevation
 
-        # Visibility - convert to float
+        Inputs needed:
+        - Model elevation, z0 -- interpolated
+        - Station elevation, z -- from station metadata
+        - Model surface pressure, P0 -- interpolated
+        - Model 2m temperature, T -- interpolated
+        - Model 2m dewpoint, Td -- interpolated
+
+        Hypsometric Equation Transformed to find Pressure
+        P=P0*EXP(-g(z-z0)/R*T)
+        Vapor Pressure (Ambaum, 2020)
+        Virtual Temperature (Hobbs, 2006)
+
+        Use metpy to get virtual temperature
+        
+        :param params_dict: should have: surface pressure
+        :return: List of pressure values corresponding to stations list
+        :rtype: List of floats
+        """
+        norm_pressure_list = []
+
+        # For all the input vars, they could be pulled from multiple sources
+        #  1. grab from what's already been added to the doc/template (this will already be inpterpolated,
+        #       but units may want to be reverted) --- not sure how to retrieve this (and if currently possible
+        #       or would need some other code revisions)
+        #  2. pass as params in the doc, which will use self.translate_template_item() to interpolate and pass
+        #       as params to this method
+        #  3. call self.ds_translate_item_variables_map[var] and interpolate directly in this method --- may
+        #       need to add more vars to the map
+        #
+        # For now, I think #3 will be the simplest to implement, but should consider other options for future to
+        #   be cleanest and most efficient. (#2 and #3 will be doing some redundant work)
+
+        # update var_names with the actual var names
+        P0_var = 'pressure'
+        T_var = '2 metre temperature'
+        Td_var = '2 metre dewpoint'
+        z0_var = 'elevation'
+
+        var_names = [P0_var, T_var, Td_var, z0_var]
+        values = {}
+        interp_values = {}
+        # example of how to get the var values...
+        for var_name in var_names:
+            values[var_name] = self.ds_translate_item_variables_map[var_name].values
+            interp_values[var_name] = []
+
+        station_elev_list = []
+
+        for station in self.domain_stations:
+            geo_index = get_geo_index(
+                self.ds_translate_item_variables_map["fcst_valid_epoch"], station["geo"]
+            )
+            x_gridpoint = station["geo"][geo_index]["x_gridpoint"]
+            y_gridpoint = station["geo"][geo_index]["y_gridpoint"]
+            for var_name in var_names:
+                interp_values[var_name].append(
+                    (float)(self.interp_grid_box(values[var_name], y_gridpoint, x_gridpoint))
+                )
+            # get station elev
+            station_elev_list.append(0)   
+
+        # need to do any unit conversion?     
+        R = 287     # gas constant for dry air, J/(kg*K)
+        g = 9.81    # gravity constant, m/s
+        
+        for (P0, T, Td, z, z0) in zip(interp_values[P0_var],
+                                      interp_values[T_var],
+                                      interp_values[Td_var],
+                                      station_elev_list,
+                                      interp_values[z0_var]):
+            # need to check units on below
+            Tv = virtual_temperature_from_dewpoint(pressure=P0*units.hPa,
+                                                temperature=T*units.degK,
+                                                dewpoint=Td*units.degK).magnitude
+            P = ((P0*100)**(-(g*(z-z0))/(R*Tv)))/100
+            #norm_pressure = ((pressure*100)**(-(g*(sta_elev-mod_elev))/(R*Tv)))/100
+            norm_pressure_list.append(P)
+
+        return norm_pressure_list
+
 
     def handle_visibility(self, params_dict):
         """translate visibility variable
@@ -248,10 +335,8 @@ class GribModelBuilderV01(GribBuilder):
             vis_values.append(float(_v) / 1609.344 if _v is not None else None)
         return vis_values
 
-        # relative humidity - convert to float
-
     def handle_RH(self, params_dict):
-        """translate relative humidity variable
+        """translate relative humidity variable: convert to float
         Args:
             params_dict (dict): named function parameters
         Returns:
@@ -279,8 +364,6 @@ class GribModelBuilderV01(GribBuilder):
                 else None
             )
         return tempf_values
-
-        # WIND SPEED
 
     def handle_wind_speed(self, params_dict):
         """The params_dict aren't used here since we need to
@@ -332,8 +415,6 @@ class GribModelBuilderV01(GribBuilder):
             ws_ms = math.sqrt((uwind_ms * uwind_ms) + (vwind_ms * vwind_ms))
             ws_mph.append((float)((ws_ms / 0.447) + 0.5))
         return ws_mph
-
-        # wind direction
 
     def handle_wind_direction(self, params_dict):
         """The params_dict aren't used here since we need to

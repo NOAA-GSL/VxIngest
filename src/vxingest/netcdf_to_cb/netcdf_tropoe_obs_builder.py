@@ -102,7 +102,7 @@ class NetcdfTropoeObsBuilderV01(NetcdfBuilder):
             if epoch is None:
                 return None
             # convert the epoch to an ISO time
-            _iso_time = dt.datetime.utcfromtimestamp(epoch).isoformat()
+            _iso_time = dt.datetime.fromtimestamp(epoch, dt.UTC).isoformat()
             return _iso_time
         except Exception as _e:
             logger.error(

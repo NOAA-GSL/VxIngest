@@ -66,7 +66,11 @@ def assert_dicts_almost_equal(dict1, dict2, rel_tol=1e-09):
         if isinstance(dict1[key], dict):
             assert_dicts_almost_equal(dict1[key], dict2[key], rel_tol)
         else:
-            if key == "validTimeISO" and dict1[key].endswith("+00:00") and not dict2[key].endswith("+00:00"):
+            if (
+                key == "validTimeISO"
+                and dict1[key].endswith("+00:00")
+                and not dict2[key].endswith("+00:00")
+            ):
                 # hadle ISO time string comparison for naive and timezone aware datetimes
                 # some of the older data was not timezone aware (naive) so if it is not, we make both
                 # seem timezone aware by adding the +00:00

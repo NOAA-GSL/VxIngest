@@ -122,9 +122,13 @@ def test_one_thread_specify_file_pattern_job_spec_rt(tmp_path: Path):
     )
 
     # Test that we have one or more output files
-    input_path_str = str(input_data_path).replace('file://', '') # remove the protocol
-    input_path_str = input_path_str.replace(os.sep, "__") # translate the file separators
-    output_file_list = list(tmp_path.glob(input_path_str + "__[0123456789]???????_[0123456789]???.json"))
+    input_path_str = str(input_data_path).replace("file://", "")  # remove the protocol
+    input_path_str = input_path_str.replace(
+        os.sep, "__"
+    )  # translate the file separators
+    output_file_list = list(
+        tmp_path.glob(input_path_str + "__[0123456789]???????_[0123456789]???.json")
+    )
     assert len(output_file_list) > 0, "There are no output files"
 
     # Test that we have one "load job" ("LJ") document
@@ -139,7 +143,9 @@ def test_one_thread_specify_file_pattern_job_spec_rt(tmp_path: Path):
     assert num_output_files == num_input_files, "number of output files is incorrect"
 
     # Test that the output file matches the content in the database
-    with (tmp_path / (input_path_str + "__20250911_1500.json")).open(encoding="utf-8") as f:
+    with (tmp_path / (input_path_str + "__20250911_1500.json")).open(
+        encoding="utf-8"
+    ) as f:
         derived_data = json.load(f)
     station_id = ""
     derived_station = {}
@@ -204,7 +210,11 @@ def test_one_thread_specify_file_pattern(tmp_path: Path):
 
     input_data_path_str = str(input_data_path).replace(os.sep, "__")
     # Test that we have one or more output files
-    output_file_list = list(tmp_path.glob(input_data_path_str + "__[0123456789]???????_[0123456789]???.json"))
+    output_file_list = list(
+        tmp_path.glob(
+            input_data_path_str + "__[0123456789]???????_[0123456789]???.json"
+        )
+    )
     assert len(output_file_list) > 0, "There are no output files"
 
     # Test that we have one "load job" ("LJ") document
@@ -215,11 +225,15 @@ def test_one_thread_specify_file_pattern(tmp_path: Path):
     # Test that we have one output file per input file
     input_path = Path("/opt/data/netcdf_to_cb/input_files")
     num_input_files = len(list(input_path.glob("20211108_0000")))
-    num_output_files = len(list(tmp_path.glob(input_data_path_str + "__20211108*.json")))
+    num_output_files = len(
+        list(tmp_path.glob(input_data_path_str + "__20211108*.json"))
+    )
     assert num_output_files == num_input_files, "number of output files is incorrect"
 
     # Test that the output file matches the content in the database
-    with (tmp_path / (input_data_path_str + "__20211108_0000.json")).open(encoding="utf-8") as f:
+    with (tmp_path / (input_data_path_str + "__20211108_0000.json")).open(
+        encoding="utf-8"
+    ) as f:
         derived_data = json.load(f)
     station_id = ""
     derived_station = {}
@@ -277,9 +291,16 @@ def test_two_threads_specify_file_pattern(tmp_path: Path):
         stub_worker_log_configurer,
     )
     input_path_str = str(input_data_path).replace(os.sep, "__")
-    assert len(list(tmp_path.glob(input_path_str + "__[0123456789]???????_[0123456789]???.json"))) > 0, (
-        "There are no output files"
-    )
+    assert (
+        len(
+            list(
+                tmp_path.glob(
+                    input_path_str + "__[0123456789]???????_[0123456789]???.json"
+                )
+            )
+        )
+        > 0
+    ), "There are no output files"
 
     lj_doc_regex = "LJ:METAR:vxingest.netcdf_to_cb.run_ingest_threads:VXIngest:*.json"
     assert len(list(tmp_path.glob(lj_doc_regex))) == 1, (
@@ -307,8 +328,10 @@ def test_one_thread_default(tmp_path: Path):
     ingest_document_ids = job["ingest_document_ids"]
     collection = job["subset"]
     input_data_path = job["input_data_path"]
-    input_path_str = str(input_data_path).replace('file://', '') # remove the protocol
-    input_path_str = input_path_str.replace(os.sep, "__") # translate the file separators
+    input_path_str = str(input_data_path).replace("file://", "")  # remove the protocol
+    input_path_str = input_path_str.replace(
+        os.sep, "__"
+    )  # translate the file separators
     vx_ingest.runit(
         {
             "job_id": job_id,
@@ -324,9 +347,16 @@ def test_one_thread_default(tmp_path: Path):
         log_queue,
         stub_worker_log_configurer,
     )
-    assert len(list(tmp_path.glob(input_path_str + "__[0123456789]???????_[0123456789]???.json"))) > 0, (
-        "There are no output files"
-    )
+    assert (
+        len(
+            list(
+                tmp_path.glob(
+                    input_path_str + "__[0123456789]???????_[0123456789]???.json"
+                )
+            )
+        )
+        > 0
+    ), "There are no output files"
 
     lj_doc_regex = "LJ:METAR:vxingest.netcdf_to_cb.run_ingest_threads:VXIngest:*.json"
     assert len(list(tmp_path.glob(lj_doc_regex))) >= 1, (
@@ -335,9 +365,13 @@ def test_one_thread_default(tmp_path: Path):
 
     # use file globbing to see if we got one output file for each input file plus one load job file
     input_path = Path("/opt/data/netcdf_to_cb/input_files")
-    assert len(list(tmp_path.glob(input_path_str + "__[0123456789]???????_[0123456789]???.json"))) == len(
-        list(input_path.glob("[0123456789]???????_[0123456789]???"))
-    ), "number of output files is incorrect"
+    assert len(
+        list(
+            tmp_path.glob(input_path_str + "__[0123456789]???????_[0123456789]???.json")
+        )
+    ) == len(list(input_path.glob("[0123456789]???????_[0123456789]???"))), (
+        "number of output files is incorrect"
+    )
 
 
 @pytest.mark.integration
@@ -354,8 +388,10 @@ def test_two_threads_default(tmp_path: Path):
     ingest_document_ids = job["ingest_document_ids"]
     collection = job["subset"]
     input_data_path = job["input_data_path"]
-    input_data_path_str = str(input_data_path).replace('file://', '') # remove the protocol
-    input_data_path_str = input_data_path_str.replace(os.sep, "__") # translate the
+    input_data_path_str = str(input_data_path).replace(
+        "file://", ""
+    )  # remove the protocol
+    input_data_path_str = input_data_path_str.replace(os.sep, "__")  # translate the
     vx_ingest.runit(
         {
             "job_id": job_id,
@@ -371,9 +407,16 @@ def test_two_threads_default(tmp_path: Path):
         log_queue,
         stub_worker_log_configurer,
     )
-    assert len(list(tmp_path.glob(input_data_path_str + "__[0123456789]???????_[0123456789]???.json"))) > 0, (
-        "There are no output files"
-    )
+    assert (
+        len(
+            list(
+                tmp_path.glob(
+                    input_data_path_str + "__[0123456789]???????_[0123456789]???.json"
+                )
+            )
+        )
+        > 0
+    ), "There are no output files"
 
     lj_doc_regex = "LJ:METAR:vxingest.netcdf_to_cb.run_ingest_threads:VXIngest:*.json"
     assert len(list(tmp_path.glob(lj_doc_regex))) >= 1, (
@@ -388,10 +431,6 @@ def test_two_threads_default(tmp_path: Path):
                 input_data_path_str + "__[0123456789]???????_[0123456789]???.json"
             )
         )
-    ) == len(
-        list(
-            input_path.glob(
-                "[0123456789]???????_[0123456789]???"
-            )
-        )
-    ), "number of output files is incorrect"
+    ) == len(list(input_path.glob("[0123456789]???????_[0123456789]???"))), (
+        "number of output files is incorrect"
+    )

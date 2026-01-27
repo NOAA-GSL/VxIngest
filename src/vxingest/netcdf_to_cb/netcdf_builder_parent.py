@@ -1298,7 +1298,7 @@ class NetcdfBuilder(Builder):
                 return None
             # if I get here process the _thistime
             delta_minutes = self.delta / 60
-            _ret_time = dt.datetime.utcfromtimestamp(_thistime)
+            _ret_time = dt.datetime.fromtimestamp(_thistime, dt.UTC)
             _ret_time = _ret_time.replace(
                 second=0, microsecond=0, minute=0, hour=_ret_time.hour
             ) + dt.timedelta(hours=_ret_time.minute // delta_minutes)
@@ -1319,7 +1319,7 @@ class NetcdfBuilder(Builder):
         try:
             _time = None
             _time = self.interpolate_time(params_dict)
-            _time = dt.datetime.utcfromtimestamp(_time)
+            _time = dt.datetime.fromtimestamp(_time, dt.UTC)
             # convert this iso
             if _time is None:
                 return None

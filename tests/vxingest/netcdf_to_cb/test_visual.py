@@ -115,7 +115,7 @@ def test_int_tropoe_visual():
                         name="interpolated data water_vapor",
                     ),
                 )
-                time_str = str(dt.datetime.utcfromtimestamp(epoch).isoformat())
+                time_str = str(dt.datetime.fromtimestamp(epoch, dt.UTC).isoformat())
                 fig.update_layout(
                     title=f"fireweather raw data vs interpolated data {time_str}"
                 )

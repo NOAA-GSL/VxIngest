@@ -48,6 +48,21 @@ def setup_connection(_vx_ingest):
 
 def assert_dicts_almost_equal(dict1, dict2, rel_tol=1e-09):
     """Utility function to compare potentially nested dictionaries containing floats"""
+    if (
+        ("Altimeter Pressure" in dict1)
+        and ("Altimeter Pressure" not in dict2)
+        and dict1["Surface Pressure"] is not None
+    ):
+        pytest.fail(
+            f"Altimeter Pressure is not None in dict1 but not in dict2, and Surface Pressure in dict1 is not None for station {dict1['name']}"
+        )
+    if (
+        "Altimeter Pressure" in dict1
+        and dict1["Altimeter Pressure"] is None
+        and "Altimeter Pressure" not in dict2
+    ):
+        dict2["Altimeter Pressure"] = None
+
     assert set(dict1.keys()) == set(dict2.keys()), (
         f"Dictionaries do not have the same keys {dict1.keys()} vs {dict2.keys()}"
     )

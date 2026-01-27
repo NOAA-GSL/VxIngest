@@ -66,6 +66,12 @@ def assert_dicts_almost_equal(dict1, dict2, rel_tol=1e-09):
         if isinstance(dict1[key], dict):
             assert_dicts_almost_equal(dict1[key], dict2[key], rel_tol)
         else:
+            if key == "validTimeISO" and dict1[key].endswith("+00:00") and not dict2[key].endswith("+00:00"):
+                # hadle ISO time string comparison for naive and timezone aware datetimes
+                # some of the older data was not timezone aware (naive) so if it is not, we make both
+                # seem timezone aware by adding the +00:00
+                # This is only for testing purposes - the current code always produces timezone aware datetimes
+                dict2[key] = dict2[key] + "+00:00"
             assert dict1[key] == pytest.approx(dict2[key], rel=rel_tol), (
                 f"Values for {key} do not match"
             )
@@ -113,7 +119,8 @@ def test_one_thread_specify_file_pattern(tmp_path):
 
     # Test that the output file matches the content in the database
     try:
-        derived_data = json.load((output_files[0]).open(encoding="utf-8"))
+        with (output_files[0]).open(encoding="utf-8") as f:
+            derived_data = json.load(f)
         obs_id = derived_data[0]["id"]
         derived_record = [d for d in derived_data if d["id"] == obs_id]
         retrieved_record = vx_ingest.collection.get(obs_id).content_as[dict]

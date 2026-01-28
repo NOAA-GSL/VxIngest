@@ -242,11 +242,11 @@ class GribModelBuilderV01(GribBuilder):
         extrapolate from interpolated pressure and elevation to documented station elevation
 
         Inputs needed:
-        - Model elevation, z0 -- interpolated
-        - Station elevation, z -- from station metadata
-        - Model surface pressure, P0 -- interpolated
-        - Model 2m temperature, T -- interpolated
-        - Model 2m dewpoint, Td -- interpolated
+        - Model elevation, z0 (m) -- interpolated
+        - Station elevation, z (m) -- from station metadata
+        - Model surface pressure, P0 (Pa) -- interpolated
+        - Model 2m temperature, T (K) -- interpolated
+        - Model 2m dewpoint, Td (K) -- interpolated
 
         Hypsometric Equation Transformed to find Pressure
         P=P0*EXP(-g(z-z0)/R*T)
@@ -255,8 +255,8 @@ class GribModelBuilderV01(GribBuilder):
 
         Use metpy to get virtual temperature
         
-        :param params_dict: should have: surface pressure
-        :return: List of pressure values corresponding to stations list
+        :param params_dict: not used
+        :return norm_pressure_list: List of pressure values in mb corresponding to stations list
         :rtype: List of floats
         """
         norm_pressure_list = []
@@ -273,21 +273,20 @@ class GribModelBuilderV01(GribBuilder):
         # For now, I think #3 will be the simplest to implement, but should consider other options for future to
         #   be cleanest and most efficient. (#2 and #3 will be doing some redundant work)
 
-        # update var_names with the actual var names
-        P0_var = 'Surface pressure'
-        T_var = '2 metre temperature'
-        Td_var = '2 metre dewpoint temperature'
-        z0_var = 'Orography'        # this is geopotential & needs to be converted to height
+        P0_var = 'Surface pressure'             # in Pa in grib
+        T_var = '2 metre temperature'           # in K in grib
+        Td_var = '2 metre dewpoint temperature' # in K in grib
+        z0_var = 'Orography'                    # in gpm in grib (gepotential height)
 
-        var_names = [P0_var, T_var, Td_var, z0_var]
+        vars = [P0_var, T_var, Td_var, z0_var]
         values = {}
         interp_values = {}
-        # example of how to get the var values...
-        for var_name in var_names:
-            values[var_name] = self.ds_translate_item_variables_map[var_name].values
-            interp_values[var_name] = []
-
         station_elev_list = []
+
+        for var in vars:
+            values[var] = self.ds_translate_item_variables_map[var].values
+            # just creating an empty list here for each var, will populate in next loop
+            interp_values[var] = []     
 
         for station in self.domain_stations:
             geo_index = get_geo_index(
@@ -295,29 +294,33 @@ class GribModelBuilderV01(GribBuilder):
             )
             x_gridpoint = station["geo"][geo_index]["x_gridpoint"]
             y_gridpoint = station["geo"][geo_index]["y_gridpoint"]
-            for var_name in var_names:
-                interp_values[var_name].append(
-                    (float)(self.interp_grid_box(values[var_name], y_gridpoint, x_gridpoint))
+            for var in vars:
+                interp_values[var].append(
+                    (float)(self.interp_grid_box(values[var], y_gridpoint, x_gridpoint))
                 )
             # get station elev
-            station_elev_list.append(0)   
-
-        # need to do any unit conversion?     
-        R = 287     # gas constant for dry air, J/(kg*K)
-        g = 9.81    # gravity constant, m/s
+            station_elev_list.append(station["geo"][geo_index]["elev"])   
+  
+        # NOTE: z0 from model is geopotential height at surface, and z from station metadata is 
+        #   (presumably) geometric height. Converting model surface elevation from geopotential to
+        #   geometric height is insignificant for the pressure calculations and will be left as
+        #   geopotential height here.
+        
+        R = 287         # gas constant for dry air, J/(kg*K)
+        g = 9.81        # gravity constant, m/s
+        inst_ht = 2     # height of instrument AGL at stations (m)
         
         for (P0, T, Td, z, z0) in zip(interp_values[P0_var],
                                       interp_values[T_var],
                                       interp_values[Td_var],
                                       station_elev_list,
                                       interp_values[z0_var]):
-            # need to check units on below
-            Tv = virtual_temperature_from_dewpoint(pressure=P0*units.hPa,
+            Tv = virtual_temperature_from_dewpoint(pressure=P0*units.Pa,
                                                 temperature=T*units.degK,
                                                 dewpoint=Td*units.degK).magnitude
-            P = ((P0*100)**(-(g*(z-z0))/(R*Tv)))/100
-            #norm_pressure = ((pressure*100)**(-(g*(sta_elev-mod_elev))/(R*Tv)))/100
-            norm_pressure_list.append(P)
+            P_Pa = P0**(-(g*(z+inst_ht-z0))/(R*Tv))
+            P_mb = P_Pa/100
+            norm_pressure_list.append(P_mb)
 
         return norm_pressure_list
 

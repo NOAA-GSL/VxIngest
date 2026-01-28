@@ -274,10 +274,10 @@ class GribModelBuilderV01(GribBuilder):
         #   be cleanest and most efficient. (#2 and #3 will be doing some redundant work)
 
         # update var_names with the actual var names
-        P0_var = 'pressure'
+        P0_var = 'Surface pressure'
         T_var = '2 metre temperature'
-        Td_var = '2 metre dewpoint'
-        z0_var = 'elevation'
+        Td_var = '2 metre dewpoint temperature'
+        z0_var = 'Orography'        # this is geopotential & needs to be converted to height
 
         var_names = [P0_var, T_var, Td_var, z0_var]
         values = {}

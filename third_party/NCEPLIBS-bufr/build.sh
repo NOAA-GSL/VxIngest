@@ -90,21 +90,8 @@ setup_python_environment() {
     pyver=$(python --version | awk '{print $2}' | awk -F'.' '{print $1"."$2}')
     echo "Using python version ${pyver}"
     
-    # Get python platform tag
-    platform=$(python -c "import sysconfig;print(sysconfig.get_platform().replace('-', '_').replace('.', '_').lower())")
-    # If it's a MacOS tag, only the major version (15_0) is supported from v11_0 onwards. Minor tags like 15_3 are invalid.
-    # https://packaging.python.org/en/latest/specifications/platform-compatibility-tags/#macos
-    if [[ $platform == macosx* ]]; then
-        # Normalize to major version only (e.g., macosx_15_0 instead of macosx_15_3)
-        
-        # Sed explainer:
-        # (macosx_[0-9]+) — Capture macosx_ followed by major version (group 1)
-        # _[0-9]+ — Match the minor version to discard
-        # (_[a-z0-9]+)? — Optionally capture architecture suffix like _arm64 (group 2)
-        # Replace with \1_0\2 — Reconstruct as macosx_<major>_0_<arch>
-        platform=$(echo "$platform" | sed -E 's/(macosx_[0-9]+)_[0-9]+(_[a-z0-9]+)?/\1_0\2/')
-    fi
-    
+    platform=$(python -c "import sysconfig;print(sysconfig.get_platform())")
+    platform=$(echo ${platform} | tr '[:upper:]' '[:lower:]' | tr '-' '_' | tr '.' '_')
     
     # Export for use in other functions
     export pyver pver platform

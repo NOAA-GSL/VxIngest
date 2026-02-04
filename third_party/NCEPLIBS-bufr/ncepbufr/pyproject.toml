@@ -1,22 +1,19 @@
-[tool.poetry]
+[project]
 name = "ncepbufr"
 version = "12.2.0"
 description = "packaging the ncepbufr library for use in python"
 authors = [
-    "Ian McGinnis <ian.mcginnis@noaa.gov>",
-    "Randy Pierce <randy.pierce@noaa.gov>",
+    { name = "Ian McGinnis", email = "ian.mcginnis@noaa.gov" },
+    { name = "Randy Pierce", email = "randy.pierce@noaa.gov" },
 ]
 readme = "README.md"
-license = "GNU Lesser General Public License v3.0"
-include = [
-    { path = "_bufrlib.so", format = ["sdist", "wheel"] }
+license = { text = "GNU Lesser General Public License v3.0" }
+requires-python = ">=3.13"
+dependencies = [
+    "numpy>=2.0.0",
+    "netcdf4>=1.7.2",
 ]
 
-[tool.poetry.dependencies]
-python = "^3.13"
-numpy = "^2.0.0"
-netcdf4 = "^1.7.2"
-
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["uv_build"]
+build-backend = "uv_build"

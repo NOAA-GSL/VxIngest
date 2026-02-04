@@ -78,7 +78,7 @@ You can optionally use local test data which you can download from [here](https:
 The two parameters are:
 
 ```bash
-./build.sh local_test path_to_local_test_directory
+./build.sh -t path_to_local_test_directory
 ```
 
 ## Verification

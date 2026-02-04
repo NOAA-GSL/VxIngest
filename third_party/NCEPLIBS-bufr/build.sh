@@ -69,7 +69,7 @@ shift $((OPTIND - 1))
 # Check required tools
 #==============================================================================
 check_required_tools() {
-    for tool in gfortran cmake wget unzip tar poetry; do
+    for tool in gfortran cmake wget unzip tar uv; do
         if ! command -v $tool &> /dev/null; then
             echo "You do not appear to have $tool installed. You must have $tool installed."
             exit 1
@@ -90,8 +90,21 @@ setup_python_environment() {
     pyver=$(python --version | awk '{print $2}' | awk -F'.' '{print $1"."$2}')
     echo "Using python version ${pyver}"
     
-    platform=$(python -c "import sysconfig;print(sysconfig.get_platform())")
-    platform=$(echo ${platform} | tr '[:upper:]' '[:lower:]' | tr '-' '_' | tr '.' '_')
+    # Get python platform tag
+    platform=$(python -c "import sysconfig;print(sysconfig.get_platform().replace('-', '_').replace('.', '_').lower())")
+    # If it's a MacOS tag, only the major version (15_0) is supported from v11_0 onwards. Minor tags like 15_3 are invalid.
+    # https://packaging.python.org/en/latest/specifications/platform-compatibility-tags/#macos
+    if [[ $platform == macosx* ]]; then
+        # Normalize to major version only (e.g., macosx_15_0 instead of macosx_15_3)
+        
+        # Sed explainer:
+        # (macosx_[0-9]+) — Capture macosx_ followed by major version (group 1)
+        # _[0-9]+ — Match the minor version to discard
+        # (_[a-z0-9]+)? — Optionally capture architecture suffix like _arm64 (group 2)
+        # Replace with \1_0\2 — Reconstruct as macosx_<major>_0_<arch>
+        platform=$(echo "$platform" | sed -E 's/(macosx_[0-9]+)_[0-9]+(_[a-z0-9]+)?/\1_0\2/')
+    fi
+    
     
     # Export for use in other functions
     export pyver pver platform
@@ -124,15 +137,14 @@ download_and_extract() {
 # Create Python virtual environment and install dependencies
 #==============================================================================
 setup_venv() {
-    python -m venv .venv-${pyver}
+    uv venv .venv-${pyver}
     . .venv-${pyver}/bin/activate
     
-    PATH=$PATH:${HOME}/.local/bin
-    pip install --upgrade pip
+    PATH=$PATH:${HOME}/.local/bin # TODO - remove?
     
     trap "deactivate" EXIT
     
-    pip3 install numpy meson ninja netCDF4 protobuf
+    uv pip install numpy meson ninja netCDF4 protobuf
 }
 
 #==============================================================================
@@ -159,7 +171,7 @@ build_nceplibs() {
 }
 
 #==============================================================================
-# Build Poetry wheel
+# Build uv wheel
 #==============================================================================
 build_wheel() {
     # Determine lib directory (linux_x86_64 uses lib64)
@@ -168,21 +180,24 @@ build_wheel() {
         libdir="lib64"
     fi
     
-    # Copy the platform specific .so file to a common name for the poetry build
-    cp ${tmp_workdir}/NCEPLIBS-bufr-${NCEPLIBSbufr_version}/build/install/${libdir}/python${pyver}/site-packages/_bufrlib.cpython-${pver}*.so \
-       ${tmp_workdir}/NCEPLIBS-bufr-${NCEPLIBSbufr_version}/build/install/${libdir}/python${pyver}/site-packages/_bufrlib.so
-    
     cd ${tmp_workdir}/NCEPLIBS-bufr-${NCEPLIBSbufr_version}/build/install/${libdir}/python${pyver}/site-packages
     
-    # Copy poetry metadata from VxIngest repo
-    cp -a ${VxIngest_root_dir}/third_party/NCEPLIBS-bufr/ncepbufr/* .
+    # Create src-layout structure expected by uv
+    mkdir -p src/ncepbufr
     
-    rm -rf poetry.lock
-    poetry build
-    poetry install
-    pip list
+    # Copy the platform specific .so file to the ncepbufr package
+    cp _bufrlib.cpython-${pver}*.so src/ncepbufr/_bufrlib.so
+    # Copy the rest of the python files to the ncepbufr package
+    cp -r ncepbufr/ src/ncepbufr/
     
-    # Rename the wheel (hack to work around poetry not setting build tags properly)
+    # Copy pyproject.toml and README.md to root
+    cp ${VxIngest_root_dir}/third_party/NCEPLIBS-bufr/ncepbufr/pyproject.toml .
+    cp ${VxIngest_root_dir}/third_party/NCEPLIBS-bufr/ncepbufr/README.md .
+    
+    uv build --wheel
+    uv pip list
+    
+    # Rename the wheel to match platform-specific naming conventions
     dst_name_tmp=$(ls -1 dist/*.whl | sed "s/py3/py${pver}/" | sed "s/any/${platform}/")
     dst_name=$(basename ${dst_name_tmp})
     

@@ -39,8 +39,6 @@ FROM builder AS dev
 # docker run --rm --mount type=bind,src=$(pwd)/tmp/test-data/opt/data,dst=/opt/data -it vxingest:dev bash
 # uv run pytest tests
 
-COPY . /app/
-
 # Have uv install dev dependencies
 ENV UV_NO_DEV=0
 
@@ -48,7 +46,7 @@ ENV UV_NO_DEV=0
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv sync --locked --no-install-project
+    uv sync --locked
 
 # Place executables in the environment at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"

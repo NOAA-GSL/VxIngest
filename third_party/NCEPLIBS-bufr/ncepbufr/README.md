@@ -17,7 +17,6 @@ You need to ensure the following tools are installed on the build platform:
 
 - **gfortran**: `brew install gfortran` (macOS)
 - **cmake**: `brew install cmake`
-- **Python 3.12**: `brew install python@3.12`
 
 For CI, the Docker container should be configured with the necessary build tools to compile Fortran and to use CMake.
 

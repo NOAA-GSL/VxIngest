@@ -61,7 +61,7 @@ uv run ingest  -m /tmp/output/metrics -o /tmp/output/out -x /tmp/output/xfer -l 
 
 ## Developer tools
 
-Linting, formatting, type checking, and unit testing can be done through Poetry like so:
+Linting, formatting, type checking, and unit testing can be done through uv like so:
 
 ```bash
 # Lint
@@ -73,7 +73,7 @@ uv run mypy src
 # Unit test
 CREDENTIALS=config.yaml uv run pytest tests
 # Coverage report
-CREDENTIALS=config.yaml poetry run coverage run -m pytest tests && \
+CREDENTIALS=config.yaml uv run coverage run -m pytest tests && \
     uv run coverage report && \
     uv run coverage html
 ```

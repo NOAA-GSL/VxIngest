@@ -100,7 +100,8 @@ class CommonVxIngest:
             if "ingest_document_ids" in self.load_spec
             else None
         )
-        subset = _document_id.split(":")[2]
+        id_parts = _document_id.split(":")
+        subset = id_parts[2] if id_parts[0].startswith("MD") else id_parts[1]
         self.load_job_id = f"LJ:{subset}:{self.__module__}:{self.__class__.__name__}:{str(int(time.time()))}"
         lj_doc = {
             "id": self.load_job_id,
@@ -151,14 +152,20 @@ class CommonVxIngest:
                 raise CouchbaseException(
                     "Could not connect to couchbase after 3 attempts"
                 )
-            # The common collection is always "COMMON" so we can hardcode it here
-            self.cb_credentials["common_collection"] = "COMMON"
+            if "common_collection" not in self.cb_credentials:
+                self.cb_credentials["common_collection"] = "COMMON"
+            if "runtime_collection" not in self.cb_credentials:
+                self.cb_credentials["runtime_collection"] = "RUNTIME"
+
             self.collection = self.cluster.bucket(
                 self.cb_credentials["bucket"]
             ).collection(self.cb_credentials["collection"])
             self.common_collection = self.cluster.bucket(
                 self.cb_credentials["bucket"]
             ).collection(self.cb_credentials["common_collection"])
+            self.runtime_collection = self.cluster.bucket(
+                self.cb_credentials["bucket"]
+            ).collection(self.cb_credentials["runtime_collection"])
             # stash the credentials for the VxIngestManager - see NOTE at the top of this file.
             self.load_spec["cb_credentials"] = self.cb_credentials
             logger.info("%s: Couchbase connection success")
@@ -170,18 +177,21 @@ class CommonVxIngest:
                 "*** builder_common.CommonVxIngest Error when connecting to cb database: "
             )
 
-    def get_file_list(self, df_query, directory, file_pattern, file_mask):
+    def get_file_list(
+        self, df_query, directory, file_pattern, file_mask, first_last_params=None
+    ):
         """This method accepts a file path (directory), a query statement (df_query),
-        and a file pattern (file_pattern). It uses the df_query statement to retrieve a
+        a file pattern (file_pattern), and a file mask (file_mask). It uses the df_query statement to retrieve a
         list of file {url:file_url, mtime:mtime} records from DataFile
         objects and compares the file names in the directory that match the file_pattern (using glob)
-        to the file url list that is returned from the df_query.
-        Any file names that are not in the returned url list are added and any files
+        to the file url list that is returned from the df_query. The glob pattern matches the entire path.
+        It uses the file_mask to filter the file names that represent string date times. Any file names that are not in the returned url list are added and any files
         that are in the list but have newer mtime entries are also added.
         Args:
             df_query (string): this is a query statement that should return a list of {url:file_url, mtime:mtime}
             directory (string): The full path to a directory that contains files to be ingested
             file_pattern (string): A file glob pattern that matches the files desired.
+            file-mask (string): A date-time format string that is applied to the file name only (not the path)
         Raises:
             Exception: general exception
         """
@@ -196,13 +206,60 @@ class CommonVxIngest:
             result = self.cluster.query(df_query)
             df_elements = list(result)
             df_full_names = [element["url"] for element in df_elements]
+            # Handle if the directory is a URL or a local path
+            if str(directory).startswith("http://") or str(directory).startswith(
+                "https://"
+            ):
+                logger.debug(
+                    "get_file_list: Directory is a URL, skipping local file glob."
+                )
+                return []  # handle this in the future
+            elif str(directory).startswith("s3://"):
+                logger.debug(
+                    "get_file_list: Directory is an S3 path, skipping local file glob."
+                )
+                return []  # handle this in the future
+            elif str(directory).startswith("file://"):
+                # local file path with file:// prefix
+                self.load_spec["input_data_path"] = pathlib.Path(
+                    directory[7:]
+                ).as_posix()
+                directory = directory[7:]
             if pathlib.Path(directory).exists() and pathlib.Path(directory).is_dir():
                 # the file list is sorted by getmtime so that the oldest files are processed first
+                sort_function = os.path.getmtime if file_mask else str
                 file_list = sorted(
-                    pathlib.Path(directory).glob(file_pattern), key=os.path.getmtime
+                    pathlib.Path(directory).glob(file_pattern), key=sort_function
                 )
                 for filename in file_list:
                     try:
+                        try:
+                            if file_mask:
+                                # if the file_mask is defined then try to parse the filename
+                                # according to the mask as a datetime
+                                # it will throw a ValueError if it doesn't match
+                                # the file_mask is applied to the filename only - not the pat
+                                _dt = dt.datetime.strptime(filename.name, file_mask)
+                                # if we get here then the file matched the mask
+                                # check to see if this file is in the first_latst_params range
+                                if first_last_params:
+                                    first_epoch = first_last_params.get(
+                                        "first_epoch", 0
+                                    )
+                                    last_epoch = first_last_params.get(
+                                        "last_epoch", sys.maxsize
+                                    )
+                                    file_epoch = int(_dt.timestamp())
+                                    if (
+                                        file_epoch < first_epoch
+                                        or file_epoch > last_epoch
+                                    ):
+                                        continue
+                            else:
+                                # no file mask so just accept the file
+                                pass
+                        except ValueError:
+                            continue
                         # check to see if this file has already been ingested
                         # (if it is not in the df_full_names - add it)
                         if str(filename) not in df_full_names:
@@ -267,6 +324,9 @@ class CommonVxIngest:
                 )
             with pathlib.Path(self.credentials_file).open(encoding="utf-8") as _f:
                 _yaml_data = yaml.load(_f, yaml.SafeLoader)
+            if _yaml_data is None:
+                logger.error("*** Error: Credential file is empty or invalid YAML ***")
+                sys.exit("*** Credential file is empty or invalid YAML! ***")
             load_spec["cb_connection"] = {}
             load_spec["cb_connection"]["host"] = _yaml_data["cb_host"]
             load_spec["cb_connection"]["user"] = _yaml_data["cb_user"]

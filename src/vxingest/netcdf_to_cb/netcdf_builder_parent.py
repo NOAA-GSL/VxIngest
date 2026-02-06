@@ -19,7 +19,11 @@ from pstats import Stats
 import couchbase.subdocument as SD
 import netCDF4 as nc
 import numpy.ma as ma
-from metpy.calc import relative_humidity_from_dewpoint, wind_components
+from metpy.calc import (
+    altimeter_to_station_pressure,
+    relative_humidity_from_dewpoint,
+    wind_components,
+)
 from metpy.units import units
 
 from vxingest.builder_common.builder import Builder
@@ -681,8 +685,9 @@ class NetcdfBuilder(Builder):
             return doc
         except Exception as _e:
             logger.exception(
-                "%s NetcdfBuilder.handle_key: Exception in builder",
+                "%s NetcdfBuilder.handle_key: %s - Exception in builder",
                 self.__class__.__name__,
+                key,
             )
         return doc
 
@@ -1152,6 +1157,7 @@ class NetcdfBuilder(Builder):
         """Retrieves a pressure value and converts it to millibars from pascals
         Args:
             params_dict (dict): named function parameters
+                A single-element dict, where value is name of netcdf pressure variable
         Returns:
             float: the pressure in millibars
         """
@@ -1161,6 +1167,69 @@ class NetcdfBuilder(Builder):
                 # convert to millibars (from pascals) and round
                 value = float(value) / 100
             return value
+        except Exception as _e:
+            logger.error(
+                "%s handle_pressure: Exception in named function:  error: %s",
+                self.__class__.__name__,
+                str(_e),
+            )
+            return None
+
+    def handle_altimeter_pressure(self, params_dict, use_metpy_func=False):
+        """Retrieves a METAR altimeter value and converts it to surface pressure in millibars,
+            using the MADIS calculation (per m_altprs.f)
+        Args:
+            params_dict (dict): netcdf variable names for altimeter and elevation
+            use_metpy_func (bool, default False): to be used for testing
+                Performs the conversion using metpy's altimeter_to_station_pressure()
+        Returns:
+            float : the pressure in millibars
+        """
+        try:
+            _altimeter = self.retrieve_from_netcdf(
+                {
+                    "base_var_index": params_dict["base_var_index"],
+                    "altimeter": params_dict["altimeter"],
+                }
+            )
+            _elevation = self.retrieve_from_netcdf(
+                {
+                    "base_var_index": params_dict["base_var_index"],
+                    "elevation": params_dict["elevation"],
+                }
+            )
+            if _altimeter is None or _elevation is None:
+                return None
+
+            if use_metpy_func:
+                # convert altimeter pressure to from Pa to mb & assign units for metpy calc
+                altimeter_mb = float(_altimeter) / 100 * units.mbar
+                elevation_m = _elevation * units.m
+                station_pressure_mb = altimeter_to_station_pressure(
+                    altimeter_mb, elevation_m
+                ).magnitude
+
+            else:
+                # constants
+                const = 0.190284  # R * gamma_std / g
+                mslp = 1013.25  # sea-level pressure for std atmosphere (mb)
+                lapse = 0.0065  # std atmos lapse rate = 6.5 K / 1000 m
+                t_std = 288.15  # temperature at sea-level in std atmos (K)
+                exp = 1 / const
+                height_adj = 0.3  # pressure diff to account for 3-m height of
+                #                   altimeter above runway (mb)
+
+                altimeter_mb = float(_altimeter) / 100
+                elevation_m = float(_elevation)
+
+                factor = (mslp / altimeter_mb) ** const
+                station_pressure_mb = (
+                    altimeter_mb * (1 - (lapse * elevation_m * factor / t_std)) ** exp
+                    + height_adj
+                )
+
+            return station_pressure_mb
+
         except Exception as _e:
             logger.error(
                 "%s handle_pressure: Exception in named function:  error: %s",
@@ -1229,7 +1298,7 @@ class NetcdfBuilder(Builder):
                 return None
             # if I get here process the _thistime
             delta_minutes = self.delta / 60
-            _ret_time = dt.datetime.utcfromtimestamp(_thistime)
+            _ret_time = dt.datetime.fromtimestamp(_thistime, dt.UTC)
             _ret_time = _ret_time.replace(
                 second=0, microsecond=0, minute=0, hour=_ret_time.hour
             ) + dt.timedelta(hours=_ret_time.minute // delta_minutes)
@@ -1250,7 +1319,7 @@ class NetcdfBuilder(Builder):
         try:
             _time = None
             _time = self.interpolate_time(params_dict)
-            _time = dt.datetime.utcfromtimestamp(_time)
+            _time = dt.datetime.fromtimestamp(_time, dt.UTC)
             # convert this iso
             if _time is None:
                 return None

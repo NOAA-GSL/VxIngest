@@ -70,10 +70,10 @@ import logging
 import os
 import sys
 import time
+from collections.abc import Callable
 from datetime import datetime, timedelta
 from multiprocessing import JoinableQueue, Queue, set_start_method
 from pathlib import Path
-from typing import Callable
 
 from vxingest.builder_common.vx_ingest import CommonVxIngest
 from vxingest.grib2_to_cb.vx_ingest_manager import VxIngestManager
@@ -124,6 +124,23 @@ def parse_args(args):
         default=sys.maxsize,
         help="The maximum number of stations to process",
     )
+    parser.add_argument(
+        "-s",
+        "--start_epoch",
+        type=int,
+        required=False,
+        default=0,
+        help="The first epoch to process jobs for, inclusive.",
+    )
+    parser.add_argument(
+        "-e",
+        "--end_epoch",
+        type=int,
+        required=False,
+        default=sys.maxsize,
+        help="The last epoch to process jobs for, exclusive.",
+    )
+
     # get the command line arguments
     args = parser.parse_args(args)
     return args
@@ -147,7 +164,7 @@ class VXIngest(CommonVxIngest):
         self.thread_count = ""
         self.path = None
         self.fmask = None
-        self.file_pattern = "*"
+        self.file_pattern = None
         self.output_dir = None
         self.job_document_id = None
         # optional: used to limit the number of stations processed
@@ -161,7 +178,7 @@ class VXIngest(CommonVxIngest):
         self.ingest_document = None
         super().__init__()
 
-    def runit(self, args, log_queue: Queue, log_configurer: Callable[[Queue], None]):
+    def runit(self, config, log_queue: Queue, log_configurer: Callable[[Queue], None]):
         """
         This is the entry point for run_ingest_threads.py
         There is a file_pattern and a file_mask. The file_mask is a python time.strftime format e.g. '%y%j%H%f'.
@@ -172,42 +189,59 @@ class VXIngest(CommonVxIngest):
         logger.info("--- *** --- Start --- *** ---")
         logger.info("Begin a_time: %s", begin_time)
 
-        self.credentials_file = args["credentials_file"].strip()
-        self.thread_count = args["threads"]
-        self.output_dir = args["output_dir"].strip()
-        self.job_document_id = args["job_id"].strip()
-        if "file_pattern" in args:
-            self.file_pattern = args["file_pattern"].strip()
-        _args_keys = args.keys()
-        if "number_stations" in _args_keys:
-            self.number_stations = args["number_stations"]
+        self.credentials_file = config.get("credentials_file", None)
+        self.thread_count = config.get("threads", 1)
+        self.output_dir = config.get("output_dir", "/tmp").strip()
+        self.job_document_id = config.get("job_id", None)
+        self.file_pattern = config.get("file_pattern", "*").strip()
+        self.ingest_document_ids = config.get("ingest_document_ids", None)
+        self.fmask = config.get("file_mask", None)
+        self.input_data_path = config.get("input_data_path", None)
+
+        if "start_epoch" in config and "end_epoch" in config:
+            self.first_last_params = {
+                "first_epoch": config["start_epoch"],
+                "last_epoch": config["end_epoch"],
+            }
+        else:
+            self.first_last_params = {}
+            self.first_last_params["first_epoch"] = 0
+            self.first_last_params["last_epoch"] = sys.maxsize
+        if "number_stations" in config:
+            self.number_stations = config["number_stations"]
         else:
             self.number_stations = sys.maxsize
         try:
             # put the real credentials into the load_spec
+            logger.info("getting cb_credentials")
             self.cb_credentials = self.get_credentials(self.load_spec)
+            # get the intended subset (collection from the job_id)
+            self.cb_credentials["collection"] = config["collection"]
             # establish connections to cb, collection
             self.connect_cb()
-            # load the ingest document ids into the load_spec (this might be redundant)
-            ingest_document_result = self.collection.get(self.job_document_id)
-            ingest_document = ingest_document_result.content_as[dict]
-            self.load_spec["ingest_document_ids"] = ingest_document[
-                "ingest_document_ids"
-            ]
-
+            logger.info("connected to cb - collection is %s", self.collection.name)
+            collection = self.load_spec["cb_connection"]["collection"]
+            bucket = self.load_spec["cb_connection"]["bucket"]
+            scope = self.load_spec["cb_connection"]["scope"]
+            # load the ingest document ids into the load_spec (this might be redundant) - from COMMON
+            self.load_spec["ingest_document_ids"] = self.ingest_document_ids
             # put all the ingest documents into the load_spec too
             self.load_spec["ingest_documents"] = {}
             for _id in self.load_spec["ingest_document_ids"]:
-                self.load_spec["ingest_documents"][_id] = self.collection.get(
-                    _id
-                ).content_as[dict]
-            # load the fmask and input_data_path into the load_spec
-            self.fmask = ingest_document["file_mask"]
-            self.path = ingest_document["input_data_path"]
+                if _id.startswith("MD"):
+                    self.load_spec["ingest_documents"][_id] = (
+                        self.common_collection.get(_id).content_as[dict]
+                    )
+                else:
+                    self.load_spec["ingest_documents"][_id] = (
+                        self.runtime_collection.get(_id).content_as[dict]
+                    )
             self.load_spec["fmask"] = self.fmask
-            self.load_spec["input_data_path"] = self.path
+            self.load_spec["input_data_path"] = self.input_data_path
             # stash the load_job in the load_spec
-            self.load_spec["load_job_doc"] = self.build_load_job_doc("madis")
+            self.load_spec["load_job_doc"] = self.build_load_job_doc(
+                self.load_spec["cb_connection"]["collection"]
+            )
         except (RuntimeError, TypeError, NameError, KeyError):
             logger.error(
                 "*** Error occurred in Main reading load_spec: %s ***",
@@ -231,7 +265,7 @@ class VXIngest(CommonVxIngest):
         ]["subset"]
         file_query = f"""
             SELECT url, mtime
-            FROM `{self.cb_credentials["bucket"]}`.{self.cb_credentials["scope"]}.{self.cb_credentials["collection"]}
+            FROM `{bucket}`.{scope}.{collection}
             WHERE
             subset='{subset}'
             AND type='DF'
@@ -239,9 +273,20 @@ class VXIngest(CommonVxIngest):
             AND originType='{model}'
             order by url;
             """
+        # walk the directory structure, if there is one, and get the files that match
+        # the file_pattern and the file_mask
+
         file_names = self.get_file_list(
-            file_query, self.path, self.file_pattern, self.fmask
+            file_query,
+            self.input_data_path,
+            self.file_pattern,
+            self.fmask,
+            self.first_last_params,
         )
+        if len(file_names) == 0:
+            logger.info("No files to process...exiting")
+            sys.exit(0)
+        logger.info("Number of files to be processed: %s", str(len(file_names)))
         for _f in file_names:
             _q.put(_f)
 

@@ -1,0 +1,29 @@
+# Ignore debian/native CVE's from eckitlib's dependencies
+# Generated with: trivy image vxingest/ingest:test --severity=CRITICAL,HIGH -f json -o trivy.json
+# And then: jq -r '.Results[].Vulnerabilities[]? | [.VulnerabilityID] | @tsv' trivy.json
+# Make sure not to include CVEs for other packages
+
+CVE-2025-5318
+CVE-2025-5372
+CVE-2025-5987
+CVE-2022-29155
+CVE-2020-12243
+CVE-2020-25692
+CVE-2020-25709
+CVE-2020-25710
+CVE-2020-36221
+CVE-2020-36222
+CVE-2020-36223
+CVE-2020-36224
+CVE-2020-36225
+CVE-2020-36226
+CVE-2020-36227
+CVE-2020-36228
+CVE-2020-36229
+CVE-2020-36230
+CVE-2021-27212
+CVE-2023-2953
+CVE-2022-1586
+CVE-2022-1587
+CVE-2025-58050
+CVE-2019-20454

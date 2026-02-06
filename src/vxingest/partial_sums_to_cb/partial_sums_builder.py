@@ -11,6 +11,7 @@ import cProfile
 import datetime as dt
 import logging
 import re
+import sys
 import time
 from pathlib import Path
 from pstats import Stats
@@ -285,6 +286,7 @@ class PartialSumsBuilder(Builder):
             [string]: processed template item
         """
         func = None
+        replace_with = None
         try:
             parts = named_function_def.split("|")
             func = parts[0].replace("&", "")
@@ -343,7 +345,18 @@ class PartialSumsBuilder(Builder):
                     obs_id = re.sub(self.model, "obs", obs_id)
                     logger.info("Looking up model document: %s", fve["id"])
                     try:
-                        _model_doc = self.load_spec["collection"].get(fve["id"])
+                        # Use a singleton to avoid redundant gets for the same model doc
+                        if (
+                            not hasattr(self, "_model_doc_singleton")
+                            or self._model_doc_singleton.get("id") != fve["id"]
+                        ):
+                            _model_doc = self.load_spec["collection"].get(fve["id"])
+                            self._model_doc_singleton = {
+                                "id": fve["id"],
+                                "doc": _model_doc,
+                            }
+                        else:
+                            _model_doc = self._model_doc_singleton["doc"]
                         self.model_data = _model_doc.content_as[dict]
                         if not self.model_data["data"]:
                             logger.info(
@@ -378,7 +391,17 @@ class PartialSumsBuilder(Builder):
                             or (_obs_data["id"] != obs_id)
                             or not self.obs_data
                         ):
-                            _obs_doc = self.load_spec["collection"].get(obs_id)
+                            if (
+                                not hasattr(self, "_obs_doc_singleton")
+                                or self._obs_doc_singleton.get("id") != obs_id
+                            ):
+                                _obs_doc = self.load_spec["collection"].get(obs_id)
+                                self._obs_doc_singleton = {
+                                    "id": obs_id,
+                                    "doc": _obs_doc,
+                                }
+                            else:
+                                _obs_doc = self._obs_doc_singleton["doc"]
                             _obs_data = _obs_doc.content_as[dict]
                             if not _obs_data["data"]:
                                 logger.info(
@@ -465,12 +488,15 @@ class PartialSumsBuilder(Builder):
                 self.subset,
             )
 
-            # First get the latest fcstValidEpoch for the partialsums's for this model and region.
+            # First get the latest fcstValidEpoch currently in the database for the ctc's for this model and region.
+            # without first_last_params this will be the lower boundary for the fcstValidEpochs we process.
+            # If there are no ctc's for this model and region in the database it will be zero.
             stmnt = ""
             error_count = 0
             success = False
             while error_count < 3 and success is False:
                 try:
+                    # get the largest CTC in the currently database for this model and region
                     stmnt = f"""SELECT RAW MAX(METAR.fcstValidEpoch)
                             FROM `{self.bucket}`.{self.scope}.{self.collection}
                             WHERE type='DD'
@@ -495,23 +521,30 @@ class PartialSumsBuilder(Builder):
                         raise
                     time.sleep(2)  # don't hammer the server too hard
                     error_count = error_count + 1
-            # initial value for the max epoch
-            max_partialsums_fcst_valid_epochs = self.load_spec["first_last_params"][
-                "first_epoch"
-            ]
             max_partialsums_fcst_valid_epochs_result = list(result)
-            # if there are partialsums's for this model and region then get the max epoch from the query
+            # if there are ctc's for this model and region then get the max epoch from the query
             max_partialsums_fcst_valid_epochs = (
                 max_partialsums_fcst_valid_epochs_result[0]
                 if max_partialsums_fcst_valid_epochs_result[0] is not None
                 else 0
             )
 
-            # Second get the intersection of the fcstValidEpochs that correspond for this
-            # model and the obs for all fcstValidEpochs greater than the first_epoch partialsums
+            # Second get the intersection of the model fcstValidEpochs that correspond for this
+            # model and the obs for all fcstValidEpochs greater than the first_epoch ctc
             # and less than the last_epoch.
             # this could be done with implicit join but this seems to be faster when the results are large.
-            # get the model fcstValidEpochs (models don't have regions) that are > the last partialsums epoch
+            # get the model fcstValidEpochs (models don't have regions) that are > the last ctc epoch
+            # for the lower boundary use the max ctc fcstValidEpoch or the first_epoch from first_last_params if
+            # there is a first_last_params. Let the first_last_params override the max ctc epoch.
+            if (
+                "first_last_params" in self.load_spec
+                and "first_epoch" in self.load_spec["first_last_params"]
+            ):
+                min_valid_epochs = self.load_spec["first_last_params"]["first_epoch"]
+                max_valid_epochs = self.load_spec["first_last_params"]["last_epoch"]
+            else:
+                min_valid_epochs = max_partialsums_fcst_valid_epochs
+                max_valid_epochs = sys.maxsize
             error_count = 0
             success = False
             while error_count < 3 and success is False:
@@ -523,9 +556,8 @@ class PartialSumsBuilder(Builder):
                                 AND fve.model='{self.model}'
                                 AND fve.version='V01'
                                 AND fve.subset='{self.subset}'
-                                AND fve.fcstValidEpoch >= {self.load_spec["first_last_params"]["first_epoch"]}
-                                AND fve.fcstValidEpoch >= {max_partialsums_fcst_valid_epochs}
-                                AND fve.fcstValidEpoch <= {self.load_spec["first_last_params"]["last_epoch"]}
+                                AND fve.fcstValidEpoch >= {min_valid_epochs}
+                                AND fve.fcstValidEpoch <= {max_valid_epochs}
                             ORDER BY fve.fcstValidEpoch, fve.fcstLen"""
                     # logger.info("build_document start query %s", stmnt)
                     result = self.load_spec["cluster"].query(stmnt, read_only=True)
@@ -555,8 +587,8 @@ class PartialSumsBuilder(Builder):
                                     AND obs.docType='obs'
                                     AND obs.version='V01'
                                     AND obs.subset='{self.subset}'
-                                    AND obs.fcstValidEpoch >= {max_partialsums_fcst_valid_epochs}
-                                    AND obs.fcstValidEpoch <= {self.load_spec["first_last_params"]["last_epoch"]}
+                                    AND obs.fcstValidEpoch >= {min_valid_epochs}
+                                    AND obs.fcstValidEpoch <= {max_valid_epochs}
                             ORDER BY obs.fcstValidEpoch"""
                     # logger.info("build_document start query %s", stmnt)
                     result1 = self.load_spec["cluster"].query(stmnt, read_only=True)
@@ -956,8 +988,8 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
         Returns:
             string: ISO time string
         """
-        return dt.datetime.utcfromtimestamp(
-            self.model_data["fcstValidEpoch"]
+        return dt.datetime.fromtimestamp(
+            self.model_data["fcstValidEpoch"], tz=dt.UTC
         ).isoformat()
 
     def handle_fcst_len(self, params_dict):

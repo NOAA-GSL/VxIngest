@@ -1,6 +1,6 @@
 [
   {
-    "builder_type": "NetcdfMetarObsBuilderV01",
+    "builderType": "NetcdfMetarObsBuilderV01",
     "validTimeInterval": 3600,
     "validTimeDelta": 1800,
     "docType": "ingest",
@@ -51,7 +51,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "NetcdfMetarLegacyObsBuilderV01",
+    "builderType": "NetcdfMetarLegacyObsBuilderV01",
     "validTimeInterval": 3600,
     "validTimeDelta": 1800,
     "docType": "ingest",
@@ -99,7 +99,7 @@
     "version": "V01"
   },
   {
-    "builder_type": "NetcdfMetarLegacyObsBuilderV01",
+    "builderType": "NetcdfMetarLegacyObsBuilderV01",
     "validTimeInterval": 3600,
     "validTimeDelta": 1800,
     "docType": "ingest",

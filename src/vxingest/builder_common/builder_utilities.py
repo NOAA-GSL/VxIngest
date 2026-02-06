@@ -15,7 +15,7 @@ def convert_to_iso(an_epoch):
     """
     if not isinstance(an_epoch, int):
         an_epoch = int(an_epoch)
-    valid_time_str = dt.datetime.utcfromtimestamp(an_epoch).strftime(TS_OUT_FORMAT)
+    valid_time_str = dt.datetime.fromtimestamp(an_epoch, dt.UTC).strftime(TS_OUT_FORMAT)
     return valid_time_str
 
 

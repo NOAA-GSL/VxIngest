@@ -123,6 +123,10 @@ class CommonVxIngestManager(Process):
             self.collection = self.cluster.bucket(
                 self.cb_credentials["bucket"]
             ).collection(self.cb_credentials["collection"])
+            if "common_collection" not in self.cb_credentials:
+                self.cb_credentials["common_collection"] = "COMMON"
+            if "runtime_collection" not in self.cb_credentials:
+                self.cb_credentials["runtime_collection"] = "RUNTIME"
             self.common_collection = self.cluster.bucket(
                 self.cb_credentials["bucket"]
             ).collection(self.cb_credentials["common_collection"])
@@ -271,7 +275,9 @@ class CommonVxIngestManager(Process):
             else:
                 Path(self.output_dir).mkdir(parents=True, exist_ok=True)
                 try:
-                    file_name = Path(file_name).name + ".json"
+                    # replace any os separator in the file name with an underscore to avoid directory issues
+                    # but still keep the original file name structure as much as possible
+                    file_name = file_name.replace(os.sep, "__") + ".json"
                     complete_file_name = Path(self.output_dir) / file_name
                     # how many documents are we writing? Log it for alert
                     num_documents = len(list(document_map.values()))

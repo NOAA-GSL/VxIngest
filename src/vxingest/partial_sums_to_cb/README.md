@@ -61,11 +61,9 @@ The builder is [PartialSumsSurfaceModelObsBuilderV01](partial_sums_builder.py)
 
 There is a base PartialSumsBuilder which has the generic code for reading a pair of documents and generating model obs sums and then there is a specialized PartialSumsSurfaceModelObsBuilderV01 that inherits from the generic class. Specific information for these classes is available in the docstring for each class.
 
-
 ## ingest documents - metadata
 
 Refer to [ingest documents and metadata](https://github.com/NOAA-GSL/VxIngest/blob/77b73babf031a19ba9623a7fed60de3583c9475b/mats_metadata_and_indexes/metadata_files/README.md#L11)
-
 
 ## Examples of running the ingest programs
 
@@ -77,7 +75,7 @@ be certain that it already exists in the couchbase cluster or you must create it
 ```json
   {
     "id": "MD:V01:METAR:HRRR_OPS:E_US:SUMS:SURFACE:ingest",
-    "builder_type": "PartialSumsSurfaceModelObsBuilderV01",
+    "builderType": "PartialSumsSurfaceModelObsBuilderV01",
     "docType": "ingest",
     "type": "MD",
     "version": "V01",
@@ -106,7 +104,7 @@ be certain that it already exists in the couchbase cluster or you must create it
 ```
 
 The line
-```"builder_type": "PartialSumsSurfaceModelObsBuilderV01"```
+```"builderType": "PartialSumsSurfaceModelObsBuilderV01"```
 refers to a python class. This builder class is defined
 in the sums_builder.py file. This class will interpret the
 load_spec and ingest data from a set of model and observation documents to create the sums documents.
@@ -163,7 +161,7 @@ and MUST contain these keywords...
   "docType": "ingest",  - required to be 'ingest'
   "subset": "METAR",  - required set to whatever is appropriate
   "version": "V01",  - the version of the template
-  "builder_type": "some builder class"
+  "builderType": "some builder class"
 
 ```
 

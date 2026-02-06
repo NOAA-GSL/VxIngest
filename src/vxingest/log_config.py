@@ -3,7 +3,6 @@ import logging.handlers
 import os
 from multiprocessing import Queue
 from pathlib import Path
-from typing import Optional
 
 
 def get_logformat() -> logging.Formatter:
@@ -51,7 +50,7 @@ def remove_logfile(
 
 
 def configure_logging(
-    queue: Queue, logpath: Optional[Path] = None
+    queue: Queue, logpath: Path | None = None
 ) -> logging.handlers.QueueListener:
     """Configure the root logger so all subsequent loggers inherit this config
 

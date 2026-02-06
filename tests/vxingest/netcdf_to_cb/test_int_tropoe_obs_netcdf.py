@@ -22,7 +22,9 @@ from multiprocessing import Queue
 from pathlib import Path
 
 import pytest
+from couchbase.options import QueryOptions
 
+from vxingest.netcdf_to_cb.netcdf_builder_parent import NetcdfBuilder  # noqa: F401
 from vxingest.netcdf_to_cb.run_ingest_threads import VXIngest
 
 
@@ -34,26 +36,46 @@ def stub_worker_log_configurer(queue: Queue):
 def setup_connection():
     """test setup"""
     _vx_ingest = VXIngest()
-    _vx_ingest.credentials_file = (os.environ["CREDENTIALS"],)
+    # Ensure credentials_file is a string, not a tuple
+    credentials = os.environ["CREDENTIALS"]
+    _vx_ingest.credentials_file = credentials
     _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
-    # override the collection to TROPOE
-    _vx_ingest.load_spec["cb_connection"]["collection"] = "TROPOE"
     _vx_ingest.connect_cb()
-    _vx_ingest.load_spec["ingest_document_ids"] = _vx_ingest.collection.get(
-        "JOB-TEST:V01:TROPOE:NETCDF:OBS"
-    ).content_as[dict]["ingest_document_ids"]
+    try:
+        id_query = """DELETE
+                FROM `vxdata`.`_default`.`METAR` f
+                WHERE f.subset = 'METAR'
+                AND f.type = 'DF'
+                AND f.url LIKE '/opt/data/%' RETURNING f.id AS id;"""
+        row_iter = _vx_ingest.cluster.query(
+            id_query, QueryOptions(metrics=True, read_only=False)
+        )
+        for row in row_iter:
+            print(f"Deleted {row['id']}")
+    except Exception as e:
+        print(f"Error occurred: {e}")
     return _vx_ingest
 
 
 def assert_dicts_almost_equal(dict1, dict2, rel_tol=1e-09):
     """Utility function to compare potentially nested dictionaries containing floats"""
     assert set(dict1.keys()) == set(dict2.keys()), (
-        "Dictionaries do not have the same keys"
+        f"Dictionaries do not have the same keys {dict1.keys()} vs {dict2.keys()}"
     )
     for key in dict1:
         if isinstance(dict1[key], dict):
             assert_dicts_almost_equal(dict1[key], dict2[key], rel_tol)
         else:
+            if (
+                key == "validTimeISO"
+                and dict1[key].endswith("+00:00")
+                and not dict2[key].endswith("+00:00")
+            ):
+                # hadle ISO time string comparison for naive and timezone aware datetimes
+                # some of the older data was not timezone aware (naive) so if it is not, we make both
+                # seem timezone aware by adding the +00:00
+                # This is only for testing purposes - the current code always produces timezone aware datetimes
+                dict2[key] = dict2[key] + "+00:00"
             assert dict1[key] == pytest.approx(dict2[key], rel=rel_tol), (
                 f"Values for {key} do not match"
             )
@@ -62,11 +84,19 @@ def assert_dicts_almost_equal(dict1, dict2, rel_tol=1e-09):
 @pytest.mark.integration
 def test_one_thread_specify_file_pattern(tmp_path):
     log_queue = Queue()
-    vx_ingest = VXIngest()
+    vx_ingest = setup_connection()
+    job_id = "JOB-TEST:V01:TROPOE:NETCDF:OBS"
+    job = vx_ingest.common_collection.get(job_id).content_as[dict]
+    ingest_document_ids = job["ingest_document_ids"]
+    collection = job["subset"]
+    input_data_path = job["input_data_path"]
     vx_ingest.runit(
         {
-            "job_id": "JOB-TEST:V01:TROPOE:NETCDF:OBS",
+            "job_id": job_id,
             "credentials_file": os.environ["CREDENTIALS"],
+            "collection": collection,
+            "input_data_path": input_data_path,
+            "ingest_document_ids": ingest_document_ids,
             "output_dir": f"{tmp_path}",
             "threads": 1,
             "file_pattern": "*.nc",
@@ -93,7 +123,8 @@ def test_one_thread_specify_file_pattern(tmp_path):
 
     # Test that the output file matches the content in the database
     try:
-        derived_data = json.load((output_files[0]).open(encoding="utf-8"))
+        with (output_files[0]).open(encoding="utf-8") as f:
+            derived_data = json.load(f)
         obs_id = derived_data[0]["id"]
         derived_record = [d for d in derived_data if d["id"] == obs_id]
         retrieved_record = vx_ingest.collection.get(obs_id).content_as[dict]

@@ -1,7 +1,7 @@
 import os
 import time
 from copy import deepcopy
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 import netCDF4 as nc
@@ -301,19 +301,19 @@ def test_interpolate_time_iso():
         t_interpolated = _builder.interpolate_time_iso({"timeObs": _t})
         if delta >= -1800 and delta <= 1799:
             assert (
-                datetime.utcfromtimestamp(1636390800).isoformat()
+                datetime.fromtimestamp(1636390800, UTC).isoformat()
             ) == t_interpolated, (
                 f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
             )
         if delta <= -1801:
             assert (
-                datetime.utcfromtimestamp(1636390800 - 3600).isoformat()
+                datetime.fromtimestamp(1636390800 - 3600, UTC).isoformat()
             ) == t_interpolated, (
                 f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
             )
         if delta >= 1800:
             assert (
-                datetime.utcfromtimestamp(1636390800 + 3600).isoformat()
+                datetime.fromtimestamp(1636390800 + 3600, UTC).isoformat()
                 == t_interpolated
             ), f"{1636390800 - delta} interpolated to {t_interpolated} is not equal"
 

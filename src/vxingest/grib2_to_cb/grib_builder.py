@@ -318,7 +318,7 @@ class GribModelBuilderV01(GribBuilder):
             Tv = virtual_temperature_from_dewpoint(pressure=P0*units.Pa,
                                                 temperature=T*units.degK,
                                                 dewpoint=Td*units.degK).magnitude
-            P_Pa = P0**(-(g*(z+inst_ht-z0))/(R*Tv))
+            P_Pa = P0*math.exp(-(g*(z+inst_ht-z0))/(R*Tv))
             P_mb = P_Pa/100
             norm_pressure_list.append(P_mb)
 

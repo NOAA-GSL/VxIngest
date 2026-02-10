@@ -32,7 +32,8 @@ def single_station_list():
 
 @pytest.fixture
 def make_var_obj():
-    """Function to return a 2x2 numpy array filled with single value"""
+    """Function to return object with values attribute 
+        of 2x2 numpy array filled with single value"""
     class VarObj():
         def __init__(self):
             pass
@@ -64,7 +65,6 @@ def test_get_normalized_surface_pressure(empty_builder, single_station_list, mak
             'fcst_valid_epoch': 1234,
     }
 
-    params_dict = None
-    norm_pressure_list = builder.get_normalized_surface_pressure(params_dict)
+    norm_pressure_list = builder.get_normalized_surface_pressure(params_dict=None)
 
     assert norm_pressure_list == pytest.approx([980.6153])

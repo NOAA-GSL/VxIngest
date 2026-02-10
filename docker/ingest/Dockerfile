@@ -52,7 +52,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 ENV PATH="/app/.venv/bin:$PATH"
 
 # The runtime image, used for running just the application with its dependencies
-FROM python:3.13-slim-trixie AS prod
+FROM python:3.14-slim-trixie AS prod
 # It is important to use the image that matches the builder, as the path to the
 # Python executable must be the same, e.g., using `python:3.11-slim-bookworm`
 # will fail.

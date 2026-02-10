@@ -309,16 +309,22 @@ class GribModelBuilderV01(GribBuilder):
         R = 287         # gas constant for dry air, J/(kg*K)
         g = 9.81        # gravity constant, m/s
         inst_ht = 2     # height of instrument AGL at stations (m)
+        gamma = 0.0065  # standard lapse rate (K/m)
         
         for (P0, T, Td, z, z0) in zip(interp_values[P0_var],
                                       interp_values[T_var],
                                       interp_values[Td_var],
                                       station_elev_list,
                                       interp_values[z0_var]):
-            Tv = virtual_temperature_from_dewpoint(pressure=P0*units.Pa,
+            # get model 2m virtual temperature
+            Tv_z0 = virtual_temperature_from_dewpoint(pressure=P0*units.Pa,
                                                 temperature=T*units.degK,
                                                 dewpoint=Td*units.degK).magnitude
-            P_Pa = P0*math.exp(-(g*(z+inst_ht-z0))/(R*Tv))
+            # approximate model virtual temperature for station elevation (hydrostatic)
+            Tv_z = Tv_z0-((z-z0)*gamma)
+            # approximate average virtual temperature of layer
+            Tv_layer = (Tv_z0+Tv_z)/2
+            P_Pa = P0*math.exp(-(g*(z+inst_ht-z0))/(R*Tv_layer))
             P_mb = P_Pa/100
             norm_pressure_list.append(P_mb)
 

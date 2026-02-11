@@ -51,7 +51,7 @@ jobs:
                 --title "Add SDR for ${{ github.event.issue.number }} to the repo" \
                 --body "This pull request was opened automatically because #${{ github.event.issue.number }} was closed after being marked as an approved SDR. It contains a markdown file capturing the SDR body at the time the issue was closed. Please verify that the markdown is correct before merging!" || true
           else
-            echo "Error - Branch $BRANCH already exists, PR will need to be created manually.
+            echo "Error - Branch $BRANCH already exists, PR will need to be created manually."
 
             # Create a step summary
             echo "# Error" >> $GITHUB_STEP_SUMMARY

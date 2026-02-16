@@ -235,10 +235,10 @@ class GribModelBuilderV01(GribBuilder):
             # Convert from pascals to millibars
             pressures.append(float(v_intrp_pressure) / 100)
         return pressures
-    
+
     def get_normalized_surface_pressure(self, params_dict):
         """
-        Compute surface (2 m) pressure at station locations, adjusted for station elevation by using hypsometric equation to 
+        Compute surface (2 m) pressure at station locations, adjusted for station elevation by using hypsometric equation to
         extrapolate from interpolated pressure and elevation to documented station elevation
 
         Inputs needed:
@@ -254,7 +254,7 @@ class GribModelBuilderV01(GribBuilder):
         Virtual Temperature (Hobbs, 2006)
 
         Use metpy to get virtual temperature
-        
+
         :param params_dict: not used
         :return norm_pressure_list: List of pressure values in mb corresponding to stations list
         :rtype: List of floats
@@ -286,7 +286,7 @@ class GribModelBuilderV01(GribBuilder):
         for var in vars:
             values[var] = self.ds_translate_item_variables_map[var].values
             # just creating an empty list here for each var, will populate in next loop
-            interp_values[var] = []     
+            interp_values[var] = []
 
         for station in self.domain_stations:
             geo_index = get_geo_index(
@@ -299,23 +299,24 @@ class GribModelBuilderV01(GribBuilder):
                     (float)(self.interp_grid_box(values[var], y_gridpoint, x_gridpoint))
                 )
             # get station elev
-            station_elev_list.append(station["geo"][geo_index]["elev"])   
-  
-        # NOTE: z0 from model is geopotential height at surface, and z from station metadata is 
+            station_elev_list.append(station["geo"][geo_index]["elev"])
+
+        # NOTE: z0 from model is geopotential height at surface, and z from station metadata is
         #   (presumably) geometric height. Converting model surface elevation from geopotential to
         #   geometric height is insignificant for the pressure calculations and will be left as
         #   geopotential height here.
-        
+
         R = 287         # gas constant for dry air, J/(kg*K)
         g = 9.81        # gravity constant, m/s
         inst_ht = 2     # height of instrument AGL at stations (m)
         gamma = 0.0065  # standard lapse rate (K/m)
-        
+
         for (P0, T, Td, z, z0) in zip(interp_values[P0_var],
                                       interp_values[T_var],
                                       interp_values[Td_var],
                                       station_elev_list,
-                                      interp_values[z0_var]):
+                                      interp_values[z0_var],
+                                      strict=True):
             # get model 2m virtual temperature
             Tv_z0 = virtual_temperature_from_dewpoint(pressure=P0*units.Pa,
                                                 temperature=T*units.degK,

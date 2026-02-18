@@ -48,7 +48,8 @@ jobs:
             git push -f origin $BRANCH
             gh pr create \
                 --title "Add ADR for #${{ github.event.issue.number }} to the repo" \
-                --body "This pull request was opened automatically because #${{ github.event.issue.number }} was closed after being marked as an approved ADR. It contains a markdown file capturing the ADR body at the time the issue was closed. Please verify that the markdown is correct before merging!" || true
+                --body "This pull request was opened automatically because #${{ github.event.issue.number }} was closed after being marked as an approved ADR. It contains a markdown file capturing the ADR body at the time the issue was closed. Please verify that the markdown is correct before merging!" \
+                --assignee ${{ github.event.sender.login }} || true
           else
             echo "Error - Branch $BRANCH already exists, PR will need to be created manually."
 

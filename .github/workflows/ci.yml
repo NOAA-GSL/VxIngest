@@ -1,17 +1,21 @@
 name: "VxIngest CI"
 on:
   push:
-    paths-ignore:
-      - "meta_update_middleware/**"
-      - "docs/**"
+    # For now, run this job on all changes. Path
+    # filtering & required checks don't mix well.
+    # paths-ignore:
+    #   - "meta_update_middleware/**"
+    #   - "docs/**"
     tags:
       - "[0-9]+.[0-9]+.[0-9]+"
       - "[0-9]+.[0-9]+.[0-9]+-rc[0-9]+"
     branches: [main]
   pull_request:
-    paths-ignore:
-      - "meta_update_middleware/**"
-      - "docs/**"
+    # For now, run this job on all changes. Path
+    # filtering & required checks don't mix well.
+    # paths-ignore:
+    #   - "meta_update_middleware/**"
+    #   - "docs/**"
   workflow_dispatch: # Manually
 env:
   REGISTRY: ghcr.io/noaa-gsl/vxingest

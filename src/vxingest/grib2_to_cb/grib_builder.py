@@ -236,7 +236,24 @@ class GribModelBuilderV01(GribBuilder):
             pressures.append(float(v_intrp_pressure) / 100)
         return pressures
 
-    def get_normalized_surface_pressure(self, params_dict):
+    def handle_elevation(self, params_dict):
+        """
+        Retrieve elevation variable passed as param in ingest spec and return interpolated elevation
+        values at station locations.
+
+        Args:
+            params_dict (dict): A dict with keys of variable names and corresponding values
+                that are each a list of tuples (nearest_neighbor_value, interpolated_value)
+                corresponding to station locations.
+                Expecting a single variable, i.e. 1 key in dict.
+        Returns:
+            List of interpolated elevation values corresponding to stations list
+        """
+        # add check for len of params_dict.keys()... warn/error if >1
+        elev_list = [float(interp_elev) for _, interp_elev in list(params_dict.values())[0]]
+        return elev_list
+
+    def handle_normalized_surface_pressure(self):
         """
         Compute surface (2 m) pressure at station locations, adjusted for station elevation by using hypsometric equation to
         extrapolate from interpolated pressure and elevation to documented station elevation
@@ -255,9 +272,8 @@ class GribModelBuilderV01(GribBuilder):
 
         Use metpy to get virtual temperature
 
-        :param params_dict: not used
-        :return norm_pressure_list: List of pressure values in mb corresponding to stations list
-        :rtype: List of floats
+        Returns:
+            List of pressure values in mb corresponding to stations list
         """
         norm_pressure_list = []
 
@@ -317,6 +333,7 @@ class GribModelBuilderV01(GribBuilder):
                                       station_elev_list,
                                       interp_values[z0_var],
                                       strict=True):
+            # ** add check for reasonable station elev value --> return null value if bad **
             # get model 2m virtual temperature
             Tv_z0 = virtual_temperature_from_dewpoint(pressure=P0*units.Pa,
                                                 temperature=T*units.degK,

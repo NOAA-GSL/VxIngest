@@ -3,6 +3,7 @@ import pytest
 
 from vxingest.grib2_to_cb.grib_builder import GribModelBuilderV01
 
+
 @pytest.fixture
 def empty_builder():
     ingest_doc = {
@@ -32,9 +33,9 @@ def single_station_list():
 
 @pytest.fixture
 def make_var_obj():
-    """Function to return object with values attribute 
+    """Function to return object with values attribute
         of 2x2 numpy array filled with single value"""
-    class VarObj():
+    class VarObj:
         def __init__(self):
             pass
 
@@ -43,18 +44,18 @@ def make_var_obj():
 
     def _make_array(val):
         return np.full(shape=(2,2), fill_value=val)
-    
+
     def _make_var_obj(val):
         var_obj = VarObj()
         var_obj.set_values(_make_array(val))
         return var_obj
-    
+
     return _make_var_obj
 
-def test_get_normalized_surface_pressure(empty_builder, single_station_list, make_var_obj):
+def test_handle_normalized_surface_pressure(empty_builder, single_station_list, make_var_obj):
     """Test that get_normalized_surface_pressure() returns correct value
         for example case with 1 station with realistic values"""
-    
+
     builder = empty_builder
     builder.domain_stations = single_station_list
     builder.ds_translate_item_variables_map = {
@@ -65,6 +66,6 @@ def test_get_normalized_surface_pressure(empty_builder, single_station_list, mak
             'fcst_valid_epoch': 1234,
     }
 
-    norm_pressure_list = builder.get_normalized_surface_pressure(params_dict=None)
+    norm_pressure_list = builder.handle_normalized_surface_pressure(params_dict=None)
 
     assert norm_pressure_list == pytest.approx([980.6153])

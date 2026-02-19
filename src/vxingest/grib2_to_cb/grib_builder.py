@@ -227,8 +227,17 @@ class GribModelBuilderV01(GribBuilder):
 
     def handle_surface_pressure(self, params_dict):
         """
-        translate all the pressures(one per station location) to millibars
-        This is a straight interpolation of surface pressure from the nearest grid points
+        Convert interpolated surface pressure values to millibars
+        """
+        pressures = []
+        for _v, v_intrp_pressure in list(params_dict.values())[0]:
+            # Convert from pascals to millibars
+            pressures.append(float(v_intrp_pressure) / 100)
+        return pressures
+
+    def handle_mslp(self, params_dict):
+        """
+        Convert interpolated mean sea level pressure values to millibars
         """
         pressures = []
         for _v, v_intrp_pressure in list(params_dict.values())[0]:
@@ -247,7 +256,7 @@ class GribModelBuilderV01(GribBuilder):
                 corresponding to station locations.
                 Expecting a single variable, i.e. 1 key in dict.
         Returns:
-            List of interpolated elevation values corresponding to stations list
+            List of interpolated elevation values (float) corresponding to stations list
         """
         # add check for len of params_dict.keys()... warn/error if >1
         elev_list = [float(interp_elev) for _, interp_elev in list(params_dict.values())[0]]

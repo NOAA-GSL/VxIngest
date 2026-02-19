@@ -667,6 +667,18 @@ class GribBuilder(Builder):
             # to get the values you can use the following...
             # ds_surface_vegetation_type.variables[list(ds_surface_vegetation_type.data_vars.keys())[0]].values
 
+            # mean sea level variables
+            ds_msl = xr.open_dataset(
+                queue_element,
+                engine="cfgrib",
+                backend_kwargs={
+                    "filter_by_keys": {"typeOfLevel": "meanSea", "stepType": "instant"},
+                    "read_keys": ["projString"],
+                    "indexpath": "",
+                },
+            )
+            ds_mslp = ds_msl.filter_by_attrs(long_name="MSLP (MAPS System Reduction)")
+
             # set up the variables map for the translate_template_item method. this way only the
             # translation map needs to be a class variable. Better data hiding.
             # It seems that cfgrib is graceful about missing variables, so we don't need to check
@@ -709,6 +721,11 @@ class GribBuilder(Builder):
                     else None,
                     "Surface pressure": ds_surface_pressure.variables[
                         list(ds_surface_pressure.data_vars.keys())[0]
+                    ]
+                    if len(list(ds_surface_pressure.data_vars.keys())) > 0
+                    else None,
+                    "MSLP (MAPS System Reduction)": ds_mslp.variables[
+                        list(ds_mslp.data_vars.keys())[0]
                     ]
                     if len(list(ds_surface_pressure.data_vars.keys())) > 0
                     else None,

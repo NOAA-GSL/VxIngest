@@ -259,7 +259,9 @@ class GribModelBuilderV01(GribBuilder):
             List of interpolated elevation values (float) corresponding to stations list
         """
         # add check for len of params_dict.keys()... warn/error if >1
-        elev_list = [float(interp_elev) for _, interp_elev in list(params_dict.values())[0]]
+        elev_list = [
+            float(interp_elev) for _, interp_elev in list(params_dict.values())[0]
+        ]
         return elev_list
 
     def handle_normalized_surface_pressure(self, params_dict):
@@ -301,10 +303,10 @@ class GribModelBuilderV01(GribBuilder):
         # For now, I think #3 will be the simplest to implement, but should consider other options for future to
         #   be cleanest and most efficient. (#2 and #3 will be doing some redundant work)
 
-        P0_var = 'Surface pressure'             # in Pa in grib
-        T_var = '2 metre temperature'           # in K in grib
-        Td_var = '2 metre dewpoint temperature' # in K in grib
-        z0_var = 'Orography'                    # in gpm in grib (gepotential height)
+        P0_var = "Surface pressure"  # in Pa in grib
+        T_var = "2 metre temperature"  # in K in grib
+        Td_var = "2 metre dewpoint temperature"  # in K in grib
+        z0_var = "Orography"  # in gpm in grib (gepotential height)
 
         vars = [P0_var, T_var, Td_var, z0_var]
         values = {}
@@ -334,35 +336,38 @@ class GribModelBuilderV01(GribBuilder):
         #   geometric height is insignificant for the pressure calculations and will be left as
         #   geopotential height here.
 
-        R = 287         # gas constant for dry air, J/(kg*K)
-        g = 9.81        # gravity constant, m/s
-        inst_ht = 2     # height of instrument AGL at stations (m)
+        R = 287  # gas constant for dry air, J/(kg*K)
+        g = 9.81  # gravity constant, m/s
+        inst_ht = 2  # height of instrument AGL at stations (m)
         gamma = 0.0065  # standard lapse rate (K/m)
 
-        for (P0, T, Td, z, z0) in zip(interp_values[P0_var],
-                                      interp_values[T_var],
-                                      interp_values[Td_var],
-                                      station_elev_list,
-                                      interp_values[z0_var],
-                                      strict=True):
+        for P0, T, Td, z, z0 in zip(
+            interp_values[P0_var],
+            interp_values[T_var],
+            interp_values[Td_var],
+            station_elev_list,
+            interp_values[z0_var],
+            strict=True,
+        ):
             # don't compute if station elevation obviously bad
-            if (z<-200 or z>7000):
+            if z < -200 or z > 7000:
                 P_mb = None
             else:
                 # get model 2m virtual temperature
-                Tv_z0 = virtual_temperature_from_dewpoint(pressure=P0*units.Pa,
-                                                    temperature=T*units.degK,
-                                                    dewpoint=Td*units.degK).magnitude
+                Tv_z0 = virtual_temperature_from_dewpoint(
+                    pressure=P0 * units.Pa,
+                    temperature=T * units.degK,
+                    dewpoint=Td * units.degK,
+                ).magnitude
                 # approximate model virtual temperature for station elevation (hydrostatic)
-                Tv_z = Tv_z0-((z-z0)*gamma)
+                Tv_z = Tv_z0 - ((z - z0) * gamma)
                 # approximate average virtual temperature of layer
-                Tv_layer = (Tv_z0+Tv_z)/2
-                P_Pa = P0*math.exp(-(g*(z+inst_ht-z0))/(R*Tv_layer))
-                P_mb = P_Pa/100
+                Tv_layer = (Tv_z0 + Tv_z) / 2
+                P_Pa = P0 * math.exp(-(g * (z + inst_ht - z0)) / (R * Tv_layer))
+                P_mb = P_Pa / 100
             norm_pressure_list.append(P_mb)
 
         return norm_pressure_list
-
 
     def handle_visibility(self, params_dict):
         """translate visibility variable

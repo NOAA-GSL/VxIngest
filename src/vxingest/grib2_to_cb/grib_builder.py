@@ -262,7 +262,7 @@ class GribModelBuilderV01(GribBuilder):
         elev_list = [float(interp_elev) for _, interp_elev in list(params_dict.values())[0]]
         return elev_list
 
-    def handle_normalized_surface_pressure(self):
+    def handle_normalized_surface_pressure(self, params_dict):
         """
         Compute surface (2 m) pressure at station locations, adjusted for station elevation by using hypsometric equation to
         extrapolate from interpolated pressure and elevation to documented station elevation
@@ -280,6 +280,9 @@ class GribModelBuilderV01(GribBuilder):
         Virtual Temperature (Hobbs, 2006)
 
         Use metpy to get virtual temperature
+
+        Args:
+            params_dict: not used
 
         Returns:
             List of pressure values in mb corresponding to stations list
@@ -342,17 +345,20 @@ class GribModelBuilderV01(GribBuilder):
                                       station_elev_list,
                                       interp_values[z0_var],
                                       strict=True):
-            # ** add check for reasonable station elev value --> return null value if bad **
-            # get model 2m virtual temperature
-            Tv_z0 = virtual_temperature_from_dewpoint(pressure=P0*units.Pa,
-                                                temperature=T*units.degK,
-                                                dewpoint=Td*units.degK).magnitude
-            # approximate model virtual temperature for station elevation (hydrostatic)
-            Tv_z = Tv_z0-((z-z0)*gamma)
-            # approximate average virtual temperature of layer
-            Tv_layer = (Tv_z0+Tv_z)/2
-            P_Pa = P0*math.exp(-(g*(z+inst_ht-z0))/(R*Tv_layer))
-            P_mb = P_Pa/100
+            # don't compute if station elevation obviously bad
+            if (z<-200 or z>7000):
+                P_mb = None
+            else:
+                # get model 2m virtual temperature
+                Tv_z0 = virtual_temperature_from_dewpoint(pressure=P0*units.Pa,
+                                                    temperature=T*units.degK,
+                                                    dewpoint=Td*units.degK).magnitude
+                # approximate model virtual temperature for station elevation (hydrostatic)
+                Tv_z = Tv_z0-((z-z0)*gamma)
+                # approximate average virtual temperature of layer
+                Tv_layer = (Tv_z0+Tv_z)/2
+                P_Pa = P0*math.exp(-(g*(z+inst_ht-z0))/(R*Tv_layer))
+                P_mb = P_Pa/100
             norm_pressure_list.append(P_mb)
 
         return norm_pressure_list

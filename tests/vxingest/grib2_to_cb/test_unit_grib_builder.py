@@ -69,3 +69,22 @@ def test_handle_normalized_surface_pressure(empty_builder, single_station_list, 
     norm_pressure_list = builder.handle_normalized_surface_pressure(params_dict=None)
 
     assert norm_pressure_list == pytest.approx([980.6153])
+
+def test_handle_normalized_surface_pressure_bad_station_elev(empty_builder, single_station_list, make_var_obj):
+    """Test that get_normalized_surface_pressure() returns correct value
+        for example case with 1 station with realistic values"""
+
+    builder = empty_builder
+    builder.domain_stations = single_station_list
+    builder.domain_stations[0]['geo'][0]['elev'] = 9999
+    builder.ds_translate_item_variables_map = {
+            'Surface pressure': make_var_obj(97500),
+            '2 metre temperature': make_var_obj(285),
+            '2 metre dewpoint temperature': make_var_obj(270),
+            'Orography': make_var_obj(300),
+            'fcst_valid_epoch': 1234,
+    }
+
+    norm_pressure_list = builder.handle_normalized_surface_pressure(params_dict=None)
+
+    assert norm_pressure_list == [None]

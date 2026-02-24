@@ -71,8 +71,8 @@ def test_handle_normalized_surface_pressure(empty_builder, single_station_list, 
     assert norm_pressure_list == pytest.approx([980.6153])
 
 def test_handle_normalized_surface_pressure_bad_station_elev(empty_builder, single_station_list, make_var_obj):
-    """Test that get_normalized_surface_pressure() returns correct value
-        for example case with 1 station with realistic values"""
+    """Test that get_normalized_surface_pressure() returns null value
+        when station elevation is unrealistic value"""
 
     builder = empty_builder
     builder.domain_stations = single_station_list

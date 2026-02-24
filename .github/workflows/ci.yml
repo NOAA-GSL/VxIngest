@@ -1,17 +1,21 @@
 name: "VxIngest CI"
 on:
   push:
-    paths-ignore:
-      - "meta_update_middleware/**"
-      - "docs/**"
+    # For now, run this job on all changes. Path
+    # filtering & required checks don't mix well.
+    # paths-ignore:
+    #   - "meta_update_middleware/**"
+    #   - "docs/**"
     tags:
       - "[0-9]+.[0-9]+.[0-9]+"
       - "[0-9]+.[0-9]+.[0-9]+-rc[0-9]+"
     branches: [main]
   pull_request:
-    paths-ignore:
-      - "meta_update_middleware/**"
-      - "docs/**"
+    # For now, run this job on all changes. Path
+    # filtering & required checks don't mix well.
+    # paths-ignore:
+    #   - "meta_update_middleware/**"
+    #   - "docs/**"
   workflow_dispatch: # Manually
 env:
   REGISTRY: ghcr.io/noaa-gsl/vxingest
@@ -21,39 +25,37 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - name: Install poetry
-        run: pipx install poetry
-      - uses: actions/setup-python@v6
+      - name: "Set up Python"
+        uses: actions/setup-python@v6
         with:
-          python-version: "3.13"
+          python-version-file: ".python-version"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
       - name: Install dependencies
-        run: |
-          poetry env use 3.13
-          poetry install
+        run: uv sync --locked --dev
       - name: Format with Ruff
-        run: poetry run ruff format --check src tests
+        run: uv run ruff format --check src tests
       - name: Lint with Ruff
-        run: poetry run ruff check --output-format=github src tests
+        run: uv run ruff check --output-format=github src tests
   test:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
     steps:
       - uses: actions/checkout@v6
-      - name: Install poetry
-        run: pipx install poetry
-      - uses: actions/setup-python@v6
+      - name: "Set up Python"
+        uses: actions/setup-python@v6
         with:
-          python-version: "3.13"
+          python-version-file: ".python-version"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
       - name: Install dependencies
-        run: |
-          poetry env use 3.13
-          poetry install
+        run: uv sync --locked --dev
       - name: Unit test with pytest
         run: |
-          poetry run coverage run -m pytest -m "not integration" tests
-          poetry run coverage report
-          poetry run coverage xml
+          uv run coverage run -m pytest -m "not integration" tests
+          uv run coverage report
+          uv run coverage xml
       - name: Code Coverage Report
         uses: irongut/CodeCoverageSummary@v1.3.0
         with:
@@ -162,7 +164,7 @@ jobs:
       - name: Extract SHORT_SHA
         run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
       - name: Scan image with Trivy
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@0.34.0
         with:
           image-ref: "ghcr.io/noaa-gsl/vxingest/ingest:sha-${{ env.SHORT_SHA }}"
           format: "table" # Generate actionable output
@@ -174,7 +176,7 @@ jobs:
           TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
       - name: Generate Trivy output formatted for the GitHub Security tab
         if: always()
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@0.34.0
         with:
           image-ref: "ghcr.io/noaa-gsl/vxingest/ingest:sha-${{ env.SHORT_SHA }}"
           format: "sarif"
@@ -198,7 +200,7 @@ jobs:
       - name: Extract SHORT_SHA
         run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
       - name: Scan image with Trivy
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@0.34.0
         with:
           image-ref: "ghcr.io/noaa-gsl/vxingest/import:sha-${{ env.SHORT_SHA }}"
           format: "table" # Generate actionable output
@@ -210,7 +212,7 @@ jobs:
           TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
       - name: Generate Trivy output formatted for the GitHub Security tab
         if: always()
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@0.34.0
         with:
           image-ref: "ghcr.io/noaa-gsl/vxingest/import:sha-${{ env.SHORT_SHA }}"
           format: "sarif"

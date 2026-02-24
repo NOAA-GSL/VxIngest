@@ -2,50 +2,60 @@
 
 # NOTE - avoid installing python packages via apt - they install an alternate version of Python
 
-# The builder image, used for building the virtual environment
-FROM python:3.13-slim-trixie AS builder
+# First, build the application in the `/app` directory.
+# See `Dockerfile` for details.
+FROM ghcr.io/astral-sh/uv:python3.13-trixie-slim AS builder
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 
-RUN apt-get update && \
-    # cftime build deps
-    apt-get install -y build-essential && \
-    apt-get clean && rm -rf /var/lib/apt/lists/* 
+# Omit development dependencies
+ENV UV_NO_DEV=1
 
-# Make sure the python tooling is up-to-date for when it's copied into the prod layer
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel
-RUN pip install --no-cache-dir poetry
-
-ENV POETRY_NO_INTERACTION=1 \
-    POETRY_VIRTUALENVS_IN_PROJECT=1 \
-    POETRY_VIRTUALENVS_CREATE=1 \
-    POETRY_CACHE_DIR=/tmp/poetry_cache
+# Disable Python downloads, because we want to use the system interpreter
+# across both images. If using a managed Python version, it needs to be
+# copied from the build image into the final image; see `standalone.Dockerfile`
+# for an example.
+ENV UV_PYTHON_DOWNLOADS=0
 
 WORKDIR /app
 
-# Install just the runtime dependencies, no dev tooling
-COPY pyproject.toml poetry.lock ./
+# Copy in our vendored dependencies
 COPY third_party/NCEPLIBS-bufr/wheel_dist ./third_party/NCEPLIBS-bufr/wheel_dist
-RUN ls && poetry install --without dev --no-root && rm -rf $POETRY_CACHE_DIR
 
+# Set up Python environment
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    uv sync --locked --no-install-project --no-dev
+
+# Install the app
+COPY . /app
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked
 
 # The dev image, used for testing
 FROM builder AS dev
-
 # Use like the following:
 # docker build --target=dev -f Dockerfile -t vxingest:dev .
 # docker run --rm --mount type=bind,src=$(pwd)/tmp/test-data/opt/data,dst=/opt/data -it vxingest:dev bash
-# poetry run pytest tests
+# uv run pytest tests
 
-# Install the app and dev dependencies so we can run tests & tooling
-COPY . /app
-RUN poetry install
+# Have uv install dev dependencies
+ENV UV_NO_DEV=0
 
-# Activate the virtual environment
-ENV VIRTUAL_ENV=/app/.venv \
-    PATH="/app/.venv/bin:$PATH"
+# Set up Python environment
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    uv sync --locked
 
+# Place executables in the environment at the front of the path
+ENV PATH="/app/.venv/bin:$PATH"
 
 # The runtime image, used for running just the application with its dependencies
 FROM python:3.13-slim-trixie AS prod
+# It is important to use the image that matches the builder, as the path to the
+# Python executable must be the same, e.g., using `python:3.11-slim-bookworm`
+# will fail.
 
 ARG COMMITBRANCH=development
 ARG COMMITSHA=unspecified
@@ -57,35 +67,31 @@ ENV VERSION=${BUILDVER}
 
 LABEL version=${BUILDVER} code.branch=${COMMITBRANCH} code.commit=${COMMITSHA}
 
-# Update the image's built in Python tooling before we activate the virtual environment
-RUN pip install --no-cache-dir --upgrade pip setuptools
-
-# Activate the virtual environment
-ENV VIRTUAL_ENV=/app/.venv \
-    PATH="/app/.venv/bin:$PATH"
-
-# Copy in dependencies
-COPY --from=builder ${VIRTUAL_ENV} ${VIRTUAL_ENV}
-
-WORKDIR /app
-
-# Specify the UID/GID we want our user to have.
+# Setup a non-root user with a well known UID/GID
 # In this case, use the same uid/gid as the import image.
+# Create the user with a home dir so we have a place for temporary cache dirs & etc...
 ARG ID=5002
 ARG USERNAME=ingest
-
-# Add a user with a known uid/gid
-# Create a home dir so we have a place for temporary cache dirs & etc...
 RUN groupadd --gid ${ID} ${USERNAME} && \
     useradd --shell /bin/bash --create-home --uid ${ID} --gid ${ID} ${USERNAME}
+
+# Update the image's built in Python tooling before we activate the virtual environment
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
 # Run OS updates
 RUN apt-get update && apt-get upgrade -y && \
     apt-get clean && rm -rf /var/lib/apt/lists/* 
 
-# Copy just the vxingest app
-COPY ./src/ /app/
+# Copy the application from the builder
+COPY --from=builder --chown=ingest:ingest /app /app
 
+WORKDIR /app
+
+# Place executables in the environment at the front of the path
+ENV PATH="/app/.venv/bin:$PATH"
+
+# Use the non-root user to run the application
 USER ${USERNAME}
 
-ENTRYPOINT ["python", "-m", "vxingest.main"]
+# Run the default ingest python entrypoint defined in pyproject.toml
+ENTRYPOINT ["ingest"]

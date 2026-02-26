@@ -165,13 +165,6 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus_normalized(tmp_path
                         # There are no unusual math transformations in the RH handler.
                     else:
                         abs_tol = 0.001  # most fields validate between pygrib and cfgrib precisely
-
-                    assert result["data"][_k][_dk] is not None, (
-                        f"""result {_k + "." + _dk}  is None """
-                    )
-                    assert _json["data"][_k][_dk] is not None, (
-                        f"""_json {_k + "." + _dk} is None """
-                    )
                     # Only compare with math.isclose if both are numbers
                     if isinstance(result["data"][_k][_dk], (int, float)) and isinstance(
                         _json["data"][_k][_dk], (int, float)
@@ -186,6 +179,7 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus_normalized(tmp_path
                         assert result["data"][_k][_dk] == _json["data"][_k][_dk], (
                             f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure non-numeric data {result['data'][_k][_dk]} != {_json['data'][_k][_dk]}"
                         )
+
 
 @pytest.mark.integration
 def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus(tmp_path: Path):

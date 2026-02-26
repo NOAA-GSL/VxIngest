@@ -667,6 +667,18 @@ class GribBuilder(Builder):
             # to get the values you can use the following...
             # ds_surface_vegetation_type.variables[list(ds_surface_vegetation_type.data_vars.keys())[0]].values
 
+            # mean sea level variables
+            ds_msl = xr.open_dataset(
+                queue_element,
+                engine="cfgrib",
+                backend_kwargs={
+                    "filter_by_keys": {"typeOfLevel": "meanSea", "stepType": "instant"},
+                    "read_keys": ["projString"],
+                    "indexpath": "",
+                },
+            )
+            ds_mslp = ds_msl.filter_by_attrs(long_name="MSLP (MAPS System Reduction)")
+
             # set up the variables map for the translate_template_item method. this way only the
             # translation map needs to be a class variable. Better data hiding.
             # It seems that cfgrib is graceful about missing variables, so we don't need to check
@@ -677,60 +689,89 @@ class GribBuilder(Builder):
                     "2 metre temperature": ds_hgt_2_metre_temperature.variables[
                         list(ds_hgt_2_metre_temperature.data_vars.keys())[0]
                     ]
-                    if len(list(ds_hgt_2_metre_temperature.data_vars.keys())) > 0
+                    if ds_hgt_2_metre_temperature
+                    and ds_hgt_2_metre_temperature.data_vars
+                    and len(list(ds_hgt_2_metre_temperature.data_vars.keys())) > 0
                     else None,
                     "2 metre dewpoint temperature": ds_hgt_2_metre_dewpoint_temperature.variables[
                         list(ds_hgt_2_metre_dewpoint_temperature.data_vars.keys())[0]
                     ]
-                    if len(list(ds_hgt_2_metre_dewpoint_temperature.data_vars.keys()))
+                    if ds_hgt_2_metre_dewpoint_temperature
+                    and ds_hgt_2_metre_dewpoint_temperature.data_vars
+                    and len(list(ds_hgt_2_metre_dewpoint_temperature.data_vars.keys()))
                     > 0
                     else None,
                     "2 metre relative humidity": ds_hgt_2_metre_relative_humidity.variables[
                         list(ds_hgt_2_metre_relative_humidity.data_vars.keys())[0]
                     ]
-                    if len(list(ds_hgt_2_metre_relative_humidity.data_vars.keys())) > 0
+                    if ds_hgt_2_metre_relative_humidity
+                    and ds_hgt_2_metre_relative_humidity.data_vars
+                    and len(list(ds_hgt_2_metre_relative_humidity.data_vars.keys())) > 0
                     else None,
                     "2 metre specific humidity": ds_hgt_2_metre_specific_humidity.variables[
                         list(ds_hgt_2_metre_specific_humidity.data_vars.keys())[0]
                     ]
-                    if len(list(ds_hgt_2_metre_specific_humidity.data_vars.keys())) > 0
+                    if ds_hgt_2_metre_specific_humidity
+                    and ds_hgt_2_metre_specific_humidity.data_vars
+                    and len(list(ds_hgt_2_metre_specific_humidity.data_vars.keys())) > 0
                     else None,
                     "10 metre U wind component": ds_hgt_10_metre_u_component_of_wind.variables[
                         list(ds_hgt_10_metre_u_component_of_wind.data_vars.keys())[0]
                     ]
-                    if len(list(ds_hgt_10_metre_u_component_of_wind.data_vars.keys()))
+                    if ds_hgt_10_metre_u_component_of_wind
+                    and ds_hgt_10_metre_u_component_of_wind.data_vars
+                    and len(list(ds_hgt_10_metre_u_component_of_wind.data_vars.keys()))
                     > 0
                     else None,
                     "10 metre V wind component": ds_hgt_10_metre_v_component_of_wind.variables[
                         list(ds_hgt_10_metre_v_component_of_wind.data_vars.keys())[0]
                     ]
-                    if len(list(ds_hgt_10_metre_v_component_of_wind.data_vars.keys()))
+                    if ds_hgt_10_metre_v_component_of_wind
+                    and ds_hgt_10_metre_v_component_of_wind.data_vars
+                    and len(list(ds_hgt_10_metre_v_component_of_wind.data_vars.keys()))
                     > 0
                     else None,
                     "Surface pressure": ds_surface_pressure.variables[
                         list(ds_surface_pressure.data_vars.keys())[0]
                     ]
-                    if len(list(ds_surface_pressure.data_vars.keys())) > 0
+                    if ds_surface_pressure
+                    and ds_surface_pressure.data_vars
+                    and len(list(ds_surface_pressure.data_vars.keys())) > 0
+                    else None,
+                    "MSLP (MAPS System Reduction)": ds_mslp.variables[
+                        list(ds_mslp.data_vars.keys())[0]
+                    ]
+                    if ds_mslp
+                    and ds_mslp.data_vars
+                    and len(list(ds_mslp.data_vars.keys())) > 0
                     else None,
                     "Visibility": ds_surface_visibility.variables[
                         list(ds_surface_visibility.data_vars.keys())[0]
                     ]
-                    if len(list(ds_surface_visibility.data_vars.keys())) > 0
+                    if ds_surface_visibility
+                    and ds_surface_visibility.data_vars
+                    and len(list(ds_surface_visibility.data_vars.keys())) > 0
                     else None,
                     "Orography": ds_surface_orog.variables[
                         list(ds_surface_orog.data_vars.keys())[0]
                     ]
-                    if len(list(ds_surface_orog.data_vars.keys())) > 0
+                    if ds_surface_orog
+                    and ds_surface_orog.data_vars
+                    and len(list(ds_surface_orog.data_vars.keys())) > 0
                     else None,
                     "Cloud ceiling": ds_cloud_ceiling.variables[
                         list(ds_cloud_ceiling.data_vars.keys())[0]
                     ]
-                    if len(list(ds_cloud_ceiling.data_vars.keys())) > 0
+                    if ds_cloud_ceiling
+                    and ds_cloud_ceiling.data_vars
+                    and len(list(ds_cloud_ceiling.data_vars.keys())) > 0
                     else None,
                     "Vegetation Type": ds_surface_vegetation_type.variables[
                         list(ds_surface_vegetation_type.data_vars.keys())[0]
                     ]
-                    if len(list(ds_surface_vegetation_type.data_vars.keys())) > 0
+                    if ds_surface_vegetation_type
+                    and ds_surface_vegetation_type.data_vars
+                    and len(list(ds_surface_vegetation_type.data_vars.keys())) > 0
                     else None,
                     "fcst_valid_epoch": ds_fcst_valid_epoch,
                     "fcst_len": ds_fcst_len,

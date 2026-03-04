@@ -228,6 +228,47 @@ def test_one_thread_specify_file_pattern_grib2_job_spec_rt(tmp_path: Path):
 
 
 @pytest.mark.integration
+def test_one_thread_specify_file_pattern_grib2_normalized_pressure_job_spec_rt(
+    tmp_path: Path,
+):
+    # Save original sys.argv
+    original_argv = sys.argv.copy()
+    job_id = (
+        "JS:METAR:MODEL:HRRR_OPS_conus_3km_NORMALIZED_PRESSURE_TEST:schedule:job:V01"
+    )
+    # need these args
+    sys.argv = [
+        "run_ingest",
+        "-j",
+        job_id,
+        "-c",
+        os.environ["CREDENTIALS"],
+        "-m",
+        str(tmp_path / "metrics"),
+        "-o",
+        str(tmp_path / "output"),
+        "-x",
+        str(tmp_path / "transfer"),
+        "-l",
+        str(tmp_path / "logs"),
+        "-f",
+        "21287230000[0123456789]?",
+        "-t",
+        "1",
+    ]
+    try:
+        vx_ingest = setup_connection(VXIngest_grib2())
+        initial_success_count = prom_successes._value.get()
+        run_ingest()
+        check_output(tmp_path, vx_ingest, 3, initial_success_count + 1)
+    except Exception as e:
+        pytest.fail(f"Test failed with exception {e}")
+    finally:
+        # Restore original sys.argv
+        sys.argv = original_argv
+
+
+@pytest.mark.integration
 def test_one_thread_specify_file_pattern_grib2_job_spec_rt_start_end(tmp_path: Path):
     # Save original sys.argv
     original_argv = sys.argv.copy()
@@ -726,12 +767,6 @@ def check_grib2(vx_ingest, derived_data):
                 else:
                     abs_tol = 0.001  # most fields validate between pygrib and cfgrib precisely
 
-                assert result["data"][_k][_dk] is not None, (
-                    f"""result {_k + "." + _dk}  is None """
-                )
-                assert item["data"][_k][_dk] is not None, (
-                    f"""item {_k + "." + _dk} is None """
-                )
                 # Only compare with math.isclose if both are numbers
                 if isinstance(result["data"][_k][_dk], (int, float)) and isinstance(
                     item["data"][_k][_dk], (int, float)

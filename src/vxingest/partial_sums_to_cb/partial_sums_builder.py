@@ -293,8 +293,10 @@ class PartialSumsBuilder(Builder):
             func = parts[0].replace("&", "")
             params = []
             if len(parts) > 1:
-                if parts[1][0] == '{':
-                    params = json.loads(parts[1].replace("\'","\""))  #json loads requires double quotes around key/val strings
+                if parts[1][0] == "{":
+                    params = json.loads(
+                        parts[1].replace("'", '"')
+                    )  # json loads requires double quotes around key/val strings
                 else:
                     params = parts[1].split(",")
             if isinstance(params, dict):
@@ -860,12 +862,12 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
             dict of calculated sum stats
         """
         try:
-            if 'model' in params_dict:
-                model_var_name = params_dict['model']
+            if "model" in params_dict:
+                model_var_name = params_dict["model"]
             else:
                 model_var_name = list(params_dict.keys())[0]
-            if 'obs' in params_dict:
-                obs_var_name = params_dict['obs']
+            if "obs" in params_dict:
+                obs_var_name = params_dict["obs"]
             else:
                 obs_var_name = model_var_name
 
@@ -903,7 +905,8 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
                                 ).magnitude
                             ) * 100
                     if (obs_var_name == "UW" or model_var_name == "UW") or (
-                        obs_var_name == "VW" or model_var_name == "VW"):
+                        obs_var_name == "VW" or model_var_name == "VW"
+                    ):
                         # wind direction in the data is from 0 to 360 and we need it from -180 to 180
                         if (
                             ("UW" not in obs_elem or "VW" not in obs_elem)

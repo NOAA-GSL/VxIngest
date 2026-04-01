@@ -83,7 +83,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Generate image metadata
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         id: meta
         with:
           images: |
@@ -124,7 +124,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Generate image metadata
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         id: meta
         with:
           images: |

@@ -26,7 +26,7 @@ ingest = "vxingest.main:run_ingest"
 
 [dependency-groups]
 dev = [
-    "pytest>=8.4.2",
+    "pytest>=9.0.3",
     "types-pyyaml>=6.0.12.20250915",
     "ruff>=0.14.3",
     "coverage>=7.11.0",

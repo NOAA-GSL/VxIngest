@@ -236,8 +236,14 @@ class GribBuilder(Builder):
                     if _ri in self.template and self.template[_ri] is not None:
                         variable = self.template[_ri]
                         return self.template[_ri], self.template[_ri]
-                    if _ri not in self.ds_translate_item_variables_map or self.ds_translate_item_variables_map[_ri] is None:
-                        logger.warning("Variable %s has no values in ds_translate_item_variables_map", _ri)
+                    if (
+                        _ri not in self.ds_translate_item_variables_map
+                        or self.ds_translate_item_variables_map[_ri] is None
+                    ):
+                        logger.warning(
+                            "Variable %s has no values in ds_translate_item_variables_map",
+                            _ri,
+                        )
                         values = None
                     else:
                         values = self.ds_translate_item_variables_map[_ri].values

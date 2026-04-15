@@ -242,7 +242,8 @@ class GribModelBuilderV01(GribBuilder):
         pressures = []
         for _v, v_intrp_pressure in list(params_dict.values())[0]:
             # Convert from pascals to millibars
-            pressures.append(float(v_intrp_pressure) / 100)
+            _interp_p = None if v_intrp_pressure is None else float(v_intrp_pressure)
+            pressures.append(None if _interp_p is None else _interp_p / 100)
         return pressures
 
     def handle_elevation(self, params_dict):

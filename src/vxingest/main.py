@@ -471,7 +471,7 @@ def process_run_configurations(
             data_source_id = proc["dataSourceId"]
             data_source_spec = runtime_collection.get(data_source_id).content_as[dict]
             input_data_path = data_source_spec["sourceDataUri"]
-            file_mask = data_source_spec["fileMask"]
+            file_mask = data_source_spec.get("fileMask", "")
             file_pattern = data_source_spec.get("filePattern", "*")
             collection = data_source_spec["subset"]
         else:

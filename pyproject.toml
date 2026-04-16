@@ -19,7 +19,7 @@ dependencies = [
     "metpy>=1.7.1",
     "prometheus-client>=0.23.1",
     "ncepbufr",
-    "eccodes==2.44.0", # This shouldn't be needed - it's a dependency of cfgrib. However, eccodes 2.45 & 2.46 don't appear to include eccodeslib which breaks cfgrib.
+    "eccodeslib>=2.46.2.19", # This shouldn't be needed - it's a dependency of eccodes. (itself a dependency of cfgrib) However, eccodes 2.45 & 2.46 don't appear to include eccodeslib which breaks cfgrib. Monitor https://github.com/ecmwf/eccodes-python/issues/150 for a resolution.
 ]
 
 [project.scripts]

@@ -232,17 +232,51 @@ wheels = [
 
 [[package]]
 name = "eccodes"
-version = "2.46.0"
+version = "2.44.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "attrs", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux') or sys_platform == 'darwin'" },
     { name = "cffi", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux') or sys_platform == 'darwin'" },
+    { name = "eccodeslib", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux') or sys_platform == 'darwin'" },
     { name = "findlibs", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux') or sys_platform == 'darwin'" },
     { name = "numpy", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux') or sys_platform == 'darwin'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/20/45/2c765fbf9315a9f9311b30ee29bdc44bb393fcf6525dac68e6ea906d36b3/eccodes-2.46.0.tar.gz", hash = "sha256:63fda0f047f97ec62b70aa3e17a7e317c9dccd6708f8918eae617884d8a54aaa", size = 2467182, upload-time = "2026-02-24T12:27:38.874Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1a/2a/9242d0a83de707ed401906a34bfe1d9a3af616abf498580ef73a6e8cebd5/eccodes-2.44.0.tar.gz", hash = "sha256:8aba9316749349e64db7d075100bff8e24a892814e3529132ec97b6d787eb8f4", size = 2310714, upload-time = "2025-10-03T14:02:37.462Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ae/80/81d98622ebcb57b8fd6b6b5cd0f1083ac1b767706c612d20035d5d056069/eccodes-2.46.0-py3-none-any.whl", hash = "sha256:9898d0e6126e52f141edc76cdd89aa631925edbe6b1d29ca04540c4fd93ad74c", size = 91505, upload-time = "2026-02-24T12:27:37.288Z" },
+    { url = "https://files.pythonhosted.org/packages/dd/b8/9d15cea1f63fb2e1e14fda4160c355e6187e69b71b848c05faaae08b2e6c/eccodes-2.44.0-py3-none-any.whl", hash = "sha256:c3f11041bde7c3f53767c5bbed608c43695f257c09c58bb4de24bcd9cdae4e3a", size = 83465, upload-time = "2025-10-03T14:02:36.181Z" },
+]
+
+[[package]]
+name = "eccodeslib"
+version = "2.46.2.19"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "eckitlib", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux') or sys_platform == 'darwin'" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d3/12/e48ea960e13791b033c08b25045eeb8221df8beb3a9e58d0753bf5bd42fe/eccodeslib-2.46.2.19-cp313-cp313-macosx_13_0_arm64.whl", hash = "sha256:f5fe6a0787381115929ba521d9dafae7cb9c0c9b72790e4f92db1a09a043625f", size = 8899996, upload-time = "2026-04-01T12:30:10.847Z" },
+    { url = "https://files.pythonhosted.org/packages/01/8a/0826b05445c886e95fc46ac908afae28d28a06bb66f4f84dbbf710360a85/eccodeslib-2.46.2.19-cp313-cp313-macosx_13_0_x86_64.whl", hash = "sha256:a5ba7e609de866ed0f2d45b4785a8a870d21efb6e9e5a71e219d39e8fdeebdf0", size = 8731409, upload-time = "2026-04-01T12:14:59.447Z" },
+    { url = "https://files.pythonhosted.org/packages/bf/3b/758a073c4ed5b1c732f6a3b4a5ba7d8ca122d8408ebc7dd608e7e447c07c/eccodeslib-2.46.2.19-cp313-cp313-manylinux_2_28_aarch64.whl", hash = "sha256:4500abf05428d94693dd29c589c6d208f2d48aff5efa145425c704fcd1f46925", size = 9093643, upload-time = "2026-04-01T12:15:20.43Z" },
+    { url = "https://files.pythonhosted.org/packages/d9/48/5e0e31e3cb310fbe04b08040e96d3107639ceef8a94f8788691af77beb54/eccodeslib-2.46.2.19-cp313-cp313-manylinux_2_28_x86_64.whl", hash = "sha256:0f14eb14f37af34bb79f43ba8ab8dff99d6d4876b6681614c6644a3cbbb89d6c", size = 8986651, upload-time = "2026-04-01T12:23:15.323Z" },
+    { url = "https://files.pythonhosted.org/packages/d2/90/3a3180b227e6483e80e6631e8630d8942fc8bfc66b8e6acd9f5549c537c6/eccodeslib-2.46.2.19-cp314-cp314-macosx_13_0_arm64.whl", hash = "sha256:d93146a2770d3169f91129193e995a0bd58ac933937e26909c65c347f36b94a6", size = 8900007, upload-time = "2026-04-01T12:20:31.911Z" },
+    { url = "https://files.pythonhosted.org/packages/f4/91/901cb12b04f988420b7e75c914f7361ce5c23bff8c19e8b1d9c56657d7bc/eccodeslib-2.46.2.19-cp314-cp314-macosx_13_0_x86_64.whl", hash = "sha256:9c2da433e1d87ee4554b684c625234cbca14fa51181256b78a9d646a90f2fe22", size = 8731400, upload-time = "2026-04-01T12:52:59.854Z" },
+    { url = "https://files.pythonhosted.org/packages/ef/33/ab3c19ffc2675514259ff61a8ea757fb2a470ad6052371384f2a5021046c/eccodeslib-2.46.2.19-cp314-cp314-manylinux_2_28_aarch64.whl", hash = "sha256:e62e4d893ec2939b6096c6aed21e31d38a979e33d50917611a1907b3ef0a2996", size = 9093646, upload-time = "2026-04-01T12:13:35.905Z" },
+    { url = "https://files.pythonhosted.org/packages/d7/41/c8ab7aadf86d28149c636970704a923c161b81ce301bc0fc3da82ce3d737/eccodeslib-2.46.2.19-cp314-cp314-manylinux_2_28_x86_64.whl", hash = "sha256:5daa5a8290d10accf308a94678ebc85c8fd843e20f2d5d644559d4a691dd4af1", size = 8986650, upload-time = "2026-04-01T12:32:33.346Z" },
+]
+
+[[package]]
+name = "eckitlib"
+version = "2.0.7.19"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1a/46/9ccdf223a33c07fe27426c01dcc931316a3531881e4873c24d40e4f09dfd/eckitlib-2.0.7.19-cp313-cp313-macosx_13_0_arm64.whl", hash = "sha256:5b6518c555f598fef15915c52d07797fe85aa9a09d89f6e9274c5f549c427fb1", size = 2480047, upload-time = "2026-04-01T12:30:15.936Z" },
+    { url = "https://files.pythonhosted.org/packages/f2/49/31d03b6fe1270e055c521d4a350fed77afd81abe5711f254058e4c631579/eckitlib-2.0.7.19-cp313-cp313-macosx_13_0_x86_64.whl", hash = "sha256:04c4ec2b96b9da37406925b418e752195e4f782d77148c4654f105984525dd0f", size = 2610842, upload-time = "2026-04-01T12:15:05.025Z" },
+    { url = "https://files.pythonhosted.org/packages/32/13/bf8bcf039f81c7e74f68808c6fe1eb0ba57812aaa0e16f0f5644ef7f81ce/eckitlib-2.0.7.19-cp313-cp313-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:13c7acfe19da5d25e9c5f7e6fb806deca39ac7adea31958d118799a58e8739bd", size = 7040512, upload-time = "2026-04-01T12:15:29.127Z" },
+    { url = "https://files.pythonhosted.org/packages/b4/64/9dc3e3a669f251707487308d0e5efaa0e6755a4da8e3566b52a509658a05/eckitlib-2.0.7.19-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:f2876c3fd3b2c3140a4c5c3a95c63f6d04b874a6a2b62d0d06c8d6f22375c531", size = 7169835, upload-time = "2026-04-01T12:23:22.598Z" },
+    { url = "https://files.pythonhosted.org/packages/b4/b9/fa7908d4b208d1635c13c06ea96183a25c89373ee536a746f709efb5275b/eckitlib-2.0.7.19-cp314-cp314-macosx_13_0_arm64.whl", hash = "sha256:f4605a53d939c24083af431e570466be14f42ff6ae7395a7fa5691768ea02e5b", size = 2480048, upload-time = "2026-04-01T12:20:37.276Z" },
+    { url = "https://files.pythonhosted.org/packages/d9/d3/77779e785dfa6f90fea78ece275cbdd43fc19da39bb84c1b09f1db528881/eckitlib-2.0.7.19-cp314-cp314-macosx_13_0_x86_64.whl", hash = "sha256:a34d28f3b8903527f1693327982ad4539c228c360c24bcd2b3e357ed9b267d0a", size = 2610838, upload-time = "2026-04-01T12:53:05.693Z" },
+    { url = "https://files.pythonhosted.org/packages/5f/d5/0a8b7de8471eb8cda8d4c5680e983e24434391e587b48234f6e92461e790/eckitlib-2.0.7.19-cp314-cp314-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:54fefebd47b7cadef235b2d1082e34ad9aabaf1cbee97ca9f7e72f99ea69685c", size = 7040523, upload-time = "2026-04-01T12:13:40.089Z" },
+    { url = "https://files.pythonhosted.org/packages/61/e2/af1b905dc937bbc44d92c3d6a15d2fdab4b2d228b99583952844a317f760/eckitlib-2.0.7.19-cp314-cp314-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:2479b853bb7b1dc14d5c710a9803e08bc6b3784ed721deec9799dd51b59cce76", size = 7169842, upload-time = "2026-04-01T12:32:41.65Z" },
 ]
 
 [[package]]
@@ -638,11 +672,11 @@ wheels = [
 
 [[package]]
 name = "packaging"
-version = "26.0"
+version = "26.1"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/65/ee/299d360cdc32edc7d2cf530f3accf79c4fca01e96ffc950d8a52213bd8e4/packaging-26.0.tar.gz", hash = "sha256:00243ae351a257117b6a241061796684b084ed1c516a08c48a3f7e147a9d80b4", size = 143416, upload-time = "2026-01-21T20:50:39.064Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/df/de/0d2b39fb4af88a0258f3bac87dfcbb48e73fbdea4a2ed0e2213f9a4c2f9a/packaging-26.1.tar.gz", hash = "sha256:f042152b681c4bfac5cae2742a55e103d27ab2ec0f3d88037136b6bfe7c9c5de", size = 215519, upload-time = "2026-04-14T21:12:49.362Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b7/b9/c538f279a4e237a006a2c98387d081e9eb060d203d8ed34467cc0f0b9b53/packaging-26.0-py3-none-any.whl", hash = "sha256:b36f1fef9334a5588b4166f8bcd26a14e521f2b55e6b9de3aaa80d3ff7a37529", size = 74366, upload-time = "2026-01-21T20:50:37.788Z" },
+    { url = "https://files.pythonhosted.org/packages/7a/c2/920ef838e2f0028c8262f16101ec09ebd5969864e5a64c4c05fad0617c56/packaging-26.1-py3-none-any.whl", hash = "sha256:5d9c0669c6285e491e0ced2eee587eaf67b670d94a19e94e3984a481aba6802f", size = 95831, upload-time = "2026-04-14T21:12:47.56Z" },
 ]
 
 [[package]]
@@ -1053,6 +1087,7 @@ source = { editable = "." }
 dependencies = [
     { name = "cfgrib", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux') or sys_platform == 'darwin'" },
     { name = "couchbase", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux') or sys_platform == 'darwin'" },
+    { name = "eccodes", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux') or sys_platform == 'darwin'" },
     { name = "metpy", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux') or sys_platform == 'darwin'" },
     { name = "ncepbufr", version = "12.2.0", source = { path = "third_party/NCEPLIBS-bufr/wheel_dist/ncepbufr-12.2.0-py313-none-linux_aarch64.whl" }, marker = "platform_machine == 'aarch64' and sys_platform == 'linux'" },
     { name = "ncepbufr", version = "12.2.0", source = { path = "third_party/NCEPLIBS-bufr/wheel_dist/ncepbufr-12.2.0-py313-none-linux_x86_64.whl" }, marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
@@ -1081,6 +1116,7 @@ dev = [
 requires-dist = [
     { name = "cfgrib", specifier = ">=0.9.15.1" },
     { name = "couchbase", specifier = ">=4.5.0" },
+    { name = "eccodes", specifier = "==2.44.0" },
     { name = "metpy", specifier = ">=1.7.1" },
     { name = "ncepbufr", marker = "(platform_machine != 'aarch64' and platform_machine != 'x86_64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'linux')" },
     { name = "ncepbufr", marker = "sys_platform == 'darwin'", path = "third_party/NCEPLIBS-bufr/wheel_dist/ncepbufr-12.2.0-py313-none-macosx_15_0_arm64.whl" },

@@ -106,10 +106,7 @@ func main() {
 		os.Exit(1)
 	}
 	prefix := os.Args[1]
-	printIDs := false
-	if len(os.Args) > 2 && os.Args[2] == "print_ids" {
-		printIDs = true
-	}
+	printIDs := len(os.Args) > 2 && os.Args[2] == "print_ids"
 
 	credentials, err := GetCBCredentials()
 	if err != nil {
@@ -119,7 +116,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to connect to Couchbase: %v", err)
 	}
-	defer cluster.Close(nil)
+	defer func() {
+		err = cluster.Close(nil)
+		if err != nil {
+			log.Printf("Failed to close Couchbase cluster: %v", err)
+		}
+	}()
 
 	collection := cluster.Bucket(credentials.CBBucket).Scope(credentials.CBScope).Collection(credentials.CBCollection)
 	GetAllIDsWithPrintOption(collection, prefix, printIDs)

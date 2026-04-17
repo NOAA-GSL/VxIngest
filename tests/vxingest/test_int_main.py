@@ -226,8 +226,11 @@ def test_one_thread_specify_file_pattern_grib2_job_spec_rt(tmp_path: Path):
         # Restore original sys.argv
         sys.argv = original_argv
 
+
 @pytest.mark.integration
-def test_one_thread_specify_file_pattern_grib2_normalized_pressure_job_spec_rt(tmp_path: Path):
+def test_one_thread_specify_file_pattern_grib2_normalized_pressure_job_spec_rt(
+    tmp_path: Path,
+):
     # Save original sys.argv
     original_argv = sys.argv.copy()
     job_id = (

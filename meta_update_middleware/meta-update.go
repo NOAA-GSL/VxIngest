@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"fmt"
 	"log"
 	"os"
 	"time"
@@ -24,12 +23,13 @@ type ConfigJSON struct {
 }
 
 type Credentials struct {
-	Cb_host       string `yaml:"cb_host"`
-	Cb_user       string `yaml:"cb_user"`
-	Cb_password   string `yaml:"cb_password"`
-	Cb_bucket     string `yaml:"cb_bucket"`
-	Cb_scope      string `yaml:"cb_scope"`
-	Cb_collection string `yaml:"cb_collection"`
+	Cb_host            string `yaml:"cb_host"`
+	Cb_user            string `yaml:"cb_user"`
+	Cb_password        string `yaml:"cb_password"`
+	Cb_bucket          string `yaml:"cb_bucket"`
+	Cb_scope           string `yaml:"cb_scope"`
+	Cb_collection      string `yaml:"cb_collection"`
+	Cb_timeout_seconds int    `yaml:"cb_timeout_seconds"`
 }
 
 // init runs before main() is evaluated
@@ -89,7 +89,7 @@ func main() {
 			updateMedataForAppDocType(conn, conf.Metadata[ds].Name, conf.Metadata[ds].App, conf.Metadata[ds].DocType[dt], conf.Metadata[ds].SubDocType)
 		}
 	}
-	log.Println(fmt.Sprintf("\tmeta update finished in %v", time.Since(start)))
+	log.Printf("\tmeta update finished in %v\n", time.Since(start))
 }
 
 func updateMedataForAppDocType(conn CbConnection, name string, app string, doctype string, subDocType string) {

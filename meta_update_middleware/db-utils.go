@@ -31,14 +31,17 @@ func getDbConnection(cred Credentials) (conn CbConnection) {
 	collection := cred.Cb_collection
 	username := cred.Cb_user
 	password := cred.Cb_password
-
+	timeout := cred.Cb_timeout_seconds
+	if timeout == 0 {
+		timeout = 3600
+	}
 	options := gocb.ClusterOptions{
 		Authenticator: gocb.PasswordAuthenticator{
 			Username: username,
 			Password: password,
 		},
 		TimeoutsConfig: gocb.TimeoutsConfig{
-			QueryTimeout: 2400 * time.Second,
+			QueryTimeout: time.Duration(timeout) * time.Second,
 		},
 	}
 

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -31,7 +30,7 @@ func getModels(conn CbConnection, dataset string, app string, doctype string, su
 
 	models_requiring_metadata := queryWithSQLStringSA(conn.Scope, tmplGetModelsSQL)
 
-	log.Println(fmt.Sprintf("\tin %v", time.Since(start)))
+	log.Printf("\tin %v\n", time.Since(start))
 	return models_requiring_metadata
 }
 
@@ -50,7 +49,7 @@ func getModelsNoData(conn CbConnection, dataset string, app string, doctype stri
 	tmplgetModelsNoDataSQL = strings.Replace(tmplgetModelsNoDataSQL, "{{vxSUBDOCTYPE}}", doctype, -1)
 	models_with_metatada_but_no_data := queryWithSQLStringSA(conn.Scope, tmplgetModelsNoDataSQL)
 
-	log.Println(fmt.Sprintf("\tin %v", time.Since(start)))
+	log.Printf("\tin %v\n", time.Since(start))
 	return models_with_metatada_but_no_data
 }
 
@@ -79,7 +78,7 @@ func removeMetadataForModelsWithNoData(conn CbConnection, dataset string, app st
 			printQueryResult(queryResult)
 		}
 	}
-	log.Println(fmt.Sprintf("\tin %v", time.Since(start)))
+	log.Printf("\tin %v\n", time.Since(start))
 }
 
 func getModelsWithExistingMetadata(conn CbConnection, dataset string, app string, doctype string, subDocType string) (jsonOut []string) {
@@ -95,7 +94,7 @@ func getModelsWithExistingMetadata(conn CbConnection, dataset string, app string
 	tmplgetModelsWithMetadataSQL = strings.Replace(tmplgetModelsWithMetadataSQL, "{{vxAPP}}", app, -1)
 
 	models_with_existing_metadata := queryWithSQLStringSA(conn.Scope, tmplgetModelsWithMetadataSQL)
-	log.Println(fmt.Sprintf("\tin %v", time.Since(start)))
+	log.Printf("\tin %v\n", time.Since(start))
 	return models_with_existing_metadata
 }
 
@@ -120,14 +119,14 @@ func initializeMetadataForModel(conn CbConnection, dataset string, app string, d
 	} else {
 		printQueryResult(queryResult)
 	}
-	log.Println(fmt.Sprintf("\tin %v", time.Since(start)))
+	log.Printf("\tin %v\n", time.Since(start))
 }
 
-func getDistinctThresholds(conn CbConnection, dataset string, app string, doctype string, subDocType string, model string) (rv []string) {
-	log.Println("getDistinctThresholds(" + dataset + "," + app + "," + doctype + "," + subDocType + "," + model + ")")
+func getDistinctDataKeys(conn CbConnection, dataset string, app string, doctype string, subDocType string, model string) (rv []string) {
+	log.Println("getDistinctDataKeys(" + dataset + "," + app + "," + doctype + "," + subDocType + "," + model + ")")
 	start := time.Now()
 
-	fileContent, err := os.ReadFile("sqls/getDistinctThresholds.sql")
+	fileContent, err := os.ReadFile("sqls/getDistinctDataKeys.sql")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -136,35 +135,17 @@ func getDistinctThresholds(conn CbConnection, dataset string, app string, doctyp
 	tmplSQL = strings.Replace(tmplSQL, "{{vxDOCTYPE}}", doctype, -1)
 	tmplSQL = strings.Replace(tmplSQL, "{{vxSUBDOCTYPE}}", subDocType, -1)
 	tmplSQL = strings.Replace(tmplSQL, "{{vxMODEL}}", model, -1)
-
+	log.Println(tmplSQL)
 	result := queryWithSQLStringMAP(conn.Scope, tmplSQL)
 
-	m := result[0].(map[string]interface{})
-	if len(result) > 1 {
-		log.Println("Empty {}, using second result in array ...")
-		m = result[1].(map[string]interface{})
-	}
-
-	// fmt.Printf("m[thresholds]: %T\n", m["thresholds"])
-	tarr := ConvertSlice[string](m["thresholds"].([]interface{}))
-
-	/*
-		rv = make([]float64, 0)
-		log.Println(tarr)
-		for k := 0; k < len(tarr); k++ {
-			// fmt.Printf("%T\n", tarr[k])
-			// log.Println(tarr[k])
-			val, err := strconv.ParseFloat(tarr[k], 64)
-			if err != nil {
-				panic(err)
-			}
-			// log.Println(val)
-			rv = append(rv, val)
+	// Convert []interface{} to []string
+	for _, v := range result {
+		if str, ok := v.(string); ok {
+			rv = append(rv, str)
 		}
-	*/
-
-	log.Println(fmt.Sprintf("\tin %v", time.Since(start)))
-	return tarr
+	}
+	log.Printf("\tin %v\n", time.Since(start))
+	return rv
 }
 
 func getDistinctFcstLen(conn CbConnection, dataset string, app string, doctype string, subDocType string, model string) (rv []int) {
@@ -182,7 +163,7 @@ func getDistinctFcstLen(conn CbConnection, dataset string, app string, doctype s
 	tmplSQL = strings.Replace(tmplSQL, "{{vxMODEL}}", model, -1)
 
 	result := queryWithSQLStringIA(conn.Scope, tmplSQL)
-	log.Println(fmt.Sprintf("\tin %v", time.Since(start)))
+	log.Printf("\tin %v\n", time.Since(start))
 	return result
 }
 
@@ -201,7 +182,7 @@ func getDistinctRegion(conn CbConnection, dataset string, app string, doctype st
 	tmplSQL = strings.Replace(tmplSQL, "{{vxMODEL}}", model, -1)
 
 	result := queryWithSQLStringSA(conn.Scope, tmplSQL)
-	log.Println(fmt.Sprintf("\tin %v", time.Since(start)))
+	log.Printf("\tin %v\n", time.Since(start))
 	return result
 }
 
@@ -220,7 +201,7 @@ func getDistinctDisplayText(conn CbConnection, dataset string, app string, docty
 	tmplSQL = strings.Replace(tmplSQL, "{{vxMODEL}}", model, -1)
 
 	result := queryWithSQLStringSA(conn.Scope, tmplSQL)
-	log.Println(fmt.Sprintf("\tin %v", time.Since(start)))
+	log.Printf("\tin %v\n", time.Since(start))
 	return result
 }
 
@@ -239,7 +220,7 @@ func getDistinctDisplayCategory(conn CbConnection, dataset string, app string, d
 	tmplSQL = strings.Replace(tmplSQL, "{{vxMODEL}}", model, -1)
 
 	result := queryWithSQLStringIA(conn.Scope, tmplSQL)
-	log.Println(fmt.Sprintf("\tin %v", time.Since(start)))
+	log.Printf("\tin %v\n", time.Since(start))
 	return result
 }
 
@@ -259,7 +240,7 @@ func getDistinctDisplayOrder(conn CbConnection, dataset string, app string, doct
 	tmplSQL = strings.Replace(tmplSQL, "{{mindx}}", strconv.Itoa(mindx), -1)
 
 	result := queryWithSQLStringIA(conn.Scope, tmplSQL)
-	log.Println(fmt.Sprintf("\tin %v", time.Since(start)))
+	log.Printf("\tin %v\n", time.Since(start))
 	return result
 }
 
@@ -278,6 +259,6 @@ func getMinMaxCountFloor(conn CbConnection, dataset string, app string, doctype 
 	tmplSQL = strings.Replace(tmplSQL, "{{vxMODEL}}", model, -1)
 
 	result := queryWithSQLStringMAP(conn.Scope, tmplSQL)
-	log.Println(fmt.Sprintf("\tin %v", time.Since(start)))
+	log.Printf("\tin %v\n", time.Since(start))
 	return result
 }

@@ -5,6 +5,7 @@ import re
 import sys
 import tarfile
 from pathlib import Path
+from time import time
 
 import pytest
 from couchbase.options import QueryOptions
@@ -306,6 +307,51 @@ def test_one_thread_specify_file_pattern_grib2_normalized_pressure_sums_job_spec
         sys.argv = original_argv
 
 @pytest.mark.integration
+def test_one_thread_specify_file_pattern_grib2_normalized_pressure_sums_job_spec_rt(
+    tmp_path: Path,
+):
+    # Save original sys.argv
+    original_argv = sys.argv.copy()
+    job_id = "JS:METAR:SUMS:HRRR_OPS:schedule:job:V01"
+    # need these args
+    end_epoch = str(int(time()))
+    start_epoch = str(int(float(end_epoch) - 3600 * 4)) # four hours earlier
+    sys.argv = [
+        "run_ingest",
+        "-j",
+        job_id,
+        "-c",
+        os.environ["CREDENTIALS"],
+        "-m",
+        str(tmp_path / "metrics"),
+        "-o",
+        str(tmp_path / "output"),
+        "-x",
+        str(tmp_path / "transfer"),
+        "-l",
+        str(tmp_path / "logs"),
+        "-f",
+        "21287230000[0123456789]?",
+        "-t",
+        "1",
+        "-s",
+        start_epoch,
+        "-e",
+        end_epoch
+    ]
+    try:
+        vx_ingest = setup_connection(VXIngest_partial_sums())
+        initial_success_count = prom_successes._value.get()
+        run_ingest()
+        check_output(tmp_path, vx_ingest, 5, initial_success_count + 1)
+    except Exception as e:
+        pytest.fail(f"Test failed with exception {e}")
+    finally:
+        # Restore original sys.argv
+        sys.argv = original_argv
+
+
+@pytest.mark.integration
 def test_one_thread_specify_file_pattern_grib2_job_spec_rt_start_end(tmp_path: Path):
     # Save original sys.argv
     original_argv = sys.argv.copy()
@@ -350,7 +396,7 @@ def test_one_thread_specify_file_pattern_grib2_job_spec_rt_start_end(tmp_path: P
 def test_one_thread_specify_file_pattern_grib2_retro_job_spec_rt(tmp_path: Path):
     # Save original sys.argv
     original_argv = sys.argv.copy()
-    job_id = "JS:METAR:MODEL-TEST:RRFSv2_conus_3km_ret_test4_may2024:schedule:job:V01"
+    job_id = "JS:METAR:MODEL:GRIB2-TEST:schedule:job:V01"
     # need these args
     sys.argv = [
         "run_ingest",
@@ -367,7 +413,7 @@ def test_one_thread_specify_file_pattern_grib2_retro_job_spec_rt(tmp_path: Path)
         "-l",
         str(tmp_path / "logs"),
         "-f",
-        "rrfs.t01z.prslev.f000.conus.grib2",
+        "232762000000[01]",
         "-t",
         "1",
     ]
@@ -375,7 +421,7 @@ def test_one_thread_specify_file_pattern_grib2_retro_job_spec_rt(tmp_path: Path)
         vx_ingest = setup_connection(VXIngest_grib2())
         initial_success_count = prom_successes._value.get()
         run_ingest()
-        check_output(tmp_path, vx_ingest, 1, initial_success_count + 1)
+        check_output(tmp_path, vx_ingest, 2, initial_success_count + 1)
     except Exception as e:
         pytest.fail(f"Test failed with exception {e}")
     finally:
@@ -431,33 +477,13 @@ def test_one_thread_specify_file_pattern_ctc_job_spec_rt(tmp_path: Path):
     # Save original sys.argv
     original_argv = sys.argv.copy()
     job_id = "JS:METAR:CTC:HRRR_OPS:schedule:job:V01"
+    end_epoch = str(int(time()))
+    start_epoch = str(int(float(end_epoch) - 3600 * 4)) # four hours earlier
     try:
         # try to find the first and last epoch from the data in couchbase.
         # The ctc_builder won't build any data that has already been built (except for the very last one).
         # The test will process the CTC documents but not upsert them.
         vx_ingest = setup_connection(VXIngest_ctc())
-        stmnt = """SELECT MAX(fve.fcstValidEpoch)
-            FROM vxdata._default.METAR fve
-            WHERE fve.type='DD'
-            AND fve.docType='obs'
-            AND fve.version='V01'
-            AND fve.subset='METAR';"""
-        result = vx_ingest.cluster.query(
-            stmnt, QueryOptions(metrics=True, read_only=True)
-        )
-        max_obs = list(result.rows())[0]["$1"]
-        stmnt = """SELECT MAX(fve.fcstValidEpoch)
-            FROM vxdata._default.METAR fve
-            WHERE fve.type='DD'
-            AND fve.docType='model'
-            AND fve.model='HRRR_OPS'
-            AND fve.version='V01'
-            AND fve.subset='METAR';"""
-        result = vx_ingest.cluster.query(
-            stmnt, QueryOptions(metrics=True, read_only=True)
-        )
-        max_model = list(result.rows())[0]["$1"]
-        max_epoch = min(max_obs, max_model)
         # need these args
         sys.argv = [
             "run_ingest",
@@ -476,9 +502,9 @@ def test_one_thread_specify_file_pattern_ctc_job_spec_rt(tmp_path: Path):
             "-t",
             "1",
             "-s",
-            str(max_epoch),
+            start_epoch,
             "-e",
-            str(max_epoch),
+            end_epoch
         ]
         initial_success_count = prom_successes._value.get()
         run_ingest()

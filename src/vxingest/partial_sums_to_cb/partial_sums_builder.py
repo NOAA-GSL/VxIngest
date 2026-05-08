@@ -9,6 +9,7 @@ Colorado, NOAA/OAR/ESRL/GSL
 import copy
 import cProfile
 import datetime as dt
+import json
 import logging
 import re
 import sys
@@ -93,6 +94,35 @@ class PartialSumsBuilder(Builder):
     select raw min (METAR.fcstValidEpoch) from `{self.bucket}`.{self.scope}.{self.collection} where type="DD" and docType="obs" and subset='METAR' and version='V01'  limit 10
     4) using the minimum valid time and the domain station list query for model and obs pairs within the station list.
     5) iterate that batch of data by valid time and fcstLen creating corresponding PARTIALSUMS documents.
+
+    Args:        load_spec (dict): the load spec for this builder
+        ingest_document (dict): the ingest document for this builder
+
+    Surface  Pressure Specifics:
+        Surface pressure presents some unique challenges because it is not a direct field in
+        the model data. It must be calculated using the hypsometric equation from the grib fields for temperature,
+        relative humidity and geopotential height. The formula is...
+        P = 1013.25 * (1 - (0.0065 * z) / (T + 0.0065 * z + 273.15))) ** 5.2561
+        where z is the geopotential height and T is the temperature.
+        The relative humidity is calculated from the dewpoint and the temperature with the formula...
+        RH = 100 * (exp((17.625 * Td) / (243.04 + Td)) / exp((17.625 * T) / (243.04 + T)))
+        where Td is the dewpoint and T is the temperature.
+
+        Variable names in the templates:
+        (Netcdf)              (Grib2)                       (Sums)
+        Surface Pressure      Surface Pressure              Surface Pressure
+        Surface Pressure      Normalized Surface Pressure   Normalized Surface Pressure
+        Altimiter Pressure.   Mean Sea Level Pressure       Mean Sea Level Pressure
+
+        For the OBS (Netcdf) the elevation is maintained in the station metadata.
+        For the models elevation is contained in a set of model station documents
+        that have a top level model name and are indexed by station name.
+        These documents will resemble station metadata documents but will have an
+        elevation field that is derived from the model data and is not necessarily
+        the same as the elevation in the obs station metadata.
+        The model station documents are populated by GribBuilder.
+
+        For SUMS the Elevation is not kept.
     """
 
     def __init__(self, load_spec, ingest_document):
@@ -292,16 +322,24 @@ class PartialSumsBuilder(Builder):
             func = parts[0].replace("&", "")
             params = []
             if len(parts) > 1:
-                params = parts[1].split(",")
-            dict_params = {}
-            for _p in params:
-                # be sure to slice the * off of the front of the param
-                # translate_template_item returns an array of tuples - value,interp_value, one for each station
-                # ordered by domain_stations.
-                if _p[0] == "&" or _p[0] == "*":
-                    dict_params[_p[1:]] = self.translate_template_item(_p)
+                if parts[1][0] == "{":
+                    params = json.loads(
+                        parts[1].replace("'", '"')
+                    )  # json loads requires double quotes around key/val strings
                 else:
-                    dict_params[_p] = self.translate_template_item(_p)
+                    params = parts[1].split(",")
+            if isinstance(params, dict):
+                dict_params = params
+            else:
+                dict_params = {}
+                for _p in params:
+                    # be sure to slice the * off of the front of the param
+                    # translate_template_item returns an array of tuples - value,interp_value, one for each station
+                    # ordered by domain_stations.
+                    if _p[0] == "&" or _p[0] == "*":
+                        dict_params[_p[1:]] = self.translate_template_item(_p)
+                    else:
+                        dict_params[_p] = self.translate_template_item(_p)
             # call the named function using getattr
             replace_with = getattr(self, func)(dict_params)
         except Exception as _e:
@@ -343,7 +381,7 @@ class PartialSumsBuilder(Builder):
                     obs_id = re.sub(":" + str(fve["fcstLen"]) + "$", "", fve["id"])
                     # substitute the model part for obs
                     obs_id = re.sub(self.model, "obs", obs_id)
-                    logger.info("Looking up model document: %s", fve["id"])
+                    logger.debug("Looking up model document: %s", fve["id"])
                     try:
                         # Use a singleton to avoid redundant gets for the same model doc
                         if (
@@ -378,7 +416,7 @@ class PartialSumsBuilder(Builder):
                             str(_e),
                         )
 
-                    logger.info("Looking up observation document: %s", obs_id)
+                    logger.debug("Looking up observation document: %s", obs_id)
                     try:
                         # I don't really know how I can get here with _obs_data AND
                         # _obs_data['id'] != obs_id and still no self.obs_data
@@ -842,20 +880,37 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
     # named functions
 
     def handle_sum(self, params_dict):
-        """calculate sums for a given data set - i.e. model, region, fcstValidEpoch, fcstLen"""
+        """Calculate partial sums on matching model & obs values
+           for a given data set - i.e. model, region, fcstValidEpoch, fcstLen
+
+        Args:
+            params_dict (dict): Expects one of the following formats:
+                {'var_name': 'var_name'} (has one item)
+                {'model': 'model_var_name', 'obs': 'obs_var_name'}
+        Returns:
+            dict of calculated sum stats
+        """
         try:
-            keys = list(params_dict.keys())
-            variable = keys[0]
+            if "model" in params_dict:
+                model_var_name = params_dict["model"]
+            else:
+                model_var_name = list(params_dict.keys())[0]
+            if "obs" in params_dict:
+                obs_var_name = params_dict["obs"]
+            else:
+                obs_var_name = model_var_name
+
             obs_vals = []
             model_vals = []
             diff_vals = []
             diff_vals_squared = []
             abs_diff_vals = []
+
             for name in self.domain_stations:
                 if name in self.obs_data and name in self.model_data["data"]:
                     obs_elem = self.obs_data[name]
                     model_elem = self.model_data["data"][name]
-                    if variable == "RH":
+                    if obs_var_name == "RH" or model_var_name == "RH":
                         if (
                             "RH" not in obs_elem
                             and obs_elem["DewPoint"] is not None
@@ -878,7 +933,9 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
                                     model_elem["DewPoint"] * units.degF,
                                 ).magnitude
                             ) * 100
-                    if variable == "UW" or variable == "VW":
+                    if (obs_var_name == "UW" or model_var_name == "UW") or (
+                        obs_var_name == "VW" or model_var_name == "VW"
+                    ):
                         # wind direction in the data is from 0 to 360 and we need it from -180 to 180
                         if (
                             ("UW" not in obs_elem or "VW" not in obs_elem)
@@ -902,8 +959,8 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
                             )
                             model_elem["UW"] = wind_components_t[0].magnitude
                             model_elem["VW"] = wind_components_t[1].magnitude
-                    obs_var = obs_elem.get(variable)
-                    model_var = model_elem.get(variable)
+                    obs_var = obs_elem.get(obs_var_name)
+                    model_var = model_elem.get(model_var_name)
                     # If there is no observation or model data for this variable for this station, skip it
                     if obs_var is not None and model_var is not None:
                         obs_vals.append(obs_var)

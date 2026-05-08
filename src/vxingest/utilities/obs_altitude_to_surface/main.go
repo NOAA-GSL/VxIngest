@@ -178,8 +178,16 @@ func main() {
 		fmt.Printf("Output directory %s is not writable: %v\n", *outputDir, err)
 		os.Exit(1)
 	}
-	f.Close()
-	os.Remove(testFile)
+	err = f.Close()
+	if err != nil {
+		fmt.Printf("Failed to close test file in output directory %s: %v\n", *outputDir, err)
+		os.Exit(1)
+	}
+	err = os.Remove(testFile)
+	if err != nil {
+		fmt.Printf("Failed to remove test file in output directory %s: %v\n", *outputDir, err)
+		os.Exit(1)
+	}
 
 	if *startEpoch == 0 || *endEpoch == 0 || *startEpoch >= *endEpoch || *outputDir == "" {
 		fmt.Println("Both --start_epoch and --end_epoch must be provided, must be non-zero, start_epoch needs to be less than end_epoch, and --output_dir must be provided.")
@@ -202,7 +210,12 @@ func run(startEpoch, endEpoch int64, outputDir string) error {
 	if err != nil {
 		return fmt.Errorf("failed to connect to Couchbase: %w", err)
 	}
-	defer cluster.Close(nil)
+	defer func() {
+		err = cluster.Close(nil)
+		if err != nil {
+			log.Printf("Failed to close Couchbase cluster: %v", err)
+		}
+	}()
 	// Perform the stationQuery and put the results into the stations map
 	stationQuery := fmt.Sprintf(
 		"SELECT METAR.name, METAR.geo FROM `%s`.`%s`.`%s` WHERE type='MD' AND version='V01' AND subset='METAR' AND docType='station'",
@@ -313,10 +326,16 @@ func run(startEpoch, endEpoch int64, outputDir string) error {
 		encoder.SetIndent("", "  ")
 		if err := encoder.Encode(doc); err != nil {
 			log.Printf("Failed to write document to file %s: %v", outputPath, err)
-			file.Close()
+			err = file.Close()
+			if err != nil {
+				log.Printf("Failed to close file %s: %v", outputPath, err)
+			}
 			continue
 		}
-		file.Close()
+		err = file.Close()
+		if err != nil {
+			log.Printf("Failed to close file %s: %v", outputPath, err)
+		}
 		log.Printf("Wrote updated document to %s", outputPath)
 	}
 	return nil

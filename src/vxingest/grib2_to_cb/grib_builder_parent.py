@@ -194,7 +194,14 @@ class GribBuilder(Builder):
     def translate_template_item(self, variable, single_return=False):
         """This method translates template replacements (*item or *item1*item2).
         It can translate keys or values.
-        If the variable is a variable to be translated (not a constant)
+        It is possible that the item to be translated is itself a value in the template.
+        For example, the template might have a key id = 'IS:*subset:*subType:*subDocType:*model:*docType:*version'
+        where subset, subType, subDocType, model, docType, and version are all elements
+        of the template i.e. constants. In that case the variable passed in might be '*subset'
+        and the method would return the value of subset from the template itself.
+        If the variable is a constant (not a variable to be translated) it should be returned as is.
+        For example if the variable is 'type' it might just return 'IS'.
+        If the variable is a variable to be translated from the grib file (not a constant)
         it should literally be the long name attribute of the variable from the
         proper cfgrib dataset. For example "2 metre temperature" or "2 metre dewpoint temperature"
         from the
@@ -226,39 +233,56 @@ class GribBuilder(Builder):
             if len(replacements) > 0:
                 station_values = []
                 for _ri in replacements:
-                    values = self.ds_translate_item_variables_map[_ri].values
+                    if _ri in self.template and self.template[_ri] is not None:
+                        variable = self.template[_ri]
+                        return self.template[_ri], self.template[_ri]
+                    if (
+                        _ri not in self.ds_translate_item_variables_map
+                        or self.ds_translate_item_variables_map[_ri] is None
+                    ):
+                        logger.warning(
+                            "Variable %s has no values in ds_translate_item_variables_map",
+                            _ri,
+                        )
+                        values = None
+                    else:
+                        values = self.ds_translate_item_variables_map[_ri].values
                     for station in self.domain_stations:
                         # get the individual station value and interpolated value
                         geo_index = get_geo_index(
                             self.ds_translate_item_variables_map["fcst_valid_epoch"],
                             station["geo"],
                         )
-                        station_value = values[
-                            round(station["geo"][geo_index]["y_gridpoint"]),
-                            round(station["geo"][geo_index]["x_gridpoint"]),
-                        ]
-                        # interpolated gridpoints cannot be rounded
-                        interpolated_value = self.interp_grid_box(
-                            values,
-                            station["geo"][geo_index]["y_gridpoint"],
-                            station["geo"][geo_index]["x_gridpoint"],
-                        )
-                        # convert each station value to iso if necessary
-                        if _ri.startswith("{ISO}"):
-                            station_value = variable.replace(
-                                "*" + _ri, convert_to_iso(station_value)
-                            )
-                            interpolated_value = variable.replace(
-                                "*" + _ri, convert_to_iso(station_value)
-                            )
+                        if values is None or geo_index is None:
+                            station_value = None
+                            interpolated_value = None
                         else:
-                            station_value = variable.replace(
-                                "*" + _ri, str(station_value)
+                            station_value = values[
+                                round(station["geo"][geo_index]["y_gridpoint"]),
+                                round(station["geo"][geo_index]["x_gridpoint"]),
+                            ]
+                            # interpolated gridpoints cannot be rounded
+                            interpolated_value = self.interp_grid_box(
+                                values,
+                                station["geo"][geo_index]["y_gridpoint"],
+                                station["geo"][geo_index]["x_gridpoint"],
                             )
-                            interpolated_value = variable.replace(
-                                "*" + _ri, str(interpolated_value)
-                            )
-                        # add it onto the list of tupples
+                            # convert each station value to iso if necessary
+                            if _ri.startswith("{ISO}"):
+                                station_value = variable.replace(
+                                    "*" + _ri, convert_to_iso(station_value)
+                                )
+                                interpolated_value = variable.replace(
+                                    "*" + _ri, convert_to_iso(interpolated_value)
+                                )
+                            else:
+                                station_value = variable.replace(
+                                    "*" + _ri, str(station_value)
+                                )
+                                interpolated_value = variable.replace(
+                                    "*" + _ri, str(interpolated_value)
+                                )
+                            # add it onto the list of tupples
                         station_values.append((station_value, interpolated_value))
                 return station_values
             # it is a constant, no replacements but we still need a tuple for each station

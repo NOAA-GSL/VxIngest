@@ -338,7 +338,7 @@ class CTCBuilder(Builder):
                     obs_id = re.sub(":" + str(fve["fcstLen"]) + "$", "", fve["id"])
                     # substitute the model part for obs
                     obs_id = re.sub(self.model, "obs", obs_id)
-                    logger.info("Looking up model document: %s", fve["id"])
+                    logger.debug("Looking up model document: %s", fve["id"])
                     try:
                         # Use a singleton to avoid redundant gets for the same model doc
                         if (
@@ -373,7 +373,7 @@ class CTCBuilder(Builder):
                             str(_e),
                         )
 
-                    logger.info("Looking up observation document: %s", obs_id)
+                    logger.debug("Looking up observation document: %s", obs_id)
                     try:
                         # I don't really know how I can get here with _obs_data AND
                         # _obs_data['id'] != obs_id and still no self.obs_data

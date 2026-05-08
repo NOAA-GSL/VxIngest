@@ -5,6 +5,8 @@ import (
 	"flag"
 	"log"
 	"os"
+	"runtime"
+	"runtime/pprof"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -55,7 +57,47 @@ func main() {
 	var app string
 	flag.StringVar(&app, "a", "", "app name")
 
+	var cpuProfilePath string
+	flag.StringVar(&cpuProfilePath, "cpuprofile", "", "write CPU profile to file")
+
+	var memProfilePath string
+	flag.StringVar(&memProfilePath, "memprofile", "", "write heap profile to file")
+
+	var queryMetrics bool
+	flag.BoolVar(&queryMetrics, "query-metrics", true, "enable Couchbase query metrics")
+
+	var queryProfile string
+	flag.StringVar(&queryProfile, "query-profile", "off", "Couchbase query profiling mode: off|phases|timings")
+
+	var querySlowMs int
+	flag.IntVar(&querySlowMs, "query-slow-ms", 500, "log query metadata when elapsed time is at least this many milliseconds; use 0 for all queries")
+
+	var querySummaryTop int
+	flag.IntVar(&querySummaryTop, "query-summary-top", 10, "number of slow query templates to include in end-of-run summary; use 0 for all")
+
+	var path string
+	flag.StringVar(&path, "p", "", "path to output metadata")
+
 	flag.Parse()
+
+	if len(cpuProfilePath) > 0 {
+		f, err := os.Create(cpuProfilePath)
+		if err != nil {
+			log.Fatalf("unable to create cpu profile file %s: %v", cpuProfilePath, err)
+		}
+		if err := pprof.StartCPUProfile(f); err != nil {
+			f.Close()
+			log.Fatalf("unable to start cpu profile: %v", err)
+		}
+		defer func() {
+			pprof.StopCPUProfile()
+			if err := f.Close(); err != nil {
+				log.Printf("unable to close cpu profile file %s: %v", cpuProfilePath, err)
+			}
+		}()
+	}
+
+	setQueryProfilingOptions(queryMetrics, queryProfile, querySlowMs)
 
 	if len(app) > 0 {
 		log.Println("meta-update, settings file:" + settingsFilePath + ",credentials file:" + credentialsFilePath + ",app:" + app)
@@ -86,13 +128,31 @@ func main() {
 		}
 		for dt := 0; dt < len(conf.Metadata[ds].DocType); dt++ {
 			log.Println("Metadata:" + conf.Metadata[ds].Name + ",DocType:" + conf.Metadata[ds].DocType[dt])
-			updateMedataForAppDocType(conn, conf.Metadata[ds].Name, conf.Metadata[ds].App, conf.Metadata[ds].DocType[dt], conf.Metadata[ds].SubDocType)
+			updateMedataForAppDocType(conn, conf.Metadata[ds].Name, conf.Metadata[ds].App, conf.Metadata[ds].DocType[dt], conf.Metadata[ds].SubDocType, path)
 		}
 	}
+
+	if len(memProfilePath) > 0 {
+		f, err := os.Create(memProfilePath)
+		if err != nil {
+			log.Fatalf("unable to create memory profile file %s: %v", memProfilePath, err)
+		}
+		runtime.GC()
+		if err := pprof.WriteHeapProfile(f); err != nil {
+			f.Close()
+			log.Fatalf("unable to write memory profile: %v", err)
+		}
+		if err := f.Close(); err != nil {
+			log.Printf("unable to close memory profile file %s: %v", memProfilePath, err)
+		}
+	}
+
+	printQueryProfilingSummary(querySummaryTop)
+
 	log.Printf("\tmeta update finished in %v\n", time.Since(start))
 }
 
-func updateMedataForAppDocType(conn CbConnection, name string, app string, doctype string, subDocType string) {
+func updateMedataForAppDocType(conn CbConnection, name string, app string, doctype string, subDocType string, path string) {
 	log.Println("updateMedataForAppDocType(" + name + "," + doctype + ")")
 
 	// get needed models
@@ -106,35 +166,13 @@ func updateMedataForAppDocType(conn CbConnection, name string, app string, docty
 	log.Println("models_with_metatada_but_no_data:")
 	printStringArray(models_with_metatada_but_no_data)
 
-	/*
-		//log.Println("Inserting fake model:RAP_OOPS_130 to test SQL ...")
-		// models_with_metatada_but_no_data = append(models_with_metatada_but_no_data, "RAP_OOPS_130")
-
-		// remove metadata for models with no data
-		removeMetadataForModelsWithNoData(connDst, name, app, doctype, subDocType, models_with_metatada_but_no_data)
-
-		// get models with existing metadada
-		models_with_existing_metadata := getModelsWithExistingMetadata(connSrc, name, app, doctype, subDocType)
-		log.Println("models_with_existing_metadata:")
-		printStringArray(models_with_existing_metadata)
-
-		// initialize the metadata for the models for which the metadata does not exist
-		for i := 0; i < len(models); i++ {
-			contains := slices.Contains(models_with_existing_metadata, models[i])
-			// log.Println(fmt.Printf("contains:%t\n", contains))
-			if !contains {
-				initializeMetadataForModel(connDst, name, app, doctype, subDocType, models[i])
-			}
-		}
-	*/
-
 	metadata := MetadataJSON{ID: "MD:matsGui:" + name + ":COMMON:V01", Name: name, App: app, Type: "MD", Version: "V01", Subset: "COMMON", DocType: "matsGui", Generated: true}
 	metadata.Updated = 0
 
 	for i, m := range models {
 		model := Model{Name: m}
-		thresholds := getDistinctThresholds(conn, name, app, doctype, subDocType, m)
-		log.Println(thresholds)
+		data_keys := getDistinctDataKeys(conn, name, app, doctype, subDocType, m)
+		log.Println(data_keys)
 		fcstLen := getDistinctFcstLen(conn, name, app, doctype, subDocType, m)
 		log.Println(fcstLen)
 		region := getDistinctRegion(conn, name, app, doctype, subDocType, m)
@@ -150,9 +188,9 @@ func updateMedataForAppDocType(conn CbConnection, name string, app string, docty
 
 		// ./sqls/getDistinctThresholds.sql returns list of variables for SUMS DocType, like in Surface
 		if doctype == "SUMS" {
-			model.Variables = thresholds
+			model.Variables = data_keys
 		} else {
-			model.Thresholds = thresholds
+			model.Thresholds = data_keys
 		}
 		model.Model = models[i]
 		model.FcstLens = fcstLen
@@ -167,7 +205,7 @@ func updateMedataForAppDocType(conn CbConnection, name string, app string, docty
 		metadata.Models = append(metadata.Models, model)
 	}
 	log.Println(jsonPrettyPrintStruct(metadata))
-	writeMetadataToDb(conn, metadata)
+	writeMetadata(conn, metadata, path)
 }
 
 func parseConfig(file string) (ConfigJSON, error) {

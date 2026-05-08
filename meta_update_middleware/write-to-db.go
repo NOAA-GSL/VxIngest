@@ -1,11 +1,9 @@
 package main
 
 import (
-	//	"fmt"
+	"encoding/json"
 	"log"
-	//	"os"
-	//	"time"
-	// "github.com/couchbase/gocb/v2"
+	"os"
 )
 
 type Model struct {
@@ -28,16 +26,16 @@ type Model struct {
 }
 
 type MetadataJSON struct {
-	ID      string  `json:"id"`
-	Name    string  `json:"name"`
-	App     string  `json:"app"`
-	Type	string  `json:"type"`
-	Version string  `json:"version"`
-	Subset  string  `json:"subset"`
-	DocType string  `json:"docType"`
-	Generated bool  `json:"generated"`
-	Updated int     `json:"updated"`
-	Models  []Model `json:"models"`
+	ID        string  `json:"id"`
+	Name      string  `json:"name"`
+	App       string  `json:"app"`
+	Type      string  `json:"type"`
+	Version   string  `json:"version"`
+	Subset    string  `json:"subset"`
+	DocType   string  `json:"docType"`
+	Generated bool    `json:"generated"`
+	Updated   int     `json:"updated"`
+	Models    []Model `json:"models"`
 }
 
 // init runs before main() is evaluated
@@ -45,8 +43,27 @@ func init() {
 	log.Println("write-to-db:init()")
 }
 
-func writeMetadataToDb(conn CbConnection, metadata MetadataJSON) {
-	_, err := conn.Collection.Upsert(metadata.ID, metadata, nil)
+func writeMetadata(conn CbConnection, metadata MetadataJSON, path string) {
+	if (path != "") {
+		log.Println("writeMetadataToFile(" + path + ")")
+		writeStructToFile(metadata, path)
+		return
+	} else {
+		log.Println("writeMetadataToDb()")
+		_, err := conn.Collection.Upsert(metadata.ID, metadata, nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+}
+
+func writeStructToFile(metadata MetadataJSON, path string) {
+	log.Println("writeMetadataToFile(" + path + ")")
+	jsonData, err := json.MarshalIndent(metadata, "", "  ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = os.WriteFile(path, jsonData, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}

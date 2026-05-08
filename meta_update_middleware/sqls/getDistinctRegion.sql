@@ -1,12 +1,8 @@
-SELECT
-    DISTINCT VALUE fl.region
-FROM
-    {{vxDBTARGET}} as fl
-WHERE
-    fl.type = 'DD'
+SELECT DISTINCT RAW fl.region
+FROM {{vxDBTARGET}} as fl
+WHERE fl.type = 'DD'
+    AND fl.version = 'V01'
     AND fl.docType = '{{vxDOCTYPE}}'
     AND fl.subDocType = '{{vxSUBDOCTYPE}}'
-    AND fl.version = 'V01'
     AND fl.model = '{{vxMODEL}}'
-ORDER BY
-    fl.region
+ORDER BY fl.region

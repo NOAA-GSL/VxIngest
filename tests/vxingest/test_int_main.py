@@ -268,6 +268,7 @@ def test_one_thread_specify_file_pattern_grib2_normalized_pressure_job_spec_rt(
         # Restore original sys.argv
         sys.argv = original_argv
 
+
 @pytest.mark.integration
 def test_one_thread_specify_file_pattern_grib2_normalized_pressure_sums_job_spec_rt(
     tmp_path: Path,
@@ -306,6 +307,7 @@ def test_one_thread_specify_file_pattern_grib2_normalized_pressure_sums_job_spec
         # Restore original sys.argv
         sys.argv = original_argv
 
+
 @pytest.mark.integration
 def test_one_thread_specify_file_pattern_grib2_normalized_pressure_sums_job_spec_rt(
     tmp_path: Path,
@@ -315,7 +317,7 @@ def test_one_thread_specify_file_pattern_grib2_normalized_pressure_sums_job_spec
     job_id = "JS:METAR:SUMS:HRRR_OPS:schedule:job:V01"
     # need these args
     end_epoch = str(int(time()))
-    start_epoch = str(int(float(end_epoch) - 3600 * 4)) # four hours earlier
+    start_epoch = str(int(float(end_epoch) - 3600 * 4))  # four hours earlier
     sys.argv = [
         "run_ingest",
         "-j",
@@ -337,7 +339,7 @@ def test_one_thread_specify_file_pattern_grib2_normalized_pressure_sums_job_spec
         "-s",
         start_epoch,
         "-e",
-        end_epoch
+        end_epoch,
     ]
     try:
         vx_ingest = setup_connection(VXIngest_partial_sums())
@@ -478,7 +480,7 @@ def test_one_thread_specify_file_pattern_ctc_job_spec_rt(tmp_path: Path):
     original_argv = sys.argv.copy()
     job_id = "JS:METAR:CTC:HRRR_OPS:schedule:job:V01"
     end_epoch = str(int(time()))
-    start_epoch = str(int(float(end_epoch) - 3600 * 4)) # four hours earlier
+    start_epoch = str(int(float(end_epoch) - 3600 * 4))  # four hours earlier
     try:
         # try to find the first and last epoch from the data in couchbase.
         # The ctc_builder won't build any data that has already been built (except for the very last one).
@@ -504,7 +506,7 @@ def test_one_thread_specify_file_pattern_ctc_job_spec_rt(tmp_path: Path):
             "-s",
             start_epoch,
             "-e",
-            end_epoch
+            end_epoch,
         ]
         initial_success_count = prom_successes._value.get()
         run_ingest()

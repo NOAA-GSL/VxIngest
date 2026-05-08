@@ -94,6 +94,35 @@ class PartialSumsBuilder(Builder):
     select raw min (METAR.fcstValidEpoch) from `{self.bucket}`.{self.scope}.{self.collection} where type="DD" and docType="obs" and subset='METAR' and version='V01'  limit 10
     4) using the minimum valid time and the domain station list query for model and obs pairs within the station list.
     5) iterate that batch of data by valid time and fcstLen creating corresponding PARTIALSUMS documents.
+
+    Args:        load_spec (dict): the load spec for this builder
+        ingest_document (dict): the ingest document for this builder
+
+    Surface  Pressure Specifics:
+        Surface pressure presents some unique challenges because it is not a direct field in
+        the model data. It must be calculated using the hypsometric equation from the grib fields for temperature,
+        relative humidity and geopotential height. The formula is...
+        P = 1013.25 * (1 - (0.0065 * z) / (T + 0.0065 * z + 273.15))) ** 5.2561
+        where z is the geopotential height and T is the temperature.
+        The relative humidity is calculated from the dewpoint and the temperature with the formula...
+        RH = 100 * (exp((17.625 * Td) / (243.04 + Td)) / exp((17.625 * T) / (243.04 + T)))
+        where Td is the dewpoint and T is the temperature.
+
+        Variable names in the templates:
+        (Netcdf)              (Grib2)                       (Sums)
+        Surface Pressure      Surface Pressure              Surface Pressure
+        Surface Pressure      Normalized Surface Pressure   Normalized Surface Pressure
+        Altimiter Pressure.   Mean Sea Level Pressure       Mean Sea Level Pressure
+
+        For the OBS (Netcdf) the elevation is maintained in the station metadata.
+        For the models elevation is contained in a set of model station documents
+        that have a top level model name and are indexed by station name.
+        These documents will resemble station metadata documents but will have an
+        elevation field that is derived from the model data and is not necessarily
+        the same as the elevation in the obs station metadata.
+        The model station documents are populated by GribBuilder.
+
+        For SUMS the Elevation is not kept.
     """
 
     def __init__(self, load_spec, ingest_document):
@@ -352,7 +381,7 @@ class PartialSumsBuilder(Builder):
                     obs_id = re.sub(":" + str(fve["fcstLen"]) + "$", "", fve["id"])
                     # substitute the model part for obs
                     obs_id = re.sub(self.model, "obs", obs_id)
-                    logger.info("Looking up model document: %s", fve["id"])
+                    logger.debug("Looking up model document: %s", fve["id"])
                     try:
                         # Use a singleton to avoid redundant gets for the same model doc
                         if (
@@ -387,7 +416,7 @@ class PartialSumsBuilder(Builder):
                             str(_e),
                         )
 
-                    logger.info("Looking up observation document: %s", obs_id)
+                    logger.debug("Looking up observation document: %s", obs_id)
                     try:
                         # I don't really know how I can get here with _obs_data AND
                         # _obs_data['id'] != obs_id and still no self.obs_data

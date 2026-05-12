@@ -618,7 +618,20 @@ def process_run_configurations(
         make_tarfile(args.transfer_dir / tar_filename, output_dir)
         logger.info(f"Created tarfile at: {args.transfer_dir / tar_filename}")
         logger.info(f"Removing: {output_dir}")
-        shutil.rmtree(output_dir)
+        retry = 0
+        ignore = False
+        while retry < 3:
+            try:
+                if retry == 2:
+                    ignore = True  # On the last retry, ignore errors and just log them
+                shutil.rmtree(output_dir, ignore_errors=ignore, onerror=None)
+                break
+            except Exception as e:
+                logger.debug(
+                    f"Error removing {output_dir}: {e} - retrying ({retry + 1}/3)"
+                )
+                retry += 1
+                time.sleep(1)
     logger.info(f"Success: {success_count}, Fail: {fail_count}")
 
 

@@ -20,15 +20,15 @@ def synthetic_grib2(tmp_path_factory: pytest.TempPathFactory) -> Path:
             grib_utils.write_grib2_message(fh, type_of_level, level, short_name)
     return grib_path
 
+
 @pytest.fixture(scope="session")
 def grib_constants():
-    """Allow tests access to constants defined in grib_utils via a fixture
-    """
+    """Allow tests access to constants defined in grib_utils via a fixture"""
     return SimpleNamespace(
         DATA_DATE=grib_utils.DATA_DATE,
         DATA_TIME=grib_utils.DATA_TIME,
         FILL_VALUE=grib_utils.FILL_VALUE,
         MESSAGES=grib_utils.MESSAGES,
         GRID_PARAMS=grib_utils.GRID_PARAMS,
-        STEP_HOURS=grib_utils.STEP_HOURS
+        STEP_HOURS=grib_utils.STEP_HOURS,
     )

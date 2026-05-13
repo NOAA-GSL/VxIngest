@@ -70,7 +70,10 @@ def test_filter_by_attrs_2m_temperature(synthetic_grib2: Path, grib_constants):
     var_name = list(filtered.data_vars.keys())[0]
     values = filtered.variables[var_name].values
     assert isinstance(values, np.ndarray)
-    assert values.shape == (grib_constants.GRID_PARAMS["Ny"], grib_constants.GRID_PARAMS["Nx"])
+    assert values.shape == (
+        grib_constants.GRID_PARAMS["Ny"],
+        grib_constants.GRID_PARAMS["Nx"],
+    )
 
 
 # -- heightAboveGround level 10 -----------------------------------------------
@@ -197,7 +200,10 @@ def test_grid_dimensions(synthetic_grib2: Path, grib_constants):
     first_var = list(ds.data_vars)[0]
     assert ds[first_var].attrs["GRIB_Nx"] == grib_constants.GRID_PARAMS["Nx"]
     assert ds[first_var].attrs["GRIB_Ny"] == grib_constants.GRID_PARAMS["Ny"]
-    assert ds[first_var].attrs["GRIB_DxInMetres"] == grib_constants.GRID_PARAMS["DxInMetres"]
+    assert (
+        ds[first_var].attrs["GRIB_DxInMetres"]
+        == grib_constants.GRID_PARAMS["DxInMetres"]
+    )
 
 
 # -- time metadata -------------------------------------------------------------
@@ -220,9 +226,7 @@ def test_valid_time_and_step(synthetic_grib2: Path, grib_constants):
     )
 
     # Epoch conversion — mirrors grib_builder_parent.build_document()
-    fcst_valid_epoch = (
-        ds.valid_time.values.astype("uint64") / 10**9
-    ).astype("uint32")
+    fcst_valid_epoch = (ds.valid_time.values.astype("uint64") / 10**9).astype("uint32")
     assert fcst_valid_epoch > 0
 
     # Step conversion — mirrors build_document()
@@ -250,5 +254,8 @@ def test_data_values_shape_and_content(synthetic_grib2: Path, grib_constants):
     )
     for var_name in ds.data_vars:
         values = ds.variables[var_name].values
-        assert values.shape == (grib_constants.GRID_PARAMS["Ny"], grib_constants.GRID_PARAMS["Nx"])
+        assert values.shape == (
+            grib_constants.GRID_PARAMS["Ny"],
+            grib_constants.GRID_PARAMS["Nx"],
+        )
         assert np.allclose(values, grib_constants.FILL_VALUE, atol=0.1)

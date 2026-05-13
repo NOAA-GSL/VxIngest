@@ -6,7 +6,6 @@ via the eccodes Python API.  No external data files or Couchbase
 connection required.
 """
 
-
 import eccodes
 import numpy as np
 
@@ -68,9 +67,7 @@ def write_grib2_message(
 
         # Grid values
         n_points = GRID_PARAMS["Nx"] * GRID_PARAMS["Ny"]
-        eccodes.codes_set_values(
-            msgid, np.full(n_points, FILL_VALUE, dtype=np.float64)
-        )
+        eccodes.codes_set_values(msgid, np.full(n_points, FILL_VALUE, dtype=np.float64))
 
         eccodes.codes_write(msgid, file_handle)
     finally:

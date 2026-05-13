@@ -12,6 +12,8 @@ the eccodeslib workaround pin in pyproject.toml.
 No Couchbase connection or external data files required.
 """
 
+import calendar
+import datetime
 from pathlib import Path
 
 import numpy as np
@@ -228,6 +230,14 @@ def test_valid_time_and_step(synthetic_grib2: Path, grib_constants):
     # Epoch conversion — mirrors grib_builder_parent.build_document()
     fcst_valid_epoch = (ds.valid_time.values.astype("uint64") / 10**9).astype("uint32")
     assert fcst_valid_epoch > 0
+
+    # Parse DATA_DATE, DATA_TIME, and STEP_HOURS into a datatime object and make sure
+    # that matches the fcst_valid_epoch
+    valid_dt = datetime.datetime.strptime(
+        f"{grib_constants.DATA_DATE}{grib_constants.DATA_TIME:04d}", "%Y%m%d%H%M"
+    ).replace(tzinfo=datetime.UTC) + datetime.timedelta(hours=grib_constants.STEP_HOURS)
+    expected = calendar.timegm(valid_dt.timetuple())
+    assert int(fcst_valid_epoch) == expected
 
     # Step conversion — mirrors build_document()
     fcst_len = int(ds.step.values / 1e9 / 3600)

@@ -78,6 +78,24 @@ CREDENTIALS=config.yaml uv run coverage run -m pytest tests && \
     uv run coverage html
 ```
 
+### Pre-commit
+
+We have a minimal pre-commit configuration. If you'd like to use it, you can do so by:
+
+1. Installing pre-commit if you don't already have it:
+
+   ```console
+   uv tool install pre-commit --with pre-commit-uv --force-reinstall
+   ```
+
+2. Install the hooks:
+
+   ```console
+   pre-commit install
+   ```
+
+If you need to update the hooks, do: `pre-commit autoupdate`
+
 ### Testing
 
 You will need some data files downloaded locally in order to use the test suite. For more details, see [tests/vxingest/README.md](../tests/vxingest/README.md).
@@ -113,7 +131,7 @@ And run it via Docker Compose with the below. You'll need to update the `compose
 ```bash
 data=/data-ingest/data \
     public=/public \
-    docker compose run ingest 
+    docker compose run ingest
 ```
 
 Otherwise, note there are a number of targets in the Dockerfile. You can use the `--target=dev` flag to build a dev version. If you do so, and want to run tests, you'll need to update the `src` mount path below to where your test data is. If you're using Rancher Desktop, the data will need to be somewhere in your home directory in order to mount it in the container. You can run the container directly like so.
@@ -181,12 +199,12 @@ data=/data-ingest/data \
 
 There is currently a Docker Compose file with options to run unit tests and ingest from within the container. This may be a useful option for local development as well.
 
-*NOTE*: if you're using Rancher Desktop, you won't be able to access /opt on your system as it's not mounted into the VM by default. You'll need to move your test files into your home directory.
+_NOTE_: if you're using Rancher Desktop, you won't be able to access /opt on your system as it's not mounted into the VM by default. You'll need to move your test files into your home directory.
 
-* `shell`: expects /data and /public for mounting
-* `test`: expects /opt/data for mounting
-* `ingest`: expects /data and /public for mounting
-* `import`: expects /data for mounting
+- `shell`: expects /data and /public for mounting
+- `test`: expects /opt/data for mounting
+- `ingest`: expects /data and /public for mounting
+- `import`: expects /data for mounting
 
 And can be run like:
 

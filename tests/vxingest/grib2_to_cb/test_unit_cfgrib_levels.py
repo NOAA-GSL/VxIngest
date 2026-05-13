@@ -17,8 +17,6 @@ from pathlib import Path
 import numpy as np
 import xarray as xr
 
-from .conftest import FILL_VALUE, GRID_PARAMS, STEP_HOURS
-
 # -- heightAboveGround level 2 ------------------------------------------------
 
 
@@ -49,7 +47,7 @@ def test_open_height_above_ground_2m(synthetic_grib2: Path):
     assert expected_long_names == actual_long_names
 
 
-def test_filter_by_attrs_2m_temperature(synthetic_grib2: Path):
+def test_filter_by_attrs_2m_temperature(synthetic_grib2: Path, grib_constants):
     """filter_by_attrs(long_name=...) returns a non-empty dataset whose
     first data variable has a numpy array of the expected shape — this
     is the exact access pattern used in build_document()."""
@@ -72,7 +70,7 @@ def test_filter_by_attrs_2m_temperature(synthetic_grib2: Path):
     var_name = list(filtered.data_vars.keys())[0]
     values = filtered.variables[var_name].values
     assert isinstance(values, np.ndarray)
-    assert values.shape == (GRID_PARAMS["Ny"], GRID_PARAMS["Nx"])
+    assert values.shape == (grib_constants.GRID_PARAMS["Ny"], grib_constants.GRID_PARAMS["Nx"])
 
 
 # -- heightAboveGround level 10 -----------------------------------------------
@@ -180,7 +178,7 @@ def test_proj_string_accessible(synthetic_grib2: Path):
     assert "+proj=lcc" in proj_string
 
 
-def test_grid_dimensions(synthetic_grib2: Path):
+def test_grid_dimensions(synthetic_grib2: Path, grib_constants):
     """GRIB_Nx, GRIB_Ny, and GRIB_DxInMetres attributes match the
     values used to generate the synthetic file."""
     ds = xr.open_dataset(
@@ -197,15 +195,15 @@ def test_grid_dimensions(synthetic_grib2: Path):
         },
     )
     first_var = list(ds.data_vars)[0]
-    assert ds[first_var].attrs["GRIB_Nx"] == GRID_PARAMS["Nx"]
-    assert ds[first_var].attrs["GRIB_Ny"] == GRID_PARAMS["Ny"]
-    assert ds[first_var].attrs["GRIB_DxInMetres"] == GRID_PARAMS["DxInMetres"]
+    assert ds[first_var].attrs["GRIB_Nx"] == grib_constants.GRID_PARAMS["Nx"]
+    assert ds[first_var].attrs["GRIB_Ny"] == grib_constants.GRID_PARAMS["Ny"]
+    assert ds[first_var].attrs["GRIB_DxInMetres"] == grib_constants.GRID_PARAMS["DxInMetres"]
 
 
 # -- time metadata -------------------------------------------------------------
 
 
-def test_valid_time_and_step(synthetic_grib2: Path):
+def test_valid_time_and_step(synthetic_grib2: Path, grib_constants):
     """valid_time and step coordinates are present and the epoch
     conversion used in build_document() produces a plausible value."""
     ds = xr.open_dataset(
@@ -229,13 +227,13 @@ def test_valid_time_and_step(synthetic_grib2: Path):
 
     # Step conversion — mirrors build_document()
     fcst_len = int(ds.step.values / 1e9 / 3600)
-    assert fcst_len == STEP_HOURS
+    assert fcst_len == grib_constants.STEP_HOURS
 
 
 # -- data values ---------------------------------------------------------------
 
 
-def test_data_values_shape_and_content(synthetic_grib2: Path):
+def test_data_values_shape_and_content(synthetic_grib2: Path, grib_constants):
     """Data values are accessible as numpy arrays with the expected
     grid shape and (approximately) the fill value used during generation."""
     ds = xr.open_dataset(
@@ -252,5 +250,5 @@ def test_data_values_shape_and_content(synthetic_grib2: Path):
     )
     for var_name in ds.data_vars:
         values = ds.variables[var_name].values
-        assert values.shape == (GRID_PARAMS["Ny"], GRID_PARAMS["Nx"])
-        assert np.allclose(values, FILL_VALUE, atol=0.1)
+        assert values.shape == (grib_constants.GRID_PARAMS["Ny"], grib_constants.GRID_PARAMS["Nx"])
+        assert np.allclose(values, grib_constants.FILL_VALUE, atol=0.1)

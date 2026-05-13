@@ -231,7 +231,7 @@ def test_valid_time_and_step(synthetic_grib2: Path, grib_constants):
     fcst_valid_epoch = (ds.valid_time.values.astype("uint64") / 10**9).astype("uint32")
     assert fcst_valid_epoch > 0
 
-    # Parse DATA_DATE, DATA_TIME, and STEP_HOURS into a datatime object and make sure
+    # Parse DATA_DATE, DATA_TIME, and STEP_HOURS into a datetime object and make sure
     # that matches the fcst_valid_epoch
     valid_dt = datetime.datetime.strptime(
         f"{grib_constants.DATA_DATE}{grib_constants.DATA_TIME:04d}", "%Y%m%d%H%M"

@@ -10,7 +10,7 @@ from . import grib_utils
 def synthetic_grib2(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Generate a multi-message GRIB2 file with all level types
     that VxIngest reads in ``build_document()``. Use a session
-    fixture scope as writting GRIB2 files is expensive.
+    fixture scope as writing GRIB2 files is expensive.
 
     Returns the path to the generated file.
     """

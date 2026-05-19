@@ -752,6 +752,10 @@ class PartialSumsBuilder(Builder):
 
     def get_stations_for_region_by_sort(self, region_name, valid_epoch):
         """Using a lat/lon filter return all the stations within the defined region
+            THAT HAVE A VALID ELEVATION. This is necessary
+                because the partialsums builders may need to calculate normalized pressure
+                from elevation and temperature and if we have stations with no elevation
+                we can't properly calculate normalized pressure.
         Args:
             region_name (string): the name of the region.
         Returns:
@@ -802,11 +806,18 @@ class PartialSumsBuilder(Builder):
                     if _boundingbox["tl_lon"] <= 180
                     else _boundingbox["tl_lon"] - 360
                 )
+                # check that the station is within the bounding box and has a valid elevation
+                # If there is an invalid elevation we won't be able to calculate normalized pressure
+                # and that will cause the partialsums to be inaccurate, so we have to filter out
+                # stations with invalid elevation here.
                 if (
                     rlat >= bb_br_lat
                     and rlat <= bb_tl_lat
                     and rlon >= bb_tl_lon
                     and rlon <= bb_br_lon
+                    and "elev" in row["geo"][geo_index]
+                    and row["geo"][geo_index]["elev"] is not None
+                    and row["geo"][geo_index]["elev"] != 9999
                 ):
                     _domain_stations.append(row["name"])
                 else:

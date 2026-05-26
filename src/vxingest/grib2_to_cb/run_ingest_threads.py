@@ -74,9 +74,6 @@ from collections.abc import Callable
 from datetime import datetime, timedelta
 from multiprocessing import JoinableQueue, Queue, set_start_method
 from pathlib import Path
-from typing import Callable
-
-from couchbase.exceptions import DocumentNotFoundException
 
 from vxingest.builder_common.vx_ingest import CommonVxIngest
 from vxingest.grib2_to_cb.vx_ingest_manager import VxIngestManager
@@ -221,43 +218,31 @@ class VXIngest(CommonVxIngest):
             # get the intended subset (collection from the job_id)
             self.cb_credentials["collection"] = config["collection"]
             # establish connections to cb, collection
-            # determine the subset from the job_id and connect to the collection
             self.connect_cb()
-            # load the ingest document ids into the load_spec (this might be redundant)
-            common_collection = self.cluster.bucket(
-                self.cb_credentials["bucket"]
-            ).collection("COMMON")
-            # get the ingest document ids from the job document
-            ingest_document_result = common_collection.get(self.job_document_id)
-            ingest_document = ingest_document_result.content_as[dict]
-            # reset the collection based on the subset in the JOB document
-            self.collection = self.cluster.bucket(
-                self.cb_credentials["bucket"]
-            ).collection(ingest_document["subset"])
-            self.load_spec["ingest_document_ids"] = ingest_document[
-                "ingest_document_ids"
-            ]
-
+            logger.info("connected to cb - collection is %s", self.collection.name)
+            collection = self.load_spec["cb_connection"]["collection"]
+            bucket = self.load_spec["cb_connection"]["bucket"]
+            scope = self.load_spec["cb_connection"]["scope"]
+            # load the ingest document ids into the load_spec (this might be redundant) - from COMMON
+            self.load_spec["ingest_document_ids"] = self.ingest_document_ids
             # put all the ingest documents into the load_spec too
             self.load_spec["ingest_documents"] = {}
             for _id in self.load_spec["ingest_document_ids"]:
-                self.load_spec["ingest_documents"][_id] = common_collection.get(
-                    _id
-                ).content_as[dict]
-            # load the fmask and input_data_path into the load_spec
-            self.fmask = ingest_document["file_mask"]
-            self.path = ingest_document["input_data_path"]
+                if _id.startswith("MD"):
+                    self.load_spec["ingest_documents"][_id] = (
+                        self.common_collection.get(_id).content_as[dict]
+                    )
+                else:
+                    self.load_spec["ingest_documents"][_id] = (
+                        self.runtime_collection.get(_id).content_as[dict]
+                    )
             self.load_spec["fmask"] = self.fmask
             self.load_spec["input_data_path"] = self.input_data_path
             # stash the load_job in the load_spec
-            self.load_spec["load_job_doc"] = self.build_load_job_doc("madis")
-        except (
-            RuntimeError,
-            TypeError,
-            NameError,
-            KeyError,
-            DocumentNotFoundException,
-        ):
+            self.load_spec["load_job_doc"] = self.build_load_job_doc(
+                self.load_spec["cb_connection"]["collection"]
+            )
+        except (RuntimeError, TypeError, NameError, KeyError):
             logger.error(
                 "*** Error occurred in Main reading load_spec: %s ***",
                 str(sys.exc_info()),

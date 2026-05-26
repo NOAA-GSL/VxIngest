@@ -278,7 +278,6 @@ cbimport json --cluster couchbase://adb-cb4.gsd.esrl.noaa.gov --bucket mdata --u
 A strategy might be to seperate data into multiple files and run a different cbimport
 instance on each file.
 
-
 ## MATS metadata documents
 
 These are documents that are used by NATS to define selectors with valid ranges of data and to specify display priorities and properties.

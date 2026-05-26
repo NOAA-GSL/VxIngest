@@ -15,7 +15,7 @@ The 'MD:V01:RAOB:obs:ingest:prepbufr' value is the id of a couchbase metadata do
 This document MUST exist on the couchbase cluster defined by cb_host in an associated credentials file (the name of which is provided as a command line parameter) and MUST be readable by the cb_user.
 
 The prepbufr ingest documents have an additional section "mnemonic_mapping" that serves the purpose of mapping prepbufr mnemonics to the variables used in
-the template DSL. The DSL syntax is described in the metadata_files/README.md in the section "Ingest Template DSL" [here](https://github.com/NOAA-GSL/VxIngest/blob/b43bb43838716d365eb19d76189d9ae40a4a395b/mats_metadata_and_indexes/metadata_files/README.md)
+the template DSL. The DSL syntax is described in the metadata_files/README.md in the section "Ingest Template DSL" [in the Ingest Template DSL documentation](https://github.com/NOAA-GSL/VxIngest/blob/b43bb43838716d365eb19d76189d9ae40a4a395b/mats_metadata_and_indexes/metadata_files/README.md)
 
 This issue demonstrates ways to make a query of a map of maps
 See [issue](https://www.couchbase.com/forums/t/querying-a-map-of-maps-with-a-dynamic-key/30019)

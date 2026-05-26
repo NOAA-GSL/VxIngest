@@ -39,15 +39,7 @@ import sys
 import time
 
 from vxingest.builder_common.ingest_manager import CommonVxIngestManager
-from vxingest.grib2_to_cb.raob_grib_model_builder import (
-    RaobGribModelBuilder as my_builder,
-)
-from vxingest.grib2_to_cb.raob_model_native_builder import (
-    RaobModelNativeLevelBuilderV01 as RaobModelNativeLevelBuilderV01,
-)
-from vxingest.grib2_to_cb.raob_model_pressure_level_builder import (
-    RaobModelPressureLevelBuilderV01 as RaobModelPressureLevelBuilderV01,
-)
+from vxingest.grib2_to_cb import grib_builder as my_builder
 
 # Get a logger with this module's name to help with debugging
 logger = logging.getLogger(__name__)
@@ -169,13 +161,10 @@ class VxIngestManager(CommonVxIngestManager):
             if self.ingest_type_builder_name in self.builder_map:
                 builder = self.builder_map[self.ingest_type_builder_name]
             else:
-                builder_classes = {
-                    "RaobGribModelBuilder": my_builder,
-                    "RaobModelNativeLevelBuilderV01": RaobModelNativeLevelBuilderV01,
-                    "RaobModelPressureLevelBuilderV01": RaobModelPressureLevelBuilderV01,
-                 }
-                builder_class = builder_classes[self.ingest_type_builder_name]
-                builder = builder_class(self.load_spec, self.ingest_document, self.number_stations)
+                builder_class = getattr(my_builder, self.ingest_type_builder_name)
+                builder = builder_class(
+                    self.load_spec, self.ingest_document, self.number_stations
+                )
                 self.builder_map[self.ingest_type_builder_name] = builder
             document_map = builder.build_document(queue_element)
             if self.output_dir:

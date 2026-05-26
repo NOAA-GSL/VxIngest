@@ -6,7 +6,7 @@ Refer to [this test](https://github.com/NOAA-GSL/VxIngest/blob/a270e0f5851b5fa2d
 
 This is an integration test that compares CouchBase ingest data from a specific prepbufr file in the test data set to the same data in the legacy MYSQL data set. The Couchbase data was ingested with the VxIngest prepbufr builder and the MYSQL data was ingested with the legacy code.
 
-The data and the test artifacts for analysis are kept in the /opt/data archive. This archive is in 
+The data and the test artifacts for analysis are kept in the /opt/data archive. This archive is in
 [this](https://drive.google.com/drive/folders/18YY74S8w2S0knKQRN-QxZdnfRjKxDN69?usp=drive_link) google drive folder and is named opt-data.gz. To run tests and/or view the test_artifacts you need to download this file and unpack it into /opt/data.
 
 This test compares the data for every station in the July 31, 2024 prepbufr file that is in /opt/data/prepbufr_to_cb/input_files/242130000.gdas.t00z.prepbufr.nr.

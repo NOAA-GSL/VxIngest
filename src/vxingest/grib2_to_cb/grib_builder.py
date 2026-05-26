@@ -119,7 +119,7 @@ class GribModelBuilderV01(GribBuilder):
         Returns:
             doc (Object): The document being created
         """
-        if doc.get("data") is None:
+        if "data" not in doc or doc["data"] is None:
             keys = list(element.keys())
             doc["data"] = {}
             for i in range(len(self.domain_stations)):
@@ -174,7 +174,7 @@ class GribModelBuilderV01(GribBuilder):
                 "Orography"
             ].values
             surface_values = []
-            if self.ds_translate_item_variables_map.get("Cloud ceiling") is None:
+            if self.ds_translate_item_variables_map["Cloud ceiling"] is None:
                 return None
             ceil_var_values = self.ds_translate_item_variables_map[
                 "Cloud ceiling"
@@ -425,8 +425,9 @@ class GribModelBuilderV01(GribBuilder):
             [int]: translated wind speed
         """
         # interpolated value cannot use rounded grid points
-        if self.ds_translate_item_variables_map.get("10 metre U wind component") is None:
+        if self.ds_translate_item_variables_map["10 metre U wind component"] is None:
             return None
+
         values = self.ds_translate_item_variables_map[
             "10 metre U wind component"
         ].values

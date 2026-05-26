@@ -896,7 +896,7 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         else:
             return [
                 round((self.get_svpWobus(dp) / self.get_svpWobus(t)) * 100, 4)
-                for dp, t in zip(dewpoint, temperature)
+                for dp, t in zip(dewpoint, temperature, strict=True)
             ]
 
     def get_relative_humidity(self, pressure, temperature, specific_humidity):
@@ -935,7 +935,9 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                     .to_tuple()[0],
                     4,
                 )
-                for p, t, s in zip(pressure, temperature, specific_humidity)
+                for p, t, s in zip(
+                    pressure, temperature, specific_humidity, strict=True
+                )
             ]
             return relative_humidity
         except Exception as _e:
@@ -1780,7 +1782,7 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
             bufr.msg_date
         )  # date is a datetime object i.e. 2024041012 is 2024-04-10 12:00:00
         _dt = datetime.datetime.strptime(str(date_str), "%Y%m%d%H").replace(
-            tzinfo=datetime.timezone.utc
+            tzinfo=datetime.UTC
         )
         _epoch = int(_dt.timestamp())
         return _epoch

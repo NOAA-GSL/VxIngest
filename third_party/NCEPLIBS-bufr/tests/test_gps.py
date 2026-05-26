@@ -1,6 +1,7 @@
 import ncepbufr
 
 hdrstr = "YEAR MNTH DAYS HOUR MINU PCCF ELRC SAID PTID GEODU"
+hdrstr = "YEAR MNTH DAYS HOUR MINU PCCF ELRC SAID PTID GEODU"
 
 # read gpsro file.
 

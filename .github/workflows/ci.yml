@@ -53,9 +53,9 @@ jobs:
         run: uv sync --locked --dev
       - name: Unit test with pytest
         run: |
-          uv run coverage run -m pytest -m "not integration" tests
-          uv run coverage report
-          uv run coverage xml
+          poetry run coverage run -m pytest -m "not integration" tests
+          poetry run coverage report
+          poetry run coverage xml
       - name: Code Coverage Report
         uses: irongut/CodeCoverageSummary@v1.3.0
         with:

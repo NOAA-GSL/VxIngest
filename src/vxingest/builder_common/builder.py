@@ -16,7 +16,7 @@ class Builder:
     def __init__(self, load_spec, ingest_document):
         self.ingest_document = ingest_document
         # CTC builders cannot init the ingest_document or the template, they get set in the build_document
-        self.template = None if ingest_document is None else ingest_document["template"]
+        self.template = ingest_document.get("template")
         self.load_spec = load_spec
         self.an_id = None
         self.document_map = {}

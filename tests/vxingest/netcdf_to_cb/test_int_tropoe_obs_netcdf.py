@@ -94,9 +94,6 @@ def test_one_thread_specify_file_pattern(tmp_path):
         {
             "job_id": job_id,
             "credentials_file": os.environ["CREDENTIALS"],
-            "collection": collection,
-            "input_data_path": input_data_path,
-            "ingest_document_ids": ingest_document_ids,
             "output_dir": f"{tmp_path}",
             "threads": 1,
             "file_pattern": "*.nc",
@@ -123,8 +120,7 @@ def test_one_thread_specify_file_pattern(tmp_path):
 
     # Test that the output file matches the content in the database
     try:
-        with (output_files[0]).open(encoding="utf-8") as f:
-            derived_data = json.load(f)
+        derived_data = json.load((output_files[0]).open(encoding="utf-8"))
         obs_id = derived_data[0]["id"]
         derived_record = [d for d in derived_data if d["id"] == obs_id]
         retrieved_record = vx_ingest.collection.get(obs_id).content_as[dict]

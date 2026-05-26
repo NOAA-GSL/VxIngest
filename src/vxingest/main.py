@@ -48,7 +48,7 @@ logger = logging.getLogger(__name__)
 prom_registry = CollectorRegistry()
 
 # Use a gauge because we're doing 1 file per job run, a histogram could be more appropriate.
-# Note - if we used a historgram or summary, we could apply a decorator directly to the function we're interested in
+# Note - if we used a histogram or summary, we could apply a decorator directly to the function we're interested in
 prom_duration = Gauge(
     "run_ingest_duration",
     "The duration of an ingest run, in seconds",
@@ -542,12 +542,8 @@ def process_run_configurations(
                         log_configurer,
                     )
                 except SystemExit as e:
-                    if e.code == 0:
-                        # Job succeeded
-                        proc_succeeded = True
-                else:
-                    proc_succeeded = True
-            case "CTC" | "CTC-TEST":
+                    job_succeeded = bool(e.code == 0)
+            case "ctc":
                 # FIXME: Update calling code to raise instead of calling sys.exit
                 try:
                     ctc_ingest = CTCIngest()
@@ -574,22 +570,7 @@ def process_run_configurations(
                 except SystemExit as e:
                     if e.code == 0:
                         # Job succeeded
-                        proc_succeeded = True
-                else:
-                    proc_succeeded = True
-            case "PREPBUFR" | "PREPBUFR-TEST":
-                # FIXME: Update calling code to raise instead of calling sys.exit
-                try:
-                    prepbufr_ingest = PrepbufrIngest()
-                    prepbufr_ingest.runit(
-                        config,
-                        log_queue,
-                        log_configurer,
-                    )
-                except SystemExit as e:
-                    if e.code == 0:
-                        # Job succeeded
-                        proc_succeeded = True
+                        job_succeeded = True
                 else:
                     proc_succeeded = True
             case _:

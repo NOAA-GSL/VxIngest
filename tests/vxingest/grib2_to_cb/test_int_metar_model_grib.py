@@ -1,6 +1,8 @@
 """
 integration tests for grib builder
 This test expects to find a valid grib file in the local directory /opt/public/data/grids/hrrr/conus/wrfprs/grib2.
+integration tests for grib builder
+This test expects to find a valid grib file in the local directory /opt/public/data/grids/hrrr/conus/wrfprs/grib2.
 This test expects to write to the local output directory /opt/data/grib_to_cb/output so that directory should exist.
 For files except rrfs_a the filenames are like 21 196 14 000018 %y %j %H %f  treating the last 6 decimals as microseconds even though they are not.
 these files are two digit year, day of year, hour, and forecast lead time (6 digit ??)
@@ -279,7 +281,6 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus(tmp_path: Path):
                     assert result["data"][_k][_dk] == _json["data"][_k][_dk], (
                         f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure name {result['data'][_k][_dk]} != {_json['data'][_k][_dk]}"
                     )
-
                 else:
                     # math compare
                     # print(f"result {_k} {_dk} ", result["data"][_k][_dk])

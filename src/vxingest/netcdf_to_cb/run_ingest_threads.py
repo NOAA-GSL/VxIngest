@@ -208,7 +208,11 @@ class VXIngest(CommonVxIngest):
             bucket = self.load_spec["cb_connection"]["bucket"]
             scope = self.load_spec["cb_connection"]["scope"]
             # load the ingest document ids into the load_spec (this might be redundant) - from COMMON
-            self.load_spec["ingest_document_ids"] = self.ingest_document_ids
+            ingest_document_result = self.common_collection.get(self.job_document_id)
+            ingest_document = ingest_document_result.content_as[dict]
+            self.load_spec["ingest_document_ids"] = ingest_document[
+                "ingest_document_ids"
+            ]
             # put all the ingest documents into the load_spec too
             self.load_spec["ingest_documents"] = {}
             for _id in self.load_spec["ingest_document_ids"]:

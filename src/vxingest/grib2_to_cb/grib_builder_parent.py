@@ -43,8 +43,8 @@ class GribBuilder(Builder):
         super().__init__(load_spec, ingest_document)
 
         self.ingest_document = ingest_document
-        self.template = ingest_document["template"]
-        self.subset = self.template["subset"]
+        self.template = ingest_document.get("template")
+        self.subset = self.template.get("subset")
         self.load_spec = load_spec
         # GribBuilder specific
         self.number_stations = number_stations

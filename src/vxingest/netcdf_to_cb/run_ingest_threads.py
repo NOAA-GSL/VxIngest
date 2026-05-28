@@ -69,10 +69,10 @@ import logging
 import os
 import sys
 import time
-from collections.abc import Callable
 from datetime import datetime, timedelta
 from multiprocessing import JoinableQueue, Queue, set_start_method
 from pathlib import Path
+from typing import Any
 
 from vxingest.builder_common.vx_ingest import CommonVxIngest
 from vxingest.log_config import configure_logging, worker_log_configurer
@@ -167,7 +167,7 @@ class VXIngest(CommonVxIngest):
         self.ingest_document = None
         super().__init__()
 
-    def runit(self, config, log_queue: Queue, log_configurer: Callable[[Queue], None]):
+    def runit(self, args: Any) -> Any:
         """
         This is the entry point for run_ingest_threads.py
         """
@@ -175,6 +175,9 @@ class VXIngest(CommonVxIngest):
         logger.info("--- *** --- Start --- *** ---")
         logger.info("Begin a_time: %s", begin_time)
 
+        config = args if isinstance(args, dict) else vars(args)
+        log_queue = getattr(self, '_log_queue', None)
+        log_configurer = getattr(self, '_log_configurer', None)
         self.credentials_file = config.get("credentials_file", None)
         self.thread_count = config.get("threads", 1)
         self.output_dir = config.get("output_dir", "/tmp").strip()
@@ -236,7 +239,7 @@ class VXIngest(CommonVxIngest):
         # load the my_queue with filenames that match the mask and have not already been ingested
         # (do not have associated datafile documents)
         # Constructor for an infinite size  FIFO my_queue
-        _q = JoinableQueue()
+        _q: JoinableQueue = JoinableQueue()
         file_names = []
         # get the urls (full_file_names) from all the datafiles for this type of ingest
         # for netcdf type ingests there is only one ingest document so we can just use the first
@@ -283,12 +286,13 @@ class VXIngest(CommonVxIngest):
             except Exception as _e:
                 logger.error("*** Error in VXIngest %s***", str(_e))
         # be sure to join all the threads to wait on them
-        finished = [proc.join() for proc in ingest_manager_list]
+        for proc in ingest_manager_list:
+            proc.join()
         self.write_load_job_to_files()
         logger.info("finished starting threads")
         load_time_end = time.perf_counter()
         load_time = timedelta(seconds=load_time_end - self.load_time_start)
-        logger.info(" finished %s", str(finished))
+        logger.info(" finished")
         logger.info("    >>> Total load a_time: %s", str(load_time))
         logger.info("End a_time: %s", str(datetime.now()))
         logger.info("--- *** --- End  --- *** ---")

@@ -70,10 +70,10 @@ import logging
 import os
 import sys
 import time
-from collections.abc import Callable
 from datetime import datetime, timedelta
 from multiprocessing import JoinableQueue, Queue, set_start_method
 from pathlib import Path
+from typing import Any
 
 from vxingest.builder_common.vx_ingest import CommonVxIngest
 from vxingest.ctc_to_cb.vx_ingest_manager import VxIngestManager
@@ -162,13 +162,16 @@ class VXIngest(CommonVxIngest):
         self.ingest_document = None
         super().__init__()
 
-    def runit(self, config, log_queue: Queue, log_configurer: Callable[[Queue], None]):
+    def runit(self, args: Any) -> Any:
         """
         This is the entry point for run_ingest_threads.py
 
         The method creates multiprocess "Processes" so expects a queue to pass log messages back
         on and a logger configuration function to format them
         """
+        config = args if isinstance(args, dict) else vars(args)
+        log_queue = config.get("log_queue", Queue())
+        log_configurer = config.get("log_configurer", worker_log_configurer)
         begin_time = str(datetime.now())
         logger.info("--- *** --- Start --- *** ---")
         logger.info("Begin a_time: %s", begin_time)
@@ -228,7 +231,7 @@ class VXIngest(CommonVxIngest):
         # get all the ingest_document_ids and put them into a my_queue
         # load the my_queue with
         # Constructor for an infinite size  FIFO my_queue
-        _q = JoinableQueue()
+        _q: JoinableQueue = JoinableQueue()
         for _f in self.load_spec["ingest_document_ids"]:
             _q.put(_f)
         # instantiate data_type_manager pool - each data_type_manager is a
@@ -246,8 +249,8 @@ class VXIngest(CommonVxIngest):
                     self.load_spec,
                     _q,
                     self.output_dir,
-                    log_queue,  # Queue to pass logging messages back to the main process on
-                    log_configurer,  # Config function to set up the logger in the multiprocess Process
+                    logging_queue=log_queue,  # Queue to pass logging messages back to the main process on
+                    logging_configurer=log_configurer,  # Config function to set up the logger in the multiprocess Process
                 )
                 ingest_manager_list.append(ingest_manager_thread)
                 ingest_manager_thread.start()  # This calls a .run() method in the class
@@ -256,13 +259,14 @@ class VXIngest(CommonVxIngest):
                 logger.error("*** Error in VXIngest %s***", str(_e))
                 raise _e
         # be sure to join all the threads to wait on them
-        finished = [proc.join() for proc in ingest_manager_list]
+        for proc in ingest_manager_list:
+            proc.join()
         logger.info("Finished processes")
         self.write_load_job_to_files()
         logger.info("Finished writing files")
         load_time_end = time.perf_counter()
         load_time = timedelta(seconds=load_time_end - self.load_time_start)
-        logger.info(" finished %s", str(finished))
+        logger.info(" finished")
         logger.info("    >>> Total load a_time: %s", str(load_time))
         logger.info("End a_time: %s", str(datetime.now()))
         logger.info("--- *** --- End  --- *** ---")

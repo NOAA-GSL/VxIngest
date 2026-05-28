@@ -70,10 +70,10 @@ import logging
 import os
 import sys
 import time
-from collections.abc import Callable
 from datetime import datetime, timedelta
 from multiprocessing import JoinableQueue, Queue, set_start_method
 from pathlib import Path
+from typing import Any
 
 from vxingest.builder_common.vx_ingest import CommonVxIngest
 from vxingest.grib2_to_cb.vx_ingest_manager import VxIngestManager
@@ -178,13 +178,16 @@ class VXIngest(CommonVxIngest):
         self.ingest_document = None
         super().__init__()
 
-    def runit(self, config, log_queue: Queue, log_configurer: Callable[[Queue], None]):
+    def runit(self, args: Any) -> Any:
         """
         This is the entry point for run_ingest_threads.py
         There is a file_pattern and a file_mask. The file_mask is a python time.strftime format e.g. '%y%j%H%f'.
         The file_pattern is a glob pattern that is used to match filenames that are derived from the path and file_mask.
         The file_mask is specified in the load_spec. The file_pattern is specified on the command line.
         """
+        config = args if isinstance(args, dict) else vars(args)
+        log_queue = config.get("log_queue", Queue())
+        log_configurer = config.get("log_configurer", worker_log_configurer)
         begin_time = str(datetime.now())
         logger.info("--- *** --- Start --- *** ---")
         logger.info("Begin a_time: %s", begin_time)
@@ -252,7 +255,7 @@ class VXIngest(CommonVxIngest):
         # load the my_queue with filenames that match the mask and have not already been ingested
         # (do not have associated datafile documents)
         # Constructor for an infinite size  FIFO my_queue
-        _q = JoinableQueue()
+        _q: JoinableQueue = JoinableQueue()
         file_names = []
         # get the urls (full_file_names) from all the datafiles for this type of ingest
         # for grib type ingests there is only one ingest document so we can just use the first
@@ -310,12 +313,13 @@ class VXIngest(CommonVxIngest):
             except Exception as _e:
                 logger.error("*** Error in VXIngest %s***", str(_e))
         # be sure to join all the threads to wait on them
-        finished = [proc.join() for proc in ingest_manager_list]
+        for proc in ingest_manager_list:
+            proc.join()
         self.write_load_job_to_files()
         logger.info("finished starting threads")
         load_time_end = time.perf_counter()
         load_time = timedelta(seconds=load_time_end - self.load_time_start)
-        logger.info(" finished %s", str(finished))
+        logger.info(" finished")
         logger.info("    >>> Total load a_time: %s", str(load_time))
         logger.info("End a_time: %s", str(datetime.now()))
         logger.info("--- *** --- End  --- *** ---")

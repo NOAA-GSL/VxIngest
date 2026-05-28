@@ -22,10 +22,13 @@ import sys
 import time
 
 import yaml
-from couchbase.auth import PasswordAuthenticator
-from couchbase.cluster import Cluster
-from couchbase.exceptions import CouchbaseException
-from couchbase.options import ClusterOptions, ClusterTimeoutOptions
+from couchbase.auth import PasswordAuthenticator  # type: ignore[import-untyped]
+from couchbase.cluster import Cluster  # type: ignore[import-untyped]
+from couchbase.exceptions import CouchbaseException  # type: ignore[import-untyped]
+from couchbase.options import (  # type: ignore[import-untyped]
+    ClusterOptions,
+    ClusterTimeoutOptions,
+)
 
 # Get a logger with this module's name to help with debugging
 logger = logging.getLogger(__name__)

@@ -70,7 +70,6 @@ import logging
 import os
 import sys
 import time
-from collections.abc import Callable
 from datetime import datetime, timedelta
 from multiprocessing import JoinableQueue, Queue, set_start_method
 from pathlib import Path
@@ -160,10 +159,13 @@ class VXIngest(CommonVxIngest):
         self.ingest_document = None
         super().__init__()
 
-    def runit(self, config, log_queue: Queue, log_configurer: Callable[[Queue], None]):
+    def runit(self, args):
         """
         This is the entry point for run_ingest_threads.py
         """
+        config = args
+        log_queue = args.get("log_queue")
+        log_configurer = args.get("log_configurer")
         begin_time = str(datetime.now())
         logger.info("--- *** --- Start --- *** ---")
         logger.info("Begin a_time: %s", begin_time)

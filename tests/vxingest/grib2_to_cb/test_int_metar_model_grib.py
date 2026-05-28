@@ -14,9 +14,9 @@ from multiprocessing import Queue
 from pathlib import Path
 
 import pytest
-from couchbase.options import QueryOptions
+from couchbase.options import QueryOptions  # type: ignore
 
-from vxingest.grib2_to_cb.run_ingest_threads import VXIngest
+from vxingest.grib2_to_cb.run_ingest_threads import VXIngest  # type: ignore
 
 
 def stub_worker_log_configurer(queue: Queue):
@@ -64,7 +64,7 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus_normalized(tmp_path
     # last_epoch = 1634252400 + 10
     # remove possible existing DF test documents
     vx_ingest = setup_connection()
-    log_queue = Queue()
+    log_queue: Queue = Queue()
     job = vx_ingest.common_collection.get(
         "JOB-NORMALIZED-TEST:V01:METAR:GRIB2:MODEL:HRRR"
     ).content_as[dict]
@@ -84,9 +84,9 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus_normalized(tmp_path
             "output_dir": f"{tmp_path}",
             "file_pattern": "21287230000[0123456789]?",
             "threads": 1,
-        },
-        log_queue,
-        stub_worker_log_configurer,
+            "log_queue": log_queue,
+            "log_configurer": stub_worker_log_configurer,
+        }
     )
     # check the output files to see if they match the documents that were
     # previously created by the real ingest process
@@ -196,7 +196,7 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus(tmp_path: Path):
     # last_epoch = 1634252400 + 10
     # remove possible existing DF test documents
     vx_ingest = setup_connection()
-    log_queue = Queue()
+    log_queue: Queue = Queue()
     job = vx_ingest.common_collection.get(
         "JOB-TEST:V01:METAR:GRIB2:MODEL:HRRR"
     ).content_as[dict]
@@ -216,9 +216,9 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus(tmp_path: Path):
             "output_dir": f"{tmp_path}",
             "file_pattern": "21287230000[0123456789]?",
             "threads": 1,
-        },
-        log_queue,
-        stub_worker_log_configurer,
+            "log_queue": log_queue,
+            "log_configurer": stub_worker_log_configurer,
+        }
     )
     # check the output files to see if they match the documents that were
     # previously created by the real ingest process
@@ -326,7 +326,7 @@ def test_grib_builder_one_thread_file_pattern_rrfs_a_conus(tmp_path: Path):
     This test verifies the resulting data file against the one that is in couchbase already
     in order to make sure the calculations are proper."""
     vx_ingest = setup_connection()
-    log_queue = Queue()
+    log_queue: Queue = Queue()
     job = vx_ingest.common_collection.get(
         "JOB-TEST:V01:METAR:GRIB2:MODEL:RRFS_A"
     ).content_as[dict]
@@ -350,9 +350,9 @@ def test_grib_builder_one_thread_file_pattern_rrfs_a_conus(tmp_path: Path):
             "output_dir": f"{tmp_path}",
             "file_pattern": "rrfs.*/*/rrfs.t*z.prslev.3km.f*.conus.grib2",
             "threads": 1,
-        },
-        log_queue,
-        stub_worker_log_configurer,
+            "log_queue": log_queue,
+            "log_configurer": stub_worker_log_configurer,
+        }
     )
     # check the output files to see if they match the documents that were
     # previously created by the real ingest process
@@ -432,18 +432,33 @@ def test_grib_builder_one_thread_file_pattern_rrfs_a_conus(tmp_path: Path):
                         else:
                             abs_tol = 0.001  # most fields validate between pygrib and cfgrib precisely
 
-                        assert result["data"][_k][_dk] is not None, (
-                            f"""result {_k + "." + _dk}  is None """
-                        )
-                        assert _json["data"][_k][_dk] is not None, (
-                            f"""_json {_k + "." + _dk} is None """
-                        )
-                        assert math.isclose(
-                            result["data"][_k][_dk],
-                            _json["data"][_k][_dk],
-                            abs_tol=abs_tol,
-                        ), f"""TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure data not close within {abs_tol}
-                        {_k}.{_dk} {result["data"][_k][_dk]} != {_json["data"][_k][_dk]} within {abs_tol} decimal places."""
+                        if (
+                            result["data"][_k][_dk] is not None
+                            and _json["data"][_k][_dk] is None
+                        ):
+                            pytest.fail(
+                                f"""_json {_k + "." + _dk} is None when result is not None"""
+                            )
+                        if (
+                            _json["data"][_k][_dk] is not None
+                            and result["data"][_k][_dk] is None
+                        ):
+                            pytest.fail(
+                                f"""result {_k + "." + _dk} is None when _json is not None"""
+                            )
+                        if isinstance(
+                            result["data"][_k][_dk], numbers.Number
+                        ) and isinstance(_json["data"][_k][_dk], numbers.Number):
+                            assert math.isclose(
+                                result["data"][_k][_dk],
+                                _json["data"][_k][_dk],
+                                abs_tol=abs_tol,
+                            ), f"""TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure data not close within {abs_tol}
+                            {_k}.{_dk} {result["data"][_k][_dk]} != {_json["data"][_k][_dk]} within {abs_tol} decimal places."""
+                        else:
+                            assert result["data"][_k][_dk] == _json["data"][_k][_dk], (
+                                f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure non-numeric data {result['data'][_k][_dk]} != {_json['data'][_k][_dk]}"
+                            )
                 except Exception as e:
                     print(f"KeyError {_k} {_dk} in {_json['data'][_k].keys()}")
                     raise e
@@ -455,7 +470,7 @@ def test_grib_builder_one_thread_file_pattern_mpas(tmp_path: Path):
     This test verifies the resulting data file against the one that is in couchbase already
     in order to make sure the calculations are proper."""
     vx_ingest = setup_connection()
-    log_queue = Queue()
+    log_queue: Queue = Queue()
     job_id = "JOB-TEST:V01:METAR:GRIB2:MODEL:MPAS_physics_dev1"
     job = vx_ingest.common_collection.get(job_id).content_as[dict]
     ingest_document_ids = job["ingest_document_ids"]
@@ -472,9 +487,9 @@ def test_grib_builder_one_thread_file_pattern_mpas(tmp_path: Path):
             "ingest_document_ids": ingest_document_ids,
             "output_dir": f"{tmp_path}",
             "threads": 1,
-        },
-        log_queue,
-        stub_worker_log_configurer,
+            "log_queue": log_queue,
+            "log_configurer": stub_worker_log_configurer,
+        }
     )
     # check the output files to see if they match the documents that were
     # previously created by the real ingest process
@@ -598,7 +613,7 @@ def test_grib_builder_two_threads_file_pattern_hrrr_ops_conus(tmp_path: Path):
     # first_epoch = 1634252400 - 10
     # last_epoch = 1634252400 + 10
     vx_ingest = setup_connection()
-    log_queue = Queue()
+    log_queue: Queue = Queue()
     job = vx_ingest.common_collection.get(
         "JOB-TEST:V01:METAR:GRIB2:MODEL:HRRR"
     ).content_as[dict]
@@ -617,9 +632,9 @@ def test_grib_builder_two_threads_file_pattern_hrrr_ops_conus(tmp_path: Path):
             "ingest_document_ids": ingest_document_ids,
             "output_dir": f"{tmp_path}",
             "threads": 2,
-        },
-        log_queue,
-        stub_worker_log_configurer,
+            "log_queue": log_queue,
+            "log_configurer": stub_worker_log_configurer,
+        }
     )
     # check the output files to see if they match the documents that were
     # previously created by the real ingest process
@@ -736,7 +751,7 @@ def test_grib_builder_two_threads_file_pattern_rap_ops_130_conus(tmp_path: Path)
     Not going to qualify the data on this one, just make sure it runs two threads properly
     """
     vx_ingest = setup_connection()
-    log_queue = Queue()
+    log_queue: Queue = Queue()
     job = vx_ingest.common_collection.get(
         "JOB-TEST:V01:METAR:GRIB2:MODEL:RAP_OPS_130"
     ).content_as[dict]
@@ -755,9 +770,9 @@ def test_grib_builder_two_threads_file_pattern_rap_ops_130_conus(tmp_path: Path)
             "ingest_document_ids": ingest_document_ids,
             "output_dir": f"{tmp_path}",
             "threads": 2,
-        },
-        log_queue,
-        stub_worker_log_configurer,
+            "log_queue": log_queue,
+            "log_configurer": stub_worker_log_configurer,
+        }
     )
     # check the output files to see if they match the documents that were
     # previously created by the real ingest process

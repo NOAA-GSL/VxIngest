@@ -482,6 +482,7 @@ def process_run_configurations(
             collection = proc.get("subset")
         name = proc["id"].replace("_", "__").replace(":", "_")
         # override file_pattern if given on command line
+        file_pattern = ""
         if args.file_pattern:
             file_pattern = args.file_pattern
 

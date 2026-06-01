@@ -476,6 +476,7 @@ def process_run_configurations(
             collection = data_source_spec["subset"]
         else:
             proc = common_collection.get(job["id"]).content_as[dict]
+            file_mask = ""
             file_mask = proc["file_mask"]
             input_data_path = proc["input_data_path"]
             ingest_document_ids = proc["ingest_document_ids"]

@@ -465,21 +465,21 @@ def process_run_configurations(
         if job["id"].startswith("PS:"):
             # this is a newer runtime job document
             proc = runtime_collection.get(job["id"]).content_as[dict]
-            job["sub_type"] = proc["subType"]
+            job["sub_type"] = proc.get("subType")
             # get config values from the runtime document heirachy for this process
-            ingest_document_ids = proc["ingestDocumentIds"]
-            data_source_id = proc["dataSourceId"]
+            ingest_document_ids = proc.get("ingestDocumentIds")
+            data_source_id = proc.get("dataSourceId")
             data_source_spec = runtime_collection.get(data_source_id).content_as[dict]
-            input_data_path = data_source_spec["sourceDataUri"]
+            input_data_path = data_source_spec.get("sourceDataUri")
             file_mask = data_source_spec.get("fileMask", "")
             file_pattern = data_source_spec.get("filePattern", "*")
-            collection = data_source_spec["subset"]
+            collection = data_source_spec.get("subset")
         else:
             proc = common_collection.get(job["id"]).content_as[dict]
             file_mask = proc.get("file_mask", "")
             file_pattern = proc.get("file_pattern", "*")
-            input_data_path = proc["input_data_path"]
-            ingest_document_ids = proc["ingest_document_ids"]
+            input_data_path = proc.get("input_data_path")
+            ingest_document_ids = proc.get("ingest_document_ids")
             collection = proc.get("subset")
         name = proc["id"].replace("_", "__").replace(":", "_")
         # override file_pattern if given on command line

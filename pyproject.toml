@@ -15,11 +15,11 @@ dependencies = [
     "cfgrib>=0.9.15.1",
     "couchbase>=4.6.1",
     "pyproj>=3.7.2",
-    "numpy>=2.3.4",
+    "numpy>=2.4.6",
     "metpy>=1.7.1",
     "prometheus-client>=0.23.1",
     "ncepbufr",
-    "eccodeslib>=2.46.2.19", # This shouldn't be needed - it's a dependency of eccodes. (itself a dependency of cfgrib) However, eccodes 2.45 & 2.46 don't appear to include eccodeslib which breaks cfgrib. Monitor https://github.com/ecmwf/eccodes-python/issues/150 for a resolution.
+    "eccodeslib>=2.47.1.20", # This shouldn't be needed - it's a dependency of eccodes. (itself a dependency of cfgrib) However, eccodes 2.45 & 2.46 don't appear to include eccodeslib which breaks cfgrib. Monitor https://github.com/ecmwf/eccodes-python/issues/150 for a resolution.
 ]
 
 [project.scripts]
@@ -28,10 +28,10 @@ ingest = "vxingest.main:run_ingest"
 [dependency-groups]
 dev = [
     "pytest>=8.4.2",
-    "types-pyyaml>=6.0.12.20250915",
-    "ruff>=0.15.12",
-    "coverage>=7.11.0",
-    "mypy>=1.20.2",
+    "types-pyyaml>=6.0.12.20260518",
+    "ruff>=0.15.15",
+    "coverage>=7.14.1",
+    "mypy>=2.1.0",
     "plotly>=6.3.1",
     "mysql-connector-python>=9.7.0",
     "tabulate>=0.9.0",

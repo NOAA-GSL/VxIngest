@@ -477,13 +477,14 @@ def process_run_configurations(
         else:
             proc = common_collection.get(job["id"]).content_as[dict]
             file_mask = proc.get("file_mask", "")
+            file_pattern = proc.get("file_pattern", "*")
             input_data_path = proc["input_data_path"]
             ingest_document_ids = proc["ingest_document_ids"]
             collection = proc.get("subset")
         name = proc["id"].replace("_", "__").replace(":", "_")
         # override file_pattern if given on command line
-        if args.get("file_pattern"):
-            file_pattern = args.get("file_pattern")
+        if getattr(args, "file_pattern", None):
+            file_pattern = args.file_pattern
         # Add a logging file handler with a unique name for just this proc
         logpath = (
             args.log_dir / f"{name}-{startime.strftime('%Y-%m-%dT%H:%M:%S%z')}.log"

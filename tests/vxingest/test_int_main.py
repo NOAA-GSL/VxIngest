@@ -599,12 +599,14 @@ def check_output(tmp_path, vx_ingest, file_count, success_count=1):
         all_logs_file = all_logs_files[0]
         with all_logs_file.open("r") as f:
             all_logs_content = f.read()
-            assert (
-                "error" not in all_logs_content.lower()
-            ), f"Errors found in log file {all_logs_file}"  # are there the expected number of log files?
+            assert "error" not in all_logs_content.lower(), (
+                f"Errors found in log file {all_logs_file}"
+            )  # are there the expected number of log files?
         assert (tmp_path / "metrics").exists(), "Metrics directory does not exist"
         metrics_files = list((tmp_path / "metrics").glob("*.prom"))
-        assert len(metrics_files) == 1, f"Expected 1 metrics file but found {len(metrics_files)}"
+        assert len(metrics_files) == 1, (
+            f"Expected 1 metrics file but found {len(metrics_files)}"
+        )
         metrics_file = metrics_files[0]
         with metrics_file.open("r") as f:
             metrics_content = f.read()

@@ -172,11 +172,14 @@ class VXIngest(CommonVxIngest):
         begin_time = str(datetime.now())
         logger.info("--- *** --- Start --- *** ---")
         logger.info("Begin a_time: %s", begin_time)
-
         self.credentials_file = config["credentials_file"].strip()
         self.thread_count = config["threads"]
-        self.output_dir = config["output_dir"].strip()
-        self.job_document_id = config["job_id"].strip()
+        _output_dir = config["output_dir"]
+        if _output_dir is not None:
+            self.output_dir = _output_dir.strip()
+        _job_document_id = config["job_id"]
+        if _job_document_id is not None:
+            self.job_document_id = _job_document_id.strip()
         if "start_epoch" in config and "end_epoch" in config:
             self.first_last_params = {
                 "first_epoch": config["start_epoch"],

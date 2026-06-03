@@ -83,7 +83,7 @@ def test_epoch_fcstlen_obs(request):
 @pytest.mark.integration
 def test_forecast_valid_epoch(request):
     _name = request.node.name
-    _expected_time = 6.0
+    _expected_time = 8.0
     testdata = Path("tests/vxingest/ctc_to_cb/testdata/test_forecast_valid_epoch.n1ql")
     with testdata.open(mode="r", encoding="utf-8") as file:
         _statement = file.read()

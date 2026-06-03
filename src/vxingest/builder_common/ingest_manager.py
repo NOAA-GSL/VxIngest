@@ -291,6 +291,7 @@ class CommonVxIngestManager(Process):
                         # we need to write out a list of the values of the _document_map for cbimport
                         json_data = json.dumps(list(document_map.values()))
                         _f.write(json_data)
+                        return
                 except Exception as _e1:
                     logger.exception(
                         "write_document_to_files - trying write: Got Exception %s",

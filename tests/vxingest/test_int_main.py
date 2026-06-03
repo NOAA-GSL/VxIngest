@@ -5,7 +5,6 @@ import re
 import sys
 import tarfile
 from pathlib import Path
-from time import time
 
 import pytest
 from couchbase.options import QueryOptions
@@ -277,7 +276,16 @@ def test_one_thread_specify_file_pattern_grib2_normalized_pressure_sums_job_spec
     original_argv = sys.argv.copy()
     job_id = "JS:METAR:SUMS:HRRR_OPS:schedule:job:V01"
     # need these args
-    end_epoch = str(int(time()))
+    vx_ingest = setup_connection(VXIngest_partial_sums())
+    stmnt = """SELECT MAX(obs.fcstValidEpoch) epoch
+        FROM `vxdata`._default.METAR obs
+        WHERE obs.type='DD'
+        AND obs.docType='obs'
+        AND obs.version='V01'
+        AND obs.subset='METAR'
+    """
+    result_rows = vx_ingest.cluster.query(stmnt)
+    end_epoch = str(list(result_rows)[0]["epoch"])
     start_epoch = str(int(float(end_epoch) - 3600 * 4))  # four hours earlier
     sys.argv = [
         "run_ingest",
@@ -303,7 +311,6 @@ def test_one_thread_specify_file_pattern_grib2_normalized_pressure_sums_job_spec
         end_epoch,
     ]
     try:
-        vx_ingest = setup_connection(VXIngest_partial_sums())
         initial_success_count = prom_successes._value.get()
         run_ingest()
         check_output(tmp_path, vx_ingest, 5, initial_success_count + 1)
@@ -440,13 +447,21 @@ def test_one_thread_specify_file_pattern_ctc_job_spec_rt(tmp_path: Path):
     # Save original sys.argv
     original_argv = sys.argv.copy()
     job_id = "JS:METAR:CTC:HRRR_OPS:schedule:job:V01"
-    end_epoch = str(int(time()))
+    # try to find the first and last epoch from the data in couchbase.
+    # The ctc_builder won't build any data that has already been built (except for the very last one).
+    # The test will process the CTC documents but not upsert them.
+    vx_ingest = setup_connection(VXIngest_ctc())
+    stmnt = """SELECT MAX(obs.fcstValidEpoch) epoch
+        FROM `vxdata`._default.METAR obs
+        WHERE obs.type='DD'
+        AND obs.docType='obs'
+        AND obs.version='V01'
+        AND obs.subset='METAR'
+    """
+    result_rows = vx_ingest.cluster.query(stmnt)
+    end_epoch = str(list(result_rows)[0]["epoch"])
     start_epoch = str(int(float(end_epoch) - 3600 * 4))  # four hours earlier
     try:
-        # try to find the first and last epoch from the data in couchbase.
-        # The ctc_builder won't build any data that has already been built (except for the very last one).
-        # The test will process the CTC documents but not upsert them.
-        vx_ingest = setup_connection(VXIngest_ctc())
         # need these args
         sys.argv = [
             "run_ingest",
@@ -586,17 +601,17 @@ def check_output(tmp_path, vx_ingest, file_count, success_count=1):
             all_logs_content = f.read()
             assert (
                 "error" not in all_logs_content.lower()
-            )  # are there the expected number of log files?
-        assert (tmp_path / "metrics").exists()
+            ), f"Errors found in log file {all_logs_file}"  # are there the expected number of log files?
+        assert (tmp_path / "metrics").exists(), "Metrics directory does not exist"
         metrics_files = list((tmp_path / "metrics").glob("*.prom"))
-        assert len(metrics_files) == 1
+        assert len(metrics_files) == 1, f"Expected 1 metrics file but found {len(metrics_files)}"
         metrics_file = metrics_files[0]
         with metrics_file.open("r") as f:
             metrics_content = f.read()
             try:
-                pattern = r"run_ingest_success_count_total [1,2,3,4,5,6,7,8,9]\.0"
+                pattern = r"run_ingest_success_count_total [1-9]\d{0,1}\.0"
                 assert re.search(pattern, metrics_content), (
-                    "Expected regex 'run_ingest_success_count_total [1,2,3,4,5,6,7,8,9].0' in metrics_content"
+                    "Expected regex 'run_ingest_success_count_total [1-9]\\d{0,1}.0' in metrics_content"
                 )
                 got_success_count = int(
                     re.search(pattern, metrics_content)

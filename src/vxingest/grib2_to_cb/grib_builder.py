@@ -59,10 +59,10 @@ class GribModelBuilderV01(GribBuilder):
         self.same_time_rows = []
         self.time = 0
         self.interpolated_time = 0
-        self.delta = ingest_document["validTimeDelta"]
-        self.cadence = ingest_document["validTimeInterval"]
-        self.template = ingest_document["template"]
-        self.subset = self.template["subset"]
+        self.delta = ingest_document.get("validTimeDelta")
+        self.cadence = ingest_document.get("validTimeInterval")
+        self.template = ingest_document.get("template")
+        self.subset = self.template.get("subset")
         self.land_use_types = None
         # self.do_profiling = True  # set to True to enable build_document profiling
         self.do_profiling = False  # set to True to enable build_document profiling
@@ -83,7 +83,7 @@ class GribModelBuilderV01(GribBuilder):
             "type": "DF",
             "fileType": "grib2",
             "originType": origin_type,
-            "loadJobId": self.load_spec["load_job_doc"]["id"],
+            "loadJobId": self.load_spec.get("load_job_doc").get("id"),
             "dataSourceId": "GSL",
             "url": file_name,
             "projection": "lambert_conformal_conic",

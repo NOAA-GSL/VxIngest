@@ -80,7 +80,7 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
 # Run OS updates
 RUN apt-get update && apt-get upgrade -y && \
-    apt-get clean && rm -rf /var/lib/apt/lists/* 
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Copy the application from the builder
 COPY --from=builder --chown=ingest:ingest /app /app

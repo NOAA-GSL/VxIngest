@@ -12,19 +12,19 @@ a defaults file (for credentials), an optional output directory, thread count, a
 The job document id is the id of a job document in the couchbase database.
 The job document might look like this...
 {
-  "id": "JOB:V01:METAR:NETCDF:OBS",
+  "id": "JOB:V01:RAOB:PREPBUFR:OBS",
   "status": "active",
   "type": "JOB",
   "version": "V01",
-  "subset": "METAR",
-  "subDocType": "NETCDF",
+  "subset": "RAOB",
+  "subDocType": "PREPBUFR",
   "subDoc": "OBS",
   "run_priority": 1,
   "file_mask": "%Y%m%d_%H%M",
   "schedule": "0 * * * *",
   "offset_minutes": 0,
   "ingest_document_ids": [
-    "MD:V01:METAR:obs:ingest:netcdf"
+    "MD:V01:RAOB:obs:ingest:PREPBUFR"
   ]
 }
 The important run time fields are "file_mask" and "ingest_document_ids".
@@ -46,8 +46,9 @@ When the queue is empty each NetcdfIngestManager will gracefully die.
 Only files that do not have a DataFile entry in the database will be added to the file queue.
 When a file is processed a datafile entry will be made for that file and added to the result documents to ne imported.
 
-The file_mask is a python time.strftime format e.g. '%y%j%H%f'.
-The file_pattern is a file glob string. e.g. '202409*'.
+The file_mask is a python time.strftime format e.g. '%y%j%H%M.gdas.t%Hz.prepbufr.nr'
+would match '241001800.gdas.t18z.prepbufr.nr' which is a prepbufr file for 2024 April 10 at 18:00 UTC.
+The file_pattern is a file glob string. e.g. '2410*.gdas.t*z.prepbufr.nr'.
 The optional output_dir specifies the directory where output files will be written instead
 of writing them directly to couchbase. If the output_dir is not specified data will be written
 to couchbase cluster specified in the cb_connection.
@@ -69,14 +70,14 @@ import logging
 import os
 import sys
 import time
-from collections.abc import Callable
 from datetime import datetime, timedelta
 from multiprocessing import JoinableQueue, Queue, set_start_method
 from pathlib import Path
+from typing import Callable
 
 from vxingest.builder_common.vx_ingest import CommonVxIngest
 from vxingest.log_config import configure_logging, worker_log_configurer
-from vxingest.netcdf_to_cb.vx_ingest_manager import VxIngestManager
+from vxingest.prepbufr_to_cb.vx_ingest_manager import VxIngestManager
 
 # Get a logger with this module's name to help with debugging
 logger = logging.getLogger(__name__)
@@ -116,22 +117,25 @@ def parse_args(args):
         default="/tmp",
         help="Specify the output directory to put the json output files",
     )
+    # Set to produce a report for the following stations
+    # write_data_for_station_list = stations
     parser.add_argument(
         "-s",
-        "--start_epoch",
-        type=int,
-        required=False,
-        default=0,
-        help="The first epoch to process jobs for, inclusive.",
+        "--stations_list",
+        type=list,
+        default=[],
+        help="Specify the list of stations to produce a report for",
     )
+    # Set to produce a report for the following levels
+    # write_data_for_levels = [200, 300, 500, 700, 900]
     parser.add_argument(
-        "-e",
-        "--end_epoch",
-        type=int,
-        required=False,
-        default=sys.maxsize,
-        help="The last epoch to process jobs for, exclusive.",
+        "-l",
+        "--levels_list",
+        type=list,
+        default=[],
+        help="Specify the list of levels to produce a report for",
     )
+
     # get the command line arguments
     args = parser.parse_args(args)
     return args
@@ -153,6 +157,7 @@ class VXIngest(CommonVxIngest):
         self.load_time_start = time.perf_counter()
         self.credentials_file = ""
         self.thread_count = ""
+        self.path = None
         self.fmask = None
         self.file_pattern = "*"
         self.output_dir = None
@@ -161,13 +166,15 @@ class VXIngest(CommonVxIngest):
         self.load_spec = {}
         self.cb_credentials = None
         self.collection = None
-        self.common_collection = None
         self.cluster = None
         self.ingest_document_id = None
         self.ingest_document = None
+        self.write_data_for_station_list = None
+        self.write_data_for_levels = None
+
         super().__init__()
 
-    def runit(self, config, log_queue: Queue, log_configurer: Callable[[Queue], None]):
+    def runit(self, args, log_queue: Queue, log_configurer: Callable[[Queue], None]):
         """
         This is the entry point for run_ingest_threads.py
         """
@@ -175,40 +182,32 @@ class VXIngest(CommonVxIngest):
         logger.info("--- *** --- Start --- *** ---")
         logger.info("Begin a_time: %s", begin_time)
 
-        self.credentials_file = config.get("credentials_file", None)
-        self.thread_count = config.get("threads", 1)
-        self.output_dir = config.get("output_dir", "/tmp").strip()
-        self.job_document_id = config.get("job_id", None)
-        self.file_pattern = config.get("file_pattern", "*").strip()
-        self.ingest_document_ids = config.get("ingest_document_ids", None)
-        self.fmask = config.get("file_mask", None)
-        self.input_data_path = config.get("input_data_path", None)
-        if "start_epoch" in config and "end_epoch" in config:
-            self.first_last_params = {
-                "first_epoch": config["start_epoch"],
-                "last_epoch": config["end_epoch"],
-            }
-        else:
-            self.first_last_params = {}
-            self.first_last_params["first_epoch"] = 0
-            self.first_last_params["last_epoch"] = sys.maxsize
-        # stash the first_last_params into the load spec
-        self.load_spec["first_last_params"] = self.first_last_params
-
+        self.credentials_file = args["credentials_file"].strip()
+        self.thread_count = args["threads"]
+        self.output_dir = args["output_dir"].strip()
+        self.job_document_id = args["job_id"].strip()
+        if "file_pattern" in args:
+            self.file_pattern = args["file_pattern"].strip()
+        if "stations_list" in args:
+            self.write_data_for_station_list = args["stations_list"]
+        if "levels_list" in args:
+            self.write_data_for_levels = args["levels_list"]
         try:
             # put the real credentials into the load_spec
             logger.info("getting cb_credentials")
             self.cb_credentials = self.get_credentials(self.load_spec)
-            # get the intended subset (collection from the job_id)
-            self.cb_credentials["collection"] = config["collection"]
+            # override the collection because these are RAOB documents with subset 'RAOB'
+            self.load_spec["cb_credentials"]["collection"] = "RAOB"
+            self.cb_credentials["collection"] = "RAOB"
             # establish connections to cb, collection
             self.connect_cb()
-            logger.info("connected to cb - collection is %s", self.collection.name)
-            collection = self.load_spec["cb_connection"]["collection"]
+            logger.info("connected to cb")
             bucket = self.load_spec["cb_connection"]["bucket"]
             scope = self.load_spec["cb_connection"]["scope"]
-            # load the ingest document ids into the load_spec (this might be redundant) - from COMMON
-            ingest_document_result = self.common_collection.get(self.job_document_id)
+            # get the collection from the cb_connection
+            collection = self.load_spec["cb_connection"]["collection"]
+            # load the ingest document ids into the load_spec (this might be redundant)
+            ingest_document_result = self.collection.get(self.job_document_id)
             ingest_document = ingest_document_result.content_as[dict]
             self.load_spec["ingest_document_ids"] = ingest_document[
                 "ingest_document_ids"
@@ -216,20 +215,16 @@ class VXIngest(CommonVxIngest):
             # put all the ingest documents into the load_spec too
             self.load_spec["ingest_documents"] = {}
             for _id in self.load_spec["ingest_document_ids"]:
-                if _id.startswith("MD"):
-                    self.load_spec["ingest_documents"][_id] = (
-                        self.common_collection.get(_id).content_as[dict]
-                    )
-                else:
-                    self.load_spec["ingest_documents"][_id] = (
-                        self.runtime_collection.get(_id).content_as[dict]
-                    )
+                self.load_spec["ingest_documents"][_id] = self.collection.get(
+                    _id
+                ).content_as[dict]
+            # load the fmask and input_data_path into the load_spec
+            self.fmask = ingest_document["file_mask"]
+            self.path = ingest_document["input_data_path"]
             self.load_spec["fmask"] = self.fmask
-            self.load_spec["input_data_path"] = self.input_data_path
+            self.load_spec["input_data_path"] = self.path
             # stash the load_job in the load_spec
-            self.load_spec["load_job_doc"] = self.build_load_job_doc(
-                self.load_spec["cb_connection"]["collection"]
-            )
+            self.load_spec["load_job_doc"] = self.build_load_job_doc("madis")
         except (RuntimeError, TypeError, NameError, KeyError):
             logger.error(
                 "*** Error occurred in Main reading load_spec: %s ***",
@@ -243,7 +238,7 @@ class VXIngest(CommonVxIngest):
         _q = JoinableQueue()
         file_names = []
         # get the urls (full_file_names) from all the datafiles for this type of ingest
-        # for netcdf type ingests there is only one ingest document so we can just use the first
+        # for prepbufr type ingests there is only one ingest document so we can just use the first
         # subset
         subset = self.load_spec["ingest_documents"][
             self.load_spec["ingest_document_ids"][0]
@@ -254,16 +249,12 @@ class VXIngest(CommonVxIngest):
             WHERE
             subset='{subset}'
             AND type='DF'
-            AND fileType='netcdf'
+            AND fileType='prepbufr'
             AND originType='madis' order by url;
             """
         # file_pattern is a glob string not a python file match string
         file_names = self.get_file_list(
-            file_query,
-            self.input_data_path,
-            self.file_pattern,
-            self.fmask,
-            self.first_last_params,
+            file_query, self.path, self.file_pattern, self.fmask
         )
         for _f in file_names:
             _q.put(_f)
@@ -281,6 +272,8 @@ class VXIngest(CommonVxIngest):
                     self.output_dir,
                     log_queue,  # Queue to pass logging messages back to the main process on
                     log_configurer,  # Config function to set up the logger in the multiprocess Process
+                    write_data_for_station_list=self.write_data_for_station_list,
+                    write_data_for_levels=self.write_data_for_levels,
                 )
                 ingest_manager_list.append(ingest_manager_thread)
                 ingest_manager_thread.start()

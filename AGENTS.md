@@ -7,7 +7,7 @@ Instructions for AI coding agents working in this repository.
 VxIngest is a two-stage pipeline for ingesting meteorological verification data into Couchbase:
 
 1. **Ingest** (Python) — Reads GRIB2, NetCDF, or Couchbase source data, transforms it into Couchbase-ready JSON documents, and writes them to disk along with Prometheus metrics and logs.
-2. **Import** (shell) — A bash wrapper around `cbimport` (`scripts/VXingest_utilities/run-import.sh`) that loads the JSON documents into Couchbase.
+2. **Import** (shell) — A bash wrapper around `cbimport` (`scripts/VXingest_utilities/import/run-import.sh`) that loads the JSON documents into Couchbase.
 
 The entrypoint is `src/vxingest/main.py`, which discovers job documents from Couchbase, selects which to run, and dispatches to subtype-specific builder classes.
 
@@ -61,7 +61,8 @@ docs/                               # Documentation
 └── model/                          # Data model documentation
 
 scripts/VXingest_utilities/         # Shell wrappers
-├── run-import.sh                   # cbimport wrapper (watches for tarballs, loads JSON)
+├── import/
+│   └── run-import.sh               # cbimport wrapper (watches for tarballs, loads JSON)
 ├── run-ingest.sh                   # Orchestrates ingest jobs
 └── scrape_metrics.sh               # Parses logs for Prometheus metrics
 

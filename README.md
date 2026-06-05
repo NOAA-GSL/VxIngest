@@ -21,17 +21,16 @@ VxIngest is containerized for deployment. If you are developing the application,
 
 ### Using the container
 
-You will first need to build the docker container with the following:
+Build the ingest and import images from the local checkout before running them with Docker Compose:
 
 ```bash
-docker build \
-    --build-arg BUILDVER=dev \
-    --build-arg COMMITBRANCH=$(git branch --show-current) \
-    --build-arg COMMITSHA=$(git rev-parse HEAD) \
-    -f ./docker/ingest/Dockerfile \
-    -t vxingest:dev \
-    .
+BUILDVER=dev \
+COMMITBRANCH=$(git branch --show-current) \
+COMMITSHA=$(git rev-parse HEAD) \
+docker compose build ingest import
 ```
+
+The import image is built for `linux/amd64` because Couchbase's `cbimport` tools are currently distributed as x86_64 binaries. On Apple Silicon, Docker Desktop will build and run that image via emulation.
 
 To run the ingest, you will first need to create a file like the below with the database credentials in `${HOME}/credentials`:
 
@@ -44,11 +43,16 @@ cb_password: "password"
 cb_bucket: "vxdata"
 cb_scope: "_default"
 cb_collection: "METAR"
+cacert_file: /path/to/ca_cert_file # optional - needed for Capella clusters
+cb_timeout_seconds: 7200
 ```
+
+The optional cb_timeout_seconds defines the couchbase timeout for queries.
+The optional ca_cert_file can be obtained from the Capella management UI.
 
 The cb_host file requires a protocol. For example ... "couchbase://adb-cb1.gsd.esrl.noaa.gov" - because adb-cb1... is a single node cluster. For adb-cb2 (which is one node of a multinode cluster) it would be "couchbases://adb-cb2.gsd.esrl.noaa.gov". Any of the nodes would suffice.
 
-Once that's in place, you can run the ingest with Docker Compose like the example below. Note the `public` and `data` env variables respectively point to where the input data resides and where you'd like the container to write out to. They are the only part of the command you would need to modify.
+Once that's in place, you can run the ingest with Docker Compose like the example below. The `public` and `data` environment variables point to the input data and the shared working directory mounted into the containers. The ingest writes JSON output, logs, metrics, and transfer tarballs under that shared `data` directory.
 
 ```bash
 data=/data-ingest/data \
@@ -56,11 +60,19 @@ data=/data-ingest/data \
     docker compose run ingest
 ```
 
-You can run the "import" via Docker Compose like this example. You will need to use the same value for `data` as you used for the "ingest".
+You can run the "import" via Docker Compose like this example. Use the same value for `data` that you used for the ingest so the import container sees the tarballs written to `xfer/`.
 
 ```bash
 data=/data-ingest/data \
     docker compose run import
+```
+
+If you want an interactive shell in the ingest image for debugging, you can run:
+
+```bash
+data=/data-ingest/data \
+    public=/public \
+    docker compose run shell
 ```
 
 ## Diagrams

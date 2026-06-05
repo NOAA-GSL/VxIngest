@@ -140,6 +140,10 @@ data=/data-ingest/data \
     docker compose run import
 ```
 
+**Important:** The import container requires that `/opt/data_import/logs` (mounted from `data/logs` on the host) already exists as a directory. If the volume mount is not properly configured, the import script will fail with a clear error message rather than silently writing to ephemeral container storage.
+
+In the compose.yaml, `CREDENTIALS_FILE` defaults to `${HOME}/credentials`. Override it by setting a `CREDENTIALS_FILE` environment variable pointing to a different path. The `CACERT_FILE` secret path is similarly overrideable via the `CACERT_FILE` environment variable and is passed into the import container.
+
 If you want an interactive shell in the ingest image for debugging, you can run:
 
 ```bash

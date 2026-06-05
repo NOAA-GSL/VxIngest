@@ -21,15 +21,9 @@ x-import-image: &import-image
 
 secrets:
   CREDENTIALS_FILE:
-<<<<<<< HEAD
     file: ${CREDENTIALS_FILE:-${HOME}/credentials}
   CACERT_FILE:
     file: ${CACERT_FILE:-${HOME}/cacert.pem}
-||||||| parent of bb3925e (redirect logging and add --remove-orphans to example)
-    file: ${HOME}/credentials
-=======
-    file: ${CREDENTIALS_FILE:-${HOME}/credentials}
->>>>>>> bb3925e (redirect logging and add --remove-orphans to example)
 
 services:
   shell:

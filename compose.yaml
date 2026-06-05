@@ -76,5 +76,5 @@ services:
     - CACERT_FILE=/run/secrets/CACERT_FILE
     command:
       - "-c /run/secrets/CREDENTIALS_FILE"
-      - "-l /opt/data_import/load_dir"
-      - "-t /opt/data_import/temp_tar"
+      - "-l xfer"
+      - "-t temp_tar"

@@ -9,9 +9,8 @@
 # This script expects to be run as user amb-verif very frequently (like two minutes).
 # This script expects to have a python virtual environment in the amb-verif home directory in the subdirectory vxingest-env.
 #
-# NOTE If the host in the credentials file contains "cloud.couchbase.com" it will be assumed to be a Capella cluster
-# and in that case a cacert_file path MUST be included in the credentials file
-# and a certificate must be found in that specified file.
+# NOTE If the host in the credentials file contains "cloud.couchbase.com" it will be assumed to be a Capella cluster.
+# In that case, CACERT_FILE must be set to the certificate path and the file must contain a valid certificate.
 #
 # NOTE! nproc is not available on MACOS
 # To run this script (on macos) you must make an alias for nproc
@@ -24,8 +23,9 @@ export TZ="UTC0"
 
 
 function usage {
-  echo "Usage $0 -c credentials-file -l load directory -t temp_dir"
-  echo "The credentials-file specifies cb_host, cb_user, cb_password and optionally cacert_file (for Capella clusters)."
+  echo "Usage $0 -c credentials_file -l load directory -t temp_dir"
+  echo "The credentials_file specifies cb_host, cb_user, cb_password, cb_bucket, cb_scope, and cb_collection."
+  echo "For Capella clusters, set CACERT_FILE to a certificate path."
   echo "The load directory is a directory under ${import_data_dir} where the program will look for the tar files"
   echo "The temp_dir directory a directory under ${import_data_dir} where the program will unbundle the tar files (in uniq temporary subdirs)"
   echo "This script expects to execute inside the VxIngest directory"
@@ -191,18 +191,18 @@ while getopts 'c:l:t' param; do
     bucket=$(get_credential_value cb_bucket "${credentials_file}")
     collection=$(get_credential_value cb_collection "${credentials_file}")
     scope=$(get_credential_value cb_scope "${credentials_file}")
-    cacert_file=$(get_credential_value cacert_file "${credentials_file}")
+    cacert_file=${CACERT_FILE:-}
     if [[ "${cb_host}" == *"cloud.couchbase.com"* ]]; then
-         echo "Host ${cb_host} appears to be a Capella cluster, checking for cacert_file in credentials file"
+       echo "Host ${cb_host} appears to be a Capella cluster, checking CACERT_FILE"
          if [[ -z "${cacert_file}" ]]; then
-             echo "ERROR: No cacert_file specified in credentials file for Capella cluster ${cb_host}, exiting."
+         echo "ERROR: CACERT_FILE is not set for Capella cluster ${cb_host}, exiting."
              usage
          else
             if ! grep -q "BEGIN CERTIFICATE" "${cacert_file}"; then
-                echo "ERROR: cacert_file ${cacert_file} does not appear to contain a valid certificate, exiting."
+          echo "ERROR: CACERT_FILE ${cacert_file} does not appear to contain a valid certificate, exiting."
                 usage
             else
-                echo "Using cacert_file ${cacert_file} for secure connection to Capella cluster ${cb_host}"
+          echo "Using CACERT_FILE ${cacert_file} for secure connection to Capella cluster ${cb_host}"
             fi
          fi
     fi

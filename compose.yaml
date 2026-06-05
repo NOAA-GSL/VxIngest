@@ -22,6 +22,8 @@ x-import-image: &import-image
 secrets:
   CREDENTIALS_FILE:
     file: ${CREDENTIALS_FILE:-${HOME}/credentials}
+  CACERT_FILE:
+    file: ${CACERT_FILE:-${HOME}/cacert.pem}
 
 services:
   shell:
@@ -31,8 +33,10 @@ services:
       - ${public:-./tmp/public}:/public
     secrets:
       - CREDENTIALS_FILE
+      - CACERT_FILE
     environment:
     - CREDENTIALS=/run/secrets/CREDENTIALS_FILE
+    - CACERT=/run/secrets/CACERT_FILE
     entrypoint: /bin/bash
   test:
     build: # build the image so we can specify the target
@@ -66,6 +70,10 @@ services:
       - ${data:-./tmp/data}:/opt/data_import
     secrets:
       - CREDENTIALS_FILE
+      - CACERT_FILE
+    environment:
+    - CREDENTIALS=/run/secrets/CREDENTIALS_FILE
+    - CACERT_FILE=/run/secrets/CACERT_FILE
     command:
       - "-c /run/secrets/CREDENTIALS_FILE"
       - "-l /opt/data_import/load_dir"

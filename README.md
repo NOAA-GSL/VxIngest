@@ -70,6 +70,7 @@ subdirectories to `data`. The `data` directoy will be mounted in the container a
 The output of import will be written to the logs directory under the data definition (in this example /data-ingest/data/logs) specified in the parameters.
 
 In the compose.yaml the CREDENTIALS_FILE is defined to be ${HOME}/credentials by default. You can override this by defining a CREDENTIALS_FILE environment variable that is assigned the path to a different credentials file.
+The CACERT_FILE secret path is similarly overrideable via the CACERT_FILE environment variable and is passed into the import container as CACERT_FILE.
 
 ```bash
 data=/data-ingest/data \

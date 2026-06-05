@@ -34,6 +34,8 @@ The import image is built for `linux/amd64` because Couchbase's `cbimport` tools
 
 To run the ingest, you will first need to create a file like the below with the database credentials in `${HOME}/credentials`:
 
+For import if you want Compose to use a different credentials file, set the `CREDENTIALS_FILE` environment variable before running `docker compose`.
+
 `${HOME}/credentials`:
 
 ```yaml
@@ -55,16 +57,24 @@ The cb_host file requires a protocol. For example ... "couchbase://adb-cb1.gsd.e
 Once that's in place, you can run the ingest with Docker Compose like the example below. The `public` and `data` environment variables point to the input data and the shared working directory mounted into the containers. The ingest writes JSON output, logs, metrics, and transfer tarballs under that shared `data` directory.
 
 ```bash
+cd /home/amb-verif/VxIngest && \
 data=/data-ingest/data \
     public=/public \
-    docker compose run ingest
+    docker compose run -rm ingest \
+    -c /run/secrets/CREDENTIALS_FILE -o /opt/data/outdir -l /opt/data/logs -m /opt/data/common/job_metrics -x /opt/data/xfer
 ```
 
-You can run the "import" via Docker Compose like this example. Use the same value for `data` that you used for the ingest so the import container sees the tarballs written to `xfer/`.
+You can run the "import" via Docker Compose like this example. Use the same value for `data` that you used for the ingest so the import container sees the tarballs written to `xfer/`. The -l (load_dir) and the -t (temp_tar) will be
+subdirectories to `data`. The `data` directoy will be mounted in the container as /opt/data_import and load_dir will be /opt/data_import/${load_dir} and the temp_tar_dir will be /opt/data/${temp_tar}.
+
+The output of import will be written to the logs directory under the data definition (in this example /data-ingest/data/logs) specified in the parameters.
+
+In the compose.yaml the CREDENTIALS_FILE is defined to be ${HOME}/credentials by default. You can override this by defining a CREDENTIALS_FILE environment variable that is assigned the path to a different credentials file.
 
 ```bash
 data=/data-ingest/data \
-    docker compose run import
+    docker compose run --remove-orphans import \
+    -c /run/secrets/CREDENTIALS_FILE -l xfer -t temp_tar
 ```
 
 If you want an interactive shell in the ingest image for debugging, you can run:

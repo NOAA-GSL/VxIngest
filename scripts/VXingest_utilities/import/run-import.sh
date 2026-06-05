@@ -49,6 +49,9 @@ if [ ! -w "${log_dir}" ]; then
   usage
 fi
 
+# Send all subsequent stdout/stderr to a single timestamped import log.
+exec > "${log_dir}/import-$(date +%Y%m%d:%H%M%S)" 2>&1
+
 function get_credential_value {
   local key=$1
   local file=$2
@@ -279,7 +282,7 @@ done
 update_metadata_enabled="true"
 if [ "${update_metadata_enabled}" == "true" ] && [ "${success_import_count}" -ne "0" ]; then
   echo "update metadata import success count: ${success_import_count}"
-  METADATAUPDATELOCKDIR="/data/import_lock"
+  METADATAUPDATELOCKDIR="${load_dir}/import_lock"
   # If a lock exists but no meta-update is running, treat it as stale and remove it.
   if [[ -d "${METADATAUPDATELOCKDIR}" ]]; then
     if command -v pgrep >/dev/null 2>&1; then

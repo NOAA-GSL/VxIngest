@@ -21,7 +21,7 @@ x-import-image: &import-image
 
 secrets:
   CREDENTIALS_FILE:
-    file: ${HOME}/credentials
+    file: ${CREDENTIALS_FILE:-${HOME}/credentials}
 
 services:
   shell:
@@ -68,5 +68,5 @@ services:
       - CREDENTIALS_FILE
     command:
       - "-c /run/secrets/CREDENTIALS_FILE"
-      - "-l xfer"
-      - "-t temp_tar"
+      - "-l /opt/data_import/load_dir"
+      - "-t /opt/data_import/temp_tar"

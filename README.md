@@ -142,8 +142,6 @@ data=/data-ingest/data \
 
 If you want an interactive shell in the ingest image for debugging, you can run:
 
-If you want an interactive shell in the ingest image for debugging, you can run:
-
 ```bash
 data=/data-ingest/data \
     public=/public \

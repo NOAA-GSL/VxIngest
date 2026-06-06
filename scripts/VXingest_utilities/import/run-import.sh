@@ -174,7 +174,7 @@ if [ "${running_jobs}" -gt 10 ]; then
 	exit 1
 fi
 
-while getopts 'c:l:t' param; do
+while getopts 'c:l:t:' param; do
   case "${param}" in
   c)
     credentials_file=${OPTARG}

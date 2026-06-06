@@ -184,9 +184,11 @@ func getDbConnection(cred Credentials) (conn CbConnection) {
 	username := cred.Cb_user
 	password := cred.Cb_password
 	timeout := cred.Cb_timeout_seconds
-	if timeout == 0 {
-		timeout = 3600
+	ca_cert_str := ""
+	if strings.Contains(connectionString, "cloud.couchbase.com") {
+		ca_cert_str = "--cacert " + os.Getenv("CACERT_FILE")
 	}
+	connectionString = connectionString + " " + ca_cert_str
 	options := gocb.ClusterOptions{
 		Authenticator: gocb.PasswordAuthenticator{
 			Username: username,

@@ -37,10 +37,6 @@ Required keys:
 5. `cb_scope`
 6. `cb_collection`
 
-Optional key:
-
-1. `cacert_file` (required when `cb_host` targets Capella: contains `cloud.couchbase.com`)
-
 Accepted formatting for keys:
 
 1. `key value`

@@ -11,7 +11,6 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 
 class GitHubAPI:
@@ -38,7 +37,9 @@ class GitHubAPI:
         except json.JSONDecodeError as e:
             raise RuntimeError(f"Failed to parse GitHub API response: {e}") from e
         except KeyError as e:
-            raise RuntimeError(f"Response object from GitHub for issue {repo}:{issue_number} didn't include title and/or body keys. Object was: {issue}") from e
+            raise RuntimeError(
+                f"Response object from GitHub for issue {repo}:{issue_number} didn't include title and/or body keys. Object was: {issue}"
+            ) from e
 
 
 class ADRGenerator:
@@ -82,7 +83,7 @@ class ADRGenerator:
         return f"{next_number:04d}"
 
     def generate_adr_content(
-        self, title: str, body: str, date: Optional[str] = None
+        self, title: str, body: str, date: str | None = None
     ) -> str:
         """Generate the ADR markdown content."""
         if date is None:
@@ -99,9 +100,7 @@ Accepted
 {body}
 """
 
-    def generate_adr_filepath(
-        self, title: str, adr_number: Optional[str] = None
-    ) -> Path:
+    def generate_adr_filepath(self, title: str, adr_number: str | None = None) -> Path:
         """Generate the ADR filepath"""
         if adr_number is None:
             adr_number = self.get_next_adr_number()
@@ -113,7 +112,7 @@ Accepted
         return filepath
 
     def create_adr_file(
-        self, filepath: Path, adr_content: str, adr_number: Optional[str] = None
+        self, filepath: Path, adr_content: str, adr_number: str | None = None
     ) -> tuple[str, str]:
         """Create an ADR file from issue data."""
         # Create directory if it doesn't exist
@@ -157,7 +156,9 @@ def main():
         adr_gen = ADRGenerator(adr_prefix=args.adr_prefix, base_path=args.base_path)
 
         # Get our data
-        filepath = adr_gen.generate_adr_filepath(issue_data["title"], adr_number=args.adr_number)
+        filepath = adr_gen.generate_adr_filepath(
+            issue_data["title"], adr_number=args.adr_number
+        )
         content = adr_gen.generate_adr_content(issue_data["title"], issue_data["body"])
 
         if args.dry_run:

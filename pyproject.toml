@@ -68,7 +68,8 @@ source = ["src"]
 
 [tool.ruff]
 # Dirs that contain third party example scripts and other languages
-exclude = ["scripts", "meta_update_middleware"]
+# test_misc has some existing issues, so adding it to the ignore for now
+exclude = ["scripts", "meta_update_middleware", "third_party/NCEPLIBS-bufr/tests/test_misc.py"]
 output-format = "pylint"
 
 

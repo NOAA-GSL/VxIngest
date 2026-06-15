@@ -48,8 +48,12 @@ func main() {
 	log.Print("meta-update:main()")
 
 	home, _ := os.UserHomeDir()
+	credentialsPath := os.Getenv("CREDENTIALS_FILE")
+	if credentialsPath == "" {
+		credentialsPath = home + "/credentials"
+	}
 	var credentialsFilePath string
-	flag.StringVar(&credentialsFilePath, "c", home+"/credentials", "path to credentials file")
+	flag.StringVar(&credentialsFilePath, "c", credentialsPath, "path to credentials file")
 
 	var settingsFilePath string
 	flag.StringVar(&settingsFilePath, "s", "./settings.json", "path to settings.json file")

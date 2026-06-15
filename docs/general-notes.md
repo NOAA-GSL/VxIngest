@@ -9,7 +9,7 @@ Credentials are passed in as a secret. To establish a CREDENTIALS secret you MUS
 The docker compose file expects a few directories to be available on the docker host (possibly your development platform) depending on the service.
 
 * `/opt/data` has test data
-* `/opt/data` is a shared mounted directory that is used by `vxingest` to store output documents and by `run-import.sh` to read the output documents. It also has test data.
+* `/opt/data_import` is a shared mounted directory used by `run-import.sh` for import input, temp extraction, and import logs.
 * `/public` is usually the DSG /public that has all of GSL data in it. This is where the ingest processes find grib and netcdf files etc..
 * You must specify data for all services and both data and public for ingest and shell services.
 
@@ -20,20 +20,20 @@ This directory contains many useful scripts for administration, monitoring, and 
 
 ## Running an import job service
 
-data=/data-ingest/data docker compose run import ./scripts/VXingest_utilities/run-import.sh -c /run/secrets/CREDENTIALS_FILE -l load directory -t temp_dir -m metrics_directory
+data=/data-ingest/data_import docker compose run import ./scripts/VXingest_utilities/import/run-import.sh -c /run/secrets/CREDENTIALS_FILE -l xfer -t temp_tar
 
 The parameters are very similar to the ingest service.
-These directory parameters should be within the supplied data mountpoint relative to the /opt/data mountpoint.
+These directory parameters are relative to the `/opt/data_import` mountpoint used by the import container.
 
 - The credentials-file specifies cb_host, cb_user, and cb_password.
 - The load directory is where the program will look for the tar files
 - The temp_dir directory is where the program will unbundle the tar files (in uniq temporary subdirs)
-- The metrics directory is where the scraper will place the metrics
+
 
 for example:
 
 ```bash
-data=/data-ingest/data public=/public docker compose run import ./scripts/VXingest_utilities/run-import.sh -c /run/secrets/CREDENTIALS_FILE -l /opt/data/xfer -t /opt/data/temp_tar -m /opt/data/common/job_metrics
+data=/data-ingest/data_import public=/public docker compose run import ./scripts/VXingest_utilities/import/run-import.sh -c /run/secrets/CREDENTIALS_FILE -l xfer -t temp_tar
 ```
 
 ## Running an ingest job service

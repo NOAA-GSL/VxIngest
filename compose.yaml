@@ -1,17 +1,42 @@
+x-ingest-image: &ingest-image
+  build:
+    context: .
+    dockerfile: docker/ingest/Dockerfile
+    args:
+      BUILDVER: ${BUILDVER:-dev}
+      COMMITBRANCH: ${COMMITBRANCH:-local}
+      COMMITSHA: ${COMMITSHA:-dirty}
+  image: vxingest/ingest:${BUILDVER:-dev}
+
+x-import-image: &import-image
+  platform: linux/amd64
+  build:
+    context: .
+    dockerfile: docker/import/Dockerfile
+    args:
+      BUILDVER: ${BUILDVER:-dev}
+      COMMITBRANCH: ${COMMITBRANCH:-local}
+      COMMITSHA: ${COMMITSHA:-dirty}
+  image: vxingest/import:${BUILDVER:-dev}
+
 secrets:
   CREDENTIALS_FILE:
-    file: ${HOME}/credentials
+    file: ${CREDENTIALS_FILE:-${HOME}/credentials}
+  CACERT_FILE:
+    file: ${CACERT_FILE:-${HOME}/cacert.pem}
 
 services:
   shell:
-    image: ghcr.io/noaa-gsl/vxingest/ingest:main
+    <<: *ingest-image
     volumes:
-      - ${data}:/opt/data
-      - ${public}:/public
+      - ${data:-./tmp/data}:/opt/data
+      - ${public:-./tmp/public}:/public
     secrets:
       - CREDENTIALS_FILE
+      - CACERT_FILE
     environment:
     - CREDENTIALS=/run/secrets/CREDENTIALS_FILE
+    - CACERT=/run/secrets/CACERT_FILE
     entrypoint: /bin/bash
   test:
     build: # build the image so we can specify the target
@@ -19,7 +44,7 @@ services:
       dockerfile: docker/ingest/Dockerfile
       target: dev
     volumes:
-      -  ${data}:/opt/data
+      -  ${data:-./tmp/data}:/opt/data
     secrets:
       - CREDENTIALS_FILE
     environment:
@@ -27,26 +52,29 @@ services:
     command: uv run pytest tests
   # FIXME - add a way to specify unit & integration tests
   ingest:
-    image: ghcr.io/noaa-gsl/vxingest/ingest:main
+    <<: *ingest-image
     volumes:
-      - ${data}:/opt/data
-      - ${public}:/public
+      - ${data:-./tmp/data}:/opt/data
+      - ${public:-./tmp/public}:/public
     secrets:
       - CREDENTIALS_FILE
     command:
       - "--credentials_file=/run/secrets/CREDENTIALS_FILE"
-      - "--output_dir=/opt/data/test/outdir"
-      - "--log_dir=/opt/data/test/logs"
-      - "--metrics_dir=/opt/data/test/metrics"
-      - "--transfer_dir=/opt/data/test/xfer"
+      - "--output_dir=/opt/data/outdir"
+      - "--log_dir=/opt/data/logs"
+      - "--metrics_dir=/opt/data/metrics"
+      - "--transfer_dir=/opt/data/xfer"
   import:
-    image: ghcr.io/noaa-gsl/vxingest/import:main
+    <<: *import-image
     volumes:
-      - ${data}:/opt/data
+      - ${data:-./tmp/data}:/opt/data_import
     secrets:
       - CREDENTIALS_FILE
+      - CACERT_FILE
+    environment:
+    - CREDENTIALS=/run/secrets/CREDENTIALS_FILE
+    - CACERT_FILE=/run/secrets/CACERT_FILE
     command:
       - "-c /run/secrets/CREDENTIALS_FILE"
-      - "-l /opt/data/xfer"
-      - "-t /opt/data/temp_tar"
-      - "-m /opt/data/common/job_metrics"
+      - "-l /opt/data_import/load_dir"
+      - "-t /opt/data_import/temp_tar"

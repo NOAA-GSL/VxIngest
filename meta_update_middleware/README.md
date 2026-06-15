@@ -57,25 +57,25 @@ go run .
 ### Core Input Flags
 
 - `-c`: path to credentials YAML
-	- default: `$HOME/credentials`
+ 	- default: `$HOME/credentials`
 - `-s`: path to settings JSON
-	- default: `./settings.json`
+ 	- default: `./settings.json`
 - `-a`: app name filter
-	- default: empty (process all apps in settings)
+ 	- default: empty (process all apps in settings)
 - `-p`: write output metadata JSON to a file path instead of writing to Couchbase
-	- default: empty (write to Couchbase)
+ 	- default: empty (write to Couchbase)
 
 ### Query Profiling Flags
 
 - `-query-metrics`: enable Couchbase query metrics
-	- default: `true`
+ 	- default: `true`
 - `-query-profile`: profiling mode (`off`, `phases`, `timings`)
-	- default: `off`
+ 	- default: `off`
 - `-query-slow-ms`: only log detailed query metadata when elapsed time is at least this threshold
-	- default: `500`
+ 	- default: `500`
 - `-query-summary-top`: number of slow query templates included in the end-of-run summary
-	- use `0` to show all
-	- default: `10`
+ 	- use `0` to show all
+ 	- default: `10`
 
 ### Runtime Profiling Flags
 
@@ -102,6 +102,24 @@ Notes:
 
 - If `cb_timeout_seconds` is omitted or `0`, the tool uses `3600` seconds for query timeout.
 - For multi-node targets, use a Couchbase connection string accepted by the Go SDK.
+- For Capella clusters!!! A capella cluster connection requires an additional
+  environment variable CACERT_FILE which defines the path to the root certifiacte for public access to the cluster. It is a .pem file that
+  looks like...
+  
+```text
+-----BEGIN CERTIFICATE-----
+MIIDFTCCAf2gAwIBAgIRANLVkgOvtaXiQJi0V6qeNtswDQYJKoZIhvcNAQELBQAw
+JDESMBAGA1UECgwJQ291Y2hiYXNlMQ4wDAYDVQQLDAVDbG91ZDAeFw0xOTEyMDYy
+MjEyNTlaFw0yOTEyMDYyMzEyNTlaMCQxEjAQBgNVBAoMCUNvdWNoYmFzZTEOMAwG.....
+.....
+-----END CERTIFICATE-----
+```
+
+In the event that the cb_host contains "cloud.couchbase.com" it will be
+assumed that the host is a Capella cluster and a certificate will be required
+in addition to the user and password.
+
+The certificate can be obtained from the Capella UI under the "Connection" tab.
 
 ## Settings File Format
 
@@ -109,14 +127,14 @@ Example from [meta_update_middleware/settings.json](meta_update_middleware/setti
 
 ```json
 {
-	"metadata": [
-		{
-			"name": "ceiling",
-			"app": "cb-ceiling",
-			"docType": ["CTC"],
-			"subDocType": "CEILING"
-		}
-	]
+ "metadata": [
+  {
+   "name": "ceiling",
+   "app": "cb-ceiling",
+   "docType": ["CTC"],
+   "subDocType": "CEILING"
+  }
+ ]
 }
 ```
 
@@ -151,8 +169,8 @@ Run with query and runtime profiling enabled:
 
 ```bash
 go run . -c ~/credentials -s ./settings.json -a ceiling \
-	-query-profile=timings -query-slow-ms=0 -query-summary-top=20 \
-	-cpuprofile cpu.pprof -memprofile mem.pprof
+ -query-profile=timings -query-slow-ms=0 -query-summary-top=20 \
+ -cpuprofile cpu.pprof -memprofile mem.pprof
 ```
 
 ## Data Flow Summary
@@ -160,9 +178,9 @@ go run . -c ~/credentials -s ./settings.json -a ceiling \
 1. Read settings and credentials.
 2. Open Couchbase connection.
 3. For each selected app/docType:
-	 - get models requiring metadata
-	 - read data keys, forecast lengths, regions, display fields, and min/max/count stats
-	 - assemble one `MetadataJSON` document with `models[]`
+  - get models requiring metadata
+  - read data keys, forecast lengths, regions, display fields, and min/max/count stats
+  - assemble one `MetadataJSON` document with `models[]`
 4. Write metadata to Couchbase or file (`-p`).
 5. Print query profiling summary.
 

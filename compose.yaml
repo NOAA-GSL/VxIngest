@@ -38,6 +38,17 @@ services:
     - CREDENTIALS=/run/secrets/CREDENTIALS_FILE
     - CACERT=/run/secrets/CACERT_FILE
     entrypoint: /bin/bash
+  meta-update:
+    <<: *ingest-image
+    volumes:
+      - ${data:-./tmp/data}:/opt/data
+    secrets:
+      - CREDENTIALS_FILE
+      - CACERT_FILE
+    environment:
+    - CREDENTIALS=/run/secrets/CREDENTIALS_FILE
+    - CACERT=/run/secrets/CACERT_FILE
+    entrypoint: /app/meta_update_middleware/meta-update
   test:
     build: # build the image so we can specify the target
       context: .

@@ -21,7 +21,65 @@ VxIngest is containerized for deployment. If you are developing the application,
 
 ### Using the container
 
-Build the ingest and import images from the local checkout before running them with Docker Compose:
+#### Building images
+
+VxIngest supports both AMD64 and ARM64 architectures. Both the ingest and import images include pre-compiled binaries for both platforms.
+
+**Ingest image (single architecture — local machine):**
+
+```bash
+docker build \
+    --build-arg BUILDVER=dev \
+    --build-arg COMMITBRANCH=$(git branch --show-current) \
+    --build-arg COMMITSHA=$(git rev-parse HEAD) \
+    -f ./docker/ingest/Dockerfile \
+    -t vxingest:dev \
+    .
+```
+
+**Ingest image (multi-architecture — cross-compile for both amd64 and arm64):**
+
+Requires Docker with buildx support:
+
+```bash
+docker buildx build \
+    --platform linux/amd64,linux/arm64 \
+    --build-arg BUILDVER=dev \
+    --build-arg COMMITBRANCH=$(git branch --show-current) \
+    --build-arg COMMITSHA=$(git rev-parse HEAD) \
+    -f ./docker/ingest/Dockerfile \
+    -t <registry>/vxingest/ingest:dev \
+    --push \
+    .
+```
+
+**Import image (single architecture — local machine):**
+
+```bash
+docker build \
+    --build-arg BUILDVER=dev \
+    --build-arg COMMITBRANCH=$(git branch --show-current) \
+    --build-arg COMMITSHA=$(git rev-parse HEAD) \
+    -f ./docker/import/Dockerfile \
+    -t vxingest:import-dev \
+    .
+```
+
+**Import image (multi-architecture — cross-compile for both amd64 and arm64):**
+
+```bash
+docker buildx build \
+    --platform linux/amd64,linux/arm64 \
+    --build-arg BUILDVER=dev \
+    --build-arg COMMITBRANCH=$(git branch --show-current) \
+    --build-arg COMMITSHA=$(git rev-parse HEAD) \
+    -f ./docker/import/Dockerfile \
+    -t <registry>/vxingest/import:dev \
+    --push \
+    .
+```
+
+Alternatively, build both images using Docker Compose:
 
 ```bash
 BUILDVER=dev \
@@ -30,7 +88,7 @@ COMMITSHA=$(git rev-parse HEAD) \
 docker compose build ingest import
 ```
 
-The import image is built for `linux/amd64` because Couchbase's `cbimport` tools are currently distributed as x86_64 binaries. On Apple Silicon, Docker Desktop will build and run that image via emulation.
+#### Running the ingest
 
 To run the ingest, you will first need to create a file like the below with the database credentials in `${HOME}/credentials`:
 
@@ -54,22 +112,28 @@ The optional ca_cert_file can be obtained from the Capella management UI.
 
 The cb_host file requires a protocol. For example ... "couchbase://adb-cb1.gsd.esrl.noaa.gov" - because adb-cb1... is a single node cluster. For adb-cb2 (which is one node of a multinode cluster) it would be "couchbases://adb-cb2.gsd.esrl.noaa.gov". Any of the nodes would suffice.
 
-Once that's in place, you can run the ingest with Docker Compose like the example below. The `public` and `data` environment variables point to the input data and the shared working directory mounted into the containers. The ingest writes JSON output, logs, metrics, and transfer tarballs under that shared `data` directory.
+Once that's in place, you can run the ingest with Docker Compose:
 
 ```bash
-cd /home/amb-verif/VxIngest && \
 data=/data-ingest/data \
     public=/public \
-    docker compose run -rm ingest \
-    -c /run/secrets/CREDENTIALS_FILE -o /opt/data/outdir -l /opt/data/logs -m /opt/data/common/job_metrics -x /opt/data/xfer
+    docker compose run ingest
 ```
 
-You can run the "import" via Docker Compose like this example. Use the same value for `data` that you used for the ingest so the import container sees the tarballs written to `xfer/`. The -l (load_dir) and the -t (temp_tar) will be
-subdirectories to `data`. The `data` directoy will be mounted in the container as /opt/data_import and load_dir will be /opt/data_import/${load_dir} and the temp_tar_dir will be /opt/data/${temp_tar}.
+The ingest writes JSON output, logs, metrics, and transfer tarballs to the `data` directory for the import stage to process.
 
-The output of import will be written to the logs directory under the data definition (in this example /data-ingest/data/logs) specified in the parameters.
+#### Running the import
 
-In the compose.yaml the CREDENTIALS_FILE is defined to be ${HOME}/credentials by default. You can override this by defining a CREDENTIALS_FILE environment variable that is assigned the path to a different credentials file.
+You can run the import via Docker Compose. Use the same value for `data` that you used for the ingest so the import container can access the tarballs written to `xfer/`:
+
+```bash
+data=/data-ingest/data \
+    docker compose run import
+```
+
+**Important:** The import container requires that `/opt/data_import/logs` (mounted from `data/logs` on the host) already exists as a directory. If the volume mount is not properly configured, the import script will fail with a clear error message rather than silently writing to ephemeral container storage.
+
+In the compose.yaml, `CREDENTIALS_FILE` defaults to `${HOME}/credentials`. Override it by setting a `CREDENTIALS_FILE` environment variable pointing to a different path.
 The CACERT_FILE secret path is similarly overrideable via the CACERT_FILE environment variable and is passed into the import container as CACERT_FILE.
 
 ```bash

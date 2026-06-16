@@ -39,14 +39,17 @@ failed_import_count=0
 # temporary extracted data from the tar balls, and the log_dir where the script will write log files.
 import_data_dir="/opt/data_import"
 log_dir="${import_data_dir}/logs"
-mkdir -p "${log_dir}"
-if [[ ! -d "${log_dir}" ]]; then
-  echo "ERROR: VxIngest log directory ${log_dir} does not exist"
-  usage
+if [[ ! -d "${import_data_dir}" ]]; then
+  echo "ERROR: ${import_data_dir} does not exist — is the data volume mounted?"
+  exit 1
 fi
-if [ ! -w "${log_dir}" ]; then
-  echo "log directory ${log_dir} IS NOT WRITABLE"
-  usage
+if [[ ! -d "${log_dir}" ]]; then
+  echo "ERROR: ${log_dir} does not exist — is the data volume mounted with a logs/ subdirectory?"
+  exit 1
+fi
+if [[ ! -w "${log_dir}" ]]; then
+  echo "ERROR: ${log_dir} is not writable"
+  exit 1
 fi
 
 # Send all subsequent stdout/stderr to a single timestamped import log.

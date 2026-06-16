@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -9,7 +10,7 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"crypto/x509"
+
 	"github.com/couchbase/gocb/v2"
 )
 
@@ -184,6 +185,9 @@ func getDbConnection(cred Credentials) (conn CbConnection) {
 	username := cred.Cb_user
 	password := cred.Cb_password
 	timeout := cred.Cb_timeout_seconds
+	if timeout <= 0 {
+		timeout = 3600
+	}
 	caPath := os.Getenv("CACERT_FILE")
 	options := gocb.ClusterOptions{
 		Authenticator: gocb.PasswordAuthenticator{
@@ -194,20 +198,8 @@ func getDbConnection(cred Credentials) (conn CbConnection) {
 			QueryTimeout: time.Duration(timeout) * time.Second,
 		},
 	}
-	if strings.Contains(connectionString, "cloud.couchbase.com") {
-		pemBytes, err := os.ReadFile(caPath)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		roots := x509.NewCertPool()
-		if !roots.AppendCertsFromPEM(pemBytes) {
-			log.Fatal("failed to parse CA cert PEM")
-		}
-
-		options.SecurityConfig = gocb.SecurityConfig{
-			TLSRootCAs: roots,
-		}
+	if err := configureCapellaTLSOptions(connectionString, caPath, &options); err != nil {
+		log.Fatal(err)
 	}
 
 	cluster, err := gocb.Connect(connectionString, options)
@@ -231,6 +223,30 @@ func getDbConnection(cred Credentials) (conn CbConnection) {
 
 	conn.Scope = conn.Bucket.Scope(cred.Cb_scope)
 	return conn
+}
+
+func configureCapellaTLSOptions(connectionString string, caPath string, options *gocb.ClusterOptions) error {
+	if !strings.Contains(connectionString, "cloud.couchbase.com") {
+		return nil
+	}
+	if strings.TrimSpace(caPath) == "" {
+		return fmt.Errorf("CACERT_FILE must be set for cloud.couchbase.com hosts")
+	}
+
+	pemBytes, err := os.ReadFile(caPath)
+	if err != nil {
+		return fmt.Errorf("failed to read CACERT_FILE %q: %w", caPath, err)
+	}
+
+	roots := x509.NewCertPool()
+	if !roots.AppendCertsFromPEM(pemBytes) {
+		return fmt.Errorf("failed to parse CA cert PEM from %q", caPath)
+	}
+
+	options.SecurityConfig = gocb.SecurityConfig{
+		TLSRootCAs: roots,
+	}
+	return nil
 }
 
 func queryWithSQLFile(scope *gocb.Scope, file string) (jsonOut []string) {

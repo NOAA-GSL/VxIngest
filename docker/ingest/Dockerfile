@@ -4,7 +4,7 @@
 
 # First, build the application in the `/app` directory.
 # See `Dockerfile` for details.
-FROM ghcr.io/astral-sh/uv:python3.13-trixie-slim AS builder
+FROM debian:trixie-slim AS builder
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 
 # Omit development dependencies
@@ -15,6 +15,18 @@ ENV UV_NO_DEV=1
 # copied from the build image into the final image; see `standalone.Dockerfile`
 # for an example.
 ENV UV_PYTHON_DOWNLOADS=0
+
+# Install Python and uv on a Debian base image.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.13 \
+    python3.13-venv \
+    python3-pip \
+    ca-certificates \
+    && python3.13 -m pip install --break-system-packages --no-cache-dir uv \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Ensure uv can find the intended Python binary without downloading one.
+ENV UV_PYTHON=/usr/bin/python3.13
 
 WORKDIR /app
 
@@ -31,6 +43,17 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY . /app
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked
+
+# Build Linux meta-update binaries for both amd64 and arm64.
+FROM golang:1.26-trixie AS meta-update-builder
+WORKDIR /src/meta_update_middleware
+
+COPY meta_update_middleware/go.mod meta_update_middleware/go.sum ./
+RUN go mod download
+
+COPY meta_update_middleware/ ./
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/meta-update-linux-amd64 .
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o /out/meta-update-linux-arm64 .
 
 # The dev image, used for testing
 FROM builder AS dev
@@ -73,17 +96,32 @@ LABEL version=${BUILDVER} code.branch=${COMMITBRANCH} code.commit=${COMMITSHA}
 ARG ID=5002
 ARG USERNAME=ingest
 RUN groupadd --gid ${ID} ${USERNAME} && \
-    useradd --shell /bin/bash --create-home --uid ${ID} --gid ${ID} ${USERNAME}
-
-# Update the image's built in Python tooling before we activate the virtual environment
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel
-
-# Run OS updates
-RUN apt-get update && apt-get upgrade -y && \
-    apt-get clean && rm -rf /var/lib/apt/lists/* 
+    useradd --shell /bin/sh --create-home --uid ${ID} --gid ${ID} ${USERNAME}
 
 # Copy the application from the builder
 COPY --from=builder --chown=ingest:ingest /app /app
+COPY --from=meta-update-builder --chown=ingest:ingest /out /app/meta_update_middleware/bin
+
+# Install a launcher that selects the correct Linux binary at runtime.
+RUN printf '%s\n' \
+    '#!/bin/sh' \
+    'set -eu' \
+    '' \
+    'arch="$(uname -m)"' \
+    'case "${arch}" in' \
+    '    x86_64|amd64)' \
+    '        exec /app/meta_update_middleware/bin/meta-update-linux-amd64 "$@"' \
+    '        ;;' \
+    '    aarch64|arm64)' \
+    '        exec /app/meta_update_middleware/bin/meta-update-linux-arm64 "$@"' \
+    '        ;;' \
+    '    *)' \
+    '        echo "unsupported architecture: ${arch}" >&2' \
+    '        exit 1' \
+    '        ;;' \
+    'esac' \
+    > /app/meta_update_middleware/meta-update \
+    && chmod +x /app/meta_update_middleware/meta-update
 
 WORKDIR /app
 

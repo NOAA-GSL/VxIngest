@@ -223,7 +223,7 @@ func getDbConnection(cred Credentials) (conn CbConnection) {
 
 	log.Println("vxDBTARGET:" + conn.vxDBTARGET)
 
-	err = conn.Bucket.WaitUntilReady(5*time.Second, nil)
+	err = conn.Bucket.WaitUntilReady(15*time.Second, nil)
 	if err != nil {
 		log.Fatal(err)
 		return

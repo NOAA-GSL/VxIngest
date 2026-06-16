@@ -9,7 +9,7 @@ import (
 	"strings"
 	"sync"
 	"time"
-
+	"crypto/x509"
 	"github.com/couchbase/gocb/v2"
 )
 
@@ -184,11 +184,7 @@ func getDbConnection(cred Credentials) (conn CbConnection) {
 	username := cred.Cb_user
 	password := cred.Cb_password
 	timeout := cred.Cb_timeout_seconds
-	ca_cert_str := ""
-	if strings.Contains(connectionString, "cloud.couchbase.com") {
-		ca_cert_str = "--cacert " + os.Getenv("CACERT_FILE")
-	}
-	connectionString = connectionString + " " + ca_cert_str
+	caPath := os.Getenv("CACERT_FILE")
 	options := gocb.ClusterOptions{
 		Authenticator: gocb.PasswordAuthenticator{
 			Username: username,
@@ -197,6 +193,21 @@ func getDbConnection(cred Credentials) (conn CbConnection) {
 		TimeoutsConfig: gocb.TimeoutsConfig{
 			QueryTimeout: time.Duration(timeout) * time.Second,
 		},
+	}
+	if strings.Contains(connectionString, "cloud.couchbase.com") {
+		pemBytes, err := os.ReadFile(caPath)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		roots := x509.NewCertPool()
+		if !roots.AppendCertsFromPEM(pemBytes) {
+			log.Fatal("failed to parse CA cert PEM")
+		}
+
+		options.SecurityConfig = gocb.SecurityConfig{
+			TLSRootCAs: roots,
+		}
 	}
 
 	cluster, err := gocb.Connect(connectionString, options)

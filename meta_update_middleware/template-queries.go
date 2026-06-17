@@ -1,10 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
+
 	"github.com/couchbase/gocb/v2"
 )
 
@@ -13,9 +17,37 @@ func init() {
 	log.Println("template-queries:init()")
 }
 
+func readSQLTemplate(name string) ([]byte, error) {
+	candidates := []string{filepath.Join("sqls", name)}
+
+	if exePath, err := os.Executable(); err == nil {
+		candidates = append(candidates, filepath.Join(filepath.Dir(exePath), "sqls", name))
+	}
+	if _, sourcePath, _, ok := runtime.Caller(0); ok {
+		candidates = append(candidates, filepath.Join(filepath.Dir(sourcePath), "sqls", name))
+	}
+
+	var lastErr error
+	seen := map[string]struct{}{}
+	for _, candidate := range candidates {
+		if _, ok := seen[candidate]; ok {
+			continue
+		}
+		seen[candidate] = struct{}{}
+
+		fileContent, err := os.ReadFile(candidate)
+		if err == nil {
+			return fileContent, nil
+		}
+		lastErr = err
+	}
+
+	return nil, fmt.Errorf("unable to read SQL template %q: %w", name, lastErr)
+}
+
 func getModels(conn CbConnection, dataset string, app string, doctype string, subDocType string) (jsonOut []string) {
 	log.Println("getModels(" + dataset + "," + app + "," + doctype + "," + subDocType + ")")
-	fileContent, err := os.ReadFile("sqls/getModels.sql")
+	fileContent, err := readSQLTemplate("getModels.sql")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -30,7 +62,7 @@ func getModels(conn CbConnection, dataset string, app string, doctype string, su
 
 func getModelsNoData(conn CbConnection, dataset string, app string, doctype string, subDocType string) (jsonOut []string) {
 	log.Println("getModelsNoData(" + dataset + "," + app + "," + doctype + "," + subDocType + ")")
-	fileContent, err := os.ReadFile("sqls/getModelsNoData.sql")
+	fileContent, err := readSQLTemplate("getModelsNoData.sql")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -45,7 +77,7 @@ func getModelsNoData(conn CbConnection, dataset string, app string, doctype stri
 
 func removeMetadataForModelsWithNoData(conn CbConnection, dataset string, app string, doctype string, subDocType string, models_with_metatada_but_no_data []string) {
 	log.Println("removeMetadataForModelsWithNoData(" + dataset + "," + app + "," + doctype + "," + subDocType + ")")
-	fileContent, err := os.ReadFile("sqls/deleteModelMetadata.sql")
+	fileContent, err := readSQLTemplate("deleteModelMetadata.sql")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -69,7 +101,7 @@ func removeMetadataForModelsWithNoData(conn CbConnection, dataset string, app st
 
 func getModelsWithExistingMetadata(conn CbConnection, dataset string, app string, doctype string, subDocType string) (jsonOut []string) {
 	log.Println("getModelsWithExistingMetadata(" + dataset + "," + app + "," + doctype + "," + subDocType + ")")
-	fileContent, err := os.ReadFile("sqls/getModelsWithMetadata.sql")
+	fileContent, err := readSQLTemplate("getModelsWithMetadata.sql")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -83,7 +115,7 @@ func getModelsWithExistingMetadata(conn CbConnection, dataset string, app string
 
 func initializeMetadataForModel(conn CbConnection, dataset string, app string, doctype string, subDocType string, model string) {
 	log.Println("initializeMetadataForModel(" + dataset + "," + app + "," + doctype + "," + subDocType + "," + model + ")")
-	fileContent, err := os.ReadFile("sqls/initializeMetadata.sql")
+	fileContent, err := readSQLTemplate("initializeMetadata.sql")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -104,7 +136,7 @@ func initializeMetadataForModel(conn CbConnection, dataset string, app string, d
 
 func getDistinctDataKeys(conn CbConnection, dataset string, app string, doctype string, subDocType string, model string) (rv []string) {
 	log.Println("getDistinctDataKeys(" + dataset + "," + app + "," + doctype + "," + subDocType + "," + model + ")")
-	fileContent, err := os.ReadFile("sqls/getDistinctDataKeys.sql")
+	fileContent, err := readSQLTemplate("getDistinctDataKeys.sql")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -126,7 +158,7 @@ func getDistinctDataKeys(conn CbConnection, dataset string, app string, doctype 
 
 func getDistinctFcstLen(conn CbConnection, dataset string, app string, doctype string, subDocType string, model string) (rv []int) {
 	log.Println("getDistinctFcstLen(" + dataset + "," + app + "," + doctype + "," + subDocType + "," + model + ")")
-	fileContent, err := os.ReadFile("sqls/getDistinctFcstLen.sql")
+	fileContent, err := readSQLTemplate("getDistinctFcstLen.sql")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -141,7 +173,7 @@ func getDistinctFcstLen(conn CbConnection, dataset string, app string, doctype s
 
 func getDistinctRegion(conn CbConnection, dataset string, app string, doctype string, subDocType string, model string) (rv []string) {
 	log.Println("getDistinctRegion(" + dataset + "," + app + "," + doctype + "," + subDocType + "," + model + ")")
-	fileContent, err := os.ReadFile("sqls/getDistinctRegion.sql")
+	fileContent, err := readSQLTemplate("getDistinctRegion.sql")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -156,7 +188,7 @@ func getDistinctRegion(conn CbConnection, dataset string, app string, doctype st
 
 func getDistinctDisplayText(conn CbConnection, dataset string, app string, doctype string, subDocType string, model string) (rv []string) {
 	log.Println("getDistinctDisplayText(" + dataset + "," + app + "," + doctype + "," + subDocType + "," + model + ")")
-	fileContent, err := os.ReadFile("sqls/getDistinctDisplayText.sql")
+	fileContent, err := readSQLTemplate("getDistinctDisplayText.sql")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -171,7 +203,7 @@ func getDistinctDisplayText(conn CbConnection, dataset string, app string, docty
 
 func getDistinctDisplayCategory(conn CbConnection, dataset string, app string, doctype string, subDocType string, model string) (rv []int) {
 	log.Println("getDistinctDisplayCategory(" + dataset + "," + app + "," + doctype + "," + subDocType + "," + model + ")")
-	fileContent, err := os.ReadFile("sqls/getDistinctDisplayCategory.sql")
+	fileContent, err := readSQLTemplate("getDistinctDisplayCategory.sql")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -186,7 +218,7 @@ func getDistinctDisplayCategory(conn CbConnection, dataset string, app string, d
 
 func getDistinctDisplayOrder(conn CbConnection, dataset string, app string, doctype string, subDocType string, model string, mindx int) (rv []int) {
 	log.Println("getDistinctDisplayOrder(" + dataset + "," + app + "," + doctype + "," + subDocType + "," + model + ")")
-	fileContent, err := os.ReadFile("sqls/getDistinctDisplayOrder.sql")
+	fileContent, err := readSQLTemplate("getDistinctDisplayOrder.sql")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -202,7 +234,7 @@ func getDistinctDisplayOrder(conn CbConnection, dataset string, app string, doct
 
 func getMinMaxCountFloor(conn CbConnection, dataset string, app string, doctype string, subDocType string, model string) (jsonOut []interface{}) {
 	log.Println("getMinMaxCountFloor(" + dataset + "," + app + "," + doctype + "," + subDocType + "," + model + ")")
-	fileContent, err := os.ReadFile("sqls/getMinMaxCountFloor.sql")
+	fileContent, err := readSQLTemplate("getMinMaxCountFloor.sql")
 	if err != nil {
 		log.Fatal(err)
 	}

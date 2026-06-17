@@ -1,0 +1,43 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: vxingest-ingest
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsUser: 5002
+        runAsGroup: 5002
+        fsGroup: 5002
+      containers:
+        - name: ingest
+          image: image: ghcr.io/noaa-gsl/VxIngest:latest
+          imagePullPolicy: IfNotPresent
+          args:
+            - "--credentials_file=/run/secrets/CREDENTIALS_FILE"
+            - "--output_dir=/opt/data/outdir"
+            - "--log_dir=/opt/data/logs"
+            - "--metrics_dir=/opt/data/metrics"
+            - "--transfer_dir=/opt/data/xfer"
+          volumeMounts:
+            - name: data
+              mountPath: /opt/data
+            - name: public
+              mountPath: /public
+            - name: credentials
+              mountPath: /run/secrets/CREDENTIALS_FILE
+              subPath: credentials.yaml
+              readOnly: true
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: vxingest-data-pvc
+        - name: public
+          persistentVolumeClaim:
+            claimName: vxingest-public-pvc
+        - name: credentials
+          secret:
+            secretName: vxingest-credentials

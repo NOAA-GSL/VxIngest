@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Creates or updates the mats-metadata runtime secret from local files in HOME.
+# Creates or updates runtime secrets from local files in HOME.
 KUBECONFIG_PATH="${KUBECONFIG_PATH:-${HOME}/.kube/development.yaml}"
 NAMESPACE="${NAMESPACE:-vxingest-dev}"
-SECRET_NAME="${SECRET_NAME:-vxingest-secrets}"
+SECRET_NAME="${SECRET_NAME:-vxingest-credentials}"
+CACERT_SECRET_NAME="${CACERT_SECRET_NAME:-vxingest-cacert}"
 CREDENTIALS_FILE="${CREDENTIALS_FILE:-${HOME}/credentials.yaml}"
 CACERT_FILE="${CACERT_FILE:-${HOME}/capella-root-certificate.pem}"
 DRY_RUN="${DRY_RUN:-false}"
@@ -33,7 +34,6 @@ fi
 
 require_file "$KUBECONFIG_PATH"
 require_file "$CREDENTIALS_FILE"
-require_file "$CACERT_FILE"
 
 if [[ "$DRY_RUN" == "true" ]]; then
     if ! kubectl --kubeconfig="$KUBECONFIG_PATH" get namespace "$NAMESPACE" >/dev/null 2>&1; then
@@ -49,7 +49,6 @@ fi
 
 secret_args=(
     --from-file=credentials.yaml="$CREDENTIALS_FILE"
-    --from-file=capella-root-certificate.pem="$CACERT_FILE"
 )
 
 if [[ -f "$CB_CA_FILE" ]]; then
@@ -76,9 +75,23 @@ secret_manifest_cmd=(
 
 if [[ "$DRY_RUN" == "true" ]]; then
     "${secret_manifest_cmd[@]}"
+    if [[ -f "$CACERT_FILE" ]]; then
+        kubectl --kubeconfig="$KUBECONFIG_PATH" --namespace "$NAMESPACE" create secret generic "$CACERT_SECRET_NAME" \
+        --from-file=cacert.pem="$CACERT_FILE" \
+        --dry-run=client -o yaml
+    else
+        echo "No CA certificate file found at $CACERT_FILE; skipped rendering $CACERT_SECRET_NAME" >&2
+    fi
     echo "DRY_RUN=true: rendered secret manifest for $SECRET_NAME; no changes were applied."
 else
     "${secret_manifest_cmd[@]}" | kubectl --kubeconfig="$KUBECONFIG_PATH" --namespace "$NAMESPACE" apply -f -
+    if [[ -f "$CACERT_FILE" ]]; then
+        kubectl --kubeconfig="$KUBECONFIG_PATH" --namespace "$NAMESPACE" create secret generic "$CACERT_SECRET_NAME" \
+        --from-file=cacert.pem="$CACERT_FILE" \
+        --dry-run=client -o yaml | kubectl --kubeconfig="$KUBECONFIG_PATH" --namespace "$NAMESPACE" apply -f -
+    else
+        echo "No CA certificate file found at $CACERT_FILE; skipped applying $CACERT_SECRET_NAME" >&2
+    fi
     echo "Secret $SECRET_NAME applied in namespace $NAMESPACE using home-directory files."
 fi
 

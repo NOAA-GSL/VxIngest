@@ -33,7 +33,6 @@ Colorado, NOAA/OAR/ESRL/GSD
 """
 
 import logging
-import sys
 import time
 
 from vxingest.builder_common.ingest_manager import CommonVxIngestManager
@@ -115,16 +114,9 @@ class VxIngestManager(CommonVxIngestManager):
         if queue_element is None:
             raise ValueError("ingest_document queue_element is undefined")
         try:
-            # determine if this is a metadata document or a runtime document
-            # the older ingest documents used builder_type, the newer ones use builderType
-            if self.load_spec["ingest_documents"][queue_element]["id"].startswith("MD"):
-                self.ingest_type_builder_name = self.load_spec["ingest_documents"][
-                    queue_element
-                ]["builder_type"]
-            else:
-                self.ingest_type_builder_name = self.load_spec["ingest_documents"][
-                    queue_element
-                ]["builderType"]
+            self.ingest_type_builder_name = self.load_spec["ingest_documents"][
+                queue_element
+            ]["builderType"]
         except Exception as _e:
             logger.exception(
                 "%s: process_element: Exception getting ingest document for %s",
@@ -154,8 +146,7 @@ class VxIngestManager(CommonVxIngestManager):
                     "%s: *** Error in IngestManager run getting builder name ***",
                     self.thread_name,
                 )
-                sys.exit("*** Error getting builder name: ")
-
+                raise RuntimeError("*** Error getting builder name: ") from _e
             if self.ingest_type_builder_name in self.builder_map:
                 builder = self.builder_map[self.ingest_type_builder_name]
             else:

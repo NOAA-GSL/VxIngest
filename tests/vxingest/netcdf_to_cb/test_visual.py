@@ -1,7 +1,6 @@
 import datetime as dt
 import os
 import pathlib
-import sys
 
 import couchbase.subdocument as SD
 import plotly.graph_objects as go
@@ -49,9 +48,9 @@ def test_int_tropoe_visual():
         cluster = Cluster(host, options)
         collection = cluster.bucket(bucket).collection(collection)
     except Exception as _e:
-        sys.exit(
-            "*** builder_common.CommonVxIngest Error in connect_cb *** %s", str(_e)
-        )
+        raise RuntimeError(
+            "*** builder_common.CommonVxIngest Error in connect_cb *** " + str(_e)
+        ) from _e
 
     # add 21600 to each document time to get 6 hours intervals
     try:

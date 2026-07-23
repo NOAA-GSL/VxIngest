@@ -24,7 +24,7 @@ spec:
               mountPath: /opt/data_import
       containers:
         - name: import
-          image: ghcr.io/noaa-gsl/VxIngest:latest
+          image: ghcr.io/noaa-gsl/vxingest/import:main
           imagePullPolicy: Always
           args:
             - -c
@@ -44,10 +44,8 @@ spec:
             - name: credentials
               mountPath: /run/secrets/CREDENTIALS_FILE
               subPath: credentials.yaml
-              readOnly: true
             - name: cacert
               mountPath: /run/cacert
-              readOnly: true
       volumes:
         - name: data
           persistentVolumeClaim:

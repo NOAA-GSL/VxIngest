@@ -10,24 +10,6 @@ run_ingest_threads -j job_document_id -c credentials_file [-o output_dir -t thre
 This script processes arguments which specify a job document id,
 a defaults file (for credentials), an optional output directory, thread count, and file matching pattern.
 The job document id is the id of a job document in the couchbase database.
-The job document might look like this...
-{
-  "id": "JOB:V01:METAR:GRIB2:MODEL:HRRR",
-  "status": "active",
-  "type": "JOB",
-  "version": "V01",
-  "subset": "METAR",
-  "subType": "GRIB2",
-  "subDoc": "MODEL",
-  "subDocType": "HRRR",
-  "run_priority": 2,
-  "file_mask": "%y%j%H%f",
-  "schedule": "0 * * * *",
-  "offset_minutes": 0,
-  "ingest_document_ids": [
-    "MD:V01:METAR:HRRR_OPS:ingest:grib2"
-  ]
-}
 The important run time fields are "file_mask" and "ingest_document_ids".
 The file mask is a python time.strftime that specifies how to interpret the file names with respect to time.
 These file names represent the validTime of the data in the file.
@@ -166,7 +148,6 @@ class VXIngest(CommonVxIngest):
         self.fmask = None
         self.file_pattern = None
         self.output_dir = None
-        self.job_document_id = None
         # optional: used to limit the number of stations processed
         self.number_stations = sys.maxsize
         self.load_job_id = None
@@ -192,7 +173,6 @@ class VXIngest(CommonVxIngest):
         self.credentials_file = config.get("credentials_file", None)
         self.thread_count = config.get("threads", 1)
         self.output_dir = config.get("output_dir", "/tmp").strip()
-        self.job_document_id = config.get("job_id", None)
         self.file_pattern = config.get("file_pattern", "*").strip()
         self.ingest_document_ids = config.get("ingest_document_ids", None)
         self.fmask = config.get("file_mask", None)
@@ -228,14 +208,9 @@ class VXIngest(CommonVxIngest):
             # put all the ingest documents into the load_spec too
             self.load_spec["ingest_documents"] = {}
             for _id in self.load_spec["ingest_document_ids"]:
-                if _id.startswith("MD"):
-                    self.load_spec["ingest_documents"][_id] = (
-                        self.common_collection.get(_id).content_as[dict]
-                    )
-                else:
-                    self.load_spec["ingest_documents"][_id] = (
-                        self.runtime_collection.get(_id).content_as[dict]
-                    )
+                self.load_spec["ingest_documents"][_id] = (
+                    self.runtime_collection.get(_id).content_as[dict]
+                )
             self.load_spec["fmask"] = self.fmask
             self.load_spec["input_data_path"] = self.input_data_path
             # stash the load_job in the load_spec
@@ -247,8 +222,7 @@ class VXIngest(CommonVxIngest):
                 "*** Error occurred in Main reading load_spec: %s ***",
                 str(sys.exc_info()),
             )
-            sys.exit("*** Error reading load_spec:")
-
+            raise RuntimeError("*** Error reading load_spec: ") from sys.exc_info()[1]
         # load the my_queue with filenames that match the mask and have not already been ingested
         # (do not have associated datafile documents)
         # Constructor for an infinite size  FIFO my_queue
@@ -285,7 +259,7 @@ class VXIngest(CommonVxIngest):
         )
         if len(file_names) == 0:
             logger.info("No files to process...exiting")
-            sys.exit(0)
+            return
         logger.info("Number of files to be processed: %s", str(len(file_names)))
         for _f in file_names:
             _q.put(_f)
@@ -339,8 +313,7 @@ class VXIngest(CommonVxIngest):
         self.runit(vars(args), log_queue, worker_log_configurer)
         logger.info("*** FINISHED ***")
         log_queue_listener.stop()
-        sys.exit(0)
-
+        return
 
 if __name__ == "__main__":
     VXIngest().main()

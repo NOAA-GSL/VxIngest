@@ -19,6 +19,7 @@ import logging
 import os
 import pathlib
 import sys
+import threading
 import time
 
 import yaml
@@ -101,7 +102,7 @@ class CommonVxIngest:
             else None
         )
         id_parts = _document_id.split(":")
-        subset = id_parts[2] if id_parts[0].startswith("MD") else id_parts[1]
+        subset = id_parts[1]
         self.load_job_id = f"LJ:{subset}:{self.__module__}:{self.__class__.__name__}:{str(int(time.time()))}"
         lj_doc = {
             "id": self.load_job_id,
@@ -168,14 +169,19 @@ class CommonVxIngest:
             ).collection(self.cb_credentials["runtime_collection"])
             # stash the credentials for the VxIngestManager - see NOTE at the top of this file.
             self.load_spec["cb_credentials"] = self.cb_credentials
-            logger.info("%s: Couchbase connection success")
+            logger.info(
+                "Couchbase connection success (pid=%s, thread=%s, tid=%s)",
+                os.getpid(),
+                threading.current_thread().name,
+                threading.get_ident(),
+            )
         except Exception as _e:
             logger.exception(
                 "*** builder_common.CommonVxIngest Error in connect_cb *** %s", str(_e)
             )
-            sys.exit(
+            raise RuntimeError(
                 "*** builder_common.CommonVxIngest Error when connecting to cb database: "
-            )
+            ) from _e
 
     def get_file_list(
         self, df_query, directory, file_pattern, file_mask, first_last_params=None
@@ -317,7 +323,7 @@ class CommonVxIngest:
         try:
             # check for existence of file
             if not pathlib.Path(self.credentials_file).is_file():
-                sys.exit(
+                raise FileNotFoundError(
                     "*** credentials_file file "
                     + self.credentials_file
                     + " can not be found!"
@@ -326,7 +332,7 @@ class CommonVxIngest:
                 _yaml_data = yaml.load(_f, yaml.SafeLoader)
             if _yaml_data is None:
                 logger.error("*** Error: Credential file is empty or invalid YAML ***")
-                sys.exit("*** Credential file is empty or invalid YAML! ***")
+                raise ValueError("*** Credential file is empty or invalid YAML! ***")
             load_spec["cb_connection"] = {}
             load_spec["cb_connection"]["host"] = _yaml_data["cb_host"]
             load_spec["cb_connection"]["user"] = _yaml_data["cb_user"]
@@ -337,11 +343,13 @@ class CommonVxIngest:
             return load_spec["cb_connection"]
         except (RuntimeError, TypeError, NameError, KeyError) as e:
             logger.error(f"*** Error reading credential file: {e} ***")
-            sys.exit("*** Parsing error(s) in load_spec file!")
+            raise RuntimeError(
+                f"*** Parsing error(s) in load_spec file: {e} ***"
+            ) from e
 
     def main(self):
         """run_ingest_threads main entry. Manages a set of VxIngestManagers for processing input files"""
         logger.info("PYTHONPATH: %s", os.environ["PYTHONPATH"])
         args = self.parse_args(sys.argv[1:])
         self.runit(vars(args))
-        sys.exit(0)
+        return

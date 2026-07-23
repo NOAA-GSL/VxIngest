@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vxingest-orchestrator-params
+data:
+  # JOBIDS: Newline-separated list of ingest job configurations.
+  # The orchestrator loops through each line and creates one ingest-N + import-N job pair.
+  # Each line can contain additional arguments passed to the ingest command.
+  # Leave empty to run no ingest jobs (only meta-update will run).
+  #
+  # Format: One job per line; each line is space-separated arguments.
+  # Common format: -j <job-identifier>
+  #
+  # Example with 3 jobs (YAML format):
+  #   JOBIDS: |
+  #     -j JS:METAR:MODEL:HRRR_OPS:schedule:job:V01
+  #     -j JS:METAR:CTC:HRRR_OPS:schedule:job:V01
+  #     -j JS:METAR:SUMS:HRRR__OPS:schedule:job:V01
+  #
+  # Example via kubectl patch (all on one line with literal \n):
+  #   kubectl patch configmap vxingest-orchestrator-params --type merge -p \\\n  # '{"data":{"JOBIDS":"-j JS:METAR:MODEL:HRRR_OPS:schedule:job:V01\\n-j JS:METAR:CTC:HRRR_OPS:schedule:job:V01\\n-j JS:METAR:SUMS:HRRR__OPS:schedule:job:V01"}}'\n  #
+  JOBIDS: ""
+
+  # Optional: Override the job timeout (in seconds). Default is 3600 (1 hour).
+  # TIMEOUT: "3600"

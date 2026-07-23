@@ -188,7 +188,6 @@ func getDbConnection(cred Credentials) (conn CbConnection) {
 	if timeout <= 0 {
 		timeout = 3600
 	}
-	caPath := os.Getenv("CACERT_FILE")
 	options := gocb.ClusterOptions{
 		Authenticator: gocb.PasswordAuthenticator{
 			Username: username,
@@ -198,7 +197,7 @@ func getDbConnection(cred Credentials) (conn CbConnection) {
 			QueryTimeout: time.Duration(timeout) * time.Second,
 		},
 	}
-	if err := configureCapellaTLSOptions(connectionString, caPath, &options); err != nil {
+	if err := configureCapellaTLSOptions(connectionString, &options); err != nil {
 		log.Fatal(err)
 	}
 
@@ -225,10 +224,12 @@ func getDbConnection(cred Credentials) (conn CbConnection) {
 	return conn
 }
 
-func configureCapellaTLSOptions(connectionString string, caPath string, options *gocb.ClusterOptions) error {
-	if !strings.Contains(connectionString, "cloud.couchbase.com") {
+func configureCapellaTLSOptions(connectionString string, options *gocb.ClusterOptions) error {
+	// if it isn't a Capella cluster or if CACERT_REQUIRED isn't set, we don't need to configure TLS options
+	if !strings.Contains(connectionString, "cloud.couchbase.com") || os.Getenv("CACERT_REQUIRED") == "" {
 		return nil
 	}
+	caPath := os.Getenv("CACERT_FILE")
 	if strings.TrimSpace(caPath) == "" {
 		return fmt.Errorf("CACERT_FILE must be set for cloud.couchbase.com hosts")
 	}

@@ -10,33 +10,6 @@ run_ingest_threads -j job_document_id -c credentials_file [-o output_dir -s star
 This script processes arguments which specify a job document id,
 a defaults file (for credentials), an input file path, an optional output directory, thread count, and file matching pattern.
 The job document id is the id of a job document in the couchbase database.
-The job document might look like this...
-{
-  "id": "JOB:V01:METAR:SUM:CTC:MODEL:HRRR_RAP_130",
-  "status": "active",
-  "type": "JOB",
-  "version": "V01",
-  "subset": "METAR",
-  "subType": "SUM",
-  "subDoc": "CTC",
-  "subDocType": "HRRR",
-  "run_priority": 5,
-  "schedule": "0 * * * *",
-  "offset_minutes": 15,
-  "ingest_document_ids": [
-    "MD:V01:METAR:HRRR_OPS:E_US:CTC:CEILING:ingest",
-    "MD:V01:METAR:HRRR_OPS:ALL_HRRR:CTC:CEILING:ingest",
-    "MD:V01:METAR:HRRR_OPS:E_HRRR:CTC:CEILING:ingest",
-    "MD:V01:METAR:HRRR_OPS:W_HRRR:CTC:CEILING:ingest",
-    "MD:V01:METAR:HRRR_OPS:GtLk:CTC:CEILING:ingest",
-    "MD:V01:METAR:RAP_OPS_130:E_US:CTC:CEILING:ingest",
-    "MD:V01:METAR:RAP_OPS_130:ALL_HRRR:CTC:CEILING:ingest",
-    "MD:V01:METAR:RAP_OPS_130:E_HRRR:CTC:CEILING:ingest",
-    "MD:V01:METAR:RAP_OPS_130:W_HRRR:CTC:CEILING:ingest",
-    "MD:V01:METAR:RAP_OPS_130:GtLk:CTC:CEILING:ingest"
-  ]
-}
-The important run time field is "ingest_document_ids".
 The ingest_document_ids specify a list of ingest_document ids that a job
 must process.The script maintains a thread pool of VxIngestManagers and a queue of
 ingest_documents.
@@ -152,7 +125,6 @@ class VXIngest(CommonVxIngest):
         # that fall between these epochs will be processed.
         self.first_last_params = None
         self.output_dir = None
-        self.job_document_id = None
         self.load_job_id = None
         self.load_spec = {}
         self.cb_credentials = None
@@ -164,7 +136,70 @@ class VXIngest(CommonVxIngest):
 
     def runit(self, config, log_queue: Queue, log_configurer: Callable[[Queue], None]):
         """
-        This is the entry point for run_ingest_threads.py
+        Entry point for run_ingest_threads.py
+
+        This method orchestrates the ingest pipeline by loading configuration, establishing
+        Couchbase connections, populating the load_spec with metadata documents, creating
+        a queue of ingest document IDs, and dispatching worker threads (VxIngestManager)
+        to process each ingest document in parallel.
+
+        EXTERNAL DEPENDENCIES - config dict must contain:
+        ================================================
+          credentials_file (str): Path to YAML file with Couchbase credentials. File must contain:
+                                 - cb_host: Couchbase connection string (e.g., "couchbase://localhost")
+                                 - cb_user: Couchbase username
+                                 - cb_password: Couchbase password
+                                 - cb_bucket: Target bucket name (e.g., "vxdata")
+                                 - cb_collection: Default collection name (e.g., "METAR")
+                                 - cb_scope: Couchbase scope (e.g., "_default")
+          threads (int): Number of worker threads to spawn (VxIngestManager instances)
+          output_dir (str, optional): Directory to write output JSON files. If not provided,
+                                     defaults to "/tmp"
+          job_id (str, optional): Job document ID from COMMON collection (e.g.,
+          "JS:METAR:CTC:HRRR_OPS_conus_3km_TEST:schedule:job:V01")
+          start_epoch (int, optional): Unix timestamp - earliest file to process (inclusive)
+          end_epoch (int, optional): Unix timestamp - latest file to process (exclusive)
+          ingest_document_ids (list): List of ingest document IDs to process (e.g., ["IS:METAR:CTC:CEILING:HRRR_OPS_conus_3km_TEST:ALL_HRRR:ingest:V01", ...])
+                                     - JS*/PS*/IS* documents are fetched from RUNTIME collection
+          file_mask (str): strptime-compatible date format string for filtering files by name
+                          (e.g., "%Y%m%d_%H%M%S")
+          input_data_path (str): Path to directory containing input files (can be local or S3)
+
+        EXTERNAL DEPENDENCIES - self.load_spec is populated with:
+        ========================================================
+          first_last_params (dict): Epoch range for file processing
+                                   - first_epoch: start of range (from start_epoch or 0)
+                                   - last_epoch: end of range (from end_epoch or sys.maxsize)
+          cb_credentials (dict): Couchbase connection parameters fetched from credentials_file
+                                - user, password, host, bucket, collection, scope, common_collection, runtime_collection
+          ingest_document_ids (list): Copy of config["ingest_document_ids"]
+          ingest_documents (dict): Actual document objects fetched from Couchbase for each ID
+                                  - Keys are document IDs (e.g., "MD:V01:METAR:...")
+                                  - Values are full document dicts retrieved from COMMON or RUNTIME collections
+          fmask (str): Copy of config["file_mask"]
+          input_data_path (str): Copy of config["input_data_path"]
+          load_job_doc (dict): Generated load job document with metadata:
+                              - id: LJ:<subset>:<module>:<class>:<timestamp>
+                              - lineageId: Collection name from credentials
+                              - script: Path to this script file
+                              - scriptVersion: Git commit hash (from COMMIT env var or "unknown")
+
+        EXTERNAL RESOURCES - Couchbase connectivity required:
+        =====================================================
+          - Couchbase cluster must be reachable at cb_credentials["host"]
+          - Credentials must have read access to:
+            * COMMON collection (default if not overridden) - for MD* ingest documents
+            * RUNTIME collection (default if not overridden) - for PS*/JS* ingest documents
+            * Default collection (e.g., METAR) - for reading related data documents during ingest
+          - Connection retry logic: 3 attempts with 5-second delays between attempts
+
+        PARAMETERS:
+        ===========
+          log_queue (Queue): Multiprocess-safe queue for routing log messages from worker threads
+                            back to the main process logger
+          log_configurer (Callable[[Queue], None]): Function (typically worker_log_configurer)
+                                                    that configures logging in each worker process
+                                                    so log messages are sent to log_queue
 
         The method creates multiprocess "Processes" so expects a queue to pass log messages back
         on and a logger configuration function to format them
@@ -177,9 +212,6 @@ class VXIngest(CommonVxIngest):
         _output_dir = config["output_dir"]
         if _output_dir is not None:
             self.output_dir = _output_dir.strip()
-        _job_document_id = config["job_id"]
-        if _job_document_id is not None:
-            self.job_document_id = _job_document_id.strip()
         if "start_epoch" in config and "end_epoch" in config:
             self.first_last_params = {
                 "first_epoch": config["start_epoch"],
@@ -199,6 +231,8 @@ class VXIngest(CommonVxIngest):
             # put the real credentials into the load_spec
             logger.info("getting cb_credentials")
             self.cb_credentials = self.get_credentials(self.load_spec)
+            # get the intended subset (collection from the job_id)
+            self.cb_credentials["collection"] = config["collection"]
             # establish connections to cb, collection
             self.connect_cb()
             logger.info("connected to cb - collection is %s", self.collection.name)
@@ -207,26 +241,21 @@ class VXIngest(CommonVxIngest):
             # put all the ingest documents into the load_spec too
             self.load_spec["ingest_documents"] = {}
             for _id in self.load_spec["ingest_document_ids"]:
-                if _id.startswith("MD"):
-                    self.load_spec["ingest_documents"][_id] = (
-                        self.common_collection.get(_id).content_as[dict]
-                    )
-                else:
-                    self.load_spec["ingest_documents"][_id] = (
-                        self.runtime_collection.get(_id).content_as[dict]
-                    )
+                self.load_spec["ingest_documents"][_id] = (
+                    self.runtime_collection.get(_id).content_as[dict]
+                )
             self.load_spec["fmask"] = config["file_mask"]
             self.load_spec["input_data_path"] = config["input_data_path"]
             # stash the load_job in the load_spec
             self.load_spec["load_job_doc"] = self.build_load_job_doc(
                 self.load_spec["cb_connection"]["collection"]
             )
-        except (RuntimeError, TypeError, NameError, KeyError):
+        except (RuntimeError, TypeError, NameError, KeyError) as err:
             logger.error(
                 "*** Error occurred in Main reading load_spec: %s ***",
                 str(sys.exc_info()),
             )
-            sys.exit("*** Error reading load_spec:")
+            raise RuntimeError("*** Error reading load_spec:") from err
 
         # get all the ingest_document_ids and put them into a my_queue
         # load the my_queue with
@@ -269,6 +298,7 @@ class VXIngest(CommonVxIngest):
         logger.info("    >>> Total load a_time: %s", str(load_time))
         logger.info("End a_time: %s", str(datetime.now()))
         logger.info("--- *** --- End  --- *** ---")
+        return
 
     def main(self):
         """
@@ -291,7 +321,7 @@ class VXIngest(CommonVxIngest):
             logger.info("*** FINISHED ***")
             # Tell the logging thread to finish up, too
             log_queue_listener.stop()
-            sys.exit(0)
+            return
         except Exception as _e:
             logger.info("*** FINISHED with exception %s***", str(_e))
             # Tell the logging thread to finish up, too

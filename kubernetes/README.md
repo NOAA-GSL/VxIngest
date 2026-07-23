@@ -35,29 +35,30 @@ If your Couchbase HTTPS endpoint uses an internal or private CA, also provide a 
 Option A: use the helper script:
 
 ```console
-./kubernetes/create-secret-from-home.sh
+./kubernetes/create-secrets-from-home.sh
 ```
 
 Optional overrides:
 
 ```console
-NAMESPACE=vxingest-dev KUBECONFIG_PATH=${HOME}/.kube/development.yaml ./kubernetes/create-secret-from-home.sh
+NAMESPACE=vxingest-dev KUBECONFIG_PATH=${HOME}/.kube/development.yaml ./kubernetes/create-secrets-from-home.sh
 ```
 
 Optional Couchbase CA override:
 
 ```console
-CB_CA_FILE=${HOME}/.ssh/cb-ca.pem NAMESPACE=vxingest-dev KUBECONFIG_PATH=${HOME}/.kube/development.yaml ./kubernetes/create-secret-from-home.sh
+CB_CA_FILE=${HOME}/.ssh/cb-ca.pem NAMESPACE=vxingest-dev KUBECONFIG_PATH=${HOME}/.kube/development.yaml ./kubernetes/create-secrets-from-home.sh
 ```
 
 Option B: run kubectl directly:
 
 ```console
-kubectl --kubeconfig=${HOME}/.kube/development.yaml --namespace vxingest-dev create secret generic mats-metadata-secrets \
+kubectl --kubeconfig=${HOME}/.kube/development.yaml --namespace vxingest-dev create secret generic vxingest-credentials \
   --from-file=credentials.yaml=${HOME}/credentials.yaml \
-  --from-file=deploy_key.pem=${HOME}/.ssh/id_ed25519 \
-  --from-file=known_hosts=${HOME}/.ssh/known_hosts \
-  --from-file=cb-ca.pem=${HOME}/.ssh/cb-ca.pem \
+  --dry-run=client -o yaml | kubectl --kubeconfig=${HOME}/.kube/development.yaml --namespace vxingest-dev apply -f -
+
+kubectl --kubeconfig=${HOME}/.kube/development.yaml --namespace vxingest-dev create secret generic vxingest-cacert \
+  --from-file=cacert.pem=${HOME}/capella-root-certificate.pem \
   --dry-run=client -o yaml | kubectl --kubeconfig=${HOME}/.kube/development.yaml --namespace vxingest-dev apply -f -
 ```
 
@@ -85,24 +86,24 @@ kubectl --kubeconfig=${HOME}/.kube/development.yaml apply -k kubernetes
 Run each service independently (delete and recreate to run again):
 
 ```bash
-kubectl --kubeconfig=${HOME}/.kube/development.yaml -n vxingest delete job vxingest-ingest --ignore-not-found
-kubectl --kubeconfig=${HOME}/.kube/development.yaml -n vxingest apply -f kubernetes/job-ingest.yaml
+kubectl --kubeconfig=${HOME}/.kube/development.yaml -n vxingest-dev delete job vxingest-ingest --ignore-not-found
+kubectl --kubeconfig=${HOME}/.kube/development.yaml -n vxingest-dev apply -f kubernetes/job-ingest.yaml
 
-kubectl --kubeconfig=${HOME}/.kube/development.yaml -n vxingest delete job vxingest-import --ignore-not-found
-kubectl --kubeconfig=${HOME}/.kube/development.yaml -n vxingest apply -f kubernetes/job-import.yaml
+kubectl --kubeconfig=${HOME}/.kube/development.yaml -n vxingest-dev delete job vxingest-import --ignore-not-found
+kubectl --kubeconfig=${HOME}/.kube/development.yaml -n vxingest-dev apply -f kubernetes/job-import.yaml
 
-kubectl --kubeconfig=${HOME}/.kube/development.yaml -n vxingest delete job vxingest-meta-update --ignore-not-found
-kubectl --kubeconfig=${HOME}/.kube/development.yaml -n vxingest apply -f kubernetes/job-meta-update.yaml
+kubectl --kubeconfig=${HOME}/.kube/development.yaml -n vxingest-dev delete job vxingest-meta-update --ignore-not-found
+kubectl --kubeconfig=${HOME}/.kube/development.yaml -n vxingest-dev apply -f kubernetes/job-meta-update.yaml
 ```
 
 ## Inspect Status
 
 ```bash
-kubectl --kubeconfig=${HOME}/.kube/development.yaml -n vxingest get jobs
-kubectl --kubeconfig=${HOME}/.kube/development.yaml -n vxingest get pods
-kubectl --kubeconfig=${HOME}/.kube/development.yaml -n vxingest logs job/vxingest-ingest
-kubectl --kubeconfig=${HOME}/.kube/development.yaml -n vxingest logs job/vxingest-import
-kubectl --kubeconfig=${HOME}/.kube/development.yaml -n vxingest logs job/vxingest-meta-update
+kubectl --kubeconfig=${HOME}/.kube/development.yaml -n vxingest-dev get jobs
+kubectl --kubeconfig=${HOME}/.kube/development.yaml -n vxingest-dev get pods
+kubectl --kubeconfig=${HOME}/.kube/development.yaml -n vxingest-dev logs job/vxingest-ingest
+kubectl --kubeconfig=${HOME}/.kube/development.yaml -n vxingest-dev logs job/vxingest-import
+kubectl --kubeconfig=${HOME}/.kube/development.yaml -n vxingest-dev logs job/vxingest-meta-update
 ```
 
 ## Notes

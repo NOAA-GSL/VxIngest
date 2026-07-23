@@ -1,0 +1,277 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vxingest-orchestrator-script
+data:
+  orchestrate.sh: |
+    #!/bin/bash
+    set -euo pipefail
+
+    # Constants
+    NAMESPACE="vxingest-dev"
+    INGEST_IMAGE="ghcr.io/noaa-gsl/vxingest/ingest:main"
+    IMPORT_IMAGE="ghcr.io/noaa-gsl/vxingest/import:main"
+    META_UPDATE_IMAGE="ghcr.io/noaa-gsl/vxingest/import:main"
+    IMAGE_PULL_SECRET="${IMAGE_PULL_SECRET:-vxingest-ghcr}"
+
+    # Configurable
+    RUN_ID=$(date +%s)
+    TIMEOUT="${TIMEOUT:-10800}" # three hours
+    INGEST_EXTRA_ARGS_RAW="${JOBIDS:-}"
+    JOBIDS=()
+
+    if [[ -n "${INGEST_EXTRA_ARGS_RAW}" ]]; then
+      while IFS= read -r line; do
+        # Skip blank lines so operators can format config maps for readability.
+        if [[ -n "${line//[[:space:]]/}" ]]; then
+          JOBIDS+=("${line}")
+        fi
+      done <<< "${INGEST_EXTRA_ARGS_RAW}"
+    fi
+
+    log() {
+        echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*"
+    }
+
+    wait_for_job_completion() {
+        local job_name="$1"
+
+        log "Waiting for ${job_name} to complete (timeout: ${TIMEOUT}s)"
+        if ! kubectl wait --for=condition=complete "job/${job_name}" -n "${NAMESPACE}" --timeout="${TIMEOUT}s"; then
+            log "ERROR: ${job_name} failed or timed out"
+            kubectl logs -n "${NAMESPACE}" -l "batch.kubernetes.io/job-name=${job_name}" --tail=100 || true
+            exit 1
+        fi
+        log "${job_name} completed successfully"
+    }
+
+    run_ingest_job() {
+        local ingest_name="$1"
+        local output_dir="$2"
+        local log_dir="$3"
+        local metrics_dir="$4"
+        local transfer_dir="$5"
+        local extra_args="$6"
+
+        log "Creating ingest job: ${ingest_name}"
+        cat <<EOF | kubectl apply -f -
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: ${ingest_name}
+      namespace: ${NAMESPACE}
+    spec:
+      backoffLimit: 0
+      ttlSecondsAfterFinished: 86400
+      template:
+        spec:
+          restartPolicy: Never
+          imagePullSecrets:
+            - name: ${IMAGE_PULL_SECRET}
+          securityContext:
+            runAsUser: 5002
+            runAsGroup: 5002
+            fsGroup: 5002
+          containers:
+            - name: ingest
+              image: ${INGEST_IMAGE}
+              imagePullPolicy: IfNotPresent
+              args: [
+                  "--credentials_file=/run/secrets/CREDENTIALS_FILE",
+                  "--output_dir=${output_dir}",
+                  "--log_dir=${log_dir}",
+                  "--metrics_dir=${metrics_dir}",
+                  "--transfer_dir=${transfer_dir}",
+                  "${extra_args}"
+                  ]
+              volumeMounts:
+                - name: data
+                  mountPath: /opt/data
+                - name: public
+                  mountPath: /public
+                - name: credentials
+                  mountPath: /run/secrets/CREDENTIALS_FILE
+                  subPath: credentials.yaml
+          volumes:
+            - name: data
+              persistentVolumeClaim:
+                claimName: vxingest-data-pvc
+            - name: public
+              persistentVolumeClaim:
+                claimName: vxingest-public-pvc
+            - name: credentials
+              secret:
+                secretName: vxingest-credentials
+    EOF
+
+        wait_for_job_completion "${ingest_name}"
+    }
+
+    run_import_job() {
+        local import_name="$1"
+        local xfer_dir="$2"
+
+        log "Creating import job: ${import_name}"
+        cat <<EOF | kubectl apply -f -
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: ${import_name}
+      namespace: ${NAMESPACE}
+    spec:
+      backoffLimit: 0
+      ttlSecondsAfterFinished: 86400
+      template:
+        spec:
+          restartPolicy: Never
+          imagePullSecrets:
+            - name: ${IMAGE_PULL_SECRET}
+          securityContext:
+            runAsUser: 5002
+            runAsGroup: 5002
+            fsGroup: 5002
+          initContainers:
+            - name: prep-import-dirs
+              image: busybox:1.37
+              command:
+                - sh
+                - -c
+                - mkdir -p "${xfer_dir}" "${xfer_dir}/temp_tar"
+              volumeMounts:
+                - name: data
+                  mountPath: /opt/data
+          containers:
+            - name: import
+              image: ${IMPORT_IMAGE}
+              imagePullPolicy: Always
+              args: [
+                "-c",
+                "/run/secrets/CREDENTIALS_FILE",
+                "-l",
+                "${xfer_dir}",
+                "-t",
+                "${xfer_dir}/temp_tar"
+              ]
+              env:
+                - name: CREDENTIALS
+                  value: /run/secrets/CREDENTIALS_FILE
+                - name: CACERT_FILE
+                  value: /run/cacert/cacert.pem
+              volumeMounts:
+                - name: data
+                  mountPath: /opt/data
+                - name: credentials
+                  mountPath: /run/secrets/CREDENTIALS_FILE
+                  subPath: credentials.yaml
+                - name: cacert
+                  mountPath: /run/cacert
+          volumes:
+            - name: data
+              persistentVolumeClaim:
+                claimName: vxingest-data-pvc
+            - name: credentials
+              secret:
+                secretName: vxingest-credentials
+            - name: cacert
+              secret:
+                secretName: vxingest-cacert
+                optional: true
+    EOF
+
+        wait_for_job_completion "${import_name}"
+    }
+
+    log "Starting VxIngest pipeline orchestration (RUN_ID: $RUN_ID)"
+
+    # Loop through each ingest configuration in JOBIDS
+    for i in "${!JOBIDS[@]}"; do
+        ingest_idx=$((i + 1))
+        ingest_job="vxingest-ingest-${ingest_idx}-${RUN_ID}"
+        import_job="vxingest-import-${ingest_idx}-${RUN_ID}"
+        outdir="/opt/data/outdir/ingest-${ingest_idx}"
+        logdir="/opt/data/logs/ingest-${ingest_idx}"
+        metricsdir="/opt/data/metrics/ingest-${ingest_idx}"
+        xferdir="/opt/data/xfer/ingest-${ingest_idx}-${RUN_ID}"
+        extra_args="${JOBIDS[${i}]:-}"
+
+        log "\n=== Processing JOBIDS[${i}]: ${extra_args} ==="
+
+        # Run ingest job
+        run_ingest_job \
+            "${ingest_job}" \
+            "${outdir}" \
+            "${logdir}" \
+            "${metricsdir}" \
+            "${xferdir}" \
+            "${extra_args}"
+
+        # Run import job
+        run_import_job "${import_job}" "${xferdir}"
+    done
+
+    # Final step: Create and run meta-update job
+    log "Creating meta-update job: vxingest-meta-update-${RUN_ID}"
+    cat <<EOF | kubectl apply -f -
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: vxingest-meta-update-${RUN_ID}
+      namespace: ${NAMESPACE}
+    spec:
+      backoffLimit: 0
+      ttlSecondsAfterFinished: 86400
+      template:
+        spec:
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 5002
+            runAsGroup: 5002
+            fsGroup: 5002
+          containers:
+            - name: meta-update
+              image: ${META_UPDATE_IMAGE}
+              imagePullPolicy: Always
+              command:
+                - /app/meta_update_middleware/meta-update
+              args: [
+                "-c",
+                "/run/secrets/CREDENTIALS_FILE",
+                "-s",
+                "/app/meta_update_middleware/settings.json"
+              ]
+              env:
+                - name: CREDENTIALS
+                  value: /run/secrets/CREDENTIALS_FILE
+                - name: CACERT_FILE
+                  value: /run/cacert/cacert.pem
+              volumeMounts:
+                - name: data
+                  mountPath: /opt/data
+                - name: credentials
+                  mountPath: /run/secrets/CREDENTIALS_FILE
+                  subPath: credentials.yaml
+                - name: cacert
+                  mountPath: /run/cacert
+          volumes:
+            - name: data
+              persistentVolumeClaim:
+                claimName: vxingest-data-pvc
+            - name: credentials
+              secret:
+                secretName: vxingest-credentials
+            - name: cacert
+              secret:
+                secretName: vxingest-cacert
+                optional: true
+    EOF
+
+    wait_for_job_completion "vxingest-meta-update-${RUN_ID}"
+
+    log "Pipeline complete! All jobs succeeded."
+    log "Run ID: $RUN_ID"
+    log "To view logs:"
+    log "  kubectl logs -n ${NAMESPACE} -l batch.kubernetes.io/job-name=vxingest-ingest-1-${RUN_ID}"
+    log "  kubectl logs -n ${NAMESPACE} -l batch.kubernetes.io/job-name=vxingest-import-1-${RUN_ID}"
+    log "  (or other ingest-N/import-N pairs depending on JOBIDS)"
+    log "  kubectl logs -n ${NAMESPACE} -l batch.kubernetes.io/job-name=vxingest-meta-update-${RUN_ID}"

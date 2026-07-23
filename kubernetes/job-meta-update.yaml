@@ -22,10 +22,10 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       imagePullSecrets:
-        - name: mats-metadata-ghcr
+        - name: vxingest-ghcr
       containers:
         - name: meta-update
-          image: image: ghcr.io/noaa-gsl/VxIngest:latest
+          image: ghcr.io/noaa-gsl/vxingest/import:main
           imagePullPolicy: Always
           command:
             - /app/meta_update_middleware/meta-update
@@ -45,10 +45,8 @@ spec:
             - name: credentials
               mountPath: /run/secrets/CREDENTIALS_FILE
               subPath: credentials.yaml
-              readOnly: true
             - name: cacert
               mountPath: /run/cacert
-              readOnly: true
       volumes:
         - name: data
           persistentVolumeClaim:

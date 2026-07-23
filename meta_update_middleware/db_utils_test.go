@@ -186,7 +186,7 @@ func TestPrintQueryProfilingSummary_HonorsLimit(t *testing.T) {
 
 func TestConfigureCapellaTLSOptions_NonCloud_NoOp(t *testing.T) {
 	options := gocb.ClusterOptions{}
-	err := configureCapellaTLSOptions("couchbase://localhost", "", &options)
+	err := configureCapellaTLSOptions("couchbase://localhost", &options)
 	if err != nil {
 		t.Fatalf("expected no error for non-cloud host, got: %v", err)
 	}
@@ -197,7 +197,7 @@ func TestConfigureCapellaTLSOptions_NonCloud_NoOp(t *testing.T) {
 
 func TestConfigureCapellaTLSOptions_Cloud_RequiresCACertPath(t *testing.T) {
 	options := gocb.ClusterOptions{}
-	err := configureCapellaTLSOptions("couchbases://foo.cloud.couchbase.com", "", &options)
+	err := configureCapellaTLSOptions("couchbases://foo.cloud.couchbase.com", &options)
 	if err == nil {
 		t.Fatalf("expected error when CACERT_FILE is missing")
 	}
@@ -208,10 +208,14 @@ func TestConfigureCapellaTLSOptions_Cloud_RequiresCACertPath(t *testing.T) {
 
 func TestConfigureCapellaTLSOptions_Cloud_SetsTLSRootCAs(t *testing.T) {
 	dir := t.TempDir()
-	caPath := writeTestCACertPEM(t, dir)
+	writeTestCACertPEM(t, dir)
+	os.Setenv("CACERT_FILE", dir+"/cacert.pem")
+	os.Setenv("CACERT_REQUIRED","true")
+	defer os.Unsetenv("CACERT_FILE")
+	defer os.Unsetenv("CACERT_REQUIRED")
 
 	options := gocb.ClusterOptions{}
-	err := configureCapellaTLSOptions("couchbases://foo.cloud.couchbase.com", caPath, &options)
+	err := configureCapellaTLSOptions("couchbases://foo.cloud.couchbase.com", &options)
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}

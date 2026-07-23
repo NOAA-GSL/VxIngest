@@ -110,7 +110,7 @@ class CTCBuilder(Builder):
         self.region = None
         self.sub_doc_type = None
         self.variable = None
-        self.model_fcst_valid_epochs = []
+        self.model_elements_by_fcstValid_epoch = []
         self.model_data = {}  # used to stash each fcstValidEpoch model_data for the handlers
         self.obs_data = {}  # used to stash each fcstValidEpoch obs_data for the handlers
         self.obs_station_names = []  # used to stash sorted obs names for the handlers
@@ -315,7 +315,7 @@ class CTCBuilder(Builder):
         """
         try:
             _obs_data = {}
-            for fve in self.model_fcst_valid_epochs:
+            for fve in self.model_elements_by_fcstValid_epoch:
                 try:
                     self.obs_data = {}
                     self.obs_station_names = []
@@ -488,7 +488,7 @@ class CTCBuilder(Builder):
             success = False
             while error_count < 3 and success is False:
                 try:
-                    # get the largest CTC in the currently database for this model and region
+                    # get the largest CTC currently in the database for this model and region
                     stmnt = f"""SELECT RAW MAX(METAR.fcstValidEpoch)
                             FROM `{self.bucket}`.{self.scope}.{self.collection}
                             WHERE type='DD'
@@ -602,8 +602,8 @@ class CTCBuilder(Builder):
             # this will give us a list of {fcstValidEpoch:fve, fcslLen:fl, id:an_id}
             # where we know that each entry has a corresponding valid observation
             for fve in _tmp_model_fve:
-                if fve["fcstValidEpoch"] in _tmp_obs_fve:
-                    self.model_fcst_valid_epochs.append(fve)
+                if fve["fcstValidEpoch"] in _tmp_obs_fve and fve not in self.model_elements_by_fcstValid_epoch:
+                    self.model_elements_by_fcstValid_epoch.append(fve)
 
             # if we have asked for profiling go ahead and do it
 
@@ -620,7 +620,7 @@ class CTCBuilder(Builder):
                         stats.dump_stats("profiling_stats.prof")
                         stats.print_stats()
             else:
-                # process the fcstValidEpochs without profiling
+                # process the model_elements_by_fcstValid_epoch without profiling
                 self.handle_fcstValidEpochs()
 
             logger.info(

@@ -84,7 +84,7 @@ def test_build_load_job_doc(tmp_path):
         vx_ingest.load_spec["load_job_doc"] = {"test": "a line of text"}
         ljd = vx_ingest.build_load_job_doc(vx_ingest.path)
         assert ljd["id"].startswith(
-            "LJ:METAR:vxingest.netcdf_to_cb.run_ingest_threads:VXIngest"
+            "LJ:V01:vxingest.netcdf_to_cb.run_ingest_threads:VXIngest:"
         )
     except Exception as _e:
         pytest.fail(f"test_build_load_job_doc Exception failure: {_e}")

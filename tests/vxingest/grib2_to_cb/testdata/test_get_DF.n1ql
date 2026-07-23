@@ -1,7 +1,9 @@
 SELECT url, mtime
 FROM `vxdata`._default.METAR
 WHERE
-    type = 'DF'
+    subset = 'metar'
+    AND type = 'DF'
     AND fileType = 'grib2'
-    AND originType = 'HRRR_OPS'
+    AND originType = 'model'
+    AND model = 'HRRR_OPS'
 order by url;

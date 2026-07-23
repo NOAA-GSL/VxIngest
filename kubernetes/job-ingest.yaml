@@ -14,7 +14,7 @@ spec:
         fsGroup: 5002
       containers:
         - name: ingest
-          image: image: ghcr.io/noaa-gsl/VxIngest:latest
+          image: ghcr.io/noaa-gsl/vxingest/ingest:main
           imagePullPolicy: IfNotPresent
           args:
             - "--credentials_file=/run/secrets/CREDENTIALS_FILE"
@@ -30,7 +30,6 @@ spec:
             - name: credentials
               mountPath: /run/secrets/CREDENTIALS_FILE
               subPath: credentials.yaml
-              readOnly: true
       volumes:
         - name: data
           persistentVolumeClaim:

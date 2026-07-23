@@ -35,16 +35,11 @@ Colorado, NOAA/OAR/ESRL/GSD
 """
 
 import logging
-import sys
 import time
 
 from vxingest.builder_common.ingest_manager import CommonVxIngestManager
-from vxingest.netcdf_to_cb import (
-    netcdf_metar_obs_builder as NetcdfMetarObsBuilderV01,
-)
-from vxingest.netcdf_to_cb import (
-    netcdf_tropoe_obs_builder as NetcdfTropoeObsBuilderV01,
-)
+from vxingest.netcdf_to_cb.netcdf_metar_obs_builder import NetcdfMetarObsBuilderV01
+from vxingest.netcdf_to_cb.netcdf_tropoe_obs_builder import NetcdfTropoeObsBuilderV01
 
 # Get a logger with this module's name to help with debugging
 logger = logging.getLogger(__name__)
@@ -123,12 +118,7 @@ class VxIngestManager(CommonVxIngestManager):
         """
         if self.ingest_type_builder_name is None:
             try:
-                # determine if this is a metadata document or a runtime document
-                # the older ingest documents used builder_type, the newer ones use builderType
-                if self.ingest_document["id"].startswith("MD"):
-                    self.ingest_type_builder_name = self.ingest_document["builder_type"]
-                else:
-                    self.ingest_type_builder_name = self.ingest_document["builderType"]
+                self.ingest_type_builder_name = self.ingest_document["builderType"]
             except Exception as _e:
                 logger.exception(
                     "%s: process_element: Exception getting ingest document for %s ",
@@ -158,8 +148,7 @@ class VxIngestManager(CommonVxIngestManager):
                     "%s: *** Error in IngestManager run getting builder name ***",
                     self.thread_name,
                 )
-                sys.exit("*** Error getting builder name: ")
-
+                raise RuntimeError("*** Error getting builder name: ") from _e
             if self.ingest_type_builder_name in self.builder_map:
                 builder = self.builder_map[self.ingest_type_builder_name]
             else:
@@ -173,10 +162,11 @@ class VxIngestManager(CommonVxIngestManager):
                         self.thread_name,
                         self.ingest_type_builder_name,
                     )
-                    raise Exception("Unknown builder type")
+                    raise RuntimeError(
+                        "Unknown builder type: " + self.ingest_type_builder_name
+                    )
                 # instantiate the builder
-                builder_class = getattr(my_builder, self.ingest_type_builder_name)
-                builder = builder_class(self.load_spec, self.ingest_document)
+                builder = my_builder(self.load_spec, self.ingest_document)
                 self.builder_map[self.ingest_type_builder_name] = builder
             document_map = builder.build_document(queue_element)
             if self.output_dir:

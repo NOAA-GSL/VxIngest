@@ -211,7 +211,8 @@ class PartialSumsBuilder(Builder):
             return value
         except Exception as _e:
             logger.error(
-                "PartialSumsBuilder.translate_template_item: Exception  error: %s", str(_e)
+                "PartialSumsBuilder.translate_template_item: Exception  error: %s",
+                str(_e),
             )
             return None
 
@@ -647,7 +648,10 @@ class PartialSumsBuilder(Builder):
             # this will give us a list of {fcstValidEpoch:fve, fcslLen:fl, id:an_id}
             # where we know that each entry has a corresponding valid observation
             for fve in _tmp_model_fve:
-                if fve["fcstValidEpoch"] in _tmp_obs_fve and fve not in self.model_elements_by_fcstValid_epoch:
+                if (
+                    fve["fcstValidEpoch"] in _tmp_obs_fve
+                    and fve not in self.model_elements_by_fcstValid_epoch
+                ):
                     self.model_elements_by_fcstValid_epoch.append(fve)
 
             # if we have asked for profiling go ahead and do it

@@ -261,6 +261,7 @@ def get_runtime_job_criteria(
     logger.warning(f"No runtime job document found with ID: {job_id}")
     return None
 
+
 def connect_cb(creds: dict[str, str]) -> Cluster:
     """
     Create a connection to the specified Couchbase cluster
@@ -541,7 +542,9 @@ def run_ingest() -> None:
             f"Error connecting to Couchbase server at: {creds['cb_host']}.",
             exc_info=True,
         )
-        raise RuntimeError(f"Error connecting to Couchbase server at: {creds['cb_host']}.") from None
+        raise RuntimeError(
+            f"Error connecting to Couchbase server at: {creds['cb_host']}."
+        ) from None
 
     for job_id in args.job_id:
         logger.info(f"Processing job_id: {job_id}")
@@ -573,15 +576,14 @@ def run_ingest() -> None:
     duration = endtime - runtime
     logger.info(f"Runtime was {duration.total_seconds()} seconds")
     prom_duration.set(duration.total_seconds())
-    prom_file = (
-        args.metrics_dir / "run_ingest_metrics.prom"
-    )
+    prom_file = args.metrics_dir / "run_ingest_metrics.prom"
     logger.info(f"Writing Prometheus metrics to: {prom_file}")
     write_to_textfile(prom_file, prom_registry)
 
     # Tell the logging thread to finish up, too
     log_queue_listener.stop()
     logger.info("Done")
+
 
 if __name__ == "__main__":
     run_ingest()

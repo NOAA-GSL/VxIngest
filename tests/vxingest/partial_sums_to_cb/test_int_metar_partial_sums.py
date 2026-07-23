@@ -10,7 +10,6 @@ from datetime import datetime, timedelta
 from multiprocessing import Queue
 from pathlib import Path
 
-from acouchbase import collection
 import pytest
 import yaml
 from couchbase.auth import PasswordAuthenticator
@@ -21,7 +20,6 @@ from couchbase.options import (
     QueryOptions,
 )
 
-from vxingest.builder_common import builder
 from vxingest.partial_sums_to_cb import partial_sums_builder
 from vxingest.partial_sums_to_cb.run_ingest_threads import VXIngest
 

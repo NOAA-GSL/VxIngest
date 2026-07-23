@@ -48,8 +48,12 @@ func main() {
 	log.Print("meta-update:main()")
 
 	home, _ := os.UserHomeDir()
+	credentialsPath := os.Getenv("CREDENTIALS_FILE")
+	if credentialsPath == "" {
+		credentialsPath = home + "/credentials"
+	}
 	var credentialsFilePath string
-	flag.StringVar(&credentialsFilePath, "c", home+"/credentials", "path to credentials file")
+	flag.StringVar(&credentialsFilePath, "c", credentialsPath, "path to credentials file")
 
 	var settingsFilePath string
 	flag.StringVar(&settingsFilePath, "s", "./settings.json", "path to settings.json file")
@@ -198,14 +202,44 @@ func updateMedataForAppDocType(conn CbConnection, name string, app string, docty
 		model.DisplayText = displayText[0]
 		model.DisplayCategory = displayCategory[0]
 		model.DisplayOrder = displayOrder[0]
-		model.Mindate = int(minMaxCountFloor[0].(map[string]interface{})["mindate"].(float64))
-		model.Maxdate = int(minMaxCountFloor[0].(map[string]interface{})["maxdate"].(float64))
-		model.Numrecs = int(minMaxCountFloor[0].(map[string]interface{})["numrecs"].(float64))
-		metadata.Updated = int(minMaxCountFloor[0].(map[string]interface{})["updated"].(float64))
+		minMaxRow := minMaxCountFloor[0].(map[string]interface{})
+		model.Mindate = getOptionalIntField(minMaxRow, "mindate", 0)
+		model.Maxdate = getOptionalIntField(minMaxRow, "maxdate", 0)
+		model.Numrecs = getOptionalIntField(minMaxRow, "numrecs", 0)
+		metadata.Updated = getOptionalIntField(minMaxRow, "updated", 0)
 		metadata.Models = append(metadata.Models, model)
 	}
 	log.Println(jsonPrettyPrintStruct(metadata))
 	writeMetadata(conn, metadata, path)
+}
+
+func getOptionalIntField(row map[string]interface{}, key string, defaultValue int) int {
+	value, exists := row[key]
+	if !exists || value == nil {
+		return defaultValue
+	}
+
+	switch v := value.(type) {
+	case float64:
+		return int(v)
+	case float32:
+		return int(v)
+	case int:
+		return v
+	case int32:
+		return int(v)
+	case int64:
+		return int(v)
+	case uint:
+		return int(v)
+	case uint32:
+		return int(v)
+	case uint64:
+		return int(v)
+	default:
+		log.Printf("unexpected type for %s: %T; using default %d", key, value, defaultValue)
+		return defaultValue
+	}
 }
 
 func parseConfig(file string) (ConfigJSON, error) {

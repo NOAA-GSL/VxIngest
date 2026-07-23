@@ -1,0 +1,59 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: vxingest-import
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsUser: 5002
+        runAsGroup: 5002
+        fsGroup: 5002
+      initContainers:
+        - name: prep-import-dirs
+          image: busybox:1.37
+          command:
+            - sh
+            - -c
+            - mkdir -p /opt/data_import/logs /opt/data_import/xfer /opt/data_import/temp_tar
+          volumeMounts:
+            - name: data
+              mountPath: /opt/data_import
+      containers:
+        - name: import
+          image: ghcr.io/noaa-gsl/vxingest/import:main
+          imagePullPolicy: Always
+          args:
+            - -c
+            - /run/secrets/CREDENTIALS_FILE
+            - -l
+            - xfer
+            - -t
+            - temp_tar
+          env:
+            - name: CREDENTIALS
+              value: /run/secrets/CREDENTIALS_FILE
+            - name: CACERT_FILE
+              value: /run/cacert/cacert.pem
+          volumeMounts:
+            - name: data
+              mountPath: /opt/data_import
+            - name: credentials
+              mountPath: /run/secrets/CREDENTIALS_FILE
+              subPath: credentials.yaml
+            - name: cacert
+              mountPath: /run/cacert
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: vxingest-data-pvc
+        - name: credentials
+          secret:
+            secretName: vxingest-credentials
+        - name: cacert
+          secret:
+            secretName: vxingest-cacert
+            optional: true

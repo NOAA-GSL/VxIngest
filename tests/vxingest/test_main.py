@@ -1,6 +1,6 @@
 import tarfile
+import unittest
 from pathlib import Path
-from unittest import mock
 
 import pytest
 import yaml
@@ -10,12 +10,11 @@ from vxingest.main import (
     create_dirs,
     determine_num_processes,
     get_credentials,
-    get_older_job_doc_criteria,
     make_tarfile,
 )
 
 
-def test_get_credentials(tmp_path):
+def test_get_credentials(tmp_path: Path):
     data = {
         "cb_host": "localhost",
         "cb_user": "user",
@@ -31,7 +30,7 @@ def test_get_credentials(tmp_path):
     assert get_credentials(file) == data
 
 
-def test_get_credentials_missing_key(tmp_path):
+def test_get_credentials_missing_key(tmp_path: Path):
     data = {
         "cb_host": "localhost",
         "cb_user": "user",
@@ -48,7 +47,7 @@ def test_get_credentials_missing_key(tmp_path):
         get_credentials(file)
 
 
-def test_create_dirs(tmp_path):
+def test_create_dirs(tmp_path: Path):
     dirs = [tmp_path / "dir1", tmp_path / "dir2", tmp_path / "dir3"]
     create_dirs(dirs)
     for dir in dirs:
@@ -58,7 +57,7 @@ def test_create_dirs(tmp_path):
 @pytest.fixture
 def mock_cluster():
     """Test fixture to create a mock Couchbase Cluster object instance with a known return value"""
-    mock_cluster = mock.create_autospec(Cluster, instance=True)
+    mock_cluster = unittest.mock.create_autospec(Cluster, instance=True)
     mock_cluster.query.return_value = [
         {
             "id": "job1",
@@ -72,21 +71,6 @@ def mock_cluster():
     return mock_cluster
 
 
-# FIXME: Explore less brittle approaches for these tests
-def test_get_job_docs_with_job_id(mock_cluster):
-    creds = {"cb_bucket": "bucket", "cb_scope": "scope", "cb_collection": "collection"}
-    job_id = "job1"
-    result = get_older_job_doc_criteria(mock_cluster, creds, job_id)
-    assert result == mock_cluster.query("fake_query")
-
-
-# FIXME: Explore less brittle approaches for these tests
-def test_get_job_docs_without_job_id(mock_cluster):
-    creds = {"cb_bucket": "bucket", "cb_scope": "scope", "cb_collection": "collection"}
-    result = get_older_job_doc_criteria(mock_cluster, creds)
-    assert result == mock_cluster.query("fake_query")
-
-
 @pytest.mark.parametrize(
     ("cpu_count", "expected"),
     [
@@ -97,11 +81,11 @@ def test_get_job_docs_without_job_id(mock_cluster):
     ],
 )
 def test_determine_num_processes(cpu_count, expected):
-    with mock.patch("os.cpu_count", return_value=cpu_count):
+    with unittest.mock.patch("os.cpu_count", return_value=cpu_count):
         assert determine_num_processes() == expected
 
 
-def test_make_tarfile(tmp_path):
+def test_make_tarfile(tmp_path: Path):
     # Create some files in the temporary directory
     for i in range(3):
         with Path(tmp_path / f"file{i}.txt").open("w") as f:

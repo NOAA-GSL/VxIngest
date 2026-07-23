@@ -1,0 +1,60 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: vxingest-meta-update
+  labels:
+    app: vxingest-meta-update
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app: vxingest-meta-update
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      imagePullSecrets:
+        - name: vxingest-ghcr
+      containers:
+        - name: meta-update
+          image: ghcr.io/noaa-gsl/vxingest/import:main
+          imagePullPolicy: Always
+          command:
+            - /app/meta_update_middleware/meta-update
+          args:
+            - -c
+            - /run/secrets/CREDENTIALS_FILE
+            - -s
+            - /app/meta_update_middleware/settings.json
+          env:
+            - name: CREDENTIALS
+              value: /run/secrets/CREDENTIALS_FILE
+            - name: CACERT_FILE
+              value: /run/cacert/cacert.pem
+          volumeMounts:
+            - name: data
+              mountPath: /opt/data
+            - name: credentials
+              mountPath: /run/secrets/CREDENTIALS_FILE
+              subPath: credentials.yaml
+            - name: cacert
+              mountPath: /run/cacert
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: vxingest-data-pvc
+        - name: credentials
+          secret:
+            secretName: vxingest-credentials
+        - name: cacert
+          secret:
+            secretName: vxingest-cacert
+            optional: true

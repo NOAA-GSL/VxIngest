@@ -48,10 +48,9 @@ data=/opt/data public=/public docker compose run --rm ingest -c /run/secrets/CRE
 # Import job documents for the given job ID
 echo "importing job documents for job ID: $job_id"
 cd /home/amb-verif/VxIngest && \
-/home/amb-verif/VxIngest/scripts/VXingest_utilities/run-import.sh \
+/home/amb-verif/VxIngest/scripts/VXingest_utilities/import/run-import.sh \
 -c /home/amb-verif/credentials \
 -l ${tmp_xfer} \
--m ${metrics_dir} \
 -t ${tmp_tardir} \
 > ${HOME}/logs/import-`date +%s`.out 2>&1 && \
 rm -rf $(find ${HOME}/logs -type f -name import-*.out -size -100c -exec grep -l "No such file" {} \;)

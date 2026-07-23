@@ -130,11 +130,11 @@ func TestSQLTemplate_GetModelsNoData_SQLKeywords(t *testing.T) {
 	assertSQLKeywords(t, sql, "getModelsNoData.sql")
 }
 
-func TestSQLTemplate_GetModelsNoData_ContainsCOUNT(t *testing.T) {
+func TestSQLTemplate_GetModelsNoData_ContainsNotExistsFilter(t *testing.T) {
 	raw, _ := os.ReadFile("sqls/getModelsNoData.sql")
 	sql := strings.ToUpper(string(raw))
-	if !strings.Contains(sql, "COUNT") {
-		t.Error("getModelsNoData.sql: expected COUNT expression for no-data filter")
+	if !strings.Contains(sql, "NOT EXISTS") {
+		t.Error("getModelsNoData.sql: expected NOT EXISTS no-data filter")
 	}
 }
 

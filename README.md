@@ -21,7 +21,11 @@ VxIngest is containerized for deployment. If you are developing the application,
 
 ### Using the container
 
-You will first need to build the docker container with the following:
+#### Building images
+
+VxIngest supports both AMD64 and ARM64 architectures. Both the ingest and import images include pre-compiled binaries for both platforms.
+
+**Ingest image (single architecture — local machine):**
 
 ```bash
 docker build \
@@ -33,7 +37,62 @@ docker build \
     .
 ```
 
+**Ingest image (multi-architecture — cross-compile for both amd64 and arm64):**
+
+Requires Docker with buildx support:
+
+```bash
+docker buildx build \
+    --platform linux/amd64,linux/arm64 \
+    --build-arg BUILDVER=dev \
+    --build-arg COMMITBRANCH=$(git branch --show-current) \
+    --build-arg COMMITSHA=$(git rev-parse HEAD) \
+    -f ./docker/ingest/Dockerfile \
+    -t <registry>/vxingest/ingest:dev \
+    --push \
+    .
+```
+
+**Import image (single architecture — local machine):**
+
+```bash
+docker build \
+    --build-arg BUILDVER=dev \
+    --build-arg COMMITBRANCH=$(git branch --show-current) \
+    --build-arg COMMITSHA=$(git rev-parse HEAD) \
+    -f ./docker/import/Dockerfile \
+    -t vxingest:import-dev \
+    .
+```
+
+**Import image (multi-architecture — cross-compile for both amd64 and arm64):**
+
+```bash
+docker buildx build \
+    --platform linux/amd64,linux/arm64 \
+    --build-arg BUILDVER=dev \
+    --build-arg COMMITBRANCH=$(git branch --show-current) \
+    --build-arg COMMITSHA=$(git rev-parse HEAD) \
+    -f ./docker/import/Dockerfile \
+    -t <registry>/vxingest/import:dev \
+    --push \
+    .
+```
+
+Alternatively, build both images using Docker Compose:
+
+```bash
+BUILDVER=dev \
+COMMITBRANCH=$(git branch --show-current) \
+COMMITSHA=$(git rev-parse HEAD) \
+docker compose build ingest import
+```
+
+#### Running the ingest
+
 To run the ingest, you will first need to create a file like the below with the database credentials in `${HOME}/credentials`:
+
+For import if you want Compose to use a different credentials file, set the `CREDENTIALS_FILE` environment variable before running `docker compose`.
 
 `${HOME}/credentials`:
 
@@ -44,11 +103,16 @@ cb_password: "password"
 cb_bucket: "vxdata"
 cb_scope: "_default"
 cb_collection: "METAR"
+cacert_file: /path/to/ca_cert_file # optional - needed for Capella clusters
+cb_timeout_seconds: 7200
 ```
+
+The optional cb_timeout_seconds defines the couchbase timeout for queries.
+The optional ca_cert_file can be obtained from the Capella management UI.
 
 The cb_host file requires a protocol. For example ... "couchbase://adb-cb1.gsd.esrl.noaa.gov" - because adb-cb1... is a single node cluster. For adb-cb2 (which is one node of a multinode cluster) it would be "couchbases://adb-cb2.gsd.esrl.noaa.gov". Any of the nodes would suffice.
 
-Once that's in place, you can run the ingest with Docker Compose like the example below. Note the `public` and `data` env variables respectively point to where the input data resides and where you'd like the container to write out to. They are the only part of the command you would need to modify.
+Once that's in place, you can run the ingest with Docker Compose:
 
 ```bash
 data=/data-ingest/data \
@@ -56,11 +120,67 @@ data=/data-ingest/data \
     docker compose run ingest
 ```
 
-You can run the "import" via Docker Compose like this example. You will need to use the same value for `data` as you used for the "ingest".
+If `cb_host` points to a Capella cluster (`cloud.couchbase.com`), also set `CACERT_FILE` before running `docker compose` so the CA certificate PEM is mounted as a secret:
+
+```bash
+CACERT_FILE=/path/to/capella-ca.pem \
+data=/data-ingest/data \
+    public=/public \
+    docker compose run ingest
+```
+
+The ingest writes JSON output, logs, metrics, and transfer tarballs to the `data` directory for the import stage to process.
+
+#### Running the meta-update service
+
+You can run the metadata refresh service directly via Docker Compose when you want to rebuild MATS metadata from Couchbase DD documents without running a full ingest/import cycle:
+
+```bash
+data=/data-ingest/data \
+    docker compose run meta-update \
+    -c /run/secrets/CREDENTIALS_FILE \
+    -s /app/meta_update_middleware/settings.json
+```
+
+If `cb_host` points to a Capella cluster (`cloud.couchbase.com`), also set `CACERT_FILE` before running `docker compose` so the CA certificate PEM is mounted as a secret:
+
+```bash
+CACERT_FILE=/path/to/capella-ca.pem \
+data=/data-ingest/data \
+    docker compose run meta-update \
+    -c /run/secrets/CREDENTIALS_FILE \
+    -s /app/meta_update_middleware/settings.json
+```
+
+Optional flags can be appended the same way. For example, to rebuild metadata for only one app:
+
+```bash
+data=/data-ingest/data \
+    docker compose run meta-update \
+    -c /run/secrets/CREDENTIALS_FILE \
+    -s /app/meta_update_middleware/settings.json \
+    -a ceiling
+```
+
+#### Running the import
+
+You can run the import via Docker Compose. Use the same value for `data` that you used for the ingest so the import container can access the tarballs written to `xfer/`:
 
 ```bash
 data=/data-ingest/data \
     docker compose run import
+```
+
+**Important:** The import container requires that `/opt/data_import/logs` (mounted from `data/logs` on the host) already exists as a directory. If the volume mount is not properly configured, the import script will fail with a clear error message rather than silently writing to ephemeral container storage.
+
+In the compose.yaml, `CREDENTIALS_FILE` defaults to `${HOME}/credentials`. Override it by setting a `CREDENTIALS_FILE` environment variable pointing to a different path. The `CACERT_FILE` secret path is similarly overrideable via the `CACERT_FILE` environment variable and is passed into the import container.
+
+If you want an interactive shell in the ingest image for debugging, you can run:
+
+```bash
+data=/data-ingest/data \
+    public=/public \
+    docker compose run shell
 ```
 
 ## Diagrams

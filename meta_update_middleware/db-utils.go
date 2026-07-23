@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -184,7 +185,7 @@ func getDbConnection(cred Credentials) (conn CbConnection) {
 	username := cred.Cb_user
 	password := cred.Cb_password
 	timeout := cred.Cb_timeout_seconds
-	if timeout == 0 {
+	if timeout <= 0 {
 		timeout = 3600
 	}
 	options := gocb.ClusterOptions{
@@ -195,6 +196,9 @@ func getDbConnection(cred Credentials) (conn CbConnection) {
 		TimeoutsConfig: gocb.TimeoutsConfig{
 			QueryTimeout: time.Duration(timeout) * time.Second,
 		},
+	}
+	if err := configureCapellaTLSOptions(connectionString, &options); err != nil {
+		log.Fatal(err)
 	}
 
 	cluster, err := gocb.Connect(connectionString, options)
@@ -210,7 +214,7 @@ func getDbConnection(cred Credentials) (conn CbConnection) {
 
 	log.Println("vxDBTARGET:" + conn.vxDBTARGET)
 
-	err = conn.Bucket.WaitUntilReady(5*time.Second, nil)
+	err = conn.Bucket.WaitUntilReady(15*time.Second, nil)
 	if err != nil {
 		log.Fatal(err)
 		return
@@ -218,6 +222,32 @@ func getDbConnection(cred Credentials) (conn CbConnection) {
 
 	conn.Scope = conn.Bucket.Scope(cred.Cb_scope)
 	return conn
+}
+
+func configureCapellaTLSOptions(connectionString string, options *gocb.ClusterOptions) error {
+	// if it isn't a Capella cluster or if CACERT_REQUIRED isn't set, we don't need to configure TLS options
+	if !strings.Contains(connectionString, "cloud.couchbase.com") || os.Getenv("CACERT_REQUIRED") == "" {
+		return nil
+	}
+	caPath := os.Getenv("CACERT_FILE")
+	if strings.TrimSpace(caPath) == "" {
+		return fmt.Errorf("CACERT_FILE must be set for cloud.couchbase.com hosts")
+	}
+
+	pemBytes, err := os.ReadFile(caPath)
+	if err != nil {
+		return fmt.Errorf("failed to read CACERT_FILE %q: %w", caPath, err)
+	}
+
+	roots := x509.NewCertPool()
+	if !roots.AppendCertsFromPEM(pemBytes) {
+		return fmt.Errorf("failed to parse CA cert PEM from %q", caPath)
+	}
+
+	options.SecurityConfig = gocb.SecurityConfig{
+		TLSRootCAs: roots,
+	}
+	return nil
 }
 
 func queryWithSQLFile(scope *gocb.Scope, file string) (jsonOut []string) {

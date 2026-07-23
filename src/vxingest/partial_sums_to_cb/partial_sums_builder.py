@@ -46,7 +46,7 @@ class PartialSumsBuilder(Builder):
         geo.top_left.lon as tl_lon
     FROM `{self.bucket}`.{self.scope}.{self.collection}
     WHERE type="MD" and docType="region" and subset='COMMON' and version='V01' and name="ALL_HRRR"
-    use the boubnding box to select stations for the region
+    use the bounding box to select stations for the region
     [
         {
             "bottom_right": {
@@ -141,7 +141,7 @@ class PartialSumsBuilder(Builder):
         self.region = None
         self.sub_doc_type = None
         self.variable = None
-        self.model_fcst_valid_epochs = []
+        self.model_elements_by_fcstValid_epoch = []
         self.model_data = {}  # used to stash each fcstValidEpoch model_data for the handlers
         self.obs_data = {}  # used to stash each fcstValidEpoch obs_data for the handlers
         self.obs_station_names = []  # used to stash sorted obs names for the handlers
@@ -358,7 +358,7 @@ class PartialSumsBuilder(Builder):
         """
         try:
             _obs_data = {}
-            for fve in self.model_fcst_valid_epochs:
+            for fve in self.model_elements_by_fcstValid_epoch:
                 try:
                     self.obs_data = {}
                     self.obs_station_names = []
@@ -479,11 +479,11 @@ class PartialSumsBuilder(Builder):
         These documents are id'd by model, region, fcstValidEpoch and fcstLen. The data section is a map
         each element of which contains a sum value keyed by a variable name. The values are the
         {
-                “num_recs”: # matched pairs,
-                “sum_obs”: sum of all the observation values for each matched pair,
-            “sum_model”: sum of all the model values for each matched pair,
-            “sum_diff”: sum of all variables differences, obs-model,
-            “sum2_diff”: sum of all variable differences squared, obs-model,
+            "num_recs": # matched pairs,
+            "sum_obs": sum of all the observation values for each matched pair,
+            "sum_model": sum of all the model values for each matched pair,
+            "sum_diff": sum of all variables differences, obs-model,
+            "sum2_diff": sum of all variable differences squared, obs-model,
         }
 
         1) get stations from couchbase and filter them so that we retain only the ones for this models region
@@ -648,8 +648,11 @@ class PartialSumsBuilder(Builder):
             # this will give us a list of {fcstValidEpoch:fve, fcslLen:fl, id:an_id}
             # where we know that each entry has a corresponding valid observation
             for fve in _tmp_model_fve:
-                if fve["fcstValidEpoch"] in _tmp_obs_fve:
-                    self.model_fcst_valid_epochs.append(fve)
+                if (
+                    fve["fcstValidEpoch"] in _tmp_obs_fve
+                    and fve not in self.model_elements_by_fcstValid_epoch
+                ):
+                    self.model_elements_by_fcstValid_epoch.append(fve)
 
             # if we have asked for profiling go ahead and do it
 
@@ -666,7 +669,7 @@ class PartialSumsBuilder(Builder):
                         stats.dump_stats("profiling_stats.prof")
                         stats.print_stats()
             else:
-                # process the fcstValidEpochs without profiling
+                # process the model_elements_by_fcstValid_epoch without profiling
                 self.handle_fcstValidEpochs()
 
             logger.info(
@@ -753,9 +756,9 @@ class PartialSumsBuilder(Builder):
     def get_stations_for_region_by_sort(self, region_name, valid_epoch):
         """Using a lat/lon filter return all the stations within the defined region
             THAT HAVE A VALID ELEVATION. This is necessary
-                because the partialsums builders may need to calculate normalized pressure
-                from elevation and temperature and if we have stations with no elevation
-                we can't properly calculate normalized pressure.
+            because the partialsums builders may need to calculate normalized pressure
+            from elevation and temperature and if we have stations with no elevation
+            we can't properly calculate normalized pressure.
         Args:
             region_name (string): the name of the region.
         Returns:

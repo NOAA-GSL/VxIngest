@@ -2,13 +2,53 @@ package main
 
 import (
 	"bytes"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 	"log"
+	"math/big"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/couchbase/gocb/v2"
 )
+
+func writeTestCACertPEM(t *testing.T, dir string) string {
+	t.Helper()
+
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("failed to generate rsa key: %v", err)
+	}
+
+	tpl := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "unit-test-ca"},
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().Add(time.Hour),
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature,
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+	}
+
+	der, err := x509.CreateCertificate(rand.Reader, tpl, tpl, &key.PublicKey, key)
+	if err != nil {
+		t.Fatalf("failed to create cert: %v", err)
+	}
+
+	pemData := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
+	path := filepath.Join(dir, "ca.pem")
+	if err := os.WriteFile(path, pemData, 0o600); err != nil {
+		t.Fatalf("failed to write cert file: %v", err)
+	}
+
+	return path
+}
 
 func resetQuerySummaryState() {
 	querySummaryState.Lock()
@@ -141,5 +181,45 @@ func TestPrintQueryProfilingSummary_HonorsLimit(t *testing.T) {
 	}
 	if strings.Contains(out, "query summary sql #3") {
 		t.Fatalf("expected only 2 rows in summary, got output: %s", out)
+	}
+}
+
+func TestConfigureCapellaTLSOptions_NonCloud_NoOp(t *testing.T) {
+	options := gocb.ClusterOptions{}
+	err := configureCapellaTLSOptions("couchbase://localhost", &options)
+	if err != nil {
+		t.Fatalf("expected no error for non-cloud host, got: %v", err)
+	}
+	if options.SecurityConfig.TLSRootCAs != nil {
+		t.Fatalf("expected TLSRootCAs to remain nil for non-cloud host")
+	}
+}
+
+func TestConfigureCapellaTLSOptions_Cloud_RequiresCACertPath(t *testing.T) {
+	options := gocb.ClusterOptions{}
+	err := configureCapellaTLSOptions("couchbases://foo.cloud.couchbase.com", &options)
+	if err == nil {
+		t.Fatalf("expected error when CACERT_FILE is missing")
+	}
+	if !strings.Contains(err.Error(), "CACERT_FILE must be set") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestConfigureCapellaTLSOptions_Cloud_SetsTLSRootCAs(t *testing.T) {
+	dir := t.TempDir()
+	writeTestCACertPEM(t, dir)
+	os.Setenv("CACERT_FILE", dir+"/cacert.pem")
+	os.Setenv("CACERT_REQUIRED","true")
+	defer os.Unsetenv("CACERT_FILE")
+	defer os.Unsetenv("CACERT_REQUIRED")
+
+	options := gocb.ClusterOptions{}
+	err := configureCapellaTLSOptions("couchbases://foo.cloud.couchbase.com", &options)
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if options.SecurityConfig.TLSRootCAs == nil {
+		t.Fatalf("expected TLSRootCAs to be configured")
 	}
 }

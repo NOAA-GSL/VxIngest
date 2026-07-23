@@ -6,7 +6,6 @@ import json
 import logging
 import os
 import queue
-import sys
 import time
 from datetime import timedelta
 from multiprocessing import Process
@@ -139,9 +138,9 @@ class CommonVxIngestManager(Process):
             logger.exception(
                 "*** builder_common.CommonVxIngestManager in connect_cb ***"
             )
-            sys.exit(
+            raise RuntimeError(
                 "*** builder_common.CommonVxIngestManager Error when connecting to cb database"
-            )
+            ) from _e
 
     # entry point of the thread. Is invoked automatically when the thread is
     # started.

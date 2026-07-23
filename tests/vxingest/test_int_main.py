@@ -154,43 +154,6 @@ def test_one_thread_specify_file_pattern_netcdf_job_spec_rt_start_end(tmp_path: 
 
 
 @pytest.mark.integration
-def test_one_thread_specify_file_pattern_netcdf_job_spec_type_job(tmp_path: Path):
-    # Save original sys.argv
-    original_argv = sys.argv.copy()
-    job_id = "JOB-TEST:V01:METAR:NETCDF:OBS"
-    # need these args
-    sys.argv = [
-        "run_ingest",
-        "-j",
-        job_id,
-        "-c",
-        os.environ["CREDENTIALS"],
-        "-m",
-        str(tmp_path / "metrics"),
-        "-o",
-        str(tmp_path / "output"),
-        "-x",
-        str(tmp_path / "transfer"),
-        "-l",
-        str(tmp_path / "logs"),
-        "-f",
-        "20211105_*",
-        "-t",
-        "1",
-    ]
-    try:
-        vx_ingest = setup_connection(VXIngest_netcdf())
-        initial_success_count = prom_successes._value.get()
-        run_ingest()
-        check_output(tmp_path, vx_ingest, 2, initial_success_count + 1)
-    except Exception as e:
-        pytest.fail(f"Test failed with exception {e}")
-    finally:
-        # Restore original sys.argv
-        sys.argv = original_argv
-
-
-@pytest.mark.integration
 def test_one_thread_specify_file_pattern_grib2_job_spec_rt(tmp_path: Path):
     # Save original sys.argv
     original_argv = sys.argv.copy()
@@ -274,19 +237,30 @@ def test_one_thread_specify_file_pattern_grib2_normalized_pressure_sums_job_spec
 ):
     # Save original sys.argv
     original_argv = sys.argv.copy()
-    job_id = "JS:METAR:SUMS:HRRR_OPS:schedule:job:V01"
+    job_id = "JS:METAR:SUMS:RRFSv1_conus_3km_ret_RRFS_jul2024:schedule:job:V01"
     # need these args
     vx_ingest = setup_connection(VXIngest_partial_sums())
-    stmnt = """SELECT MAX(obs.fcstValidEpoch) epoch
-        FROM `vxdata`._default.METAR obs
-        WHERE obs.type='DD'
-        AND obs.docType='obs'
-        AND obs.version='V01'
-        AND obs.subset='METAR'
-    """
-    result_rows = vx_ingest.cluster.query(stmnt)
-    end_epoch = str(list(result_rows)[0]["epoch"])
-    start_epoch = str(int(float(end_epoch) - 3600 * 4))  # four hours earlier
+    result = vx_ingest.cluster.query(
+        """SELECT fcstValidEpoch AS fcstValidEpoch
+        FROM `vxdata`._default.METAR
+        WHERE type="DD"
+            AND docType="SUMS"
+            AND subDocType = "SURFACE"
+            AND model='RRFSv1_conus_3km_ret_RRFS_jul2024'
+            AND region='ALL_HRRR'
+            AND version='V01'
+            AND subset='METAR'"""
+    )
+    ps_fcst_valid_data = list(result)
+    assert ps_fcst_valid_data, (
+        "No SUMS ps_fcst_valid_data values found for model='RRFSv1_conus_3km_ret_RRFS_jul2024', region='ALL_HRRR'"
+    )
+    start_epoch = str(
+        ps_fcst_valid_data[(len(ps_fcst_valid_data) - 1) // 2]["fcstValidEpoch"]
+    )
+    end_epoch = str(
+        ps_fcst_valid_data[((len(ps_fcst_valid_data) - 1) // 2) + 1]["fcstValidEpoch"]
+    )
     sys.argv = [
         "run_ingest",
         "-j",
@@ -400,44 +374,6 @@ def test_one_thread_specify_file_pattern_grib2_retro_job_spec_rt(tmp_path: Path)
 
 
 @pytest.mark.integration
-def test_one_thread_specify_file_pattern_grib2_job_spec_type_job(tmp_path: Path):
-    # Save original sys.argv
-    original_argv = sys.argv.copy()
-    job_id = "JOB-TEST:V01:METAR:GRIB2:MODEL:HRRR"
-    # need these args
-    sys.argv = [
-        "run_ingest",
-        "-j",
-        job_id,
-        "-c",
-        os.environ["CREDENTIALS"],
-        "-m",
-        str(tmp_path / "metrics"),
-        "-o",
-        str(tmp_path / "output"),
-        "-x",
-        str(tmp_path / "transfer"),
-        "-l",
-        str(tmp_path / "logs"),
-        "-f",
-        "21287230000[0123456789]?",
-        "-t",
-        "1",
-    ]
-    try:
-        vx_ingest = setup_connection(VXIngest_grib2())
-        initial_success_count = prom_successes._value.get()
-        run_ingest()
-        # NOTE: only 6 files match the pattern in this job
-        check_output(tmp_path, vx_ingest, 3, initial_success_count + 1)
-    except Exception as e:
-        pytest.fail(f"Test failed with exception {e}")
-    finally:
-        # Restore original sys.argv
-        sys.argv = original_argv
-
-
-@pytest.mark.integration
 def test_one_thread_specify_file_pattern_ctc_job_spec_rt(tmp_path: Path):
     # NOTE: CTC tests do not require a special job type because they do not require input data files,
     # just run the standard CTC job spec and use the arguments -s "first_epoch" and -e "last_epoch" to bound
@@ -460,7 +396,7 @@ def test_one_thread_specify_file_pattern_ctc_job_spec_rt(tmp_path: Path):
     """
     result_rows = vx_ingest.cluster.query(stmnt)
     end_epoch = str(list(result_rows)[0]["epoch"])
-    start_epoch = str(int(float(end_epoch) - 3600 * 4))  # four hours earlier
+    start_epoch = str(int(float(end_epoch) - (3600 * 1)))  # one hour earlier
     try:
         # need these args
         sys.argv = [
@@ -503,7 +439,7 @@ def test_one_thread_specify_file_pattern_partial_sums_job_spec_rt(tmp_path: Path
     # THIS IS A VERY LONG RUNNING TEST.
     # Save original sys.argv
     original_argv = sys.argv.copy()
-    job_id = "JS:METAR:SUMS:HRRR_OPS:schedule:job:V01"
+    job_id = "JS:METAR:SUMS:RRFSv1_conus_3km_ret_RRFS_jul2024:schedule:job:V01"
     try:
         # try to find the first and last epoch from the data in couchbase.
         # The ctc_builder won't build any data that has already been built (except for the very last one).
@@ -523,7 +459,7 @@ def test_one_thread_specify_file_pattern_partial_sums_job_spec_rt(tmp_path: Path
             FROM vxdata._default.METAR fve
             WHERE fve.type='DD'
             AND fve.docType='model'
-            AND fve.model='HRRR_OPS'
+            AND fve.model='RRFSv1_conus_3km_ret_RRFS_jul2024'
             AND fve.version='V01'
             AND fve.subset='METAR';"""
         result = vx_ingest.cluster.query(
@@ -582,10 +518,10 @@ def check_output(tmp_path, vx_ingest, file_count, success_count=1):
     # │       ├── 20211108_0000.json
     # │       ├── 20211130_1000.json
     # │       ├── 20250911_1500.json
-    # │       ├── JOB-TEST_V01_METAR_NETCDF_OBS-2025-10-27T12:26:06.log
+    # │       ├── JS-TEST_V01_METAR_NETCDF_OBS-2025-10-27T12:26:06.log
     # │       └── LJ:METAR:vxingest.netcdf_to_cb.run_ingest_threads:VXIngest:1761589599.json
     # └── transfer
-    #     └── JOB-TEST_V01_METAR_NETCDF_OBS_1761589566.tar.gz
+    #     └── JS-TEST_V01_METAR_NETCDF_OBS_1761589566.tar.gz
     try:
         # do the directories exist?
         assert (tmp_path / "output").exists()

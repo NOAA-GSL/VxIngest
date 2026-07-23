@@ -1,11 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/couchbase/gocb/v2"
 )
@@ -15,11 +17,37 @@ func init() {
 	log.Println("template-queries:init()")
 }
 
+func readSQLTemplate(name string) ([]byte, error) {
+	candidates := []string{filepath.Join("sqls", name)}
+
+	if exePath, err := os.Executable(); err == nil {
+		candidates = append(candidates, filepath.Join(filepath.Dir(exePath), "sqls", name))
+	}
+	if _, sourcePath, _, ok := runtime.Caller(0); ok {
+		candidates = append(candidates, filepath.Join(filepath.Dir(sourcePath), "sqls", name))
+	}
+
+	var lastErr error
+	seen := map[string]struct{}{}
+	for _, candidate := range candidates {
+		if _, ok := seen[candidate]; ok {
+			continue
+		}
+		seen[candidate] = struct{}{}
+
+		fileContent, err := os.ReadFile(candidate)
+		if err == nil {
+			return fileContent, nil
+		}
+		lastErr = err
+	}
+
+	return nil, fmt.Errorf("unable to read SQL template %q: %w", name, lastErr)
+}
+
 func getModels(conn CbConnection, dataset string, app string, doctype string, subDocType string) (jsonOut []string) {
 	log.Println("getModels(" + dataset + "," + app + "," + doctype + "," + subDocType + ")")
-	start := time.Now()
-
-	fileContent, err := os.ReadFile("sqls/getModels.sql")
+	fileContent, err := readSQLTemplate("getModels.sql")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -29,16 +57,12 @@ func getModels(conn CbConnection, dataset string, app string, doctype string, su
 	tmplGetModelsSQL = strings.Replace(tmplGetModelsSQL, "{{vxSUBDOCTYPE}}", subDocType, -1)
 
 	models_requiring_metadata := queryWithSQLStringSA(conn.Scope, tmplGetModelsSQL)
-
-	log.Printf("\tin %v\n", time.Since(start))
 	return models_requiring_metadata
 }
 
 func getModelsNoData(conn CbConnection, dataset string, app string, doctype string, subDocType string) (jsonOut []string) {
 	log.Println("getModelsNoData(" + dataset + "," + app + "," + doctype + "," + subDocType + ")")
-	start := time.Now()
-
-	fileContent, err := os.ReadFile("sqls/getModelsNoData.sql")
+	fileContent, err := readSQLTemplate("getModelsNoData.sql")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -48,23 +72,18 @@ func getModelsNoData(conn CbConnection, dataset string, app string, doctype stri
 	tmplgetModelsNoDataSQL = strings.Replace(tmplgetModelsNoDataSQL, "{{vxAPP}}", app, -1)
 	tmplgetModelsNoDataSQL = strings.Replace(tmplgetModelsNoDataSQL, "{{vxSUBDOCTYPE}}", doctype, -1)
 	models_with_metatada_but_no_data := queryWithSQLStringSA(conn.Scope, tmplgetModelsNoDataSQL)
-
-	log.Printf("\tin %v\n", time.Since(start))
 	return models_with_metatada_but_no_data
 }
 
 func removeMetadataForModelsWithNoData(conn CbConnection, dataset string, app string, doctype string, subDocType string, models_with_metatada_but_no_data []string) {
 	log.Println("removeMetadataForModelsWithNoData(" + dataset + "," + app + "," + doctype + "," + subDocType + ")")
-	start := time.Now()
-
-	fileContent, err := os.ReadFile("sqls/deleteModelMetadata.sql")
+	fileContent, err := readSQLTemplate("deleteModelMetadata.sql")
 	if err != nil {
 		log.Fatal(err)
 	}
 	tmplDeleteModelMetadataSQL := string(fileContent)
 	tmplDeleteModelMetadataSQL = strings.Replace(tmplDeleteModelMetadataSQL, "{{vxDBTARGET}}", conn.vxDBTARGET, -1)
 	tmplDeleteModelMetadataSQL = strings.Replace(tmplDeleteModelMetadataSQL, "{{vxAPP}}", doctype, -1)
-
 	for i := 0; i < len(models_with_metatada_but_no_data); i++ {
 		delModelSQL := strings.Replace(tmplDeleteModelMetadataSQL, "{{vxMODEL}}", models_with_metatada_but_no_data[i], 1)
 		log.Println("delModelSQL:\n" + delModelSQL)
@@ -78,14 +97,11 @@ func removeMetadataForModelsWithNoData(conn CbConnection, dataset string, app st
 			printQueryResult(queryResult)
 		}
 	}
-	log.Printf("\tin %v\n", time.Since(start))
 }
 
 func getModelsWithExistingMetadata(conn CbConnection, dataset string, app string, doctype string, subDocType string) (jsonOut []string) {
 	log.Println("getModelsWithExistingMetadata(" + dataset + "," + app + "," + doctype + "," + subDocType + ")")
-	start := time.Now()
-
-	fileContent, err := os.ReadFile("sqls/getModelsWithMetadata.sql")
+	fileContent, err := readSQLTemplate("getModelsWithMetadata.sql")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -94,15 +110,12 @@ func getModelsWithExistingMetadata(conn CbConnection, dataset string, app string
 	tmplgetModelsWithMetadataSQL = strings.Replace(tmplgetModelsWithMetadataSQL, "{{vxAPP}}", app, -1)
 
 	models_with_existing_metadata := queryWithSQLStringSA(conn.Scope, tmplgetModelsWithMetadataSQL)
-	log.Printf("\tin %v\n", time.Since(start))
 	return models_with_existing_metadata
 }
 
 func initializeMetadataForModel(conn CbConnection, dataset string, app string, doctype string, subDocType string, model string) {
 	log.Println("initializeMetadataForModel(" + dataset + "," + app + "," + doctype + "," + subDocType + "," + model + ")")
-	start := time.Now()
-
-	fileContent, err := os.ReadFile("sqls/initializeMetadata.sql")
+	fileContent, err := readSQLTemplate("initializeMetadata.sql")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -119,14 +132,11 @@ func initializeMetadataForModel(conn CbConnection, dataset string, app string, d
 	} else {
 		printQueryResult(queryResult)
 	}
-	log.Printf("\tin %v\n", time.Since(start))
 }
 
 func getDistinctDataKeys(conn CbConnection, dataset string, app string, doctype string, subDocType string, model string) (rv []string) {
 	log.Println("getDistinctDataKeys(" + dataset + "," + app + "," + doctype + "," + subDocType + "," + model + ")")
-	start := time.Now()
-
-	fileContent, err := os.ReadFile("sqls/getDistinctDataKeys.sql")
+	fileContent, err := readSQLTemplate("getDistinctDataKeys.sql")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -137,22 +147,18 @@ func getDistinctDataKeys(conn CbConnection, dataset string, app string, doctype 
 	tmplSQL = strings.Replace(tmplSQL, "{{vxMODEL}}", model, -1)
 	log.Println(tmplSQL)
 	result := queryWithSQLStringMAP(conn.Scope, tmplSQL)
-
 	// Convert []interface{} to []string
 	for _, v := range result {
 		if str, ok := v.(string); ok {
 			rv = append(rv, str)
 		}
 	}
-	log.Printf("\tin %v\n", time.Since(start))
 	return rv
 }
 
 func getDistinctFcstLen(conn CbConnection, dataset string, app string, doctype string, subDocType string, model string) (rv []int) {
 	log.Println("getDistinctFcstLen(" + dataset + "," + app + "," + doctype + "," + subDocType + "," + model + ")")
-	start := time.Now()
-
-	fileContent, err := os.ReadFile("sqls/getDistinctFcstLen.sql")
+	fileContent, err := readSQLTemplate("getDistinctFcstLen.sql")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -161,17 +167,13 @@ func getDistinctFcstLen(conn CbConnection, dataset string, app string, doctype s
 	tmplSQL = strings.Replace(tmplSQL, "{{vxDOCTYPE}}", doctype, -1)
 	tmplSQL = strings.Replace(tmplSQL, "{{vxSUBDOCTYPE}}", subDocType, -1)
 	tmplSQL = strings.Replace(tmplSQL, "{{vxMODEL}}", model, -1)
-
 	result := queryWithSQLStringIA(conn.Scope, tmplSQL)
-	log.Printf("\tin %v\n", time.Since(start))
 	return result
 }
 
 func getDistinctRegion(conn CbConnection, dataset string, app string, doctype string, subDocType string, model string) (rv []string) {
 	log.Println("getDistinctRegion(" + dataset + "," + app + "," + doctype + "," + subDocType + "," + model + ")")
-	start := time.Now()
-
-	fileContent, err := os.ReadFile("sqls/getDistinctRegion.sql")
+	fileContent, err := readSQLTemplate("getDistinctRegion.sql")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -180,17 +182,13 @@ func getDistinctRegion(conn CbConnection, dataset string, app string, doctype st
 	tmplSQL = strings.Replace(tmplSQL, "{{vxDOCTYPE}}", doctype, -1)
 	tmplSQL = strings.Replace(tmplSQL, "{{vxSUBDOCTYPE}}", subDocType, -1)
 	tmplSQL = strings.Replace(tmplSQL, "{{vxMODEL}}", model, -1)
-
 	result := queryWithSQLStringSA(conn.Scope, tmplSQL)
-	log.Printf("\tin %v\n", time.Since(start))
 	return result
 }
 
 func getDistinctDisplayText(conn CbConnection, dataset string, app string, doctype string, subDocType string, model string) (rv []string) {
 	log.Println("getDistinctDisplayText(" + dataset + "," + app + "," + doctype + "," + subDocType + "," + model + ")")
-	start := time.Now()
-
-	fileContent, err := os.ReadFile("sqls/getDistinctDisplayText.sql")
+	fileContent, err := readSQLTemplate("getDistinctDisplayText.sql")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -199,17 +197,13 @@ func getDistinctDisplayText(conn CbConnection, dataset string, app string, docty
 	tmplSQL = strings.Replace(tmplSQL, "{{vxDOCTYPE}}", doctype, -1)
 	tmplSQL = strings.Replace(tmplSQL, "{{vxSUBDOCTYPE}}", subDocType, -1)
 	tmplSQL = strings.Replace(tmplSQL, "{{vxMODEL}}", model, -1)
-
 	result := queryWithSQLStringSA(conn.Scope, tmplSQL)
-	log.Printf("\tin %v\n", time.Since(start))
 	return result
 }
 
 func getDistinctDisplayCategory(conn CbConnection, dataset string, app string, doctype string, subDocType string, model string) (rv []int) {
 	log.Println("getDistinctDisplayCategory(" + dataset + "," + app + "," + doctype + "," + subDocType + "," + model + ")")
-	start := time.Now()
-
-	fileContent, err := os.ReadFile("sqls/getDistinctDisplayCategory.sql")
+	fileContent, err := readSQLTemplate("getDistinctDisplayCategory.sql")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -218,17 +212,13 @@ func getDistinctDisplayCategory(conn CbConnection, dataset string, app string, d
 	tmplSQL = strings.Replace(tmplSQL, "{{vxDOCTYPE}}", doctype, -1)
 	tmplSQL = strings.Replace(tmplSQL, "{{vxSUBDOCTYPE}}", subDocType, -1)
 	tmplSQL = strings.Replace(tmplSQL, "{{vxMODEL}}", model, -1)
-
 	result := queryWithSQLStringIA(conn.Scope, tmplSQL)
-	log.Printf("\tin %v\n", time.Since(start))
 	return result
 }
 
 func getDistinctDisplayOrder(conn CbConnection, dataset string, app string, doctype string, subDocType string, model string, mindx int) (rv []int) {
 	log.Println("getDistinctDisplayOrder(" + dataset + "," + app + "," + doctype + "," + subDocType + "," + model + ")")
-	start := time.Now()
-
-	fileContent, err := os.ReadFile("sqls/getDistinctDisplayOrder.sql")
+	fileContent, err := readSQLTemplate("getDistinctDisplayOrder.sql")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -238,17 +228,13 @@ func getDistinctDisplayOrder(conn CbConnection, dataset string, app string, doct
 	tmplSQL = strings.Replace(tmplSQL, "{{vxSUBDOCTYPE}}", subDocType, -1)
 	tmplSQL = strings.Replace(tmplSQL, "{{vxMODEL}}", model, -1)
 	tmplSQL = strings.Replace(tmplSQL, "{{mindx}}", strconv.Itoa(mindx), -1)
-
 	result := queryWithSQLStringIA(conn.Scope, tmplSQL)
-	log.Printf("\tin %v\n", time.Since(start))
 	return result
 }
 
 func getMinMaxCountFloor(conn CbConnection, dataset string, app string, doctype string, subDocType string, model string) (jsonOut []interface{}) {
 	log.Println("getMinMaxCountFloor(" + dataset + "," + app + "," + doctype + "," + subDocType + "," + model + ")")
-	start := time.Now()
-
-	fileContent, err := os.ReadFile("sqls/getMinMaxCountFloor.sql")
+	fileContent, err := readSQLTemplate("getMinMaxCountFloor.sql")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -257,8 +243,6 @@ func getMinMaxCountFloor(conn CbConnection, dataset string, app string, doctype 
 	tmplSQL = strings.Replace(tmplSQL, "{{vxDOCTYPE}}", doctype, -1)
 	tmplSQL = strings.Replace(tmplSQL, "{{vxSUBDOCTYPE}}", subDocType, -1)
 	tmplSQL = strings.Replace(tmplSQL, "{{vxMODEL}}", model, -1)
-
 	result := queryWithSQLStringMAP(conn.Scope, tmplSQL)
-	log.Printf("\tin %v\n", time.Since(start))
 	return result
 }

@@ -3,6 +3,7 @@ _test for VxIngest SUMS builders
 """
 
 import json
+import math
 import os
 import time
 from datetime import datetime, timedelta
@@ -242,73 +243,18 @@ def test_ps_builder_surface_hrrr_ops_all_hrrr():
     global stations
 
     credentials_file = os.environ["CREDENTIALS"]
-    job_id = "JOB-TEST:V01:METAR:PARTIAL_SUMS:SURFACE:MODEL:OPS"
+    id = "HRRR_OPS_conus_3km_TEST"
+    job_id = "JS:METAR:SUMS:HRRR_OPS_conus_3km_TEST:schedule:job:V01"
     outdir = Path("/opt/data/test/partial_sums_to_cb/hrrr_ops/sums/output")
-    if not outdir.exists():
-        # Create a new directory because it does not exist
-        outdir.mkdir(parents=True)
-    files = outdir.glob("*.json")
-    for _f in files:
-        Path(_f).unlink()
-    log_queue = Queue()
-    vx_ingest = setup_connection()
-    job = vx_ingest.common_collection.get(job_id).content_as[dict]
-    latest_epoch = get_latest_model_obs_epoch(vx_ingest, "METAR", "HRRR_OPS")
-    config = {
-        "job_id": job_id,
-        "credentials_file": credentials_file,
-        "ingest_document_ids": job["ingest_document_ids"],
-        "collection": job["subset"],
-        "input_data_path": "",
-        "file_mask": "",
-        "output_dir": str(outdir),
-        "file_pattern": "",
-        "start_epoch": latest_epoch,
-        "end_epoch": latest_epoch,
-        "threads": 1,
-    }
-
-    # These SUM's might already have been ingested in which case this won't do anything.
-    vx_ingest.runit(
-        config,
-        log_queue,
-        stub_worker_log_configurer,
+    model = "HRRR_OPS"
+    return _run_sums_builder_test(
+        credentials_file=credentials_file,
+        id=id,
+        job_id=job_id,
+        outdir=outdir,
+        model=model,
+        region="ALL_HRRR",
     )
-
-    list_of_output_files = outdir.glob("*")
-    # latest_output_file = max(list_of_output_files, key=os.path.getctime)
-    latest_output_file = min(list_of_output_files, key=os.path.getctime)
-
-    # Opening JSON file
-    with Path(latest_output_file).open(encoding="utf-8") as output_file:
-        # returns JSON object as a dictionary
-        vx_ingest_output_data = json.load(output_file)
-    # if this is an LJ document then the SUMS's were already ingested
-    # and the test should stop here
-    if vx_ingest_output_data[0]["type"] == "LJ":
-        return
-    # get the last fcstValidEpochs
-    fcst_valid_epochs = {doc["fcstValidEpoch"] for doc in vx_ingest_output_data}
-    # take a fcstValidEpoch in the middle of the list
-    fcst_valid_epoch = list(fcst_valid_epochs)[int(len(fcst_valid_epochs) / 2)]
-    # get all the documents that have the chosen fcstValidEpoch
-    docs = [
-        _doc
-        for _doc in vx_ingest_output_data
-        if _doc["fcstValidEpoch"] == fcst_valid_epoch
-    ]
-    # get all the fcstLens for those docs
-    fcst_lens = []
-    for _elem in docs:
-        fcst_lens.append(_elem["fcstLen"])
-
-    for _i in fcst_lens:
-        _elem = None
-        # find the document for this fcst_len
-        for _elem in docs:
-            if _elem["fcstLen"] == _i:
-                break
-        assert _elem is not None, "fcstLen not found in output"
 
 
 @pytest.mark.integration
@@ -319,7 +265,7 @@ def test_ps_builder_surface_mpas_physics_dev1_all_hrrr():
     By default it will build all unbuilt SUMS objects and put them into the output folder.
     Then it takes the last output json file and loads that file.
     Then the test derives the same SUMS.
-    It calculates the Partial using couchbase data for input.
+    It calculates the Partial Sums using couchbase data for input.
     Then the couchbase SUMS fcstValidEpochs are compared and asserted against the derived SUMS.
     """
 
@@ -327,39 +273,88 @@ def test_ps_builder_surface_mpas_physics_dev1_all_hrrr():
     global stations
 
     credentials_file = os.environ["CREDENTIALS"]
-    job_id = "JOB-TEST:V01:METAR:PARTIAL_SUMS:SURFACE:MPAS_physics_dev1:MODEL:OPS"
+    job_id = "JS:METAR:SUMS:MPAS_conus_3km_MPAS_physics_dev1-TEST:schedule:job:V01"
     outdir = Path("/opt/data/test/partial_sums_to_cb/mpas_physics_dev1/sums/output")
-    if not outdir.exists():
-        # Create a new directory because it does not exist
-        outdir.mkdir(parents=True)
-    files = outdir.glob("*.json")
-    for _f in files:
-        Path(_f).unlink()
-    log_queue = Queue()
-    vx_ingest = setup_connection()
-    job = vx_ingest.common_collection.get(job_id).content_as[dict]
-    latest_epoch = get_latest_model_obs_epoch(vx_ingest, "METAR", "MPAS_physics_dev1")
-    config = {
-        "job_id": job_id,
-        "credentials_file": credentials_file,
-        "ingest_document_ids": job["ingest_document_ids"],
-        "collection": job["subset"],
-        "input_data_path": "",
-        "file_mask": "",
-        "output_dir": str(outdir),
-        "file_pattern": "",
-        "start_epoch": latest_epoch,
-        "end_epoch": latest_epoch,
-        "threads": 1,
-    }
+    id = "mpas_physics_dev1"
+    model = "MPAS_physics_dev1"
 
-    # These SUM's might already have been ingested in which case this won't do anything.
-    vx_ingest.runit(
-        config,
-        log_queue,
-        stub_worker_log_configurer,
+    return _run_sums_builder_test(
+        credentials_file=credentials_file,
+        id=id,
+        job_id=job_id,
+        outdir=outdir,
+        model=model,
+        region="ALL_HRRR",
     )
 
+
+def _run_sums_builder_test(credentials_file, id, job_id, outdir, model, region):
+    if not outdir.exists():
+        outdir.mkdir(parents=True)
+    for _f in outdir.glob("*.json"):
+        Path(_f).unlink()
+    print(f"Running SUMS builder test with ID: {id}")
+    log_queue = Queue()
+    vx_ingest = setup_connection()
+    with Path(credentials_file).open(encoding="utf-8") as _f:
+        yaml_data = yaml.load(_f, yaml.SafeLoader)
+    _host = yaml_data["cb_host"]
+    _user = yaml_data["cb_user"]
+    _password = yaml_data["cb_password"]
+    _bucket = yaml_data["cb_bucket"]
+    _collection = yaml_data["cb_collection"]
+    _scope = yaml_data["cb_scope"]
+
+    timeout_options = ClusterTimeoutOptions(
+        kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
+    )
+    options = ClusterOptions(
+        PasswordAuthenticator(_user, _password), timeout_options=timeout_options
+    )
+    cluster = Cluster(_host, options)
+
+    result = cluster.query(
+        f"""SELECT RAW fcstValidEpoch
+        FROM `{_bucket}`.{_scope}.{_collection}
+        WHERE type="DD"
+            AND docType="SUMS"
+            AND subDocType = "SURFACE"
+            AND model='{model}'
+            AND region='{region}'
+            AND version='V01'
+            AND subset='{_collection}'"""
+    )
+    ps_fcst_valid_epochs = list(result)
+    assert ps_fcst_valid_epochs, (
+        f"No SUMS fcstValidEpoch values found for model={model}, region={region}"
+    )
+    fcst_valid_epoch = ps_fcst_valid_epochs[-1]
+
+    job = vx_ingest.runtime_collection.get(job_id).content_as[dict]
+
+    ingest_document_sets = []
+    job_doc = vx_ingest.runtime_collection.get(job_id).content_as[dict]
+    for process_spec_id in job_doc.get("processSpecIds"):
+        proc = vx_ingest.runtime_collection.get(process_spec_id).content_as[dict]
+        ingest_document_sets.append(proc.get("ingestDocumentIds"))
+
+    for ingest_document_ids in ingest_document_sets:
+        config = {
+            "job_id": job_id,
+            "credentials_file": credentials_file,
+            "ingest_document_ids": ingest_document_ids,
+            "collection": job["subset"],
+            "input_data_path": "",
+            "file_mask": "",
+            "output_dir": str(outdir),
+            "file_pattern": "",
+            "start_epoch": fcst_valid_epoch,
+            "end_epoch": fcst_valid_epoch,
+            "threads": 1,
+        }
+        print(f"Running ingest with config: {config}")
+        vx_ingest.runit(config, log_queue, stub_worker_log_configurer)
+        print(f"Processed ingest document IDs: {ingest_document_ids}")
     list_of_output_files = outdir.glob("*")
     # latest_output_file = max(list_of_output_files, key=os.path.getctime)
     latest_output_file = min(list_of_output_files, key=os.path.getctime)
@@ -406,201 +401,183 @@ def test_ps_surface_data_hrrr_ops_all_hrrr():
     corrctly.
     """
 
-    credentials_file = os.environ["CREDENTIALS"]
-    assert Path(credentials_file).is_file(), "credentials_file Does not exist"
-    with Path(credentials_file).open(encoding="utf-8") as _f:
-        yaml_data = yaml.load(_f, yaml.SafeLoader)
-    _host = yaml_data["cb_host"]
-    _user = yaml_data["cb_user"]
-    _password = yaml_data["cb_password"]
-    _bucket = yaml_data["cb_bucket"]
-    _collection = yaml_data["cb_collection"]
-    _scope = yaml_data["cb_scope"]
-
-    timeout_options = ClusterTimeoutOptions(
-        kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
+    _calculate_and_compare_sums(
+        job_id="JS:METAR:SUMS:RRFSv1_conus_3km_ret_RRFS_jul2024:schedule:job:V01",
+        region="ALL_HRRR",
+        model="RRFSv1_conus_3km_ret_RRFS_jul2024",
     )
-    options = ClusterOptions(
-        PasswordAuthenticator(_user, _password), timeout_options=timeout_options
-    )
-    cluster = Cluster(_host, options)
-    # get available fcstValidEpochs for couchbase
-
-    result = cluster.query(
-        f"""SELECT RAW fcstValidEpoch
-        FROM `{_bucket}`.{_scope}.{_collection}
-        WHERE type="DD"
-            AND docType="SUMS"
-            AND subDocType = "SURFACE"
-            AND model='HRRR_OPS'
-            AND region='ALL_HRRR'
-            AND version='V01'
-            AND subset='{_collection}'"""
-    )
-    ps_fcst_valid_epochs = list(result)
-    # if len(ps_fcst_valid_epochs) == 0:
-    #    assert False, "There is no data"
-    # choose the last one
-    fcst_valid_epoch = []
-    if len(ps_fcst_valid_epochs) > 0:
-        fcst_valid_epoch = ps_fcst_valid_epochs[-1]
-    # get all the cb fcstLen values
-    result = cluster.query(
-        f"""SELECT raw fcstLen
-        FROM `{_bucket}`.{_scope}.{_collection}
-        WHERE type='DD'
-            AND docType = "SUMS"
-            AND subDocType = "SURFACE"
-            AND model='HRRR_OPS'
-            AND region='ALL_HRRR'
-            AND version='V01'
-            AND subset='{_collection}'
-            AND fcstValidEpoch = {fcst_valid_epoch}
-            order by fcstLen
-        """
-    )
-    ps_fcst_valid_lens = list(result)
-    # get the associated couchbase model data
-    # get the associated couchbase obs
-    # get the SUMS couchbase data
-    result = cluster.query(
-        f"""
-        SELECT *
-        FROM `{_bucket}`.{_scope}.{_collection}
-        WHERE type='DD'
-            AND docType = "SUMS"
-            AND subDocType = "SURFACE"
-            AND model='HRRR_OPS'
-            AND region='ALL_HRRR'
-            AND version='V01'
-            AND subset='{_collection}'
-            AND fcstValidEpoch = {fcst_valid_epoch}
-            AND fcstLen IN {ps_fcst_valid_lens}
-            order by fcstLen;
-        """
-    )
-    cb_results = list(result)
-    # print the couchbase statement
-    print(
-        "cb statement is:"
-        + f"""
-        SELECT *
-        FROM `{_bucket}`.{_scope}.{_collection}
-        WHERE type='DD'
-            AND docType = "SUMS"
-            AND subDocType = "SURFACE"
-            AND model='HRRR_OPS'
-            AND region='ALL_HRRR'
-            AND version='V01'
-            AND subset='{_collection}'
-            AND fcstValidEpoch = {fcst_valid_epoch}
-            AND fcstLen IN {ps_fcst_valid_lens}
-            order by fcstLen;"""
-    )
-    for _cb_ps in cb_results:
-        print(f"do something {_cb_ps}")
 
 
-@pytest.mark.integration
-def test_ps_surface_data_mpas_physics_dev1_ops_all_hrrr():
-    """
-    This test is a comprehensive test of the partialSumsBuilder data. It will retrieve SUMS documents
-    for a specific fcstValidEpoch from couchbase and calculate the SUM's for the same fcstValidEpoch.
-    It then compares the data with assertions. The intent is to
-    demonstrate that the data transformation from input model obs pairs is being done
-    corrctly.
-    """
+def _calculate_and_compare_sums(job_id, region, model):
+    # Implement the logic to calculate and compare the partial sums with the couchbase data
+    # Generate partial sums data using the builder.build_document directly. This data should match what is in
+    # the database already unless something has changed in the builder code.
+    try:
+        credentials_file = os.environ["CREDENTIALS"]
+        assert Path(credentials_file).is_file(), "credentials_file Does not exist"
+        with Path(credentials_file).open(encoding="utf-8") as _f:
+            yaml_data = yaml.load(_f, yaml.SafeLoader)
+        _host = yaml_data["cb_host"]
+        _user = yaml_data["cb_user"]
+        _password = yaml_data["cb_password"]
+        _bucket = yaml_data["cb_bucket"]
+        _collection = yaml_data["cb_collection"]
+        _scope = yaml_data["cb_scope"]
 
-    credentials_file = os.environ["CREDENTIALS"]
-    assert Path(credentials_file).is_file(), "credentials_file Does not exist"
-    with Path(credentials_file).open(encoding="utf-8") as _f:
-        yaml_data = yaml.load(_f, yaml.SafeLoader)
-    _host = yaml_data["cb_host"]
-    _user = yaml_data["cb_user"]
-    _password = yaml_data["cb_password"]
-    _bucket = yaml_data["cb_bucket"]
-    _collection = yaml_data["cb_collection"]
-    _scope = yaml_data["cb_scope"]
+        timeout_options = ClusterTimeoutOptions(
+            kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
+        )
+        options = ClusterOptions(
+            PasswordAuthenticator(_user, _password), timeout_options=timeout_options
+        )
+        cluster = Cluster(_host, options)
 
-    timeout_options = ClusterTimeoutOptions(
-        kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
-    )
-    options = ClusterOptions(
-        PasswordAuthenticator(_user, _password), timeout_options=timeout_options
-    )
-    cluster = Cluster(_host, options)
-    # get available fcstValidEpochs for couchbase
+        result = cluster.query(
+            f"""SELECT fcstValidEpoch AS fcstValidEpoch
+            FROM `{_bucket}`.{_scope}.{_collection}
+            WHERE type="DD"
+                AND docType="SUMS"
+                AND subDocType = "SURFACE"
+                AND model='{model}'
+                AND region='{region}'
+                AND version='V01'
+                AND subset='{_collection}'"""
+        )
+        ps_fcst_valid_data = list(result)
+        assert ps_fcst_valid_data, (
+            f"No SUMS ps_fcst_valid_data values found for model={model}, region={region}"
+        )
+        fcst_valid_epoch = ps_fcst_valid_data[(len(ps_fcst_valid_data) - 1) // 2][
+            "fcstValidEpoch"
+        ]
+        result = cluster.query(
+            f"""SELECT fcstLen AS fcstLen
+            FROM `{_bucket}`.{_scope}.{_collection}
+            WHERE type="DD"
+                AND docType="SUMS"
+                AND subDocType = "SURFACE"
+                AND model='{model}'
+                AND region='{region}'
+                AND version='V01'
+                AND subset='{_collection}'
+                AND fcstValidEpoch = {fcst_valid_epoch}"""
+        )
+        ps_fcst_valid_data = list(result)
+        fcstLen = ps_fcst_valid_data[(len(ps_fcst_valid_data) - 1) // 2]["fcstLen"]
 
-    result = cluster.query(
-        f"""SELECT RAW fcstValidEpoch
-        FROM `{_bucket}`.{_scope}.{_collection}
-        WHERE type="DD"
-            AND docType="SUMS"
-            AND subDocType = "SURFACE"
-            AND model='MPAS_physics_dev1'
-            AND region='ALL_HRRR'
-            AND version='V01'
-            AND subset='{_collection}'"""
-    )
-    ps_fcst_valid_epochs = list(result)
-    # if len(ps_fcst_valid_epochs) == 0:
-    #    assert False, "There is no data"
-    # choose the last one
-    fcst_valid_epoch = []
-    if len(ps_fcst_valid_epochs) > 0:
-        fcst_valid_epoch = ps_fcst_valid_epochs[-1]
-    # get all the cb fcstLen values
-    result = cluster.query(
-        f"""SELECT raw fcstLen
-        FROM `{_bucket}`.{_scope}.{_collection}
-        WHERE type='DD'
-            AND docType = "SUMS"
-            AND subDocType = "SURFACE"
-            AND model='MPAS_physics_dev1'
-            AND region='ALL_HRRR'
-            AND version='V01'
-            AND subset='{_collection}'
-            AND fcstValidEpoch = {fcst_valid_epoch}
-            order by fcstLen
-        """
-    )
-    ps_fcst_valid_lens = list(result)
-    # get the associated couchbase model data
-    # get the associated couchbase obs
-    # get the SUMS couchbase data
-    result = cluster.query(
-        f"""
-        SELECT *
-        FROM `{_bucket}`.{_scope}.{_collection}
-        WHERE type='DD'
-            AND docType = "SUMS"
-            AND subDocType = "SURFACE"
-            AND model='MPAS_physics_dev1'
-            AND region='ALL_HRRR'
-            AND version='V01'
-            AND subset='{_collection}'
-            AND fcstValidEpoch = {fcst_valid_epoch}
-            AND fcstLen IN {ps_fcst_valid_lens}
-            order by fcstLen;
-        """
-    )
-    cb_results = list(result)
-    # print the couchbase statement
-    print(
-        "cb statement is:"
-        + f"""
-        SELECT *
-        FROM `{_bucket}`.{_scope}.{_collection}
-        WHERE type='DD'
-            AND docType = "SUMS"
-            AND subDocType = "SURFACE"
-            AND model='MPAS_physics_dev1'
-            AND region='ALL_HRRR'
-            AND version='V01'
-            AND subset='{_collection}'
-            AND fcstValidEpoch = {fcst_valid_epoch}
-            AND fcstLen IN {ps_fcst_valid_lens}
-            order by fcstLen;"""
-    )
-    for _cb_ps in cb_results:
-        print(f"do something {_cb_ps}")
+        result = cluster.query(
+            f"""
+            SELECT m.id AS id, m.data AS data
+            FROM `{_bucket}`.{_scope}.{_collection} m
+            WHERE m.type='DD'
+                AND m.docType = "SUMS"
+                AND m.subDocType = "SURFACE"
+                AND m.model='{model}'
+                AND m.region='{region}'
+                AND m.version='V01'
+                AND m.subset='{_collection}'
+                AND m.fcstValidEpoch = {fcst_valid_epoch}
+                AND m.fcstLen = {fcstLen}
+                ORDER BY m.fcstLen;
+            """
+        )
+        cb_results = list(result)
+        assert cb_results, (
+            f"No SUMS documents found for model={model}, region={region}, fcstValidEpoch={fcst_valid_epoch}"
+        )
+
+        vx_ingest = setup_connection()
+        ingest_document_ids = []
+        job_doc = vx_ingest.runtime_collection.get(job_id).content_as[dict]
+        for process_spec_id in job_doc.get("processSpecIds"):
+            proc = vx_ingest.runtime_collection.get(process_spec_id).content_as[dict]
+            ingest_document_ids.extend(proc.get("ingestDocumentIds"))
+        ingest_documents = {}
+        for ingest_document_id in ingest_document_ids:
+            ingest_documents[ingest_document_id] = vx_ingest.runtime_collection.get(
+                ingest_document_id
+            ).content_as[dict]
+        load_spec = {
+            "cb_credentials": vx_ingest.cb_credentials,
+            "first_last_params": {
+                "first_epoch": fcst_valid_epoch,
+                "last_epoch": fcst_valid_epoch,
+            },
+            "ingest_document_ids": ingest_document_ids,
+            "ingest_documents": ingest_documents,
+            "fmask": None,
+            "input_data_path": None,
+            "load_job_doc": None,
+            "cb_connection": {
+                "bucket": vx_ingest.cb_credentials["bucket"],
+                "scope": vx_ingest.cb_credentials["scope"],
+                "collection": vx_ingest.cb_credentials["collection"],
+            },
+            "cluster": vx_ingest.cluster,
+            "collection": vx_ingest.collection,
+            "common_collection": vx_ingest.common_collection,
+        }
+        builder = partial_sums_builder.PartialSumsSurfaceModelObsBuilderV01(
+            load_spec, ingest_documents[ingest_document_ids[0]]
+        )
+        generated_data = builder.build_document(ingest_document_ids[0])
+        if not generated_data:
+            pytest.fail(
+                f"No generated partial sums data found for ingest_document_id={ingest_document_ids[0]}"
+            )
+        for element in cb_results:
+            cb_data = element["data"]
+            cb_id = element["id"]
+            generated_element_data = generated_data[cb_id]["data"]
+            _compare_partial_sums(generated_element_data, cb_data)
+    except Exception as _e:
+        pytest.fail(f"Exception occurred while processing partial sums: {str(_e)}")
+
+
+def _compare_partial_sums(generated_data, cb_ps):
+    """Compare generated partial sums data with couchbase data"""
+    assert generated_data is not None, "Generated partial sums data should not be None"
+    assert cb_ps is not None, "Couchbase partial sums data should not be None"
+
+    def _assert_same_structure_and_values(expected, actual, path="root"):
+        if isinstance(expected, dict):
+            assert isinstance(actual, dict), (
+                f"Type mismatch at {path}: expected dict, got {type(actual).__name__}"
+            )
+            assert set(expected.keys()) == set(actual.keys()), (
+                f"Key mismatch at {path}: expected keys={sorted(expected.keys())}, "
+                f"actual keys={sorted(actual.keys())}"
+            )
+            for key in expected:
+                _assert_same_structure_and_values(
+                    expected[key], actual[key], f"{path}.{key}"
+                )
+            return
+
+        if isinstance(expected, list):
+            assert isinstance(actual, list), (
+                f"Type mismatch at {path}: expected list, got {type(actual).__name__}"
+            )
+            assert len(expected) == len(actual), (
+                f"Length mismatch at {path}: expected={len(expected)} actual={len(actual)}"
+            )
+            for idx, expected_item in enumerate(expected):
+                _assert_same_structure_and_values(
+                    expected_item, actual[idx], f"{path}[{idx}]"
+                )
+            return
+
+        if isinstance(expected, float) or isinstance(actual, float):
+            assert math.isclose(expected, actual, abs_tol=0.001), (
+                "Generated partial sums do not match Couchbase partial sums "
+                f"at {path} within tolerance 0.001: "
+                f"couchbase={expected!r} generated={actual!r}"
+            )
+            return
+
+        assert expected == actual, (
+            "Generated partial sums do not match Couchbase partial sums "
+            f"at {path}: couchbase={expected!r} generated={actual!r}"
+        )
+
+    _assert_same_structure_and_values(cb_ps, generated_data)

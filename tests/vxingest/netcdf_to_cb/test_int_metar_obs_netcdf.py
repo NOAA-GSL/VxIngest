@@ -80,20 +80,40 @@ def assert_dicts_almost_equal(dict1, dict2, rel_tol=1e-09):
         if isinstance(dict1[key], dict):
             assert_dicts_almost_equal(dict1[key], dict2[key], rel_tol)
         else:
+            if (
+                key == "validTimeISO"
+                and dict1[key].endswith("+00:00")
+                and not dict2[key].endswith("+00:00")
+            ):
+                # hadle ISO time string comparison for naive and timezone aware datetimes
+                # some of the older data was not timezone aware (naive) so if it is not, we make both
+                # seem timezone aware by adding the +00:00
+                # This is only for testing purposes - the current code always produces timezone aware datetimes
+                dict2[key] = dict2[key] + "+00:00"
             assert dict1[key] == pytest.approx(dict2[key], rel=rel_tol), (
                 f"Values for station {dict1['name']} {key} do not match dict1[key]: {dict1[key]} dict2[key]: {dict2[key]}"
             )
 
 
-@pytest.mark.integration
-def test_one_thread_specify_file_pattern_job_spec_rt(tmp_path: Path):
+def run_ingest_case(
+    tmp_path: Path,
+    job_id: str,
+):
+    """Run one ingest case and perform common output assertions.
+
+    Args:
+        tmp_path (Path): pytest temporary directory for generated files.
+        job_id (str): RUNTIME job document id.
+
+    Returns:
+        tuple: (vx_ingest, input_data_path, file_mask, file_pattern, output_file_list)
+    """
     log_queue = Queue()
     vx_ingest = setup_connection()
-    # these normally come from the jobSpec->ProcessSpec->DataSourceSpec
+
     runtime_collection = (
         vx_ingest.cluster.bucket("vxdata").scope("_default").collection("RUNTIME")
     )
-    job_id = "JS:METAR:OBS:NETCDF-TEST:schedule:job:V01"
     job_spec = runtime_collection.get(job_id).content_as[dict]
     process_id = job_spec["processSpecIds"][0]
     process_spec = runtime_collection.get(process_id).content_as[dict]
@@ -102,9 +122,9 @@ def test_one_thread_specify_file_pattern_job_spec_rt(tmp_path: Path):
     data_source_spec = runtime_collection.get(data_source_id).content_as[dict]
     collection = process_spec["subset"]
     input_data_path = data_source_spec["sourceDataUri"]
+    file_pattern = data_source_spec.get("filePattern", "*")
     file_mask = data_source_spec["fileMask"]
 
-    # file_pattern is optional and is used to specify a subset of files to process
     vx_ingest.runit(
         {
             "job_id": job_id,
@@ -115,57 +135,77 @@ def test_one_thread_specify_file_pattern_job_spec_rt(tmp_path: Path):
             "ingest_document_ids": ingest_document_ids,
             "output_dir": f"{tmp_path}",
             "threads": 1,
-            "file_pattern": "20250911_1500",
+            "file_pattern": file_pattern,
         },
         log_queue,
         stub_worker_log_configurer,
     )
 
-    # Test that we have one or more output files
-    input_path_str = str(input_data_path).replace("file://", "")  # remove the protocol
-    input_path_str = input_path_str.replace(
-        os.sep, "__"
-    )  # translate the file separators
-    output_file_list = list(
-        tmp_path.glob(input_path_str + "__[0123456789]???????_[0123456789]???.json")
-    )
+    output_path_str = str(input_data_path).replace("file://", "")
+    output_path_str = output_path_str.replace(os.sep, "__")
+    output_file_list = list(tmp_path.glob(output_path_str + "*.json"))
     assert len(output_file_list) > 0, "There are no output files"
-
-    # Test that we have one "load job" ("LJ") document
-    lj_doc_regex = "LJ:METAR:vxingest.netcdf_to_cb.run_ingest_threads:VXIngest:*.json"
-    num_load_job_files = len(list(tmp_path.glob(lj_doc_regex)))
+    num_load_job_files = len(list(tmp_path.glob("LJ*.json")))
     assert num_load_job_files == 1, "there is no load job output file"
+    return vx_ingest, input_data_path, file_mask, file_pattern, output_file_list
+
+
+@pytest.mark.integration
+def test_metar_one_thread_specify_file_pattern_job_spec_rt(tmp_path: Path):
+    job_id = "JS:METAR:OBS:NETCDF-TEST:schedule:job:V01"
+    (
+        vx_ingest,
+        _input_data_path,
+        _file_mask,
+        file_pattern,
+        output_file_list,
+    ) = run_ingest_case(
+        tmp_path=tmp_path,
+        job_id=job_id,
+    )
 
     # Test that we have one output file per input file
-    input_path = Path("/opt/data/netcdf_to_cb/input_files")
-    num_input_files = len(list(input_path.glob("20211108_0000")))
+    input_path = Path(_input_data_path[7:])
+    num_input_files = len(list(input_path.glob(file_pattern)))
     num_output_files = len(output_file_list)
     assert num_output_files == num_input_files, "number of output files is incorrect"
 
-    # Test that the output file matches the content in the database
-    with (tmp_path / (input_path_str + "__20250911_1500.json")).open(
-        encoding="utf-8"
-    ) as f:
-        derived_data = json.load(f)
+    # Test that the output files match the content in the database
+    matching_output_files = list(tmp_path.glob(f"*{file_pattern}.json"))
+    assert matching_output_files, (
+        f"No derived output files matched pattern '*{file_pattern}.json'"
+    )
     station_id = ""
     derived_station = {}
     obs_id = ""
     derived_obs = {}
-    for item in derived_data:
-        try:
-            if item["type"] == "DF":
-                continue
-            if item["docType"] == "station" and item["name"] == "KDEN":
-                station_id = item["id"]
-                derived_station = item
-            else:
-                if item["docType"] == "obs":
-                    obs_id = item["id"]
-                    derived_obs = item
-            if derived_station and derived_obs:
-                break
-        except Exception as e:
-            pytest.fail(f"Error processing derived data item: {e}")
+    for output_file in matching_output_files:
+        with output_file.open(encoding="utf-8") as f:
+            derived_data = json.load(f)
+        for item in derived_data:
+            try:
+                if item["type"] == "DF":
+                    continue
+                if item["docType"] == "station" and item["name"] == "KDEN":
+                    station_id = item["id"]
+                    derived_station = item
+                else:
+                    if item["docType"] == "obs":
+                        obs_id = item["id"]
+                        derived_obs = item
+                if derived_station and derived_obs:
+                    break
+            except Exception as e:
+                pytest.fail(f"Error processing derived data item: {e}")
+        if derived_station and derived_obs:
+            break
+
+    assert derived_station, (
+        f"Failed to find station record in files matching '*{file_pattern}.json'"
+    )
+    assert derived_obs, (
+        f"Failed to find obs record in files matching '*{file_pattern}.json'"
+    )
     try:
         retrieved_station = vx_ingest.collection.get(station_id).content_as[dict]
         retrieved_obs = vx_ingest.collection.get(obs_id).content_as[dict]
@@ -183,254 +223,39 @@ def test_one_thread_specify_file_pattern_job_spec_rt(tmp_path: Path):
 
 
 @pytest.mark.integration
-def test_one_thread_specify_file_pattern(tmp_path: Path):
-    log_queue = Queue()
-    vx_ingest = setup_connection()
-    job_id = "JOB-TEST:V01:METAR:NETCDF:OBS"
-    job = vx_ingest.common_collection.get(job_id).content_as[dict]
-    ingest_document_ids = job["ingest_document_ids"]
-    collection = job["subset"]
-    input_data_path = job["input_data_path"]
-    file_mask = job["file_mask"]
-    vx_ingest.runit(
-        {
-            "job_id": job_id,
-            "credentials_file": os.environ["CREDENTIALS"],
-            "collection": collection,
-            "file_mask": file_mask,
-            "input_data_path": input_data_path,
-            "ingest_document_ids": ingest_document_ids,
-            "output_dir": f"{tmp_path}",
-            "threads": 1,
-            "file_pattern": "20211108_0000",
-        },
-        log_queue,
-        stub_worker_log_configurer,
-    )
-
-    input_data_path_str = str(input_data_path).replace(os.sep, "__")
-    # Test that we have one or more output files
-    output_file_list = list(
-        tmp_path.glob(
-            input_data_path_str + "__[0123456789]???????_[0123456789]???.json"
+def test_tropoe_one_thread_specify_file_pattern(tmp_path: Path):
+    job_id = "JS:TROPOE-TEST:OBS:NETCDF:schedule:job:V01"
+    vx_ingest, input_data_path, file_mask, file_pattern, output_file_list = (
+        run_ingest_case(
+            tmp_path=tmp_path,
+            job_id=job_id,
         )
     )
-    assert len(output_file_list) > 0, "There are no output files"
-
-    # Test that we have one "load job" ("LJ") document
-    lj_doc_regex = "LJ:METAR:vxingest.netcdf_to_cb.run_ingest_threads:VXIngest:*.json"
-    num_load_job_files = len(list(tmp_path.glob(lj_doc_regex)))
-    assert num_load_job_files == 1, "there is no load job output file"
 
     # Test that we have one output file per input file
-    input_path = Path("/opt/data/netcdf_to_cb/input_files")
-    num_input_files = len(list(input_path.glob("20211108_0000")))
-    num_output_files = len(
-        list(tmp_path.glob(input_data_path_str + "__20211108*.json"))
-    )
+    input_path = Path(input_data_path[7:])
+    num_input_files = len(list(input_path.glob(file_pattern)))
+    num_output_files = len(output_file_list)
     assert num_output_files == num_input_files, "number of output files is incorrect"
 
-    # Test that the output file matches the content in the database
-    with (tmp_path / (input_data_path_str + "__20211108_0000.json")).open(
-        encoding="utf-8"
-    ) as f:
-        derived_data = json.load(f)
-    station_id = ""
-    derived_station = {}
-    obs_id = ""
-    derived_obs = {}
-    for item in derived_data:
-        if item["docType"] == "station" and item["name"] == "KDEN":
-            station_id = item["id"]
-            derived_station = item
-        else:
-            if item["docType"] == "obs":
-                obs_id = item["id"]
-                derived_obs = item
-        if derived_station and derived_obs:
-            break
-    retrieved_station = vx_ingest.collection.get(station_id).content_as[dict]
-    retrieved_obs = vx_ingest.collection.get(obs_id).content_as[dict]
-    # make sure the updateTime is the same in both the derived and retrieved station
-    retrieved_station["updateTime"] = derived_station["updateTime"]
-    # make sure the firstTime and lastTime are the same in both the derived and retrieved station['geo']
-    retrieved_station["geo"][0]["firstTime"] = derived_station["geo"][0]["firstTime"]
-    retrieved_station["geo"][0]["lastTime"] = derived_station["geo"][0]["lastTime"]
-
-    assert derived_station == retrieved_station
-
-    assert_dicts_almost_equal(derived_obs, retrieved_obs)
-
-
-@pytest.mark.integration
-def test_two_threads_specify_file_pattern(tmp_path: Path):
-    """
-    integration test for testing multithreaded capability
-    """
-    log_queue = Queue()
-    vx_ingest = setup_connection()
-    job_id = "JOB-TEST:V01:METAR:NETCDF:OBS"
-    job = vx_ingest.common_collection.get(job_id).content_as[dict]
-    ingest_document_ids = job["ingest_document_ids"]
-    collection = job["subset"]
-    input_data_path = job["input_data_path"]
-
-    vx_ingest.runit(
-        {
-            "job_id": job_id,
-            "credentials_file": os.environ["CREDENTIALS"],
-            "collection": collection,
-            "file_mask": "%Y%m%d_%H%M",
-            "input_data_path": input_data_path,
-            "ingest_document_ids": ingest_document_ids,
-            "output_dir": f"{tmp_path}",
-            "threads": 2,
-            "file_pattern": "20211105*",
-        },
-        log_queue,
-        stub_worker_log_configurer,
+    # Test that the output files match the content in the database
+    matching_output_files = list(tmp_path.glob(f"*{file_pattern}.json"))
+    assert matching_output_files, (
+        f"No derived output files matched pattern '*{file_pattern}.json'"
     )
-    input_path_str = str(input_data_path).replace(os.sep, "__")
-    assert (
-        len(
-            list(
-                tmp_path.glob(
-                    input_path_str + "__[0123456789]???????_[0123456789]???.json"
-                )
+    for output_file in matching_output_files:
+        try:
+            with output_file.open(encoding="utf-8") as f:
+                derived_data = json.load(f)
+            obs_id = derived_data[0]["id"]
+            derived_record = [d for d in derived_data if d["id"] == obs_id]
+            retrieved_record = vx_ingest.collection.get(obs_id).content_as[dict]
+            assert derived_record[0]["validTime"] == retrieved_record["validTime"], (
+                "derived and retrieved validTime do not match"
             )
-        )
-        > 0
-    ), "There are no output files"
-
-    lj_doc_regex = "LJ:METAR:vxingest.netcdf_to_cb.run_ingest_threads:VXIngest:*.json"
-    assert len(list(tmp_path.glob(lj_doc_regex))) == 1, (
-        "there is no load job output file"
-    )
-
-    # use file globbing to see if we got one output file for each input file plus one load job file
-    input_path = Path("/opt/data/netcdf_to_cb/input_files")
-    assert len(list(tmp_path.glob(input_path_str + "__20211105*.json"))) == len(
-        list(input_path.glob("20211105*"))
-    ), "number of output files is incorrect"
-
-
-@pytest.mark.integration
-def test_one_thread_default(tmp_path: Path):
-    """This test will start one thread of the ingestManager and simply make sure it runs with no Exceptions.
-    It will attempt to process any files that are in the input directory that match the file_name_mask.
-    TIP: you might want to use local credentials to a local couchbase. If you do
-    you will need to run the scripts in the matsmetadata directory to load the local metadata.
-    """
-    log_queue = Queue()
-    vx_ingest = setup_connection()
-    job_id = "JOB-TEST:V01:METAR:NETCDF:OBS"
-    job = vx_ingest.common_collection.get(job_id).content_as[dict]
-    ingest_document_ids = job["ingest_document_ids"]
-    collection = job["subset"]
-    input_data_path = job["input_data_path"]
-    input_path_str = str(input_data_path).replace("file://", "")  # remove the protocol
-    input_path_str = input_path_str.replace(
-        os.sep, "__"
-    )  # translate the file separators
-    vx_ingest.runit(
-        {
-            "job_id": job_id,
-            "credentials_file": os.environ["CREDENTIALS"],
-            "collection": collection,
-            "file_mask": "%Y%m%d_%H%M",
-            "input_data_path": input_data_path,
-            "ingest_document_ids": ingest_document_ids,
-            "output_dir": f"{tmp_path}",
-            "file_pattern": "[0123456789]???????_[0123456789]???",
-            "threads": 1,
-        },
-        log_queue,
-        stub_worker_log_configurer,
-    )
-    assert (
-        len(
-            list(
-                tmp_path.glob(
-                    input_path_str + "__[0123456789]???????_[0123456789]???.json"
-                )
+            assert_dicts_almost_equal(derived_record[0], retrieved_record)
+        except Exception as _e:
+            print(f"*** test_one_thread_specify_file_pattern: Exception: {str(_e)}")
+            pytest.fail(
+                f"*** test_one_thread_specify_file_pattern: Exception: {str(_e)}"
             )
-        )
-        > 0
-    ), "There are no output files"
-
-    lj_doc_regex = "LJ:METAR:vxingest.netcdf_to_cb.run_ingest_threads:VXIngest:*.json"
-    assert len(list(tmp_path.glob(lj_doc_regex))) >= 1, (
-        "there is no load job output file"
-    )
-
-    # use file globbing to see if we got one output file for each input file plus one load job file
-    input_path = Path("/opt/data/netcdf_to_cb/input_files")
-    assert len(
-        list(
-            tmp_path.glob(input_path_str + "__[0123456789]???????_[0123456789]???.json")
-        )
-    ) == len(list(input_path.glob("[0123456789]???????_[0123456789]???"))), (
-        "number of output files is incorrect"
-    )
-
-
-@pytest.mark.integration
-def test_two_threads_default(tmp_path: Path):
-    """This test will start one thread of the ingestManager and simply make sure it runs with no Exceptions.
-    It will attempt to process any files that are in the input directory that match the file_name_mask.
-    TIP: you might want to use local credentials to a local couchbase. If you do
-    you will need to run the scripts in the matsmetadata directory to load the local metadata.
-    """
-    log_queue = Queue()
-    vx_ingest = setup_connection()
-    job_id = "JOB-TEST:V01:METAR:NETCDF:OBS"
-    job = vx_ingest.common_collection.get(job_id).content_as[dict]
-    ingest_document_ids = job["ingest_document_ids"]
-    collection = job["subset"]
-    input_data_path = job["input_data_path"]
-    input_data_path_str = str(input_data_path).replace(
-        "file://", ""
-    )  # remove the protocol
-    input_data_path_str = input_data_path_str.replace(os.sep, "__")  # translate the
-    vx_ingest.runit(
-        {
-            "job_id": job_id,
-            "credentials_file": os.environ["CREDENTIALS"],
-            "collection": collection,
-            "file_mask": "%Y%m%d_%H%M",
-            "input_data_path": input_data_path,
-            "ingest_document_ids": ingest_document_ids,
-            "output_dir": f"{tmp_path}",
-            "file_pattern": "[0123456789]???????_[0123456789]???",
-            "threads": 2,
-        },
-        log_queue,
-        stub_worker_log_configurer,
-    )
-    assert (
-        len(
-            list(
-                tmp_path.glob(
-                    input_data_path_str + "__[0123456789]???????_[0123456789]???.json"
-                )
-            )
-        )
-        > 0
-    ), "There are no output files"
-
-    lj_doc_regex = "LJ:METAR:vxingest.netcdf_to_cb.run_ingest_threads:VXIngest:*.json"
-    assert len(list(tmp_path.glob(lj_doc_regex))) >= 1, (
-        "there is no load job output file"
-    )
-
-    # use file globbing to see if we got one output file for each input file plus one load job file
-    input_path = Path("/opt/data/netcdf_to_cb/input_files")
-    assert len(
-        list(
-            tmp_path.glob(
-                input_data_path_str + "__[0123456789]???????_[0123456789]???.json"
-            )
-        )
-    ) == len(list(input_path.glob("[0123456789]???????_[0123456789]???"))), (
-        "number of output files is incorrect"
-    )

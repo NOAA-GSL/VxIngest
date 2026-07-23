@@ -80,7 +80,7 @@ def process_cli():
     -o - output directory path
     -x - "transfer" directory path
     -l - log directory path
-    -j - jobid (optional)
+    -j - jobid (list of string jobids one or many)
     -s - start epoch (optional)
     -e - end epoch (optional)
     -f - file_pattern (optional)
@@ -91,8 +91,9 @@ def process_cli():
         "-j",
         "--job_id",
         type=str,
-        required=False,
-        help="An optional couchbase job document id",
+        nargs="+",
+        required=True,
+        help="A list of couchbase job document ids to process. Can be one or many job ids.",
     )
     parser.add_argument(
         "-c",
@@ -224,7 +225,7 @@ def get_runtime_job_criteria(
 ) -> JobRunCriterion | None:
     """
     Queries the Couchbase database for a specific job document by its ID.
-    This is used to retrieve the newer runtime job documents type "JS" for processing.
+    This is used to retrieve the runtime job documents type "JS" for processing.
 
     Args:
         cluster (Cluster): The Couchbase cluster instance to use for querying.
@@ -232,7 +233,7 @@ def get_runtime_job_criteria(
         job_id str | None = None, optional): The ID of the job document to retrieve. Must be provided.
 
     Returns:
-        processDoc | None: The job document if found, otherwise None.
+        JobRunCriterion | None: The job document if found, otherwise None.
 
     Raises:
         ValueError: If job_id is not provided.
@@ -259,116 +260,6 @@ def get_runtime_job_criteria(
         return row
     logger.warning(f"No runtime job document found with ID: {job_id}")
     return None
-
-
-def get_older_job_doc_criteria(
-    cluster: Cluster,
-    creds: dict[str, str],
-    job_id: str | None = None,
-) -> list[JobRunCriterion]:
-    """
-    Queries Couchbase for job documents based on the provided parameters. This is used to
-    retrieve the older type "JOB" or "JOB-TEST" documents.
-
-    Depending on the arguments and environment variables, this function performs one of the following:
-    - If a `job_id` is provided, fetches the specific job document with that ID.
-    - If the environment variable `VXINGEST_IGNORE_JOB_SCHEDULE` is set to "true", fetches all active job documents regardless of schedule.
-    - Otherwise, fetches all active job documents whose schedule is valid within the past 15 minutes.
-
-    Args:
-        cluster (Cluster): The Couchbase cluster instance to use for querying.
-        creds (dict[str, str]): A dictionary containing Couchbase credentials and configuration, including bucket, scope, and collection names.
-        job_id (str | None, optional): The ID of a specific job document to fetch. If not provided, fetches jobs based on schedule and status.
-
-    Returns:
-        list[processDoc]: A list of job documents matching the query criterion.
-    """
-    """Queries Couchbase for the given job doc or job docs in need of processing if no job ID is given"""
-
-    def build_query_for_job_id(job_id: str) -> str:
-        """Builds a query to fetch a specific job document by ID"""
-        # fmt: off
-        # Disable formatting to keep the Couchbase query readable
-        # the older job documents (type="JOB" or type="JOB-TEST") are kept in the COMMON collection along with other metadata.
-        # Eventually they will be replaced by newer JS documents that are in the RUNTIM collection
-        # and deleted entirely.
-        return (
-            "SELECT meta().id AS id, "
-                "LOWER(META().id) as name, "
-                "run_priority, "
-                "offset_minutes, "
-                "LOWER(subType) as subType "
-            f"FROM {creds['cb_bucket']}._default.COMMON "
-            f"WHERE id='{job_id}' "
-                "AND (type = 'JOB-TEST' or type = 'JOB') "
-                "AND version = 'V01' "
-                "AND CONTAINS(status, 'active') "
-        )
-        # fmt: on
-
-    def build_query_for_scheduled_active_jobs() -> str:
-        """Builds a query to fetch all active job documents with 'schedule' field valid within the past 15 minutes"""
-        # fmt: off
-        # Disable formatting to keep the Couchbase query readable
-        return (
-            "SELECT meta().id AS id, "
-                "LOWER(META().id) as name, "
-                "run_priority, "
-                "offset_minutes, "
-                "LOWER(subType) as subType "
-            f"FROM {creds['cb_bucket']}._default.COMMON "
-            "LET millis = ROUND(CLOCK_MILLIS()), "
-                "sched = SPLIT(schedule,' '), "
-                "minute = CASE WHEN sched[0] = '*' THEN DATE_PART_MILLIS(millis, 'minute', 'UTC') ELSE TO_NUMBER(sched[0]) END, "
-                "hour = CASE WHEN sched[1] = '*' THEN DATE_PART_MILLIS(millis, 'hour', 'UTC') ELSE TO_NUMBER(sched[1]) END, "
-                "day = CASE WHEN sched[2] = '*' THEN DATE_PART_MILLIS(millis, 'day', 'UTC') ELSE TO_NUMBER(sched[2]) END, "
-                "month = CASE WHEN sched[3] = '*' THEN DATE_PART_MILLIS(millis, 'month', 'UTC') ELSE TO_NUMBER(sched[3]) END, "
-                "year = CASE WHEN sched[4] = '*' THEN DATE_PART_MILLIS(millis, 'year', 'UTC') ELSE TO_NUMBER(sched[4]) END "
-            "WHERE type='JOB' "
-                "AND version='V01' "
-                "AND status='active' "
-                "AND DATE_PART_MILLIS(millis, 'year', 'UTC') = year "
-                "AND DATE_PART_MILLIS(millis, 'month', 'UTC') = month "
-                "AND DATE_PART_MILLIS(millis, 'hour', 'UTC') = hour "
-                "AND DATE_PART_MILLIS(millis, 'day', 'UTC') = day "
-                "AND IDIV(DATE_PART_MILLIS(millis, 'minute', 'UTC'), 15) = IDIV(minute, 15) "
-            "ORDER BY offset_minutes, "
-                    "run_priority "
-        )
-        # fmt: on
-
-    def build_query_for_active_jobs() -> str:
-        """Builds a query to fetch all active job documents"""
-        # fmt: off
-        # Disable formatting to keep the Couchbase query readable
-        return (
-            "SELECT meta().id AS id, "
-                "LOWER(META().id) as name, "
-                "run_priority, "
-                "offset_minutes, "
-                "LOWER(subType) as subType "
-            f"FROM {creds['cb_bucket']}._default.COMMON "
-            "WHERE type='JOB' "
-                "AND version='V01' "
-                "AND status='active' "
-            "ORDER BY offset_minutes, "
-                    "run_priority "
-        )
-        # fmt: on
-
-    def execute_query(query: str) -> list[JobRunCriterion]:
-        """Executes the given query and returns the results"""
-        row_iter = cluster.query(query, QueryOptions(read_only=True))  # type: ignore[assignment]
-        return [row for row in row_iter]
-
-    if job_id is not None:
-        query = build_query_for_job_id(job_id)
-    elif os.getenv("VXINGEST_IGNORE_JOB_SCHEDULE") == "true":
-        query = build_query_for_active_jobs()
-    else:
-        query = build_query_for_scheduled_active_jobs()
-
-    return execute_query(query)
 
 
 def connect_cb(creds: dict[str, str]) -> Cluster:
@@ -433,9 +324,8 @@ def make_tarfile(output_tarfile: Path, source_dir: Path):
         tar.add(source_dir, arcname=Path(source_dir).name)
 
 
-# docs are either the older job docs represented as <JobRunCriterion> or the newer processSpecification docs
-# represented by processSpecId. The criterion has an id and some othre fields. The other
-# fields are not used for the newer processSpecification docs, just the id is used.
+# docs are processSpecification docs
+# represented by processSpecId. The criterion has an id and some other fields.
 def process_run_configurations(
     cluster: Cluster,
     job_run_criteria: list[JobRunCriterion],
@@ -446,10 +336,7 @@ def process_run_configurations(
     ql,
 ) -> None:
     """
-    Parses the given job docs with the appropriate method
-    Example job criteria (old style):
-     [{'id': 'JOB-TEST:V01:METAR:NETCDF:OBS', 'name': 'job-test:v01:metar:netcdf:obs', 'offset_minutes': 0, 'run_priority': 2, 'subType': 'netcdf'}]
-
+    Parses the given job docs.
     Example runtime job_run_criteria:
     ['PS:METAR:NETCDF:OBS:MADIS-TEST:V01']
     """
@@ -459,28 +346,18 @@ def process_run_configurations(
     runtime_collection = (
         cluster.bucket("vxdata").scope("_default").collection("RUNTIME")
     )
-    common_collection = cluster.bucket("vxdata").scope("_default").collection("COMMON")
     for job in job_run_criteria:
         logger.info(f"Processing job: {job}")
-        if job["id"].startswith("PS:"):
-            # this is a newer runtime job document
-            proc = runtime_collection.get(job["id"]).content_as[dict]
-            job["sub_type"] = proc.get("subType")
-            # get config values from the runtime document heirachy for this process
-            ingest_document_ids = proc.get("ingestDocumentIds")
-            data_source_id = proc.get("dataSourceId")
-            data_source_spec = runtime_collection.get(data_source_id).content_as[dict]
-            input_data_path = data_source_spec.get("sourceDataUri")
-            file_mask = data_source_spec.get("fileMask", "")
-            file_pattern = data_source_spec.get("filePattern", "*")
-            collection = data_source_spec.get("subset")
-        else:
-            proc = common_collection.get(job["id"]).content_as[dict]
-            file_mask = proc.get("file_mask", "")
-            file_pattern = proc.get("file_pattern", "*")
-            input_data_path = proc.get("input_data_path")
-            ingest_document_ids = proc.get("ingest_document_ids")
-            collection = proc.get("subset")
+        proc = runtime_collection.get(job["id"]).content_as[dict]
+        job["sub_type"] = proc.get("subType")
+        # get config values from the runtime document heirachy for this process
+        ingest_document_ids = proc.get("ingestDocumentIds")
+        data_source_id = proc.get("dataSourceId")
+        data_source_spec = runtime_collection.get(data_source_id).content_as[dict]
+        input_data_path = data_source_spec.get("sourceDataUri")
+        file_mask = data_source_spec.get("fileMask", "")
+        file_pattern = data_source_spec.get("filePattern", "*")
+        collection = data_source_spec.get("subset")
         name = proc["id"].replace("_", "__").replace(":", "_")
         # override file_pattern if given on command line
         if getattr(args, "file_pattern", None):
@@ -506,7 +383,6 @@ def process_run_configurations(
         config = {
             "credentials_file": str(args.credentials_file),
             "collection": collection,
-            "job_id": args.job_id,
             "file_mask": file_mask,
             "file_pattern": file_pattern,
             "input_data_path": input_data_path,
@@ -519,7 +395,6 @@ def process_run_configurations(
         proc_succeeded = False
         match proc["subType"]:
             case "GRIB2" | "GRIB2-TEST":
-                # FIXME: Update calling code to raise instead of calling sys.exit
                 try:
                     grib_ingest = GRIBIngest()
                     grib_ingest.runit(
@@ -534,7 +409,6 @@ def process_run_configurations(
                 else:
                     proc_succeeded = True
             case "NETCDF" | "NETCDF-TEST":
-                # FIXME: Update calling code to raise instead of calling sys.exit
                 try:
                     netcdf_ingest = NetCDFIngest()
                     netcdf_ingest.runit(
@@ -549,7 +423,6 @@ def process_run_configurations(
                 else:
                     proc_succeeded = True
             case "CTC" | "CTC-TEST":
-                # FIXME: Update calling code to raise instead of calling sys.exit
                 try:
                     ctc_ingest = CTCIngest()
                     ctc_ingest.runit(
@@ -564,7 +437,6 @@ def process_run_configurations(
                 else:
                     proc_succeeded = True
             case "PARTIAL_SUMS" | "PARTIAL_SUMS-TEST":
-                # FIXME: Update calling code to raise instead of calling sys.exit
                 try:
                     partial_sums_ingest = PartialSumsIngest()
                     partial_sums_ingest.runit(
@@ -579,7 +451,6 @@ def process_run_configurations(
                 else:
                     proc_succeeded = True
             # case "PREPBUFR" | "PREPBUFR-TEST":
-            #     # FIXME: Update calling code to raise instead of calling sys.exit
             #     try:
             #         prepbufr_ingest = PrepbufrIngest()
             #         prepbufr_ingest.runit(
@@ -671,47 +542,41 @@ def run_ingest() -> None:
             f"Error connecting to Couchbase server at: {creds['cb_host']}.",
             exc_info=True,
         )
-        sys.exit(1)
+        raise RuntimeError(
+            f"Error connecting to Couchbase server at: {creds['cb_host']}."
+        ) from None
 
-    logger.info("Getting proc docs")
-    if args.job_id and args.job_id.startswith("JS:"):
-        # this is a newer type of runtime job doc that doesn't have scheduling info
-        # just retrieve it and process it, don't schedule it
-        rt_job_doc = get_runtime_job_criteria(cluster, creds, args.job_id)
-        # this is the new kind of process_specification doc
-        # run_criteria is overloaded for the older and the newer job documents
-        # for the older job docs the criteria is derived from the job doc itself
-        # for the newer runtime job docs, the criteria just has the id of the process specification doc
+    for job_id in args.job_id:
+        logger.info(f"Processing job_id: {job_id}")
+        # Get the runtime job document for this job_id
+        rt_job_doc = get_runtime_job_criteria(cluster, creds, job_id)
+        if not rt_job_doc:
+            logger.warning(f"No runtime job document found for job_id: {job_id}")
+            continue
         run_criteria = [{"id": proc_id} for proc_id in rt_job_doc["processSpecIds"]]
-    else:
-        # this is an older type of doc (a job doc) that has scheduling info
-        run_criteria = get_older_job_doc_criteria(cluster, creds, args.job_id)
-    if not run_criteria:
-        logger.info("No proc docs found")
-        sys.exit(0)
-    logger.info(f"Found {len(run_criteria)} proc docs")
-    logger.debug(f"Job docs to process: {run_criteria}")
+        if not run_criteria:
+            logger.info(f"No proc docs found for job_id: {job_id}")
+            continue
+        logger.info(f"Found {len(run_criteria)} proc docs for job_id: {job_id}")
+        logger.debug(f"Job docs to process: {run_criteria}")
 
-    logger.info("Processing proc docs")
-    process_run_configurations(
-        cluster,
-        run_criteria,
-        runtime,
-        args,
-        worker_log_configurer,
-        log_queue,
-        log_queue_listener,
-    )
+        logger.info(f"Processing proc docs for job_id: {job_id}")
+        process_run_configurations(
+            cluster,
+            run_criteria,
+            runtime,
+            args,
+            worker_log_configurer,
+            log_queue,
+            log_queue_listener,
+        )
     endtime = datetime.now()
     logger.info("Done processing proc docs")
-
     # Write prometheus metrics
     duration = endtime - runtime
     logger.info(f"Runtime was {duration.total_seconds()} seconds")
     prom_duration.set(duration.total_seconds())
-    prom_file = (
-        args.metrics_dir / "run_ingest_metrics.prom"
-    )  # FIXME - should this be part of the tarball?
+    prom_file = args.metrics_dir / "run_ingest_metrics.prom"
     logger.info(f"Writing Prometheus metrics to: {prom_file}")
     write_to_textfile(prom_file, prom_registry)
 

@@ -409,6 +409,7 @@ def test_ps_surface_data_hrrr_ops_all_hrrr():
         model="RRFSv1_conus_3km_ret_RRFS_jul2024",
     )
 
+
 def _calculate_and_compare_sums(job_id, region, model):
     # Implement the logic to calculate and compare the partial sums with the couchbase data
     # Generate partial sums data using the builder.build_document directly. This data should match what is in

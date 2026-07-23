@@ -368,7 +368,10 @@ def test_ctc_data_hrrr_ops_all_hrrr_new():
             outdir=Path("/opt/data/ctc_to_cb/hrrr_ops/output"),
         )
     except Exception as e:
-        pytest.fail(f"Exception in test_ctc_ceiling_data_hrrr_ops_all_hrrr (HRRR_OPS): {e}")
+        pytest.fail(
+            f"Exception in test_ctc_ceiling_data_hrrr_ops_all_hrrr (HRRR_OPS): {e}"
+        )
+
 
 @pytest.mark.integration
 def test_ctc_data_MPAS_physics_dev1_all_hrrr_new():
@@ -383,4 +386,6 @@ def test_ctc_data_MPAS_physics_dev1_all_hrrr_new():
             outdir=Path("/opt/data/ctc_to_cb/mpas_physics_dev1/output"),
         )
     except Exception as e:
-        pytest.fail(f"Exception in test_ctc_ceiling_data_MPAS_physics_dev1_all_hrrr (MPAS_physics_dev1): {e}")
+        pytest.fail(
+            f"Exception in test_ctc_ceiling_data_MPAS_physics_dev1_all_hrrr (MPAS_physics_dev1): {e}"
+        )

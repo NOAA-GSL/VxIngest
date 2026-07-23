@@ -70,6 +70,7 @@ def mock_cluster():
     ]
     return mock_cluster
 
+
 @pytest.mark.parametrize(
     ("cpu_count", "expected"),
     [

@@ -255,12 +255,12 @@ def test_one_thread_specify_file_pattern_grib2_normalized_pressure_sums_job_spec
     assert ps_fcst_valid_data, (
         "No SUMS ps_fcst_valid_data values found for model='RRFSv1_conus_3km_ret_RRFS_jul2024', region='ALL_HRRR'"
     )
-    start_epoch = str(ps_fcst_valid_data[(len(ps_fcst_valid_data) - 1) // 2][
-        "fcstValidEpoch"
-    ])
-    end_epoch = str(ps_fcst_valid_data[((len(ps_fcst_valid_data) - 1) // 2) + 1][
-        "fcstValidEpoch"
-    ])
+    start_epoch = str(
+        ps_fcst_valid_data[(len(ps_fcst_valid_data) - 1) // 2]["fcstValidEpoch"]
+    )
+    end_epoch = str(
+        ps_fcst_valid_data[((len(ps_fcst_valid_data) - 1) // 2) + 1]["fcstValidEpoch"]
+    )
     sys.argv = [
         "run_ingest",
         "-j",

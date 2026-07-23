@@ -198,6 +198,7 @@ def run_runtime_one_thread_file_pattern_test(
                                 f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure non-numeric data {result['data'][_k][_dk]} != {_json['data'][_k][_dk]}"
                             )
 
+
 @pytest.mark.integration
 def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus_normalized(tmp_path: Path):
     run_runtime_one_thread_file_pattern_test(
@@ -217,6 +218,7 @@ def test_grib_builder_one_thread_file_pattern_rrfs_a_conus(tmp_path: Path):
         job_id="JS:METAR:MODEL:RRFSv1_conus_3km_RRFS_a_TEST:schedule:job:V01",
         failure_prefix="TestGribBuilderV01.test_grib_builder_one_thread_file_pattern_rrfs_a_conus",
     )
+
 
 @pytest.mark.integration
 def test_grib_builder_one_thread_file_pattern_mpas(tmp_path: Path):

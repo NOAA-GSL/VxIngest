@@ -256,5 +256,6 @@ def test_tropoe_one_thread_specify_file_pattern(tmp_path: Path):
             assert_dicts_almost_equal(derived_record[0], retrieved_record)
         except Exception as _e:
             print(f"*** test_one_thread_specify_file_pattern: Exception: {str(_e)}")
-            pytest.fail(f"*** test_one_thread_specify_file_pattern: Exception: {str(_e)}")
-
+            pytest.fail(
+                f"*** test_one_thread_specify_file_pattern: Exception: {str(_e)}"
+            )

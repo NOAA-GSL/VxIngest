@@ -34,23 +34,6 @@ function usage {
 }
 success_import_count=0
 failed_import_count=0
-# import_data_dir should ne mounted to a host directory. It should have the
-# load_dir containing tar files to import, and also the temp_dir where the script will write
-# temporary extracted data from the tar balls, and the log_dir where the script will write log files.
-import_data_dir="/opt/data_import"
-log_dir="${import_data_dir}/logs"
-if [[ ! -d "${import_data_dir}" ]]; then
-  echo "ERROR: ${import_data_dir} does not exist — is the data volume mounted?"
-  exit 1
-fi
-if [[ ! -d "${log_dir}" ]]; then
-  echo "ERROR: ${log_dir} does not exist — is the data volume mounted with a logs/ subdirectory?"
-  exit 1
-fi
-if [[ ! -w "${log_dir}" ]]; then
-  echo "ERROR: ${log_dir} is not writable"
-  exit 1
-fi
 
 # Send all subsequent stdout/stderr to a single timestamped import log.
 exec > "${log_dir}/import-$(date +%Y%m%d:%H%M%S)" 2>&1
@@ -177,8 +160,15 @@ if [ "${running_jobs}" -gt 10 ]; then
 	exit 1
 fi
 
-while getopts 'c:l:t:' param; do
+while getopts 'a:c:l:t:' param; do
   case "${param}" in
+  a)
+    export archive_dir=$(strip_trailing_slash "${OPTARG}")
+    if [ ! -w "${archive_dir}" ]; then
+      echo "archive directory ${archive_dir} IS NOT WRITABLE"
+      usage
+    fi
+    ;;	
   c)
     credentials_file=${OPTARG}
     if [[ ! -f "${credentials_file}" ]]; then
@@ -212,7 +202,7 @@ while getopts 'c:l:t:' param; do
     ;;
   l)
     # remove the last '/' if it is there
-    export load_dir=${import_data_dir}/$(strip_trailing_slash "${OPTARG}")
+    export load_dir=$(strip_trailing_slash "${OPTARG}")
     if [[ ! -d "${load_dir}" ]]; then
       echo "ERROR: Work load directory ${load_dir} does not exist"
       usage
@@ -220,7 +210,7 @@ while getopts 'c:l:t:' param; do
     ;;
   t)
     # remove the last '/' if it is there
-    export temp_dir=${import_data_dir}/$(strip_trailing_slash "${OPTARG}")
+    export temp_dir=$(strip_trailing_slash "${OPTARG}")
     mkdir -p "${temp_dir}"
     if [[ ! -d "${temp_dir}" ]]; then
       echo "ERROR: tar file directory ${temp_dir} does not exist"
@@ -233,9 +223,10 @@ while getopts 'c:l:t:' param; do
     ;;
   esac
 done
-if [[ -z "${credentials_file:-}" ]] || [[ -z "${load_dir:-}" ]] || [[ -z "${temp_dir:-}" ]]; then
+if [[ -z "${archive_dir:-}" ]] || [[ -z "${credentials_file:-}" ]] || [[ -z "${load_dir:-}" ]] || [[ -z "${temp_dir:-}" ]]; then
   echo "*missing parameter*"
   echo "provided credentials_file is ${credentials_file}"
+  echo "provided archive_dir is ${archive_dir}"
   echo "provided load_dir is ${load_dir}"
   echo "provided temp_dir is ${temp_dir}"
   usage
@@ -247,20 +238,11 @@ if [ "$(whoami)" != "amb-verif" ]; then
 fi
 
 # Check the load directory for new tar balls.
-# This script is expected to run in intervals
 # create an archive dir (might already exist)
 # The load_dir is where the program will look for the tar files
 # the t_dir is where the tarball will be untar'd
-archive_dir="${load_dir}/archive"
-mkdir -p "${archive_dir}"
-if [[ ! -d "${archive_dir}" ]]; then
-  echo "ERROR: VxIngest archive directory ${archive_dir} does not exist"
-  usage
-fi
-if [ ! -w "${archive_dir}" ]; then
-  echo "archive directory ${archive_dir} IS NOT WRITABLE"
-  usage
-fi
+# import the archive
+# update the metadata
 
 tar_files=("${load_dir}"/*.gz)
 if [[ "${tar_files[0]}" == "${load_dir}/*.gz" ]]; then

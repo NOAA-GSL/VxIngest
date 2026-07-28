@@ -142,6 +142,8 @@ data=/data-ingest/data \
     -s /app/meta_update_middleware/settings.json
 ```
 
+The Compose service mounts the credentials secret as `CREDENTIALS_FILE`, so the `-c /run/secrets/CREDENTIALS_FILE` flag resolves inside the container without any extra host setup.
+
 If `cb_host` points to a Capella cluster (`cloud.couchbase.com`), also set `CACERT_FILE` before running `docker compose` so the CA certificate PEM is mounted as a secret:
 
 ```bash
@@ -171,7 +173,7 @@ data=/data-ingest/data \
     docker compose run import
 ```
 
-**Important:** The import container requires that `/opt/data_import/logs` (mounted from `data/logs` on the host) already exists as a directory. If the volume mount is not properly configured, the import script will fail with a clear error message rather than silently writing to ephemeral container storage.
+The Compose service now creates the required import directories on startup, including `logs`, `archive`, `temp`, and `xfer`, so a clean host volume will work without pre-seeding those paths.
 
 In the compose.yaml, `CREDENTIALS_FILE` defaults to `${HOME}/credentials`. Override it by setting a `CREDENTIALS_FILE` environment variable pointing to a different path. The `CACERT_FILE` secret path is similarly overrideable via the `CACERT_FILE` environment variable and is passed into the import container.
 

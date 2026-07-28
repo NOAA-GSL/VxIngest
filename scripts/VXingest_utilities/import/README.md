@@ -16,15 +16,15 @@ scripts/VXingest_utilities/import/run-import.sh \
 1. Base image target: Linux AMD64.
 2. Entry point: `scripts/VXingest_utilities/import/run-import.sh`.
 3. Credentials file is provided as a secret (typically at `/run/secrets/CREDENTIALS_FILE`).
-4. The import data root is `/opt/data_import`.
-5. `-l` and `-t` are subdirectory names under `/opt/data_import`.
-6. The script writes logs under `/opt/data_import/logs`.
+4. The import data root is `/opt/data` in the Compose deployment.
+5. `-l` and `-t` are paths under `/opt/data`.
+6. The script writes logs under `/opt/data/logs`.
 
 ### Required Arguments
 
 1. `-c`: Credentials file path.
-2. `-l`: Load directory name under `/opt/data_import` containing inbound `*.gz` files.
-3. `-t`: Temporary extraction directory name under `/opt/data_import`.
+2. `-l`: Load directory path under `/opt/data` containing inbound `*.gz` files.
+3. `-t`: Temporary extraction directory path under `/opt/data`.
 
 ### Credentials File Keys
 
@@ -48,6 +48,7 @@ Accepted formatting for keys:
 2. Script enforces execution as `amb-verif`.
 3. `cbimport` is expected at `${HOME}/cbtools/bin/cbimport`.
 4. On macOS, `nproc` is not available by default; use an alias such as `alias nproc="sysctl -n hw.ncpu"`.
+5. The container should create `/opt/data/logs`, `/opt/data/archive`, `/opt/data/temp`, and `/opt/data/xfer` before invoking the script when starting from a clean volume.
 
 ### Processing Flow
 
@@ -82,11 +83,11 @@ Metadata update runs only when:
 
 Behavior:
 
-1. Uses lock directory `/data/import_lock`.
+1. Uses lock directory `load_dir/import_lock`.
 2. If lock exists and a `meta-update` process is running, metadata update is skipped.
 3. If lock exists and no `meta-update` process is running, lock is treated as stale and removed.
 4. Runs `./meta-update` from `./meta_update_middleware`.
-5. Writes output to `/opt/data_import/logs/meta-update.log`.
+5. Writes output to `/opt/data/logs/meta-update.log`.
 
 ### Exit and Error Behavior
 
@@ -96,7 +97,7 @@ Behavior:
 
 ### Operational Notes
 
-1. Keep `/opt/data_import/<load_dir>/archive` writable by `amb-verif`.
-2. Ensure `/opt/data_import/logs` is writable for metadata update logs.
+1. Keep `archive_dir` writable by `amb-verif`.
+2. Ensure `/opt/data/logs` is writable for metadata update logs.
 3. Review archive prefixes to monitor failure modes quickly.
 4. If using Capella, confirm `cacert_file` contains a PEM certificate (`BEGIN CERTIFICATE`).

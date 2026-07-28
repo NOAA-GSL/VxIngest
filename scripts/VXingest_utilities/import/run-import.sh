@@ -168,7 +168,7 @@ while getopts 'a:c:l:t:' param; do
       echo "archive directory ${archive_dir} IS NOT WRITABLE"
       usage
     fi
-    ;;	
+    ;;
   c)
     credentials_file=${OPTARG}
     if [[ ! -f "${credentials_file}" ]]; then

@@ -47,8 +47,8 @@ services:
       - CREDENTIALS_FILE
       - CACERT_FILE
     environment:
-    - CREDENTIALS=/run/secrets/CREDENTIALS_FILE
-    - CACERT_FILE=/run/secrets/CACERT_FILE
+      CREDENTIALS_FILE: /run/secrets/CREDENTIALS_FILE
+      CACERT_FILE: /run/secrets/CACERT_FILE
     entrypoint: /app/meta_update_middleware/meta-update
   test:
     build: # build the image so we can specify the target
@@ -79,14 +79,21 @@ services:
   import:
     <<: *import-image
     volumes:
-      - ${data:-./tmp/data}:/opt/data_import
+      - ${data:-./tmp/data}:/opt/data
     secrets:
       - CREDENTIALS_FILE
       - CACERT_FILE
     environment:
-    - CREDENTIALS=/run/secrets/CREDENTIALS_FILE
-    - CACERT_FILE=/run/secrets/CACERT_FILE
+      log_dir: /opt/data/logs
+      import_data_dir: /opt/data
+      CACERT_FILE: /run/secrets/CACERT_FILE
+    entrypoint: /bin/sh
     command:
-      - "-c /run/secrets/CREDENTIALS_FILE"
-      - "-l xfer"
-      - "-t temp_tar"
+      - -c
+      - |
+        mkdir -p /opt/data/logs /opt/data/archive /opt/data/temp /opt/data/xfer && \
+        exec /app/scripts/VXingest_utilities/import/run-import.sh \
+        -c /run/secrets/CREDENTIALS_FILE \
+        -a /opt/data/archive \
+        -l /opt/data/xfer \
+        -t /opt/data/temp

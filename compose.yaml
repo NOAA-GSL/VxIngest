@@ -35,8 +35,8 @@ services:
       - CREDENTIALS_FILE
       - CACERT_FILE
     environment:
-    - CREDENTIALS=/run/secrets/CREDENTIALS_FILE
-    - CACERT_FILE=/run/secrets/CACERT_FILE
+      CREDENTIALS: /run/secrets/CREDENTIALS_FILE
+      CACERT_FILE: /run/secrets/CACERT_FILE
     entrypoint: /bin/bash
   meta-update:
     <<: *ingest-image
@@ -60,10 +60,12 @@ services:
     secrets:
       - CREDENTIALS_FILE
     environment:
-    - CREDENTIALS=/run/secrets/CREDENTIALS_FILE
+      CREDENTIALS: /run/secrets/CREDENTIALS_FILE
     command: uv run pytest tests
   # FIXME - add a way to specify unit & integration tests
   ingest:
+    # NOTE: --job_id (-j) is required and must be supplied at runtime:
+    # docker compose run ingest -j JOB-TEST:V01:METAR:NETCDF:OBS
     <<: *ingest-image
     volumes:
       - ${data:-./tmp/data}:/opt/data

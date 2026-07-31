@@ -17,6 +17,9 @@ def test_pyproject_pins_safe_msgpack_and_setuptools_versions():
 def test_ingest_dockerfile_upgrades_vulnerable_packages():
     dockerfile = (REPO_ROOT / "docker" / "ingest" / "Dockerfile").read_text()
 
-    assert 'RUN VIRTUAL_ENV=/app/.venv pip install --no-cache-dir --upgrade \\' in dockerfile
+    assert (
+        "RUN VIRTUAL_ENV=/app/.venv pip install --no-cache-dir --upgrade \\"
+        in dockerfile
+    )
     assert '"msgpack>=1.2.1"' in dockerfile
     assert '"setuptools>=78.1.1"' in dockerfile

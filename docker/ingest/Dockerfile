@@ -76,7 +76,7 @@ RUN groupadd --gid ${ID} ${USERNAME} && \
     useradd --shell /bin/bash --create-home --uid ${ID} --gid ${ID} ${USERNAME}
 
 # Update the image's built in Python tooling before we activate the virtual environment
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+RUN pip install --no-cache-dir --upgrade pip "setuptools>=78.1.1" wheel
 
 # Run OS updates
 RUN apt-get update && apt-get upgrade -y && \
@@ -84,6 +84,13 @@ RUN apt-get update && apt-get upgrade -y && \
 
 # Copy the application from the builder
 COPY --from=builder --chown=ingest:ingest /app /app
+
+# Upgrade any vulnerable packages in the app's virtual environment.
+# VIRTUAL_ENV tells pip to install into the venv rather than the system Python.
+# Security: fix GHSA-6v7p-g79w-8964 (msgpack) and CVE-2025-47273 (setuptools)
+RUN VIRTUAL_ENV=/app/.venv pip install --no-cache-dir --upgrade \
+    "msgpack>=1.2.1" \
+    "setuptools>=78.1.1"
 
 WORKDIR /app
 

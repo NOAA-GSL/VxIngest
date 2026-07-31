@@ -20,6 +20,7 @@ dependencies = [
     "prometheus-client>=0.23.1",
     "ncepbufr",
     "eccodeslib>=2.47.3.21", # This shouldn't be needed - it's a dependency of eccodes. (itself a dependency of cfgrib) However, eccodes 2.45 & 2.46 don't appear to include eccodeslib which breaks cfgrib. Monitor https://github.com/ecmwf/eccodes-python/issues/150 for a resolution.
+    "msgpack>=1.2.1", # Security: fix GHSA-6v7p-g79w-8964 (out-of-bounds read/crash)
 ]
 
 [project.scripts]
@@ -47,6 +48,10 @@ environments = [
     "platform_system == 'Linux' and platform_machine == 'x86_64'",
     "platform_system == 'Linux' and platform_machine == 'aarch64'",
     "platform_system == 'Darwin'",
+]
+# Security: constrain vulnerable packages to safe versions (CVE-2025-47273)
+constraint-dependencies = [
+    "setuptools>=78.1.1",
 ]
 
 [tool.uv.sources]

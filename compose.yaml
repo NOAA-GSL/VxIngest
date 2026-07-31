@@ -1,24 +1,3 @@
-x-ingest-image: &ingest-image
-  build:
-    context: .
-    dockerfile: docker/ingest/Dockerfile
-    args:
-      BUILDVER: ${BUILDVER:-dev}
-      COMMITBRANCH: ${COMMITBRANCH:-local}
-      COMMITSHA: ${COMMITSHA:-dirty}
-  image: vxingest/ingest:${BUILDVER:-dev}
-
-x-import-image: &import-image
-  platform: linux/amd64
-  build:
-    context: .
-    dockerfile: docker/import/Dockerfile
-    args:
-      BUILDVER: ${BUILDVER:-dev}
-      COMMITBRANCH: ${COMMITBRANCH:-local}
-      COMMITSHA: ${COMMITSHA:-dirty}
-  image: vxingest/import:${BUILDVER:-dev}
-
 secrets:
   CREDENTIALS_FILE:
     file: ${CREDENTIALS_FILE:-${HOME}/credentials}
@@ -27,7 +6,7 @@ secrets:
 
 services:
   shell:
-    <<: *ingest-image
+    image: ghcr.io/noaa-gsl/vxingest/ingest:main
     volumes:
       - ${data:-./tmp/data}:/opt/data
       - ${public:-./tmp/public}:/public
@@ -39,7 +18,7 @@ services:
       CACERT_FILE: /run/secrets/CACERT_FILE
     entrypoint: /bin/bash
   meta-update:
-    <<: *ingest-image
+    image: ghcr.io/noaa-gsl/vxingest/ingest:main
     volumes:
       - ${data:-./tmp/data}:/opt/data
     working_dir: /app/meta_update_middleware
@@ -66,7 +45,8 @@ services:
   ingest:
     # NOTE: --job_id (-j) is required and must be supplied at runtime:
     # docker compose run ingest -j JOB-TEST:V01:METAR:NETCDF:OBS
-    <<: *ingest-image
+    #image: ghcr.io/noaa-gsl/vxingest/ingest:main
+    image: vxingest/ingest:dev
     volumes:
       - ${data:-./tmp/data}:/opt/data
       - ${public:-./tmp/public}:/public
@@ -74,12 +54,12 @@ services:
       - CREDENTIALS_FILE
     command:
       - "--credentials_file=/run/secrets/CREDENTIALS_FILE"
-      - "--output_dir=/opt/data/outdir"
-      - "--log_dir=/opt/data/logs"
-      - "--metrics_dir=/opt/data/metrics"
-      - "--transfer_dir=/opt/data/xfer"
+      - "--output_dir=/opt/data/test/outdir"
+      - "--log_dir=/opt/data/test/logs"
+      - "--metrics_dir=/opt/data/test/metrics"
+      - "--transfer_dir=/opt/data/test/xfer"
   import:
-    <<: *import-image
+    image: ghcr.io/noaa-gsl/vxingest/import:main
     volumes:
       - ${data:-./tmp/data}:/opt/data
     secrets:

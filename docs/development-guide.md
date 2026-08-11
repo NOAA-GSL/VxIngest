@@ -8,7 +8,7 @@ VxIngest is containerized for deployment. For general usage, see [../README.md](
 
 VxIngest is a Python application that uses [uv](https://docs.astral.sh/uv/) for dependency management and command execution. [Ruff](https://docs.astral.sh/ruff/) is used for linting and formatting. The repo follows a [`src` layout](https://packaging.python.org/en/latest/discussions/src-layout-vs-flat-layout/).
 
-The ingest writes Couchbase-ready JSON documents, logs, metrics, and transfer tarballs to disk. The transfer tarballs are retained for downstream consumers, but the downstream import runtime is not maintained in this branch.
+The ingest writes Couchbase-ready JSON documents, logs, metrics, and transfer tarballs to disk. The transfer tarballs are retained for downstream consumers, but the downstream import runtime is not maintained in this repo.
 
 ## Getting Started
 

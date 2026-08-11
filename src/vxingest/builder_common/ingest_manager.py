@@ -73,7 +73,7 @@ class CommonVxIngestManager(Process):
             Path(self.output_dir).mkdir(parents=True, exist_ok=True)
         if not os.access(self.output_dir, os.W_OK):
             _re = RuntimeError("Output directory: %s is not writable!", self.output_dir)
-            logger.exception(_re)
+            logger.error(_re)
             raise _re
 
     def process_queue_element(self, queue_element):

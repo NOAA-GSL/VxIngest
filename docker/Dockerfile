@@ -79,6 +79,21 @@ RUN groupadd --gid ${ID} ${USERNAME} && \
 RUN apt-get update && apt-get upgrade -y && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# The runtime image does not need packaging tools. Removing them reduces the
+# scan surface from the base image and avoids reporting vendored pip libraries.
+RUN rm -rf \
+    /usr/local/bin/pip \
+    /usr/local/bin/pip3 \
+    /usr/local/bin/pip3.13 \
+    /usr/local/lib/python3.13/ensurepip \
+    /usr/local/lib/python3.13/site-packages/pip \
+    /usr/local/lib/python3.13/site-packages/pip-*.dist-info \
+    /usr/local/lib/python3.13/site-packages/setuptools \
+    /usr/local/lib/python3.13/site-packages/setuptools-*.dist-info \
+    /usr/local/lib/python3.13/site-packages/pkg_resources \
+    /usr/local/lib/python3.13/site-packages/wheel \
+    /usr/local/lib/python3.13/site-packages/wheel-*.dist-info
+
 # Copy the application from the builder
 COPY --from=builder --chown=ingest:ingest /app /app
 

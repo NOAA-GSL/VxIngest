@@ -121,7 +121,7 @@ docker build \
     --build-arg BUILDVER=dev \
     --build-arg COMMITBRANCH=$(git branch --show-current) \
     --build-arg COMMITSHA=$(git rev-parse HEAD) \
-    -f ./docker/ingest/Dockerfile \
+    -f ./docker/Dockerfile \
     -t vxingest/ingest:dev \
     .
 ```
@@ -155,8 +155,8 @@ Or to build & run the prod version of the image, you can do the following to bui
 
 ```bash
 docker build \
-    -f ./docker/ingest/Dockerfile \
-    -t vxingest/ingest:prod \
+    -f ./docker/Dockerfile \
+    -t vxingest:prod \
     .
 ```
 

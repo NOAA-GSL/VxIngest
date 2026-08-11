@@ -86,9 +86,9 @@ RUN apt-get update && apt-get upgrade -y && \
 COPY --from=builder --chown=ingest:ingest /app /app
 
 # Upgrade any vulnerable packages in the app's virtual environment.
-# VIRTUAL_ENV tells pip to install into the venv rather than the system Python.
+# Use the venv's own pip to ensure packages are installed into the venv.
 # Security: fix GHSA-6v7p-g79w-8964 (msgpack) and CVE-2025-47273 (setuptools)
-RUN VIRTUAL_ENV=/app/.venv pip install --no-cache-dir --upgrade \
+RUN /app/.venv/bin/pip install --no-cache-dir --upgrade \
     "msgpack>=1.2.1" \
     "setuptools>=78.1.1"
 

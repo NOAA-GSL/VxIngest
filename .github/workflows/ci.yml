@@ -107,7 +107,7 @@ jobs:
       - name: Build image and push
         uses: docker/build-push-action@v7
         with:
-          file: docker/ingest/Dockerfile
+          file: docker/Dockerfile
           context: .
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

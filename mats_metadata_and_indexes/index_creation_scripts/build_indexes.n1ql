@@ -1,2 +1,0 @@
-USE 
-BUILD INDEX ON `vxdata`.`_default`.`METAR` ((SELECT RAW name FROM system:indexes WHERE state = "deferred"));

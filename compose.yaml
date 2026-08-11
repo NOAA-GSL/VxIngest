@@ -17,18 +17,7 @@ services:
       CREDENTIALS: /run/secrets/CREDENTIALS_FILE
       CACERT_FILE: /run/secrets/CACERT_FILE
     entrypoint: /bin/bash
-  meta-update:
-    image: ghcr.io/noaa-gsl/vxingest/ingest:main
-    volumes:
-      - ${data:-./tmp/data}:/opt/data
-    working_dir: /app/meta_update_middleware
-    secrets:
-      - CREDENTIALS_FILE
-      - CACERT_FILE
-    environment:
-      CREDENTIALS_FILE: /run/secrets/CREDENTIALS_FILE
-      CACERT_FILE: /run/secrets/CACERT_FILE
-    entrypoint: /app/meta_update_middleware/meta-update
+
   test:
     build: # build the image so we can specify the target
       context: .
@@ -58,24 +47,3 @@ services:
       - "--log_dir=/opt/data/test/logs"
       - "--metrics_dir=/opt/data/test/metrics"
       - "--transfer_dir=/opt/data/test/xfer"
-  import:
-    image: ghcr.io/noaa-gsl/vxingest/import:main
-    volumes:
-      - ${data:-./tmp/data}:/opt/data
-    secrets:
-      - CREDENTIALS_FILE
-      - CACERT_FILE
-    environment:
-      log_dir: /opt/data/logs
-      import_data_dir: /opt/data
-      CACERT_FILE: /run/secrets/CACERT_FILE
-    entrypoint: /bin/sh
-    command:
-      - -c
-      - |
-        mkdir -p /opt/data/logs /opt/data/archive /opt/data/temp /opt/data/xfer && \
-        exec /app/scripts/VXingest_utilities/import/run-import.sh \
-        -c /run/secrets/CREDENTIALS_FILE \
-        -a /opt/data/archive \
-        -l /opt/data/xfer \
-        -t /opt/data/temp

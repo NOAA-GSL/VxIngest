@@ -1,4 +1,4 @@
-# syntax = docker/dockerfile:1.2
+# syntax = docker/dockerfile:1.19
 
 # NOTE - avoid installing python packages via apt - they install an alternate version of Python
 
@@ -27,8 +27,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     uv sync --locked --no-install-project --no-dev
 
-# Install the app
-COPY . /app
+# Install the app, excluding middleware that belongs only to the import image.
+COPY --exclude=meta_update_middleware . /app
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked
 
@@ -75,22 +75,12 @@ ARG USERNAME=ingest
 RUN groupadd --gid ${ID} ${USERNAME} && \
     useradd --shell /bin/bash --create-home --uid ${ID} --gid ${ID} ${USERNAME}
 
-# Update the image's built in Python tooling before we activate the virtual environment
-RUN pip install --no-cache-dir --upgrade pip "setuptools>=78.1.1" wheel
-
 # Run OS updates
 RUN apt-get update && apt-get upgrade -y && \
-    apt-get clean && rm -rf /var/lib/apt/lists/* 
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Copy the application from the builder
 COPY --from=builder --chown=ingest:ingest /app /app
-
-# Upgrade any vulnerable packages in the app's virtual environment.
-# VIRTUAL_ENV tells pip to install into the venv rather than the system Python.
-# Security: fix GHSA-6v7p-g79w-8964 (msgpack) and CVE-2025-47273 (setuptools)
-RUN VIRTUAL_ENV=/app/.venv pip install --no-cache-dir --upgrade \
-    "msgpack>=1.2.1" \
-    "setuptools>=78.1.1"
 
 WORKDIR /app
 

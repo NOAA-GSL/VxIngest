@@ -28,7 +28,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-install-project --no-dev
 
 # Install the app, excluding middleware that belongs only to the import image.
-COPY --exclude=meta_update_middleware . /app
+COPY . /app
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked
 

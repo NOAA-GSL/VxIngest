@@ -1,3 +1,5 @@
-NOTE: the scripts/cbtools are included for use within the linux x86-64 container. These tools are linux x86-64 oriented. Do not expect them to work on other platforms or achitectures. If you need a compatible copy of these tools see [https://docs.couchbase.com/cloud/reference/command-line-tools.html](https://docs.couchbase.com/cloud/reference/command-line-tools.html)
+NOTE: the scripts/cbtools are included for use within Linux x86-64 containers. Do not expect them to work on other platforms or architectures. If you need a compatible copy of these tools, see <https://docs.couchbase.com/cloud/reference/command-line-tools.html>.
 
-For detailed documentation of import utility scripts, including run-import.sh usage, arguments, locking, archive behavior, and metadata update flow, see scripts/VXingest_utilities/README.md.
+This directory primarily contains Couchbase administration, monitoring, backup, and troubleshooting helpers, along with a small set of VxIngest operational scripts under `scripts/VXingest_utilities/`.
+
+This branch does not include a maintained in-repo import utility README. Treat the VxIngest utility scripts here as operational helpers rather than a complete end-to-end pipeline interface.

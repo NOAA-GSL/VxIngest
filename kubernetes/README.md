@@ -1,30 +1,33 @@
-# Kubernetes One-Time VxIngest related Jobs
+# Kubernetes VxIngest Jobs
 
-This directory contains Kubernetes manifests for running VxIngest services as one-time jobs:
+This directory contains Kubernetes manifests related to running VxIngest jobs in-cluster.
 
-- ingest
-- import
-- meta-update
+The current branch ships:
+
+- a standalone ingest job manifest
+- a pipeline orchestrator job manifest
+- the ConfigMaps and RBAC needed by that orchestrator
+
+The orchestrator script still contains embedded definitions for downstream import and meta-update child jobs, but those downstream runtimes are not maintained in this branch.
 
 ## What Is Included
 
 - `namespace.yaml`: namespace used by all resources
 - `secret-credentials.template.yaml`: Couchbase credentials secret template
 - `secret-cacert.template.yaml`: optional Capella CA cert secret template
-- `pvc-data.yaml`: shared data PVC for ingest/import/meta-update
-- `pvc-public.yaml`: public data PVC mounted at `/public` for ingest
-- `job-ingest.yaml`: one-time ingest job
-- `job-import.yaml`: one-time import job
-- `job-meta-update.yaml`: one-time meta-update job
-- `kustomization.yaml`: bundle of all resources
+- `configmap-job-params.yaml`: orchestrator runtime parameters, including `JOBIDS`
+- `configmap-job-script.yaml`: orchestrator shell script with embedded child job templates
+- `job-ingest.yaml`: standalone one-time ingest job
+- `job-orchestrator.yaml`: one-time orchestrator job
+- `sa-orchestrator.yaml`, `role-orchestrator.yaml`, `rolebinding-orchestrator.yaml`: RBAC for the orchestrator
 
 ## Prerequisites
 
-1. Push the ingest/import images to a registry your cluster can pull from.
-2. Update image names/tags in `job-ingest.yaml`, `job-import.yaml`, and `job-meta-update.yaml`.
-3. Fill in `secret-credentials.template.yaml` with valid values.
-4. If using Capella (`cloud.couchbase.com`), fill in `secret-cacert.template.yaml`.
-5. Update PVC size/storage class as needed for your cluster.
+1. Push the ingest image to a registry your cluster can pull from.
+2. Fill in `secret-credentials.template.yaml` with valid values.
+3. If using Capella (`cloud.couchbase.com`), fill in `secret-cacert.template.yaml`.
+4. Create or supply PVCs named `vxingest-data-pvc` and `vxingest-public-pvc`.
+5. If you plan to run the orchestrator, review `configmap-job-script.yaml` and confirm the referenced downstream import and meta-update images exist in your environment.
 
 ## Create or update runtime secrets
 
@@ -73,27 +76,41 @@ In GSL, we need to add a secret to the intended namespace so we can pull from GH
  --docker-password=<PAT with read:packages permission and granted SSO access to the GSL GitHub org>
 ```
 
-## Apply Base Resources
+## Apply Resources
 
-Apply everything:
+Apply the resources you need explicitly. The ingest job and orchestrator job are independent entry points.
+
+Standalone ingest job:
 
 ```bash
-kubectl --kubeconfig=${HOME}/.kube/development.yaml apply -k kubernetes
+kubectl --kubeconfig=${HOME}/.kube/development.yaml apply -f kubernetes/namespace.yaml
+kubectl --kubeconfig=${HOME}/.kube/development.yaml apply -f kubernetes/secret-credentials.template.yaml
+kubectl --kubeconfig=${HOME}/.kube/development.yaml apply -f kubernetes/secret-cacert.template.yaml
+kubectl --kubeconfig=${HOME}/.kube/development.yaml apply -f kubernetes/job-ingest.yaml
+```
+
+Pipeline orchestrator:
+
+```bash
+kubectl --kubeconfig=${HOME}/.kube/development.yaml apply -f kubernetes/namespace.yaml
+kubectl --kubeconfig=${HOME}/.kube/development.yaml apply -f kubernetes/configmap-job-params.yaml
+kubectl --kubeconfig=${HOME}/.kube/development.yaml apply -f kubernetes/configmap-job-script.yaml
+kubectl --kubeconfig=${HOME}/.kube/development.yaml apply -f kubernetes/sa-orchestrator.yaml
+kubectl --kubeconfig=${HOME}/.kube/development.yaml apply -f kubernetes/role-orchestrator.yaml
+kubectl --kubeconfig=${HOME}/.kube/development.yaml apply -f kubernetes/rolebinding-orchestrator.yaml
+kubectl --kubeconfig=${HOME}/.kube/development.yaml apply -f kubernetes/job-orchestrator.yaml
 ```
 
 ## Run Jobs
 
-Run each service independently (delete and recreate to run again):
+Run the standalone ingest job or the orchestrator job independently:
 
 ```bash
 kubectl --kubeconfig=${HOME}/.kube/development.yaml -n vxingest-dev delete job vxingest-ingest --ignore-not-found
 kubectl --kubeconfig=${HOME}/.kube/development.yaml -n vxingest-dev apply -f kubernetes/job-ingest.yaml
 
-kubectl --kubeconfig=${HOME}/.kube/development.yaml -n vxingest-dev delete job vxingest-import --ignore-not-found
-kubectl --kubeconfig=${HOME}/.kube/development.yaml -n vxingest-dev apply -f kubernetes/job-import.yaml
-
-kubectl --kubeconfig=${HOME}/.kube/development.yaml -n vxingest-dev delete job vxingest-meta-update --ignore-not-found
-kubectl --kubeconfig=${HOME}/.kube/development.yaml -n vxingest-dev apply -f kubernetes/job-meta-update.yaml
+kubectl --kubeconfig=${HOME}/.kube/development.yaml -n vxingest-dev delete job vxingest-pipeline-orchestrator --ignore-not-found
+kubectl --kubeconfig=${HOME}/.kube/development.yaml -n vxingest-dev apply -f kubernetes/job-orchestrator.yaml
 ```
 
 ## Inspect Status
@@ -102,12 +119,12 @@ kubectl --kubeconfig=${HOME}/.kube/development.yaml -n vxingest-dev apply -f kub
 kubectl --kubeconfig=${HOME}/.kube/development.yaml -n vxingest-dev get jobs
 kubectl --kubeconfig=${HOME}/.kube/development.yaml -n vxingest-dev get pods
 kubectl --kubeconfig=${HOME}/.kube/development.yaml -n vxingest-dev logs job/vxingest-ingest
-kubectl --kubeconfig=${HOME}/.kube/development.yaml -n vxingest-dev logs job/vxingest-import
-kubectl --kubeconfig=${HOME}/.kube/development.yaml -n vxingest-dev logs job/vxingest-meta-update
+kubectl --kubeconfig=${HOME}/.kube/development.yaml -n vxingest-dev logs job/vxingest-pipeline-orchestrator
 ```
 
 ## Notes
 
-- The import job creates required directories (`logs`, `xfer`, `temp_tar`) before running.
+- `job-ingest.yaml` expects PVCs named `vxingest-data-pvc` and `vxingest-public-pvc` to exist already.
+- The orchestrator script reads `JOBIDS` from `configmap-job-params.yaml` and creates one ingest/import pair per configured line.
 - The CA cert secret is optional in manifests. Keep it populated for Capella deployments.
 - All jobs are configured with `restartPolicy: Never` and `backoffLimit: 0` for one-shot behavior.

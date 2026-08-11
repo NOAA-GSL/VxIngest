@@ -2,69 +2,51 @@
 
 ## Containers
 
-The `scripts/cbtools` directory is included for use within the container. These tools are linux x86-64 oriented. Do not expect them to work on other platforms or achitectures. If you need a compatible copy of these tools see [https://docs.couchbase.com/cloud/reference/command-line-tools.html](https://docs.couchbase.com/cloud/reference/command-line-tools.html)
+The `scripts/cbtools` directory is included for use within Linux x86-64 containers. Do not expect those tools to work on other platforms or architectures. If you need a compatible copy, see <https://docs.couchbase.com/cloud/reference/command-line-tools.html>.
 
-Credentials are passed in as a secret. To establish a CREDENTIALS secret you MUST have a credentials file in your home directory.
+Credentials are passed into Compose services as secrets. By default, `compose.yaml` expects a credentials file at `${HOME}/credentials`, though you can override that with the `CREDENTIALS_FILE` environment variable.
 
-The docker compose file expects a few directories to be available on the docker host (possibly your development platform) depending on the service.
+The Compose file in this branch provides `shell`, `test`, and `ingest` services. The host directories mounted for those services are:
 
-* `/opt/data` has test data
-* `/opt/data_import` is a shared mounted directory used by `run-import.sh` for import input, temp extraction, and import logs.
-* `/public` is usually the DSG /public that has all of GSL data in it. This is where the ingest processes find grib and netcdf files etc..
-* You must specify data for all services and both data and public for ingest and shell services.
+* `data` -> `/opt/data`
+* `public` -> `/public`
+
+Use `data` for all services, and `public` for the `ingest` and `shell` services.
 
 ## Utilities
 
-There is a scripts directory, much of which came from Couchbase training.
-This directory contains many useful scripts for administration, monitoring, and accessing Couchbase statistics.
-
-## Running an import job service
-
-data=/data-ingest/data_import docker compose run import ./scripts/VXingest_utilities/import/run-import.sh -c /run/secrets/CREDENTIALS_FILE -l xfer -t temp_tar
-
-The parameters are very similar to the ingest service.
-These directory parameters are relative to the `/opt/data_import` mountpoint used by the import container.
-
-- The credentials-file specifies cb_host, cb_user, and cb_password.
-- The load directory is where the program will look for the tar files
-- The temp_dir directory is where the program will unbundle the tar files (in uniq temporary subdirs)
-
-
-for example:
-
-```bash
-data=/data-ingest/data_import public=/public docker compose run import ./scripts/VXingest_utilities/import/run-import.sh -c /run/secrets/CREDENTIALS_FILE -l xfer -t temp_tar
-```
+The `scripts/` directory contains many administration, monitoring, backup, and troubleshooting helpers, plus a small set of VxIngest operational scripts under `scripts/VXingest_utilities/`.
 
 ## Running an ingest job service
 
-To run a single ingest job there are a few extra parameters in addition to the /data directory. directories should be under the /opt/data mountpoint (where the data path is mounted). This is a typical invocation.
+To run a single ingest job, supply `data`, `public`, and the job identifier. The output, log, metrics, and transfer directories are mounted under `/opt/data` inside the container.
 
 ```bash
- data=/data-ingest/data public=/public docker compose run ingest ./scripts/VXingest_utilities/run-ingest.sh -c /run/secrets/CREDENTIALS_FILE -o /opt/data/test/outdir -j JOB:V01:METAR:GRIB2:MODEL:HRRR -l /opt/data/test/logs -m /opt/data/test/metrics -x /opt/data/test/xfer -f 20329817000006"
+data=/data-ingest/data public=/public \
+docker compose run ingest \
+    -j JOB:V01:METAR:GRIB2:MODEL:HRRR
 ```
 
-Where -c is the internal credentials file passed as a secret. Don't change that path, but do be sure to have a "credentials" file in your ${HOME}. The -l is where you want to store and archive log files, -m is the directory where job metrics are stored to be collected, -j is a job document id, -f is an optional file pattern that can be used to qualify the input files (the job document will specify the input data path), and -x is the directory where archived job results (documents and associated log files) are stored in expectation of being imported and scraped by an import process. Scraping is the process of gathering metrics from the log files. The arguments will be passed to the service through the environment. The ingest service will run all of the jobs that are currently scheduled (in the job documents) to run in the current fifteen minute interval i.e. quarter hour.
+The service uses the credentials secret mounted at `/run/secrets/CREDENTIALS_FILE`. The `-j` flag identifies the job document to run. Optional flags such as `-f` are passed through to the specific builder selected by the job.
 
-The -f flag in the example is specific to a GRIB2 JOB. A netcdf JOB would something like 20231124_1500. A CTC or a SUM job would have different parameters i.e. -f first_epoch and -l last_epoch. These optional parameters are passed through to the particular builder.
+The ingest writes output documents and transfer tarballs into `/opt/data`. Any downstream import of those tarballs is handled outside this branch.
 
 ## Data model
 
-The data model is best viewed with Hackolade. Refer to [model](docs/model/docs/README.md) for instructions on how to access the model.
+The data model is best viewed with Hackolade. Refer to [model/docs/README.md](model/docs/README.md) for instructions on how to access the model.
 
 ## Architecture
 
-The architecture is briefly outlined [Here](https://docs.google.com/drawings/d/1eYlzZKAWOgKjuMVg6wVZHn0Me80TyMy5LQMUhNv-wWk/edit).
+See the [architecture overview diagram](https://docs.google.com/drawings/d/1eYlzZKAWOgKjuMVg6wVZHn0Me80TyMy5LQMUhNv-wWk/edit).
 
-The design follows a [builder pattern](https://en.wikipedia.org/wiki/Builder_pattern).
-There is a top level VXIngest class defined in run_ingest_threads.py that has the reponsibility of owning a thread pool of a specified number of 'Director' role VXIngestManagers and a queue of input data, as well as providing the command line interface to the factory. For a netcdf_builder the queue might be a queue of netcdf files. For a ctc builder it might be a queue of ingest templates. Each VXIngestManager has an object pool of builders. Each builder will use an ingest template and a data source to create output documents. When the queue is depleted the VXIngestManager writes the documents into a specified location where they can easily be imported to the database.
+The design follows a [builder pattern](https://en.wikipedia.org/wiki/Builder_pattern). There is a top-level VXIngest class defined in `run_ingest_threads.py` that owns a thread pool of VXIngestManagers, a queue of input data, and the command-line interface to the factory. For a NetCDF builder the queue might be a queue of NetCDF files. For a CTC builder it might be a queue of ingest templates. Each VXIngestManager has an object pool of builders. Each builder uses an ingest template and a data source to create output documents. When the queue is depleted, the VXIngestManager writes documents into the configured output location.
 
 ## Builders
 
-The basic plan is to have as many builders as there are fundemental data types. Initially there are...
+The basic plan is to have as many builders as there are fundamental data types. Initially there are:
 
-- [netcdf](src/vxingest/netcdf_to_cb/README.md) - which is madis data from netcdf files. The source code for this is in netcdf_to_cb.
-- [grib2](src/vxingest/grib2_to_cb/README.md) - which is model output data in grib files. The source code for this is in grib2_to_cb.
-- [ctc](src/vxingest/ctc_to_cb/README.md) - which is contigency table data derived from observations (netcdf data) and corresponding model output data. The source code for this is in ctc_to_cb.
+* [../src/vxingest/netcdf_to_cb/README.md](../src/vxingest/netcdf_to_cb/README.md) - MADIS data from NetCDF files.
+* [../src/vxingest/grib2_to_cb/README.md](../src/vxingest/grib2_to_cb/README.md) - model output data in GRIB files.
+* [../src/vxingest/ctc_to_cb/README.md](../src/vxingest/ctc_to_cb/README.md) - contingency table data derived from observations and corresponding model output.
 
 Each builder follows a factory pattern.

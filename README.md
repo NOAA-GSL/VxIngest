@@ -4,7 +4,7 @@ VxIngest ingests meteorological data from various sources and prepares Couchbase
 
 ## Getting Started
 
-This branch currently ships the Python ingest application and related orchestration assets.
+This repo currently ships the Python ingest application and related orchestration assets.
 
 - The ingest application reads GRIB2, NetCDF, or Couchbase source data and writes Couchbase-ready JSON documents to disk.
 - It also writes logs, Prometheus metrics, and tarballs in a transfer directory.

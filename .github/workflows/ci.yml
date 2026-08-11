@@ -15,6 +15,11 @@ on:
     # paths-ignore:
     #   - "docs/**"
   workflow_dispatch: # Manually
+    inputs:
+      run_packaging_inspection:
+        description: "Run ad hoc Python packaging inspection step"
+        required: false
+        default: "false"
 env:
   REGISTRY: ghcr.io/noaa-gsl/vxingest
 
@@ -128,6 +133,7 @@ jobs:
         id: short-sha
         run: echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
       - name: Inspect Python packaging artifacts in image
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.run_packaging_inspection == 'true'
         run: |
           docker pull "ghcr.io/noaa-gsl/vxingest/ingest:sha-${{ steps.short-sha.outputs.short_sha }}"
           docker run --rm --entrypoint python "ghcr.io/noaa-gsl/vxingest/ingest:sha-${{ steps.short-sha.outputs.short_sha }}" - <<'PY'

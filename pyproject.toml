@@ -15,7 +15,7 @@ dependencies = [
     "cfgrib>=0.9.15.1",
     "couchbase>=4.6.2",
     "pyproj>=3.7.2",
-    "numpy>=2.5.0",
+    "numpy>=2.5.2",
     "metpy>=1.7.1",
     "prometheus-client>=0.23.1",
     "ncepbufr",
@@ -29,8 +29,8 @@ ingest = "vxingest.main:run_ingest"
 dev = [
     "pytest>=9.1.1",
     "types-pyyaml>=6.0.12.20260518",
-    "ruff>=0.15.20",
-    "coverage>=7.14.3",
+    "ruff>=0.16.2",
+    "coverage>=7.15.4",
     "mypy>=2.1.0",
     "plotly>=6.8.0",
     "mysql-connector-python>=9.7.0",
@@ -38,7 +38,7 @@ dev = [
 ]
 
 [build-system]
-requires = ["uv_build<0.12"]
+requires = ["uv_build<0.13"]
 build-backend = "uv_build"
 
 [tool.uv]

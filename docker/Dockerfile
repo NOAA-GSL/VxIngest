@@ -2,10 +2,19 @@
 
 # NOTE - avoid installing python packages via apt - they install an alternate version of Python
 
+ARG CHAINGUARD_PYTHON_BUILDER_TAG=latest-dev
+ARG CHAINGUARD_PYTHON_RUNTIME_TAG=latest
+
 # First, build the application in the `/app` directory.
 # See `Dockerfile` for details.
-FROM ghcr.io/astral-sh/uv:python3.13-trixie-slim AS builder
+FROM cgr.dev/chainguard/python:${CHAINGUARD_PYTHON_BUILDER_TAG} AS builder
+USER root
+
+# Install uv into the build image.
+RUN python -m pip install --no-cache-dir uv
+
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
+ENV UV_CACHE_DIR=/root/.cache/uv
 
 # Omit development dependencies
 ENV UV_NO_DEV=1
@@ -15,6 +24,7 @@ ENV UV_NO_DEV=1
 # copied from the build image into the final image; see `standalone.Dockerfile`
 # for an example.
 ENV UV_PYTHON_DOWNLOADS=0
+ENV UV_PYTHON=python
 
 WORKDIR /app
 
@@ -36,7 +46,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 FROM builder AS dev
 # Use like the following:
 # docker build --target=dev -f Dockerfile -t vxingest:dev .
-# docker run --rm --mount type=bind,src=$(pwd)/tmp/test-data/opt/data,dst=/opt/data -it vxingest:dev bash
+# docker run --rm --mount type=bind,src=$(pwd)/tmp/test-data/opt/data,dst=/opt/data -it vxingest:dev sh
 # uv run pytest tests
 
 # Have uv install dev dependencies
@@ -52,10 +62,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 ENV PATH="/app/.venv/bin:$PATH"
 
 # The runtime image, used for running just the application with its dependencies
-FROM python:3.13-slim-trixie AS prod
-# It is important to use the image that matches the builder, as the path to the
-# Python executable must be the same, e.g., using `python:3.11-slim-bookworm`
-# will fail.
+FROM cgr.dev/chainguard/python:${CHAINGUARD_PYTHON_RUNTIME_TAG} AS prod
+# Override both tags together if you need strict Python version alignment.
 
 ARG COMMITBRANCH=development
 ARG COMMITSHA=unspecified
@@ -67,43 +75,16 @@ ENV VERSION=${BUILDVER}
 
 LABEL version=${BUILDVER} code.branch=${COMMITBRANCH} code.commit=${COMMITSHA}
 
-# Setup a non-root user with a well known UID/GID
-# In this case, use the same uid/gid as the import image.
-# Create the user with a home dir so we have a place for temporary cache dirs & etc...
-ARG ID=5002
-ARG USERNAME=ingest
-RUN groupadd --gid ${ID} ${USERNAME} && \
-    useradd --shell /bin/bash --create-home --uid ${ID} --gid ${ID} ${USERNAME}
-
-# Run OS updates
-RUN apt-get update && apt-get upgrade -y && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# The runtime image does not need packaging tools. Removing them reduces the
-# scan surface from the base image and avoids reporting vendored pip libraries.
-RUN rm -rf \
-    /usr/local/bin/pip \
-    /usr/local/bin/pip3 \
-    /usr/local/bin/pip3.13 \
-    /usr/local/lib/python3.13/ensurepip \
-    /usr/local/lib/python3.13/site-packages/pip \
-    /usr/local/lib/python3.13/site-packages/pip-*.dist-info \
-    /usr/local/lib/python3.13/site-packages/setuptools \
-    /usr/local/lib/python3.13/site-packages/setuptools-*.dist-info \
-    /usr/local/lib/python3.13/site-packages/pkg_resources \
-    /usr/local/lib/python3.13/site-packages/wheel \
-    /usr/local/lib/python3.13/site-packages/wheel-*.dist-info
-
 # Copy the application from the builder
-COPY --from=builder --chown=ingest:ingest /app /app
+COPY --from=builder --chown=65532:65532 /app /app
 
 WORKDIR /app
 
 # Place executables in the environment at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"
 
-# Use the non-root user to run the application
-USER ${USERNAME}
+# Chainguard's unprivileged runtime user.
+USER 65532
 
 # Run the default ingest python entrypoint defined in pyproject.toml
 ENTRYPOINT ["ingest"]

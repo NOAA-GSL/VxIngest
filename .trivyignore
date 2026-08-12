@@ -27,3 +27,26 @@ CVE-2022-1586
 CVE-2022-1587
 CVE-2025-58050
 CVE-2019-20454
+
+# Temporary exception for import image external dependency:
+# - CVE-2025-68121 is reported in Go stdlib inside Couchbase cbimport binary.
+# - cbimport is downloaded from couchbase-server-dev-tools and is not compiled
+#   from this repository source.
+# - Remove this ignore when Couchbase publishes a patched dev-tools release.
+CVE-2025-68121
+
+# Temporary exceptions for import image external dependency:
+# - These gRPC findings are detected in Couchbase cbimport payloads.
+# - Remove when Couchbase dev-tools ships patched gRPC.
+CVE-2026-33186
+GHSA-hrxh-6v49-42gf
+
+# Temporary exception for import image external dependency:
+# - go-jose v4.1.3 is detected in Couchbase cbimport payloads.
+# - Remove when Couchbase dev-tools ships go-jose v4.1.4+.
+CVE-2026-34986
+
+# Temporary exception for import image external dependency:
+# - OpenTelemetry (otel v1.40.0) is detected in Couchbase cbimport payloads.
+# - Remove when Couchbase dev-tools ships otel v1.41.0+.
+CVE-2026-29181

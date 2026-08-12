@@ -13,6 +13,8 @@ dist/
 
 # Project files
 tmp/
+third_party/NCEPLIBS-bufr/tests/venv/
+third_party/NCEPLIBS-bufr/tests/venv-3.13/
 
 # VIM swap files
 **/*.swp

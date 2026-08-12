@@ -1,45 +1,40 @@
 # VxIngest
 
-VxIngest ingests meteorological data from various sources and makes it available in a document database for verification purposes in conjunction with the ["Model Application Toolsuite" (MATS)](https://github.com/noaa-gsl/MATS) application.
+VxIngest ingests meteorological data from various sources and prepares Couchbase-ready JSON documents for verification workflows used alongside the [Model Application Toolsuite (MATS)](https://github.com/noaa-gsl/MATS).
 
 ## Getting Started
 
-Our ingest process has two components:
+This repo currently ships the Python ingest application and related orchestration assets.
 
-* The VxIngest Python application - also referred to as the "ingest"
-* The "import" shell script
+- The ingest application reads GRIB2, NetCDF, or Couchbase source data and writes Couchbase-ready JSON documents to disk.
+- It also writes logs, Prometheus metrics, and tarballs in a transfer directory.
+- Those transfer tarballs are retained for downstream consumers, but the downstream import and metadata-update runtimes are not maintained in this branch.
 
-The ingest program works to consume raw model output and observation data in GRIB & NetCDF format and turn that data into VxIngest's common data format. The ingest program writes the data out to disk as Couchbase JSON documents, along with some log output and Prometheus metrics. The ingest program also works to calculate aggregate statistics on the contents of the Couchbase database, like CTCs & Partial Sums
-
-The import script wraps the Couchbase `cbimport` CLI tool and imports the Couchbase JSON documents created by the "ingest" process into the database.
-
-If you're interested in some diagrams showing the data flow, see the [Diagrams](#diagrams) section
+If you want diagrams of the current data flow, see the [Diagrams](#diagrams).
 
 ## Usage
 
-VxIngest is containerized for deployment. If you are developing the application, see the [Development Guide](docs/development-guide.md) for information on setting up a development environment; as well as for information on linting, formatting, and testing.
+VxIngest is containerized for deployment. If you are developing the application, see [docs/development-guide.md](docs/development-guide.md) for environment setup, linting, formatting, and testing.
 
 ### Using the container
 
 #### Building images
 
-VxIngest supports both AMD64 and ARM64 architectures. Both the ingest and import images include pre-compiled binaries for both platforms.
+VxIngest supports both AMD64 and ARM64 architectures.
 
-**Ingest image (single architecture — local machine):**
+Single-architecture local build:
 
 ```bash
 docker build \
     --build-arg BUILDVER=dev \
     --build-arg COMMITBRANCH=$(git branch --show-current) \
     --build-arg COMMITSHA=$(git rev-parse HEAD) \
-    -f ./docker/ingest/Dockerfile \
-    -t vxingest:dev \
+    -f ./docker/Dockerfile \
+    -t vxingest/ingest:dev \
     .
 ```
 
-**Ingest image (multi-architecture — cross-compile for both amd64 and arm64):**
-
-Requires Docker with buildx support:
+Multi-architecture build with buildx:
 
 ```bash
 docker buildx build \
@@ -47,54 +42,25 @@ docker buildx build \
     --build-arg BUILDVER=dev \
     --build-arg COMMITBRANCH=$(git branch --show-current) \
     --build-arg COMMITSHA=$(git rev-parse HEAD) \
-    -f ./docker/ingest/Dockerfile \
+    -f ./docker/Dockerfile \
     -t <registry>/vxingest/ingest:dev \
     --push \
     .
 ```
 
-**Import image (single architecture — local machine):**
+Build the development target used by the Compose `test` service:
 
 ```bash
 docker build \
-    --build-arg BUILDVER=dev \
-    --build-arg COMMITBRANCH=$(git branch --show-current) \
-    --build-arg COMMITSHA=$(git rev-parse HEAD) \
-    -f ./docker/import/Dockerfile \
-    -t vxingest:import-dev \
+    --target dev \
+    -f ./docker/Dockerfile \
+    -t vxingest/ingest:dev-test \
     .
 ```
 
-**Import image (multi-architecture — cross-compile for both amd64 and arm64):**
+### Running the ingest
 
-```bash
-docker buildx build \
-    --platform linux/amd64,linux/arm64 \
-    --build-arg BUILDVER=dev \
-    --build-arg COMMITBRANCH=$(git branch --show-current) \
-    --build-arg COMMITSHA=$(git rev-parse HEAD) \
-    -f ./docker/import/Dockerfile \
-    -t <registry>/vxingest/import:dev \
-    --push \
-    .
-```
-
-Alternatively, build both images using Docker Compose:
-
-```bash
-BUILDVER=dev \
-COMMITBRANCH=$(git branch --show-current) \
-COMMITSHA=$(git rev-parse HEAD) \
-docker compose build ingest import
-```
-
-#### Running the ingest
-
-To run the ingest, you will first need to create a file like the below with the database credentials in `${HOME}/credentials`:
-
-For import if you want Compose to use a different credentials file, set the `CREDENTIALS_FILE` environment variable before running `docker compose`.
-
-`${HOME}/credentials`:
+Create a credentials file such as `${HOME}/credentials`:
 
 ```yaml
 cb_host: "url.for.couchbase"
@@ -103,128 +69,93 @@ cb_password: "password"
 cb_bucket: "vxdata"
 cb_scope: "_default"
 cb_collection: "METAR"
-cacert_file: /path/to/ca_cert_file # optional - needed for Capella clusters
+cacert_file: /path/to/ca_cert_file # optional, needed for Capella clusters
 cb_timeout_seconds: 7200
 ```
 
-The optional cb_timeout_seconds defines the couchbase timeout for queries.
-The optional ca_cert_file can be obtained from the Capella management UI.
+The optional `cb_timeout_seconds` sets Couchbase query timeouts. The optional `cacert_file` can be obtained from the Capella management UI.
 
-The cb_host file requires a protocol. For example ... "couchbase://adb-cb1.gsd.esrl.noaa.gov" - because adb-cb1... is a single node cluster. For adb-cb2 (which is one node of a multinode cluster) it would be "couchbases://adb-cb2.gsd.esrl.noaa.gov". Any of the nodes would suffice.
+The `cb_host` value must include a protocol such as `couchbase://` or `couchbases://`.
 
-Once that's in place, you can run the ingest with Docker Compose:
+Run the ingest through Docker Compose. The Compose service already supplies the standard output, log, metrics, and transfer directories; you only need to provide the job identifier:
 
 ```bash
 data=/data-ingest/data \
-    public=/public \
-    docker compose run ingest
+public=/public \
+docker compose run ingest \
+    -j JOB-TEST:V01:METAR:NETCDF:OBS
 ```
 
-If `cb_host` points to a Capella cluster (`cloud.couchbase.com`), also set `CACERT_FILE` before running `docker compose` so the CA certificate PEM is mounted as a secret:
+If `cb_host` points to a Capella cluster, also set `CACERT_FILE` so the CA certificate PEM is mounted as a secret:
 
 ```bash
 CACERT_FILE=/path/to/capella-ca.pem \
 data=/data-ingest/data \
-    public=/public \
-    docker compose run ingest
+public=/public \
+docker compose run ingest \
+    -j JOB-TEST:V01:METAR:NETCDF:OBS
 ```
 
-The ingest writes JSON output, logs, metrics, and transfer tarballs to the `data` directory for the import stage to process.
+The ingest writes JSON output, logs, metrics, and transfer tarballs into the mounted `data` directory.
 
-#### Running the meta-update service
+### Running tests in the container
 
-You can run the metadata refresh service directly via Docker Compose when you want to rebuild MATS metadata from Couchbase DD documents without running a full ingest/import cycle:
+The Compose `test` service builds the Dockerfile's `dev` target and runs the repository test suite inside that container:
+
+```bash
+data=/home/path/to/test-data docker compose run test
+```
+
+### Debugging in the container
+
+If you want an interactive shell in the ingest image for debugging:
 
 ```bash
 data=/data-ingest/data \
-    docker compose run meta-update \
-    -c /run/secrets/CREDENTIALS_FILE \
-    -s /app/meta_update_middleware/settings.json
-```
-
-The Compose service mounts the credentials secret as `CREDENTIALS_FILE`, so the `-c /run/secrets/CREDENTIALS_FILE` flag resolves inside the container without any extra host setup.
-
-If `cb_host` points to a Capella cluster (`cloud.couchbase.com`), also set `CACERT_FILE` before running `docker compose` so the CA certificate PEM is mounted as a secret:
-
-```bash
-CACERT_FILE=/path/to/capella-ca.pem \
-data=/data-ingest/data \
-    docker compose run meta-update \
-    -c /run/secrets/CREDENTIALS_FILE \
-    -s /app/meta_update_middleware/settings.json
-```
-
-Optional flags can be appended the same way. For example, to rebuild metadata for only one app:
-
-```bash
-data=/data-ingest/data \
-    docker compose run meta-update \
-    -c /run/secrets/CREDENTIALS_FILE \
-    -s /app/meta_update_middleware/settings.json \
-    -a ceiling
-```
-
-#### Running the import
-
-You can run the import via Docker Compose. Use the same value for `data` that you used for the ingest so the import container can access the tarballs written to `xfer/`:
-
-```bash
-data=/data-ingest/data \
-    docker compose run import
-```
-
-The Compose service now creates the required import directories on startup, including `logs`, `archive`, `temp`, and `xfer`, so a clean host volume will work without pre-seeding those paths.
-
-In the compose.yaml, `CREDENTIALS_FILE` defaults to `${HOME}/credentials`. Override it by setting a `CREDENTIALS_FILE` environment variable pointing to a different path. The `CACERT_FILE` secret path is similarly overrideable via the `CACERT_FILE` environment variable and is passed into the import container.
-
-If you want an interactive shell in the ingest image for debugging, you can run:
-
-```bash
-data=/data-ingest/data \
-    public=/public \
-    docker compose run shell
+public=/public \
+docker compose run shell
 ```
 
 ## Diagrams
 
-Data flow for Model & Observation ingest (GRIB & NetCDF)
+Data flow for model and observation ingest (GRIB2 and NetCDF):
 
 ```mermaid
 ---
-title: Model & Obs Ingest
+title: Model and Obs Ingest
 ---
 flowchart LR
     data --> |1. Reads new data| ingest
-    ingest --> |2. Writes data out <br>as JSON files| disk
-    disk --> |3. Imports JSON files| import
-    import --> |4. Inserts files| cb
+    ingest --> |2. Writes data out as JSON files| disk
+    disk --> |3. Hands tarballs to downstream tooling| downstream
+    downstream --> |4. Inserts files| cb
 
     subgraph Application Layer
         ingest(Ingest)
-        import(Import)
+        downstream(External downstream import)
     end
     subgraph Data Layer
-        data[[Model & Obs Data]]
+        data[[Model and Obs Data]]
         disk[[Files on Disk]]
         cb[(Couchbase)]
     end
 ```
 
-Data flow for Aggregate Statistics ingest. (CTC & Partial Sum)
+Data flow for aggregate statistics ingest (CTC and Partial Sums):
 
 ```mermaid
 ---
-title: CTC & Partial Sums Ingest
+title: CTC and Partial Sums Ingest
 ---
 flowchart LR
     ingest --> |1. Gets data from Couchbase| cb
     ingest --> |2. Writes data out as JSON files| disk
-    disk --> |3. Imports JSON files| import
-    import --> |4. Inserts files| cb
+    disk --> |3. Hands tarballs to downstream tooling| downstream
+    downstream --> |4. Inserts files| cb
 
     subgraph Application Layer
         ingest(Ingest)
-        import(Import)
+        downstream(External downstream import)
     end
     subgraph Data Layer
         disk[[Files on Disk]]
@@ -234,4 +165,4 @@ flowchart LR
 
 ## Disclaimer
 
-This repository is a scientific product and is not official communication of the National Oceanic and Atmospheric Administration, or the United States Department of Commerce. All NOAA GitHub project code is provided on an “as is” basis and the user assumes responsibility for its use. Any claims against the Department of Commerce or Department of Commerce bureaus stemming from the use of this GitHub project will be governed by all applicable Federal law. Any reference to specific commercial products, processes, or services by service mark, trademark, manufacturer, or otherwise, does not constitute or imply their endorsement, recommendation or favoring by the Department of Commerce. The Department of Commerce seal and logo, or the seal and logo of a DOC bureau, shall not be used in any manner to imply endorsement of any commercial product or activity by DOC or the United States Government.
+This repository is a scientific product and is not official communication of the National Oceanic and Atmospheric Administration, or the United States Department of Commerce. All NOAA GitHub project code is provided on an "as is" basis and the user assumes responsibility for its use. Any claims against the Department of Commerce or Department of Commerce bureaus stemming from the use of this GitHub project will be governed by all applicable Federal law. Any reference to specific commercial products, processes, or services by service mark, trademark, manufacturer, or otherwise, does not constitute or imply their endorsement, recommendation or favoring by the Department of Commerce. The Department of Commerce seal and logo, or the seal and logo of a DOC bureau, shall not be used in any manner to imply endorsement of any commercial product or activity by DOC or the United States Government.

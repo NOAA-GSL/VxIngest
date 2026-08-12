@@ -5,7 +5,6 @@
 These programs are intended to import grib data into Couchbase taking advantage of the GSL Couchbase data schema
 that has been developed by the GSL AVID model verification team.
 
-
 ## Approach
 
 These programs use a load_spec YAML file to define which ingest templates are to be used, a credentials file to provide database authentication, command line parameters for run time options, and the associated ingest template documents from the database that are specified in the load_spec.yaml.

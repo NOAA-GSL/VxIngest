@@ -1,22 +1,26 @@
 # Development Guide
 
-This guide covers how to set up your environment to work on VxIngest. It also covers code standards, linting, and testing.
+This guide covers how to set up your environment to work on VxIngest. It also covers linting, formatting, testing, and container-based development.
 
-VxIngest is containerized for deployment. For more on using the application, see the [README.md](../README.md) in the repo root.
+VxIngest is containerized for deployment. For general usage, see [../README.md](../README.md).
 
 ## Overview
 
-VxIngest is a Python application, and uses [uv](https://docs.astral.sh/uv/) for dependency management. [Ruff](https://docs.astral.sh/ruff/) is used in the codebase for linting & formatting. The repo follows a ["`src`"-style](https://packaging.python.org/en/latest/discussions/src-layout-vs-flat-layout/) [layout](https://www.pyopensci.org/python-package-guide/package-structure-code/python-package-structure.html).
+VxIngest is a Python application that uses [uv](https://docs.astral.sh/uv/) for dependency management and command execution. [Ruff](https://docs.astral.sh/ruff/) is used for linting and formatting. The repo follows a [`src` layout](https://packaging.python.org/en/latest/discussions/src-layout-vs-flat-layout/).
 
-VxIngest outputs Couchbase JSON documents to disk as part of the "ingest" process. Those are then imported separately by a bash script in `scripts/VXingest_utilities/import/run-import.sh`.
+The ingest writes Couchbase-ready JSON documents, logs, metrics, and transfer tarballs to disk. The transfer tarballs are retained for downstream consumers, but the downstream import runtime is not maintained in this repo.
 
 ## Getting Started
 
-You will first need to download and install [uv](https://docs.astral.sh/uv/getting-started/installation/). We will use uv to manage our Python venv's and dependencies.
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/) and initialize the development environment:
 
-uv can be used to run the application locally. Note you will need a `config.yaml` or `credentials` file with connection information for a Couchbase instance.
+```bash
+uv sync --locked --dev
+```
 
-`config.yaml`:
+You will need a `config.yaml` or similar credentials file with Couchbase connection information.
+
+Example `config.yaml`:
 
 ```yaml
 cb_host: "url.for.couchbase"
@@ -27,52 +31,66 @@ cb_scope: "_default"
 cb_collection: "METAR"
 ```
 
-To run locally:
+Run the application locally:
 
 ```bash
-mkdir tmp/output
+mkdir -p tmp/output/{metrics,out,xfer,log}
 uv run ingest \
     -m tmp/output/metrics \
     -o tmp/output/out \
     -x tmp/output/xfer \
     -l tmp/output/log \
-    -c config.yaml \ # this is the path to the file with your database credentials
+    -c config.yaml \
     -j JOB-TEST:V01:METAR:CTC:CEILING:MODEL:OPS
 ```
 
-For debug output, you can set the `DEBUG` env variable:
+For debug output:
 
 ```bash
-mkdir tmp/output
-env DEBUG=true uv run ingest \
+mkdir -p tmp/output/{metrics,out,xfer,log}
+DEBUG=true uv run ingest \
     -m tmp/output/metrics \
     -o tmp/output/out \
     -x tmp/output/xfer \
     -l tmp/output/log \
-    -c config.yaml \ # this is the path to the file with your database credentials
+    -c config.yaml \
     -j JOB-TEST:V01:METAR:CTC:CEILING:MODEL:OPS
 ```
 
-### An example of running the netcdf builder for METAR obs
+Example NetCDF METAR run:
 
 ```bash
-uv run ingest  -m /tmp/output/metrics -o /tmp/output/out -x /tmp/output/xfer -l /tmp/output/log -c /Users/randy.pierce/adb-cb1-credentials -j JOB-TEST:V01:METAR:NETCDF:OBS -f 20250911_1500
+uv run ingest \
+    -m /tmp/output/metrics \
+    -o /tmp/output/out \
+    -x /tmp/output/xfer \
+    -l /tmp/output/log \
+    -c /path/to/credentials \
+    -j JOB-TEST:V01:METAR:NETCDF:OBS \
+    -f 20250911_1500
 ```
 
 ## Developer tools
 
-Linting, formatting, type checking, and unit testing can be done through uv like so:
+Common commands:
 
 ```bash
 # Lint
 uv run ruff check .
+
 # Format
 uv run ruff format .
+
 # Type check
 uv run mypy src
-# Unit test
+
+# Full test suite
 CREDENTIALS=config.yaml uv run pytest tests
-# Coverage report
+
+# Fast path without integration tests
+CREDENTIALS=config.yaml uv run pytest -m "not integration" tests
+
+# Coverage
 CREDENTIALS=config.yaml uv run coverage run -m pytest tests && \
     uv run coverage report && \
     uv run coverage html
@@ -80,66 +98,62 @@ CREDENTIALS=config.yaml uv run coverage run -m pytest tests && \
 
 ### Pre-commit
 
-We have a minimal pre-commit configuration. If you'd like to use it, you can do so by:
+If you want to use the pre-commit hooks:
 
-1. Installing pre-commit if you don't already have it:
+1. Install pre-commit:
 
-   ```console
-   uv tool install pre-commit --with pre-commit-uv --force-reinstall
-   ```
+```console
+uv tool install pre-commit --with pre-commit-uv --force-reinstall
+```
 
-2. Install the hooks:
+1. Install the hooks:
 
-   ```console
-   pre-commit install
-   ```
+```console
+pre-commit install
+```
 
-If you need to update the hooks, do: `pre-commit autoupdate`
+Update hooks with `pre-commit autoupdate`.
 
 ### Testing
 
-You will need some data files downloaded locally in order to use the test suite. For more details, see [tests/vxingest/README.md](../tests/vxingest/README.md).
+Some tests require local data files and a working Couchbase connection. See [../tests/vxingest/README.md](../tests/vxingest/README.md) for details.
 
-If you are using VSCode, the test suite should be picked up automatically. However, to set the `CREDENTIALS` env variable in VSCode, you will want to put the value in a `.env` file in the root of the repo like so:
-
-`.env`:
+If you are using VS Code, add a `.env` file in the repo root so the editor picks up the credentials path:
 
 ```env
 CREDENTIALS=config.yaml
 ```
 
-### Container Build
+## Container Build
 
-Be aware there are different Dockerfiles in this repo - one for each service. This lets us keep our container images small and targeted to just the application that needs to be run.
+The repository uses a single multi-stage Dockerfile.
 
-#### Ingest
-
-You can build the docker container with the following:
+Build the standard ingest image:
 
 ```bash
 docker build \
     --build-arg BUILDVER=dev \
     --build-arg COMMITBRANCH=$(git branch --show-current) \
     --build-arg COMMITSHA=$(git rev-parse HEAD) \
-    -f ./docker/ingest/Dockerfile \
+    -f ./docker/Dockerfile \
     -t vxingest/ingest:dev \
     .
 ```
 
-And run it via Docker Compose with the below. You'll need to update the `compose.yaml` file in the repo with your image tag. Note the `data` and `public` env variables point to where the input data resides and where you'd like the container to write out to. These are currently (12/2023) mounted to `/opt/data` inside the container.
+Run it via Docker Compose:
 
 ```bash
 data=/data-ingest/data \
-    public=/public \
-    docker compose run ingest
+public=/public \
+docker compose run ingest -j JOB-TEST:V01:METAR:NETCDF:OBS
 ```
 
-Otherwise, note there are a number of targets in the Dockerfile. You can use the `--target=dev` flag to build a dev version. If you do so, and want to run tests, you'll need to update the `src` mount path below to where your test data is. If you're using Rancher Desktop, the data will need to be somewhere in your home directory in order to mount it in the container. You can run the container directly like so.
+Build the `dev` target for testing and debugging:
 
 ```bash
 docker build \
     --target=dev \
-    -f ./docker/ingest/Dockerfile \
+    -f ./docker/Dockerfile \
     -t vxingest/ingest:test \
     .
 docker run \
@@ -148,19 +162,24 @@ docker run \
     -it \
     vxingest/ingest:test \
     bash
+```
+
+Inside that shell, you can run commands such as:
+
+```bash
 CREDENTIALS=config.yaml uv run pytest tests
 ```
 
-Or to build & run the prod version of the image, you can do the following to build:
+Build the production image directly:
 
 ```bash
 docker build \
-    -f ./docker/ingest/Dockerfile \
-    -t vxingest/ingest:prod \
+    -f ./docker/Dockerfile \
+    -t vxingest:prod \
     .
 ```
 
-And the following to run. Note that we're mounting the two things into the container - the directory we want to write output to (`$HOME/output`, mounted to `/opt/data`) and the credentials file we want to use `$(pwd)/config.yaml`. These both are relatively flexible. However, if you're running the NetCDF or the GRIB ingest you will also need to mount a directory containing those files on your local computer to the location specified in the import job doc in the database in the container. (Typically job docs specify `/public`)
+Run it directly with bind mounts:
 
 ```bash
 docker run --rm \
@@ -176,37 +195,17 @@ docker run --rm \
     -j JOB-TEST:V01:METAR:CTC:CEILING:MODEL:OPS
 ```
 
-#### Import
+## Docker Compose
 
-```bash
-docker build \
-    -f docker/import/Dockerfile \
-    --build-arg BUILDVER=dev \
-    --build-arg COMMITBRANCH=$(git branch --show-current) \
-    --build-arg COMMITSHA=$(git rev-parse HEAD) \
-    -t vxingest/import:dev \
-    .
-```
+The Compose file supports three development workflows in this branch:
 
-You can run the "import" via Docker Compose like this example. You will need to use the same value for `data` as you used for the "ingest".
+- `shell`: interactive debugging shell
+- `test`: test runner based on the Dockerfile `dev` target
+- `ingest`: main ingest runtime
 
-```bash
-data=/data-ingest/data \
-    docker compose run import
-```
+If you're using Rancher Desktop, you will need your mounted data under your home directory rather than under `/opt` on the host.
 
-### Docker Compose
-
-There is currently a Docker Compose file with options to run unit tests and ingest from within the container. This may be a useful option for local development as well.
-
-_NOTE_: if you're using Rancher Desktop, you won't be able to access /opt on your system as it's not mounted into the VM by default. You'll need to move your test files into your home directory.
-
-- `shell`: expects /data and /public for mounting
-- `test`: expects /opt/data for mounting
-- `ingest`: expects /data and /public for mounting
-- `import`: expects /data for mounting
-
-And can be run like:
+Example:
 
 ```bash
 data=/home/path/to/a/copy/of/opt/data docker compose run test
@@ -216,8 +215,8 @@ data=/home/path/to/a/copy/of/opt/data docker compose run test
 
 ### General
 
-See [`docs/general-notes.md`](docs/general-notes.md) for a general overview of Architecture, the data model and other useful things.
+See [general-notes.md](general-notes.md) for a general overview of architecture, the data model, and other useful details.
 
 ### Couchbase
 
-See [`docs/couchbase.md`](docs/couchbase.md) for more on couchbase.
+See [couchbase.md](couchbase.md) for more on Couchbase.

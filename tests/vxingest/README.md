@@ -1,14 +1,16 @@
 # Test instructions
 
-You need a properly working python3 interpreter installed. we have seen issues where the python3 installation was a problem.
+Use the repository's supported Python version from `.python-version` and install dependencies with uv.
 
-You need credential files in your home directory which can be retrieved (if you have permission) like this if you have cd'd into your home directory.
+```bash
+uv sync --locked --dev
+```
 
-```scp www-data@model-vxtest.gsd.esrl.noaa.gov:~/adb-cb* .```
+Many tests require a credentials file that points at a Couchbase instance.
 
 ## Running tests
 
-Use uv to run your tests. Make sure your virtual environment is setup with `uv sync --locked`
+Use uv to run your tests.
 
 ```shell
 CREDENTIALS=config.yaml uv run pytest tests
@@ -30,33 +32,32 @@ uv run coverage html
 
 Then open `./htmlcov/index.html` in your browser for a detailed dive into what lines were run by the test suite.
 
-Lastly, you can disable tests that require external resources (database connections & raw data files) like so:
+To skip tests that require external resources such as database connections and raw data files:
 
 ```shell
 CREDENTIALS=config.yaml uv run pytest -m "not integration" tests
 ```
 
-Note that this currently (as of 1/2024) disables most of the tests.
+This currently skips most of the suite, but it is the fastest validation path for routine changes.
 
 ## Test data
 
-For now, you'll need test resources from: https://drive.google.com/drive/folders/18YY74S8w2S0knKQRN-QxZdnfRjKxDN69?usp=drive_link unpacked to `/opt/data` in order to run the test suite.
+Some integration tests require external data unpacked to `/opt/data`.
 
-Each test directory also has a `testdata` directory that contains other test data that's checked into the repo. Ideally, we could add our test data here before we switch to generating it. 
+Each test directory also has a `testdata` directory that contains other test data that's checked into the repo. Ideally, we could add our test data here before we switch to generating it.
 
 ## tests
 
-There are two kinds of tests in each test directory.
+There are two kinds of tests in each test directory:
 
 - integration - tests are named like grib2_to_cb/test/test_int_metar_model_grib.py
 - unit - tests are named like grib2_to_cb/test/test_unit_metar_model_grib.py
 
-Notice the ***test_int_*** and the ***test_unit*** in the names.
-Unit tests are relatively independent, require minimal external test data, and run quickly. These tests are for testing methods or functions independently. Integration tests require external data and configuration, are not independent, and may be very long running. These tests are for testing a working system, or components of a working system that are interacting.
+Notice the `test_int_` and `test_unit_` prefixes in the names. Unit tests are relatively independent, require minimal external test data, and run quickly. Integration tests require external data and configuration, are not independent, and may be long-running.
 
 ## vscode
 
-To run tests from VSCode, you'll need to create a `.env` file with the `CREDENTIALS` variable set so that VSCode picks up the `CREDENTIALS` env variable.
+To run tests from VS Code, create a `.env` file with the `CREDENTIALS` variable set so the editor picks it up.
 
 ```yaml
 CREDENTIALS=config.yaml

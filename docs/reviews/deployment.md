@@ -1,24 +1,31 @@
 # Deployment
 
-This might be one of the first builders to use the mechanisms being ironed out in the data bundle meetings.
+These notes capture deployment expectations for the RAOB pressure-level builder work.
 
-The actual builders are all part of the same container already, and will be available as soon as the builder PR is merged into the main branch.
+This may be one of the first builders to use mechanisms being defined in the data bundle meetings.
 
-We will run this in the cloud using Ian's kubernetes deployment.
+The builders are all part of the same container and become available once the builder PR is merged to `main`.
 
-## Data_request
+The intended runtime is a cloud Kubernetes deployment.
 
-There is an associated Data_Source object: "DS:continuous:RAOB:HRRR_OPS:1730496755:0:1730498583:V01"
+## Data Request
 
-## Process_spec
+There is an associated data source document:
 
-There is an associated Process_Spec:
-"PS:RAOB:GRIB2:MODEL:HRRR_OPS:1730496755:1814400:V01"
+`DS:continuous:RAOB:HRRR_OPS:1730496755:0:1730498583:V01`
 
-## Ingest docs
+## Process Spec
 
-There is an ingest doc for the pressure level ingest:
-"MD:V01:RAOB:PRS:HRRR_OPS:ingest:grib2"
+There is an associated process spec document:
 
-There is an ingest doc for the native level ingest:
-"MD:V01:RAOB:NTV:HRRR_OPS:ingest:grib2"
+`PS:RAOB:GRIB2:MODEL:HRRR_OPS:1730496755:1814400:V01`
+
+## Ingest Documents
+
+There is an ingest document for pressure-level ingest:
+
+`MD:V01:RAOB:PRS:HRRR_OPS:ingest:grib2`
+
+There is an ingest document for native-level ingest:
+
+`MD:V01:RAOB:NTV:HRRR_OPS:ingest:grib2`

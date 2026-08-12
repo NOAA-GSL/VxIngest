@@ -4,10 +4,10 @@ Instructions for AI coding agents working in this repository.
 
 ## Project overview
 
-VxIngest is a two-stage pipeline for ingesting meteorological verification data into Couchbase:
+VxIngest is primarily an ingest pipeline for meteorological verification data destined for Couchbase:
 
 1. **Ingest** (Python) — Reads GRIB2, NetCDF, or Couchbase source data, transforms it into Couchbase-ready JSON documents, and writes them to disk along with Prometheus metrics and logs.
-2. **Import** (shell) — A bash wrapper around `cbimport` (`scripts/VXingest_utilities/import/run-import.sh`) that loads the JSON documents into Couchbase.
+2. **Transfer output** — The ingest still writes tarballs into a transfer directory for downstream consumers, but the downstream import runtime is not maintained in this branch.
 
 The entrypoint is `src/vxingest/main.py`, which discovers job documents from Couchbase, selects which to run, and dispatches to subtype-specific builder classes.
 
@@ -60,14 +60,14 @@ docs/                               # Documentation
 ├── couchbase.md                    # Couchbase schema & concepts
 └── model/                          # Data model documentation
 
-scripts/VXingest_utilities/         # Shell wrappers
-├── import/
-│   └── run-import.sh               # cbimport wrapper (watches for tarballs, loads JSON)
-├── run-ingest.sh                   # Orchestrates ingest jobs
-└── scrape_metrics.sh               # Parses logs for Prometheus metrics
+scripts/VXingest_utilities/         # Operational helper scripts
+├── ingest_realtime.sh              # Example realtime ingest helper
+├── ingest_retro.sh                 # Example retrospective ingest helper
+├── ingest_retro-ctcs_and_sums.sh   # Example aggregate ingest helper
+└── run_job.sh                      # Example job wrapper
 
-docker/                             # Dockerfiles for ingest & import containers
-compose.yaml                       # Docker Compose: ingest, import, test, shell services
+docker/                             # Single multi-stage Dockerfile for ingest/dev images
+compose.yaml                        # Docker Compose: ingest, test, shell services
 cb-schemas/                         # Couchbase schema definitions
 cb-samples/                         # Sample Couchbase documents (COMMON, METAR, RUNTIME)
 third_party/                        # Platform-specific wheels (NCEPLIBS-bufr)
@@ -90,7 +90,7 @@ match proc["subType"]:
 
 ### Builder hierarchy
 
-```
+```text
 CommonVxIngest (builder_common/vx_ingest.py)
   └── VXIngest (per-builder run_ingest_threads.py)  — owns runit(), Couchbase connection, file queue
         └── VxIngestManager (per-builder vx_ingest_manager.py)  — worker threads processing individual files
@@ -111,7 +111,7 @@ Two coexisting flows must both be preserved:
 1. Builder writes JSON documents to `output_dir`.
 2. `main.py` creates a gzip tarball of `output_dir` and places it in `transfer_dir`.
 3. Prometheus `.prom` metrics are written to `metrics_dir`.
-4. The import stage (`run-import.sh`) watches `transfer_dir`, extracts tarballs, and runs `cbimport`.
+4. Downstream tooling outside this branch can consume `transfer_dir` tarballs and load them into Couchbase.
 
 ### Planned: AWS event-driven architecture
 
@@ -166,7 +166,7 @@ CREDENTIALS=config.yaml uv run pytest -m "not integration" tests
 CREDENTIALS=config.yaml uv run coverage run -m pytest tests && uv run coverage report
 ```
 
-**Docker**: `compose.yaml` defines `ingest`, `import`, `test`, and `shell` services. Secrets are mounted via `CREDENTIALS_FILE`.
+**Docker**: `compose.yaml` defines `ingest`, `test`, and `shell` services. Secrets are mounted via `CREDENTIALS_FILE`.
 
 **Credentials** (in `config.yaml`):
 

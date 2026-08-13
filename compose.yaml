@@ -1,21 +1,17 @@
 secrets:
   CREDENTIALS_FILE:
     file: ${CREDENTIALS_FILE:-${HOME}/credentials}
-  CACERT_FILE:
-    file: ${CACERT_FILE:-${HOME}/cacert.pem}
 
 services:
   shell:
-    image: ghcr.io/noaa-gsl/vxingest/ingest:main
+    image: ghcr.io/noaa-gsl/vxingest/ingest:latest
     volumes:
       - ${data:-./tmp/data}:/opt/data
       - ${public:-./tmp/public}:/public
     secrets:
       - CREDENTIALS_FILE
-      - CACERT_FILE
     environment:
       CREDENTIALS: /run/secrets/CREDENTIALS_FILE
-      CACERT_FILE: /run/secrets/CACERT_FILE
     entrypoint: /bin/bash
 
   test:
@@ -35,7 +31,7 @@ services:
     # NOTE: --job_id (-j) is required and must be supplied at runtime:
     # docker compose run ingest -j JOB-TEST:V01:METAR:NETCDF:OBS
     #image: ghcr.io/noaa-gsl/vxingest/ingest:main
-    image: vxingest/ingest:dev
+    image: ghcr.io/noaa-gsl/vxingest/ingest:latest
     volumes:
       - ${data:-./tmp/data}:/opt/data
       - ${public:-./tmp/public}:/public

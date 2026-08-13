@@ -155,16 +155,12 @@ data:
               env:
                 - name: CREDENTIALS
                   value: /run/secrets/CREDENTIALS_FILE
-                - name: CACERT_FILE
-                  value: /run/cacert/cacert.pem
               volumeMounts:
                 - name: data
                   mountPath: /opt/data
                 - name: credentials
                   mountPath: /run/secrets/CREDENTIALS_FILE
                   subPath: credentials.yaml
-                - name: cacert
-                  mountPath: /run/cacert
           volumes:
             - name: data
               persistentVolumeClaim:
@@ -172,10 +168,6 @@ data:
             - name: credentials
               secret:
                 secretName: vxingest-credentials
-            - name: cacert
-              secret:
-                secretName: vxingest-cacert
-                optional: true
     EOF
 
         wait_for_job_completion "${import_name}"
@@ -243,8 +235,6 @@ data:
               env:
                 - name: CREDENTIALS
                   value: /run/secrets/CREDENTIALS_FILE
-                - name: CACERT_FILE
-                  value: /run/cacert/cacert.pem
               volumeMounts:
                 - name: data
                   mountPath: /opt/data

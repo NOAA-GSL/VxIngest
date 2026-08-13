@@ -69,27 +69,15 @@ cb_password: "password"
 cb_bucket: "vxdata"
 cb_scope: "_default"
 cb_collection: "METAR"
-cacert_file: /path/to/ca_cert_file # optional, needed for Capella clusters
 cb_timeout_seconds: 7200
 ```
 
-The optional `cb_timeout_seconds` sets Couchbase query timeouts. The optional `cacert_file` can be obtained from the Capella management UI.
-
+The optional `cb_timeout_seconds` sets Couchbase query timeouts. 
 The `cb_host` value must include a protocol such as `couchbase://` or `couchbases://`.
 
 Run the ingest through Docker Compose. The Compose service already supplies the standard output, log, metrics, and transfer directories; you only need to provide the job identifier:
 
 ```bash
-data=/data-ingest/data \
-public=/public \
-docker compose run ingest \
-    -j JOB-TEST:V01:METAR:NETCDF:OBS
-```
-
-If `cb_host` points to a Capella cluster, also set `CACERT_FILE` so the CA certificate PEM is mounted as a secret:
-
-```bash
-CACERT_FILE=/path/to/capella-ca.pem \
 data=/data-ingest/data \
 public=/public \
 docker compose run ingest \
@@ -106,6 +94,59 @@ The Compose `test` service builds the Dockerfile's `dev` target and runs the rep
 data=/home/path/to/test-data docker compose run test
 ```
 
+### Running jobs with the job wrapper script
+
+For production or automation workflows, use [scripts/VXingest_utilities/run_job.sh](scripts/VXingest_utilities/run_job.sh) to submit and process ingest jobs with Docker and automatically import the resulting documents into Couchbase.
+
+The script:
+
+- Orchestrates ingest and import of a single job
+- Manages temporary working directories and logs
+- Automatically extracts tar.gz archives from ingest output and imports any JSON documents found within
+- Handles both ingest output and Couchbase document import
+- Requires the `CREDENTIALS_FILE` environment variable to point to a credentials YAML file (see [Running the ingest](#running-the-ingest))
+
+Basic usage:
+
+```bash
+export CREDENTIALS_FILE="${HOME}/credentials"
+./scripts/VXingest_utilities/run_job.sh JOB-TEST:V01:METAR:NETCDF:OBS
+```
+
+Optional environment variables:
+
+- `WORKING_ROOT_DIR` — Root directory for temporary files and logs. Default: `/data-ingest/data/working`
+- `PUBLIC_DIR` — Host public directory mounted into ingest as `/public`. Default: `/public`
+- `DATA_SOURCE` — Host directory containing raw input files. If set, this directory is mounted read-only into the container. Optional.
+- `CONTAINER_DATA_PATH` — Container path where DATA_SOURCE is mounted. Default: same as DATA_SOURCE. Only used if DATA_SOURCE is set.
+- `VXINGEST_IMAGE` — Docker image for the ingest step. Default: `ghcr.io/noaa-gsl/vxingest/ingest:latest`
+- `VXIMPORTER_IMAGE` — Docker image for the import step. Default: `ghcr.io/noaa-gsl/vximporter:latest`
+- `VXIMPORTER_WORKERS` — Number of import workers. Default: `16`
+- `VXIMPORTER_BATCH_SIZE` — Batch size for imports. Default: `1000`
+
+The script creates logs in `${WORKING_ROOT_DIR}/logs/` with naming pattern `docker-{ingest|import}-{job_id}-{timestamp}.out`.
+
+Example with data source:
+
+```bash
+export CREDENTIALS_FILE="${HOME}/credentials"
+export DATA_SOURCE="/opt/data/netcdf_to_cb"
+./scripts/VXingest_utilities/run_job.sh JS:METAR:OBS:NETCDF-TEST:schedule:job:V01
+```
+
+### Using Docker Compose directly
+
+The wrapper script uses direct `docker run` calls so it is self-contained for automation. Docker Compose remains supported for development, testing, and interactive debugging through [compose.yaml](compose.yaml). Use Compose when you want the repository-defined `shell`, `test`, or `ingest` services rather than the wrapper's ingest-plus-import workflow.
+
+Example direct Compose ingest run:
+
+```bash
+data=/data-ingest/data \
+public=/public \
+docker compose run ingest \
+    -j JOB-TEST:V01:METAR:NETCDF:OBS
+```
+
 ### Debugging in the container
 
 If you want an interactive shell in the ingest image for debugging:
@@ -114,6 +155,14 @@ If you want an interactive shell in the ingest image for debugging:
 data=/data-ingest/data \
 public=/public \
 docker compose run shell
+```
+
+## Tailing the log output from a running contianer
+
+If you want to tail the log output from the latest container use
+
+```bash
+docker logs -f "$(docker ps -ql)"
 ```
 
 ## Diagrams

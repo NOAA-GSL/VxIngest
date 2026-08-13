@@ -2,6 +2,7 @@ import json
 import math
 import os
 import re
+import subprocess
 import sys
 import tarfile
 from pathlib import Path
@@ -151,6 +152,102 @@ def test_one_thread_specify_file_pattern_netcdf_job_spec_rt_start_end(tmp_path: 
     finally:
         # Restore original sys.argv
         sys.argv = original_argv
+
+
+# Same scenario as test_one_thread_specify_file_pattern_netcdf_job_spec_rt,
+# but runs ingest in the compose ingest container.
+#
+# Mounts:
+# - compose_env["data"] = tmp_path is mounted to /opt/data
+# - compose_env["public"] = tmp_path/public is mounted to /public
+#
+# This test invokes ingest with:
+# - output_dir=/opt/data/temp/output
+# - log_dir=/opt/data/temp/logs
+# - metrics_dir=/opt/data/temp/metrics
+# - transfer_dir=/opt/data/temp/transfer
+#
+# Therefore outputs are written on the host under:
+# tmp_path/temp/output, tmp_path/temp/logs, tmp_path/temp/metrics, tmp_path/temp/transfer.
+#
+# The DS sourceDataUri points to /opt/data/netcdf_to_cb/input_files.
+# This test provides that path with an explicit read-only bind mount:
+# /opt/data/netcdf_to_cb:/opt/data/netcdf_to_cb:ro
+#
+# /public is mounted but not used by this DS path in this test.
+#
+# HINT: tailing the logs ...
+# while this test is running its output can be tailed with: docker "docker logs -f $(docker ps -q | awk '{print $1}')"
+@pytest.mark.integration
+def test_one_thread_specify_file_pattern_netcdf_job_spec_rt_compose(tmp_path: Path):
+    job_id = "JS:METAR:OBS:NETCDF-TEST:schedule:job:V01"
+    repo_root = Path(__file__).resolve().parents[2]
+
+    docker_info = subprocess.run(
+        ["docker", "info"], capture_output=True, text=True, check=False
+    )
+    assert docker_info.returncode == 0, (
+        "Docker daemon is not running or not reachable. "
+        f"stdout: {docker_info.stdout}\nstderr: {docker_info.stderr}"
+    )
+
+    image_check = subprocess.run(
+        ["docker", "image", "inspect", "vxingest/ingest:dev"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert image_check.returncode == 0, (
+        "Image vxingest/ingest:dev was not found. "
+        "Build it first (for example: docker build -f ./docker/Dockerfile -t vxingest/ingest:dev .). "
+        f"stderr: {image_check.stderr}"
+    )
+    compose_env = os.environ.copy()
+    compose_env["data"] = str(tmp_path)
+    compose_env["public"] = str(tmp_path / "public")
+
+    try:
+        vx_ingest = setup_connection(VXIngest_netcdf())
+        initial_success_count = prom_successes._value.get()
+        subprocess.run(["rm", "-rf", "/opt/data/temp/*"], check=False)
+        compose_run = subprocess.run(
+            [
+                "docker",
+                "compose",
+                "-f",
+                str(repo_root / "compose.yaml"),
+                "run",
+                "--rm",
+                "--volume",
+                "/opt/data/netcdf_to_cb:/opt/data/netcdf_to_cb:ro",
+                "ingest",
+                "--credentials_file=/run/secrets/CREDENTIALS_FILE",
+                "--output_dir=/opt/data/temp/output",
+                "--log_dir=/opt/data/temp/logs",
+                "--metrics_dir=/opt/data/temp/metrics",
+                "--transfer_dir=/opt/data/temp/transfer",
+                "-j",
+                job_id,
+                "-f",
+                "20211105_*",
+                "-t",
+                "1",
+            ],
+            cwd=repo_root,
+            env=compose_env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        assert compose_run.returncode == 0, (
+            "docker compose ingest run failed. "
+            f"stdout: {compose_run.stdout}\nstderr: {compose_run.stderr}"
+        )
+
+        check_output(tmp_path / "temp", vx_ingest, 2, initial_success_count + 1)
+    except Exception as e:
+        pytest.fail(f"Test failed with exception {e}")
 
 
 @pytest.mark.integration

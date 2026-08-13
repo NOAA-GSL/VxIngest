@@ -231,6 +231,12 @@ class CommonVxIngest:
                     directory[7:]
                 ).as_posix()
                 directory = directory[7:]
+            if not pathlib.Path(directory).exists():
+                logger.error(
+                    "get_file_list: Directory %s does not exist, skipping file glob.",
+                    directory,
+                )
+                return []
             if pathlib.Path(directory).exists() and pathlib.Path(directory).is_dir():
                 # the file list is sorted by getmtime so that the oldest files are processed first
                 sort_function = os.path.getmtime if file_mask else str

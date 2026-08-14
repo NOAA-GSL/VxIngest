@@ -203,6 +203,13 @@ class CommonVxIngest:
         """
         file_names = []
         try:
+            logger.debug(
+                "get_file_list called: directory=%s, pattern=%s, mask=%s, first_last_params=%s",
+                directory,
+                file_pattern,
+                file_mask,
+                first_last_params,
+            )
             # it is possible to set a query option for scan consistency but it makes this operation really slow.
             # In actual operation the ingest will do a bulk insert and wait for a period of time before getting
             # around to processing another file. I think the risk of reprocessing a file because the DF record is
@@ -212,6 +219,10 @@ class CommonVxIngest:
             result = self.cluster.query(df_query)
             df_elements = list(result)
             df_full_names = [element["url"] for element in df_elements]
+            logger.debug(
+                "get_file_list: Found %d previously ingested files in database",
+                len(df_full_names),
+            )
             # Handle if the directory is a URL or a local path
             if str(directory).startswith("http://") or str(directory).startswith(
                 "https://"
@@ -236,12 +247,21 @@ class CommonVxIngest:
                     "get_file_list: Directory %s does not exist, skipping file glob.",
                     directory,
                 )
+                logger.debug(
+                    "get_file_list: Directory path does not exist - no files can be found"
+                )
                 return []
             if pathlib.Path(directory).exists() and pathlib.Path(directory).is_dir():
                 # the file list is sorted by getmtime so that the oldest files are processed first
                 sort_function = os.path.getmtime if file_mask else str
                 file_list = sorted(
                     pathlib.Path(directory).glob(file_pattern), key=sort_function
+                )
+                logger.debug(
+                    "get_file_list: Globbed %d files from directory %s using pattern %s",
+                    len(file_list),
+                    directory,
+                    file_pattern,
                 )
                 for filename in file_list:
                     try:
@@ -266,11 +286,23 @@ class CommonVxIngest:
                                         file_epoch < first_epoch
                                         or file_epoch > last_epoch
                                     ):
+                                        logger.debug(
+                                            "get_file_list: File %s (epoch %d) is outside range [%d, %d], skipping",
+                                            filename.name,
+                                            file_epoch,
+                                            first_epoch,
+                                            last_epoch,
+                                        )
                                         continue
                             else:
                                 # no file mask so just accept the file
                                 pass
                         except ValueError:
+                            logger.debug(
+                                "get_file_list: File %s does not match mask %s, skipping",
+                                filename.name,
+                                file_mask,
+                            )
                             continue
                         # check to see if this file has already been ingested
                         # (if it is not in the df_full_names - add it)
@@ -300,7 +332,7 @@ class CommonVxIngest:
                                 file_names.append(str(filename))
                             else:
                                 logger.debug(
-                                    "%s - File %s has already been processed - not adding",
+                                    "%s - File %s has already been processed and mtime is not greater than DF.mtime - not adding",
                                     self.__class__.__name__,
                                     filename,
                                 )
@@ -309,6 +341,12 @@ class CommonVxIngest:
                         continue
             if len(file_names) == 0:
                 logger.info("get_file_list: No files to Process!")
+            else:
+                logger.debug(
+                    "get_file_list: Found %d files to process: %s",
+                    len(file_names),
+                    file_names,
+                )
             return file_names
         except Exception as _e:
             logger.error(

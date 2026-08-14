@@ -33,8 +33,11 @@ PUBLIC_DIR: Host public directory mounted into ingest as /public. Default: /publ
 DATA_SOURCE: Host raw-data directory to mount read-only into ingest. Default: unset; no additional raw-data mount.
 CONTAINER_DATA_PATH: Container path for DATA_SOURCE. Default: same as DATA_SOURCE when DATA_SOURCE is set.
 VXINGEST_IMAGE: VxIngest image. Default: ghcr.io/noaa-gsl/vxingest/ingest:latest
+DOCKER_RUN_USER: User/group for both docker runs in uid:gid format. Default: current host user (id -u):(id -g)
+VXINGEST_DOCKER_USER: User/group override for ingest docker run. Default: DOCKER_RUN_USER
 LOG_LEVEL: VxIngest log level. One of DEBUG, INFO, WARNING, ERROR, or CRITICAL. Default: INFO
 VXIMPORTER_IMAGE: vximporter image. Default: ghcr.io/noaa-gsl/vximporter:latest
+VXIMPORTER_DOCKER_USER: User/group override for vximporter docker run. Default: DOCKER_RUN_USER
 VXIMPORTER_WORKERS: vximporter worker count. Default: 16
 VXIMPORTER_BATCH_SIZE: vximporter batch size. Default: 1000
 EOF
@@ -75,6 +78,8 @@ validate_tar_paths() {
 run_vximporter() {
     local import_file="$1"
     local vximporter_image="${VXIMPORTER_IMAGE:-ghcr.io/noaa-gsl/vximporter:latest}"
+    local docker_run_user="${DOCKER_RUN_USER:-$(id -u):$(id -g)}"
+    local vximporter_docker_user="${VXIMPORTER_DOCKER_USER:-${docker_run_user}}"
     local vximporter_workers="${VXIMPORTER_WORKERS:-16}"
     local vximporter_batch_size="${VXIMPORTER_BATCH_SIZE:-1000}"
     local container_import_file
@@ -83,6 +88,7 @@ run_vximporter() {
 
     importer_args=(
         docker run --rm
+        --user "${vximporter_docker_user}"
         --mount "type=bind,source=${CREDENTIALS_FILE},target=/run/config/credentials,readonly"
         --mount "type=bind,source=${import_file},target=${container_import_file},readonly"
     )
@@ -152,9 +158,12 @@ echo "**Import log file: ${import_log_file}**"
 # DATA_SOURCE should point to the host directory containing input files
 # CONTAINER_DATA_PATH specifies where to mount it in the container (default: same as host path)
 vxingest_image="${VXINGEST_IMAGE:-ghcr.io/noaa-gsl/vxingest/ingest:latest}"
+docker_run_user="${DOCKER_RUN_USER:-$(id -u):$(id -g)}"
+vxingest_docker_user="${VXINGEST_DOCKER_USER:-${docker_run_user}}"
 ingest_args=(
     docker run --rm
     --pull=missing \
+    --user "${vxingest_docker_user}"
     --mount "type=bind,source=${working_root_dir},target=/opt/data"
     --mount "type=bind,source=${public_dir},target=/public,readonly"
     --mount "type=bind,source=${CREDENTIALS_FILE},target=/run/secrets/CREDENTIALS_FILE,readonly"

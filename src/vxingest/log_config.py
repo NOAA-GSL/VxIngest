@@ -4,6 +4,27 @@ import os
 from multiprocessing import Queue
 from pathlib import Path
 
+LOG_LEVEL_ENV_VAR = "VXINGEST_LOG_LEVEL"
+LOG_LEVELS = {
+    "CRITICAL": logging.CRITICAL,
+    "ERROR": logging.ERROR,
+    "WARNING": logging.WARNING,
+    "INFO": logging.INFO,
+    "DEBUG": logging.DEBUG,
+}
+
+
+def parse_loglevel(loglevel: str) -> int:
+    """Parse a Python logging level name from an environment variable value."""
+    normalized_loglevel = loglevel.strip().upper()
+    if normalized_loglevel in LOG_LEVELS:
+        return LOG_LEVELS[normalized_loglevel]
+
+    valid_levels = ", ".join(LOG_LEVELS)
+    raise ValueError(
+        f"Invalid {LOG_LEVEL_ENV_VAR} value: {loglevel!r}. Expected one of: {valid_levels}."
+    )
+
 
 def get_logformat() -> logging.Formatter:
     """A function to get a common log formatter"""
@@ -13,8 +34,12 @@ def get_logformat() -> logging.Formatter:
     )
 
 
-def get_loglevel():
+def get_loglevel() -> int:
     """A function to get a common loglevel"""
+    loglevel = os.environ.get(LOG_LEVEL_ENV_VAR)
+    if loglevel:
+        return parse_loglevel(loglevel)
+
     return logging.DEBUG if os.environ.get("DEBUG", False) else logging.INFO
 
 
@@ -54,9 +79,10 @@ def configure_logging(
 ) -> logging.handlers.QueueListener:
     """Configure the root logger so all subsequent loggers inherit this config
 
-    By default, log INFO level messages. However, log DEBUG messages if DEBUG is set in
-    the environment. This configuration creates a default handler to log messages to
-    stderr. If given a filepath, it will also log messages to the given file.
+    By default, log INFO level messages. However, log messages at the level specified
+    by VXINGEST_LOG_LEVEL when that environment variable is set. This configuration
+    creates a default handler to log messages to stderr. If given a filepath, it will
+    also log messages to the given file.
 
     Logging can be done in other modules by calling:
       `logger = logging.getLogger(__name__)`

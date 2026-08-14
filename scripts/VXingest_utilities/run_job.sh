@@ -33,6 +33,7 @@ PUBLIC_DIR: Host public directory mounted into ingest as /public. Default: /publ
 DATA_SOURCE: Host raw-data directory to mount read-only into ingest. Default: unset; no additional raw-data mount.
 CONTAINER_DATA_PATH: Container path for DATA_SOURCE. Default: same as DATA_SOURCE when DATA_SOURCE is set.
 VXINGEST_IMAGE: VxIngest image. Default: ghcr.io/noaa-gsl/vxingest/ingest:latest
+LOG_LEVEL: VxIngest log level. One of DEBUG, INFO, WARNING, ERROR, or CRITICAL. Default: INFO
 VXIMPORTER_IMAGE: vximporter image. Default: ghcr.io/noaa-gsl/vximporter:latest
 VXIMPORTER_WORKERS: vximporter worker count. Default: 16
 VXIMPORTER_BATCH_SIZE: vximporter batch size. Default: 1000
@@ -136,6 +137,7 @@ import_log_file="${log_dir}/docker-import-${job_id}-${timestamp}.out"
 vxingest_image="${VXINGEST_IMAGE:-ghcr.io/noaa-gsl/vxingest/ingest:latest}"
 ingest_args=(
     docker run --rm
+    --pull=always \
     --mount "type=bind,source=${working_root_dir},target=/opt/data"
     --mount "type=bind,source=${public_dir},target=/public,readonly"
     --mount "type=bind,source=${CREDENTIALS_FILE},target=/run/secrets/CREDENTIALS_FILE,readonly"
@@ -143,6 +145,9 @@ ingest_args=(
 if [ -n "${DATA_SOURCE:-}" ]; then
     container_data_path="${CONTAINER_DATA_PATH:-${DATA_SOURCE}}"
     ingest_args+=(--mount "type=bind,source=${DATA_SOURCE},target=${container_data_path},readonly")
+fi
+if [ -n "${LOG_LEVEL:-}" ]; then
+    ingest_args+=(--env "VXINGEST_LOG_LEVEL=${LOG_LEVEL}")
 fi
 
 # Run the ingest job using Docker

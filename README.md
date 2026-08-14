@@ -72,7 +72,7 @@ cb_collection: "METAR"
 cb_timeout_seconds: 7200
 ```
 
-The optional `cb_timeout_seconds` sets Couchbase query timeouts. 
+The optional `cb_timeout_seconds` sets Couchbase query timeouts.
 The `cb_host` value must include a protocol such as `couchbase://` or `couchbases://`.
 
 Run the ingest through Docker Compose. The Compose service already supplies the standard output, log, metrics, and transfer directories; you only need to provide the job identifier:
@@ -120,6 +120,7 @@ Optional environment variables:
 - `DATA_SOURCE` — Host directory containing raw input files. If set, this directory is mounted read-only into the container. Optional.
 - `CONTAINER_DATA_PATH` — Container path where DATA_SOURCE is mounted. Default: same as DATA_SOURCE. Only used if DATA_SOURCE is set.
 - `VXINGEST_IMAGE` — Docker image for the ingest step. Default: `ghcr.io/noaa-gsl/vxingest/ingest:latest`
+- `VXINGEST_LOG_LEVEL` — Log level for the ingest step. Use one of `DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL`. Default: `INFO`
 - `VXIMPORTER_IMAGE` — Docker image for the import step. Default: `ghcr.io/noaa-gsl/vximporter:latest`
 - `VXIMPORTER_WORKERS` — Number of import workers. Default: `16`
 - `VXIMPORTER_BATCH_SIZE` — Batch size for imports. Default: `1000`
@@ -134,6 +135,14 @@ export DATA_SOURCE="/opt/data/netcdf_to_cb"
 ./scripts/VXingest_utilities/run_job.sh JS:METAR:OBS:NETCDF-TEST:schedule:job:V01
 ```
 
+Example with debug logging:
+
+```bash
+export CREDENTIALS_FILE="${HOME}/credentials"
+export VXINGEST_LOG_LEVEL=DEBUG
+./scripts/VXingest_utilities/run_job.sh JS:METAR:OBS:NETCDF-TEST:schedule:job:V01
+```
+
 ### Using Docker Compose directly
 
 The wrapper script uses direct `docker run` calls so it is self-contained for automation. Docker Compose remains supported for development, testing, and interactive debugging through [compose.yaml](compose.yaml). Use Compose when you want the repository-defined `shell`, `test`, or `ingest` services rather than the wrapper's ingest-plus-import workflow.
@@ -143,9 +152,12 @@ Example direct Compose ingest run:
 ```bash
 data=/data-ingest/data \
 public=/public \
+VXINGEST_LOG_LEVEL=DEBUG \
 docker compose run ingest \
     -j JOB-TEST:V01:METAR:NETCDF:OBS
 ```
+
+`VXINGEST_LOG_LEVEL` controls application logging for the main process and worker processes. If it is unset, VxIngest logs at `INFO`. Invalid values stop startup with an error so misconfigured automation does not silently run at the wrong verbosity. The legacy `DEBUG=true` setting is still honored when `VXINGEST_LOG_LEVEL` is not set.
 
 ### Debugging in the container
 

@@ -37,6 +37,8 @@ services:
       - ${public:-./tmp/public}:/public
     secrets:
       - CREDENTIALS_FILE
+    environment:
+      VXINGEST_LOG_LEVEL: ${VXINGEST_LOG_LEVEL:-INFO}
     command:
       - "--credentials_file=/run/secrets/CREDENTIALS_FILE"
       - "--output_dir=/opt/data/test/outdir"

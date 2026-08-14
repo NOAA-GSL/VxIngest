@@ -224,13 +224,21 @@ than the previously ingested data. This will allow reprocessing as well.
 
 ## Tailing the log output from a running contianer
 
-If you want to tail the log output from the latest container use
+The log files are identified in the output of of the run_job.sh. You can tail these in real time
+with ...
+
+```sh
+tail -f log_file
+```
+
+If you want to tail the log output from the latest running container use...
 
 ```bash
 docker logs -f "$(docker ps -ql)"
 ```
 
-which will tail the most recent container. Alternatively you can examine the running containers with ...
+which will tail the most recent container.
+Alternatively you can examine the running containers with ...
 
 ```sh
 docker ps

@@ -78,26 +78,30 @@ run_vximporter() {
     local vximporter_workers="${VXIMPORTER_WORKERS:-16}"
     local vximporter_batch_size="${VXIMPORTER_BATCH_SIZE:-1000}"
     local container_import_file
+    local -a importer_args
     container_import_file="/opt/data/${hostname}/${pid}/temp_xfer/$(basename "${import_file}")"
+
+    importer_args=(
+        docker run --rm
+        --mount "type=bind,source=${CREDENTIALS_FILE},target=/run/config/credentials,readonly"
+        --mount "type=bind,source=${import_file},target=${container_import_file},readonly"
+    )
+    if [ -n "${LOG_LEVEL:-}" ]; then
+        importer_args+=(--env "LOG_LEVEL=${LOG_LEVEL}")
+    fi
 
     echo "Running vximporter container: ${vximporter_image}"
     echo "Importing ${import_file}; log: ${import_log_file}"
     if [ "${LOG_LEVEL:-}" = "DEBUG" ]; then
         echo "DEBUG: Importer docker invocation:"
-        printf '  %q ' docker run --rm \
-            --mount "type=bind,source=${CREDENTIALS_FILE},target=/run/config/credentials,readonly" \
-            --mount "type=bind,source=${import_file},target=${container_import_file},readonly" \
-            "${vximporter_image}" \
+        printf '  %q ' "${importer_args[@]}" "${vximporter_image}" \
             -conn /run/config/credentials \
             -file "${container_import_file}" \
             -workers "${vximporter_workers}" \
             -batch-size "${vximporter_batch_size}"
         echo
     fi
-    docker run --rm \
-    --mount "type=bind,source=${CREDENTIALS_FILE},target=/run/config/credentials,readonly" \
-    --mount "type=bind,source=${import_file},target=${container_import_file},readonly" \
-    "${vximporter_image}" \
+    "${importer_args[@]}" "${vximporter_image}" \
     -conn "/run/config/credentials" \
     -file "${container_import_file}" \
     -workers "${vximporter_workers}" \
@@ -142,7 +146,8 @@ container_tmp_xfer="${container_xfer_parent}/$(basename "${tmp_xfer}")"
 timestamp=$(date +%s)
 ingest_log_file="${log_dir}/docker-ingest-${job_id}-${timestamp}.out"
 import_log_file="${log_dir}/docker-import-${job_id}-${timestamp}.out"
-
+echo "**Ingest log file: ${ingest_log_file}**"
+echo "**Import log file: ${import_log_file}**"
 # Optional: mount raw data directory if DATA_SOURCE is set
 # DATA_SOURCE should point to the host directory containing input files
 # CONTAINER_DATA_PATH specifies where to mount it in the container (default: same as host path)

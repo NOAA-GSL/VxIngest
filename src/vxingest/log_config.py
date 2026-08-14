@@ -4,7 +4,7 @@ import os
 from multiprocessing import Queue
 from pathlib import Path
 
-LOG_LEVEL_ENV_VAR = "VXINGEST_LOG_LEVEL"
+LOG_LEVEL_ENV_VAR = "LOG_LEVEL"
 LOG_LEVELS = {
     "CRITICAL": logging.CRITICAL,
     "ERROR": logging.ERROR,
@@ -22,7 +22,7 @@ def parse_loglevel(loglevel: str) -> int:
 
     valid_levels = ", ".join(LOG_LEVELS)
     raise ValueError(
-        f"Invalid {LOG_LEVEL_ENV_VAR} value: {loglevel!r}. Expected one of: {valid_levels}."
+        f"Invalid LOG_LEVEL value: {loglevel!r}. Expected one of: {valid_levels}."
     )
 
 
@@ -80,7 +80,7 @@ def configure_logging(
     """Configure the root logger so all subsequent loggers inherit this config
 
     By default, log INFO level messages. However, log messages at the level specified
-    by VXINGEST_LOG_LEVEL when that environment variable is set. This configuration
+    by LOG_LEVEL when that environment variable is set. This configuration
     creates a default handler to log messages to stderr. If given a filepath, it will
     also log messages to the given file.
 

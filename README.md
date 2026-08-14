@@ -120,7 +120,7 @@ Optional environment variables:
 - `DATA_SOURCE` — Host directory containing raw input files. If set, this directory is mounted read-only into the container. Optional.
 - `CONTAINER_DATA_PATH` — Container path where DATA_SOURCE is mounted. Default: same as DATA_SOURCE. Only used if DATA_SOURCE is set.
 - `VXINGEST_IMAGE` — Docker image for the ingest step. Default: `ghcr.io/noaa-gsl/vxingest/ingest:latest`
-- `VXINGEST_LOG_LEVEL` — Log level for the ingest step. Use one of `DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL`. Default: `INFO`
+- `LOG_LEVEL` — Log level for both ingest and import steps. Use one of `DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL`. Default: `INFO`
 - `VXIMPORTER_IMAGE` — Docker image for the import step. Default: `ghcr.io/noaa-gsl/vximporter:latest`
 - `VXIMPORTER_WORKERS` — Number of import workers. Default: `16`
 - `VXIMPORTER_BATCH_SIZE` — Batch size for imports. Default: `1000`
@@ -139,7 +139,7 @@ Example with debug logging:
 
 ```bash
 export CREDENTIALS_FILE="${HOME}/credentials"
-export VXINGEST_LOG_LEVEL=DEBUG
+export LOG_LEVEL=DEBUG
 ./scripts/VXingest_utilities/run_job.sh JS:METAR:OBS:NETCDF-TEST:schedule:job:V01
 ```
 
@@ -152,12 +152,12 @@ Example direct Compose ingest run:
 ```bash
 data=/data-ingest/data \
 public=/public \
-VXINGEST_LOG_LEVEL=DEBUG \
+LOG_LEVEL=DEBUG \
 docker compose run ingest \
     -j JOB-TEST:V01:METAR:NETCDF:OBS
 ```
 
-`VXINGEST_LOG_LEVEL` controls application logging for the main process and worker processes. If it is unset, VxIngest logs at `INFO`. Invalid values stop startup with an error so misconfigured automation does not silently run at the wrong verbosity. The legacy `DEBUG=true` setting is still honored when `VXINGEST_LOG_LEVEL` is not set.
+`LOG_LEVEL` controls application logging for the main process and worker processes. If it is unset, VxIngest logs at `INFO`. Invalid values stop startup with an error so misconfigured automation does not silently run at the wrong verbosity. The legacy `DEBUG=true` setting is still honored when `LOG_LEVEL` is not set.
 
 ### Debugging in the container
 
@@ -169,12 +169,77 @@ public=/public \
 docker compose run shell
 ```
 
+### Debugging with a locally built image
+
+To debug VxIngest with a locally built Docker image and DEBUG logging:
+
+1. Build the image locally:
+
+```bash
+docker build \
+    --build-arg BUILDVER=dev \
+    --build-arg COMMITBRANCH=$(git branch --show-current) \
+    --build-arg COMMITSHA=$(git rev-parse HEAD) \
+    -f ./docker/Dockerfile \
+    -t vxingest/ingest:latest \
+    .
+```
+
+1. Set the log level and image environment variables:
+
+```bash
+export LOG_LEVEL=DEBUG
+export VXINGEST_IMAGE=vxingest/ingest:latest
+export CREDENTIALS_FILE="${HOME}/credentials"
+```
+
+1. Run the job wrapper script:
+
+```bash
+./scripts/VXingest_utilities/run_job.sh JS:METAR:OBS:NETCDF-TEST:schedule:job:V01
+```
+
+The DEBUG logs will be written to `${WORKING_ROOT_DIR}/logs/` (default: `/data-ingest/data/working/logs/`). Check the log files for detailed output including the `get_file_list` debug entries showing which files were discovered and why.
+
+**Note on reprocessing files:** If you need to reprocess files that have already been ingested, you may need to DELETE type "DF" documents from the database that record the file's processing status. The ingest code will NOT process any files that have been recorded in type "DF" documents indicating they have already been processed. Use a query like this to remove the processing record, the extra fields are there to cause the query to make use of proper indexing:
+
+```SQL
+DELETE
+FROM vxdata._default.METAR
+WHERE subset='METAR'
+    AND type='DF'
+    AND fileType='netcdf'
+    AND originType='madis'
+    AND url = "/opt/data/netcdf_to_cb/input_files/20250911_1500"
+```
+
+Alternatively, you can touch the input data file i.e. ...
+
+```sh
+touch /opt/data/netcdf_to_cb/input_files/20250911_1500
+```
+
+... which will renew the mtime of the input file making it more recent
+than the previously ingested data. This will allow reprocessing as well.
+
 ## Tailing the log output from a running contianer
 
 If you want to tail the log output from the latest container use
 
 ```bash
 docker logs -f "$(docker ps -ql)"
+```
+
+which will tail the most recent container. Alternatively you can examine the running containers with ...
+
+```sh
+docker ps
+```
+
+and choose a running container (in case there are more than one running container) and then use ...
+
+```sh
+docker logs -f container_id
 ```
 
 ## Diagrams

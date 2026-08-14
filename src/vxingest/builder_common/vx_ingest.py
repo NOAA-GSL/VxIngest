@@ -332,7 +332,7 @@ class CommonVxIngest:
                                 file_names.append(str(filename))
                             else:
                                 logger.debug(
-                                    "%s - File %s has already been processed - not adding",
+                                    "%s - File %s has already been processed and mtime is not greater than DF.mtime - not adding",
                                     self.__class__.__name__,
                                     filename,
                                 )

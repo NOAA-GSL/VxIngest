@@ -82,6 +82,18 @@ run_vximporter() {
 
     echo "Running vximporter container: ${vximporter_image}"
     echo "Importing ${import_file}; log: ${import_log_file}"
+    if [ "${LOG_LEVEL:-}" = "DEBUG" ]; then
+        echo "DEBUG: Importer docker invocation:"
+        printf '  %q ' docker run --rm \
+            --mount "type=bind,source=${CREDENTIALS_FILE},target=/run/config/credentials,readonly" \
+            --mount "type=bind,source=${import_file},target=${container_import_file},readonly" \
+            "${vximporter_image}" \
+            -conn /run/config/credentials \
+            -file "${container_import_file}" \
+            -workers "${vximporter_workers}" \
+            -batch-size "${vximporter_batch_size}"
+        echo
+    fi
     docker run --rm \
     --mount "type=bind,source=${CREDENTIALS_FILE},target=/run/config/credentials,readonly" \
     --mount "type=bind,source=${import_file},target=${container_import_file},readonly" \
@@ -137,7 +149,7 @@ import_log_file="${log_dir}/docker-import-${job_id}-${timestamp}.out"
 vxingest_image="${VXINGEST_IMAGE:-ghcr.io/noaa-gsl/vxingest/ingest:latest}"
 ingest_args=(
     docker run --rm
-    --pull=always \
+    --pull=missing \
     --mount "type=bind,source=${working_root_dir},target=/opt/data"
     --mount "type=bind,source=${public_dir},target=/public,readonly"
     --mount "type=bind,source=${CREDENTIALS_FILE},target=/run/secrets/CREDENTIALS_FILE,readonly"
@@ -147,11 +159,22 @@ if [ -n "${DATA_SOURCE:-}" ]; then
     ingest_args+=(--mount "type=bind,source=${DATA_SOURCE},target=${container_data_path},readonly")
 fi
 if [ -n "${LOG_LEVEL:-}" ]; then
-    ingest_args+=(--env "VXINGEST_LOG_LEVEL=${LOG_LEVEL}")
+    ingest_args+=(--env "LOG_LEVEL=${LOG_LEVEL}")
 fi
 
 # Run the ingest job using Docker
 echo "Running VxIngest container: ${vxingest_image}; log: ${ingest_log_file}"
+if [ "${LOG_LEVEL:-}" = "DEBUG" ]; then
+    echo "DEBUG: Ingest docker invocation:"
+    printf '  %q ' "${ingest_args[@]}" "${vxingest_image}" \
+        -c /run/secrets/CREDENTIALS_FILE \
+        -o "${container_tmp_outdir}" \
+        -l "${container_log_dir}" \
+        -m "${container_metrics_dir}" \
+        -x "${container_tmp_xfer}" \
+        -j "${job_id}"
+    echo
+fi
 "${ingest_args[@]}" "${vxingest_image}" \
 -c /run/secrets/CREDENTIALS_FILE \
 -o "${container_tmp_outdir}" \
@@ -162,7 +185,7 @@ echo "Running VxIngest container: ${vxingest_image}; log: ${ingest_log_file}"
 
 # Import job documents for the given job ID using vximporter.
 # Imports every JSON or gzip-compressed JSON file found in the transfer output.
-echo "importing job documents for job ID: $job_id"
+echo "importing job documents for job ID: $job_id" tmp_o
 
 # Debug: show what's in the directories
 echo "Debug: Contents of tmp_outdir (${tmp_outdir}):"

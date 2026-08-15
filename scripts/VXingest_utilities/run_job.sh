@@ -17,6 +17,31 @@ fi
 
 set -euo pipefail
 
+cleanup() {
+    local exit_code=$?
+    # Archive .tar.gz files before cleanup
+    if [ -n "${tmp_xfer:-}" ] && [ -d "${tmp_xfer}" ]; then
+        mkdir -p "${working_root_dir}/archive"
+        while IFS= read -r -d '' tar_file; do
+            echo "Archiving: ${tar_file} to ${working_root_dir}/archive/"
+            mv "${tar_file}" "${working_root_dir}/archive/"
+        done < <(find "${tmp_xfer}" -type f -name '*.tar.gz' -print0)
+    fi
+    # Remove temporary directories
+    if [ -n "${tmp_outdir:-}" ] && [ -d "${tmp_outdir}" ]; then
+        rm -rf "${tmp_outdir}"
+    fi
+    if [ -n "${tmp_xfer:-}" ] && [ -d "${tmp_xfer}" ]; then
+        rm -rf "${tmp_xfer}"
+    fi
+    # Remove parent directories if empty
+    rmdir "${tmp_outdir:-}" 2>/dev/null || true
+    rmdir "${tmp_xfer:-}" 2>/dev/null || true
+    return ${exit_code}
+}
+
+trap cleanup EXIT
+
 usage() {
     cat <<EOF
 Usage: $0 <job_id>
@@ -84,13 +109,18 @@ run_vximporter() {
     local vximporter_batch_size="${VXIMPORTER_BATCH_SIZE:-1000}"
     local container_import_file
     local -a importer_args
-    container_import_file="/opt/data/${hostname}/${pid}/temp_xfer/$(basename "${import_file}")"
+    container_import_file="${import_file/#${working_root_dir}/\/opt\/data}"
+
+    if [ "${container_import_file}" = "${import_file}" ]; then
+        echo "Error: import file ${import_file} is not under WORKING_ROOT_DIR (${working_root_dir})."
+        return 1
+    fi
 
     importer_args=(
         docker run --rm
         --user "${vximporter_docker_user}"
+        --mount "type=bind,source=${working_root_dir},target=/opt/data,readonly"
         --mount "type=bind,source=${CREDENTIALS_FILE},target=/run/config/credentials,readonly"
-        --mount "type=bind,source=${import_file},target=${container_import_file},readonly"
     )
     if [ -n "${LOG_LEVEL:-}" ]; then
         importer_args+=(--env "LOG_LEVEL=${LOG_LEVEL}")

@@ -118,6 +118,7 @@ run_vximporter() {
 
     importer_args=(
         docker run --rm
+        --pull=always
         --user "${vximporter_docker_user}"
         --mount "type=bind,source=${working_root_dir},target=/opt/data,readonly"
         --mount "type=bind,source=${CREDENTIALS_FILE},target=/run/config/credentials,readonly"
@@ -192,7 +193,7 @@ docker_run_user="${DOCKER_RUN_USER:-$(id -u):$(id -g)}"
 vxingest_docker_user="${VXINGEST_DOCKER_USER:-${docker_run_user}}"
 ingest_args=(
     docker run --rm
-    --pull=missing \
+    --pull=always \
     --user "${vxingest_docker_user}"
     --mount "type=bind,source=${working_root_dir},target=/opt/data"
     --mount "type=bind,source=${public_dir},target=/public,readonly"

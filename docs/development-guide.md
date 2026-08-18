@@ -57,6 +57,21 @@ VXINGEST_LOG_LEVEL=DEBUG uv run ingest \
     -j JOB-TEST:V01:METAR:CTC:CEILING:MODEL:OPS
 ```
 
+### Testing mode
+
+To run ingest in testing mode, set the `TESTING` environment variable (any value). When set, the ingest will process both status='active' and status='test' job documents. When not set, only status='active' documents are processed. This allows test documents to be safely developed and tested without risk of automatic runners (like cron) inadvertently executing them.
+
+```bash
+mkdir -p tmp/output/{metrics,out,xfer,log}
+TESTING=1 uv run ingest \
+    -m tmp/output/metrics \
+    -o tmp/output/out \
+    -x tmp/output/xfer \
+    -l tmp/output/log \
+    -c config.yaml \
+    -j JOB-TEST:V01:METAR:NETCDF:OBS
+```
+
 Example NetCDF METAR run:
 
 ```bash

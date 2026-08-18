@@ -40,14 +40,14 @@ for model_js in "$@"; do
     run_job_or_exit "$model_js"
     echo "Finished processing model with job ID: $model_js"
     model_name="$(echo "$model_js" | cut -d: -f4)"
-
+    
     # Construct and process the CTC job ID
     echo "Processing CTC documents for model: $model_name"
     # CTC ids are like JS:METAR:CTC:RRFSv2_conus_3km_ret_test4_may2024:schedule:job:V01
     ctc_id="JS:METAR:CTC:${model_name}:schedule:job:V01"
     run_job_or_exit "$ctc_id"
     echo "Finished processing CTC documents for model: $model_name"
-
+    
     # Construct and process the SUMS job ID
     echo "Processing SUMS documents for model: $model_name"
     # SUMS ids are like JS:METAR:SUMS:RRFSv2_conus_3km_ret_test4_may2024:schedule:job:V01
@@ -60,6 +60,7 @@ done
 echo "update the metadata"
 echo "Running VxMetadataUpdator container: ${metadata_updator_image}"
 if ! docker run --rm \
+--pull=always \
 --env CREDENTIALS=/run/secrets/CREDENTIALS_FILE \
 --mount "type=bind,source=${working_root_dir},target=/opt/data" \
 --mount "type=bind,source=${CREDENTIALS_FILE},target=/run/secrets/CREDENTIALS_FILE,readonly" \

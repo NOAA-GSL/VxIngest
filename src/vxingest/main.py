@@ -42,6 +42,15 @@ from vxingest.partial_sums_to_cb.run_ingest_threads import VXIngest as PartialSu
 # Get a logger with this module's name to help with debugging
 logger = logging.getLogger(__name__)
 
+
+def _is_testing_mode() -> bool:
+    """Check if TESTING mode is enabled via environment variable.
+
+    Returns True if the TESTING environment variable is set (regardless of value).
+    """
+    return "TESTING" in os.environ
+
+
 # Configure prometheus metrics
 # Note - we may need to import prometheus's multiprocessing libraries
 
@@ -237,11 +246,26 @@ def get_runtime_job_criteria(
 
     Raises:
         ValueError: If job_id is not provided.
+
+    Note:
+        If the TESTING environment variable is set, both status='active' and status='test' documents are retrieved.
+        Otherwise, only status='active' documents are retrieved.
     """
     if not job_id:
         raise ValueError("job_id must be provided to get_runtime_job_doc")
-
+    # Determine if testing mode is enabled via TESTING environment variable
+    testing_mode = _is_testing_mode()
+    if testing_mode:
+        logger.info(
+            f"TESTING mode is enabled. Fetching job document for job_id: {job_id}"
+        )
     # Build the query to fetch a specific job document by ID
+    # When testing_mode is True, allow both active and test status; otherwise, only allow active
+    status_condition = (
+        "(LOWER(status) = 'active' OR LOWER(status) = 'test')"
+        if testing_mode
+        else "LOWER(status) = 'active'"
+    )
     query = f"""
         SELECT meta().id AS id,
         LOWER(META().id) as name,
@@ -253,12 +277,15 @@ def get_runtime_job_criteria(
         WHERE id='{job_id}'
             AND type = 'JS'
             AND version = 'V01'
-            AND (status = 'active'  OR status = 'Test') """
+            AND {status_condition} """
 
     row_iter = cluster.query(query, QueryOptions(read_only=True))  # type: ignore[assignment]
     for row in row_iter:
         return row
-    logger.warning(f"No runtime job document found with ID: {job_id}")
+    expected_status = "active or test" if testing_mode else "active"
+    logger.warning(
+        f"No runtime job document found with ID: {job_id} and status '{expected_status}'"
+    )
     return None
 
 

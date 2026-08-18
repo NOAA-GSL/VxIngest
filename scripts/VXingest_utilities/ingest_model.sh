@@ -69,3 +69,4 @@ if ! docker run --rm \
     echo "Error: VxMetadataUpdator failed" >&2
     exit 1
 fi
+echo "Success, VxMetadataUpdater - metadata updated"

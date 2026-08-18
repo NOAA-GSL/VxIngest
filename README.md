@@ -86,6 +86,17 @@ docker compose run ingest \
 
 The ingest writes JSON output, logs, metrics, and transfer tarballs into the mounted `data` directory.
 
+#### Testing mode
+
+To run ingest in testing mode, set the `TESTING` environment variable (any value) when running the container. When set, the ingest will process both status='active' and status='test' job documents. When not set, only status='active' documents are processed. This allows test documents to be safely developed and tested without risk of automatic runners (like cron) inadvertently executing them:
+
+```bash
+data=/data-ingest/data \
+public=/public \
+docker compose run -e TESTING=1 ingest \
+    -j JOB-TEST:V01:METAR:NETCDF:OBS
+```
+
 ### Running tests in the container
 
 The Compose `test` service builds the Dockerfile's `dev` target and runs the repository test suite inside that container:

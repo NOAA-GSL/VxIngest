@@ -29,7 +29,7 @@ fi
 
 working_root_dir="${WORKING_ROOT_DIR:-/data-ingest/data/working}"
 metadata_updater_image="${VX_METADATA_UPDATER_IMAGE:-ghcr.io/noaa-gsl/vxmetadataupdater:latest}"
-metadata_updater_settings="${VX_METADATA_UPDATER_SETTINGS:-/app/meta_update_middleware/settings.json}"
+metadata_updater_settings="${VX_METADATA_UPDATER_SETTINGS:-/app/settings.json}"
 
 # Loop through each provided model name and process jobs sequentially
 for model_js in "$@"; do

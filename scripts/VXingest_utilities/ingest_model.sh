@@ -73,13 +73,12 @@ echo "update the metadata"
 echo "Running VxMetadataUpdater container: ${metadata_updater_image}"
 if ! docker run --rm \
 --pull=always \
---env CREDENTIALS=/run/secrets/CREDENTIALS_FILE \
+--user "$(id -u):$(id -g)" \
 --mount "type=bind,source=${working_root_dir},target=/opt/data" \
 --mount "type=bind,source=${CREDENTIALS_FILE},target=/run/secrets/CREDENTIALS_FILE,readonly" \
---mount "type=bind,source=${metadata_updater_settings},target=${metadata_updater_settings_container},readonly" \
 "${metadata_updater_image}" \
 -c /run/secrets/CREDENTIALS_FILE \
--s "${metadata_updater_settings_container}"; then
+-s /app/settings.json
     echo "Error: VxMetadataUpdater failed" >&2
     exit 1
 fi

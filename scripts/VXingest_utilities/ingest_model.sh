@@ -22,6 +22,9 @@ if [[ $# -lt 1 ]]; then
     exit 1
 fi
 
+CREDENTIALS_FILE="${CREDENTIALS_FILE:-/home/amb-verif/credentials}"
+export CREDENTIALS_FILE
+
 if [ -z "${CREDENTIALS_FILE:-}" ]; then
     echo "Error: CREDENTIALS_FILE environment variable is not set."
     exit 1
@@ -29,10 +32,17 @@ fi
 
 working_root_dir="${WORKING_ROOT_DIR:-/data-ingest/data/working}"
 metadata_updater_image="${VX_METADATA_UPDATER_IMAGE:-ghcr.io/noaa-gsl/vxmetadataupdater:latest}"
-metadata_updater_settings="${VX_METADATA_UPDATER_SETTINGS:-}"
+metadata_updater_settings="${VX_METADATA_UPDATER_SETTINGS:-/home/amb-verif/metadata-settings.json}"
 metadata_updater_settings_container="/app/settings.json"
 metadata_updater_docker_user="${VX_METADATA_UPDATER_DOCKER_USER:-}"
-log_level="${LOG_LEVEL:-${log_level:-}}"
+log_level="${LOG_LEVEL:-DEBUG}"
+
+if [[ -z "${metadata_updater_docker_user}" ]]; then
+    if ! metadata_updater_docker_user="$(stat -c '%u:%g' "${CREDENTIALS_FILE}" 2>/dev/null || stat -f '%u:%g' "${CREDENTIALS_FILE}")"; then
+        echo "Error: unable to determine UID:GID for CREDENTIALS_FILE: ${CREDENTIALS_FILE}" >&2
+        exit 1
+    fi
+fi
 
 if [[ -z "${metadata_updater_settings}" ]]; then
     echo "Error: VX_METADATA_UPDATER_SETTINGS environment variable is not set." >&2
@@ -75,17 +85,13 @@ echo "update the metadata"
 echo "Running VxMetadataUpdater container: ${metadata_updater_image}"
 metadata_updater_args=(
     docker run --rm
-    --pull=always
+    --pull always
+    --user "${metadata_updater_docker_user}"
     --mount "type=bind,source=${working_root_dir},target=/opt/data"
     --mount "type=bind,source=${CREDENTIALS_FILE},target=/run/secrets/CREDENTIALS_FILE,readonly"
     --mount "type=bind,source=${metadata_updater_settings},target=${metadata_updater_settings_container},readonly"
+    --env "LOG_LEVEL=${log_level}"
 )
-if [ -n "${metadata_updater_docker_user}" ]; then
-    metadata_updater_args+=(--user "${metadata_updater_docker_user}")
-fi
-if [ -n "${log_level}" ]; then
-    metadata_updater_args+=(--env "LOG_LEVEL=${log_level}")
-fi
 
 if [ "${log_level}" = "DEBUG" ]; then
     echo "DEBUG: VxMetadataUpdater docker invocation:"

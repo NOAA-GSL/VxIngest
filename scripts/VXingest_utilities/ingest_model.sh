@@ -32,7 +32,7 @@ fi
 
 working_root_dir="${WORKING_ROOT_DIR:-/data-ingest/data/working}"
 metadata_updater_image="${VX_METADATA_UPDATER_IMAGE:-ghcr.io/noaa-gsl/vxmetadataupdater:latest}"
-metadata_updater_settings="${VX_METADATA_UPDATER_SETTINGS:-/home/amb-verif/metadata-settings.json}"
+metadata_updater_settings="${VX_METADATA_UPDATER_SETTINGS:-}"
 metadata_updater_settings_container="/app/settings.json"
 metadata_updater_docker_user="${VX_METADATA_UPDATER_DOCKER_USER:-}"
 log_level="${LOG_LEVEL:-DEBUG}"
@@ -44,13 +44,7 @@ if [[ -z "${metadata_updater_docker_user}" ]]; then
     fi
 fi
 
-if [[ -z "${metadata_updater_settings}" ]]; then
-    echo "Error: VX_METADATA_UPDATER_SETTINGS environment variable is not set." >&2
-    echo "Set it to the host path of the VxMetadataUpdater settings.json file." >&2
-    exit 1
-fi
-
-if [[ ! -r "${metadata_updater_settings}" ]]; then
+if [[ -n "${metadata_updater_settings}" && ! -r "${metadata_updater_settings}" ]]; then
     echo "Error: VX_METADATA_UPDATER_SETTINGS does not point to a readable file: ${metadata_updater_settings}" >&2
     exit 1
 fi
@@ -89,21 +83,29 @@ metadata_updater_args=(
     --user "${metadata_updater_docker_user}"
     --mount "type=bind,source=${working_root_dir},target=/opt/data"
     --mount "type=bind,source=${CREDENTIALS_FILE},target=/run/secrets/CREDENTIALS_FILE,readonly"
-    --mount "type=bind,source=${metadata_updater_settings},target=${metadata_updater_settings_container},readonly"
     --env "LOG_LEVEL=${log_level}"
 )
 
+metadata_updater_cmd_args=(
+    -c /run/secrets/CREDENTIALS_FILE
+)
+
+if [[ -n "${metadata_updater_settings}" ]]; then
+    metadata_updater_args+=(
+        --mount "type=bind,source=${metadata_updater_settings},target=${metadata_updater_settings_container},readonly"
+    )
+    metadata_updater_cmd_args+=(
+        -s "${metadata_updater_settings_container}"
+    )
+fi
+
 if [ "${log_level}" = "DEBUG" ]; then
     echo "DEBUG: VxMetadataUpdater docker invocation:"
-    printf '  %q ' "${metadata_updater_args[@]}" "${metadata_updater_image}" \
-    -c /run/secrets/CREDENTIALS_FILE \
-    -s "${metadata_updater_settings_container}"
+    printf '  %q ' "${metadata_updater_args[@]}" "${metadata_updater_image}" "${metadata_updater_cmd_args[@]}"
     echo
 fi
 
-if ! "${metadata_updater_args[@]}" "${metadata_updater_image}" \
--c /run/secrets/CREDENTIALS_FILE \
--s "${metadata_updater_settings_container}"; then
+if ! "${metadata_updater_args[@]}" "${metadata_updater_image}" "${metadata_updater_cmd_args[@]}"; then
     echo "Error: VxMetadataUpdater failed" >&2
     exit 1
 fi

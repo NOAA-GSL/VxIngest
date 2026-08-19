@@ -137,6 +137,7 @@ Optional environment variables:
 - `VXIMPORTER_BATCH_SIZE` — Batch size for imports. Default: `1000`
 - `VX_METADATA_UPDATER_SETTINGS` — Host path to the VxMetadataUpdater `settings.json` file. Required by `ingest_model.sh`; it is mounted into the updater container at `/app/settings.json`.
 - `VX_METADATA_UPDATER_IMAGE` — Docker image for the metadata update step in `ingest_model.sh`. Default: `ghcr.io/noaa-gsl/vxmetadataupdater:latest`
+- `VX_METADATA_UPDATER_DOCKER_USER` — Optional user/group override for the metadata updater Docker run. Default: unset, so the image's default user is used.
 
 The script creates logs in `${WORKING_ROOT_DIR}/logs/` with naming pattern `docker-{ingest|import}-{job_id}-{timestamp}.out`.
 

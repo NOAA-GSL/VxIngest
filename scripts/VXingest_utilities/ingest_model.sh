@@ -22,6 +22,9 @@ if [[ $# -lt 1 ]]; then
     exit 1
 fi
 
+CREDENTIALS_FILE="${CREDENTIALS_FILE:-/home/amb-verif/credentials}"
+export CREDENTIALS_FILE
+
 if [ -z "${CREDENTIALS_FILE:-}" ]; then
     echo "Error: CREDENTIALS_FILE environment variable is not set."
     exit 1
@@ -29,8 +32,17 @@ fi
 
 working_root_dir="${WORKING_ROOT_DIR:-/data-ingest/data/working}"
 metadata_updater_image="${VX_METADATA_UPDATER_IMAGE:-ghcr.io/noaa-gsl/vxmetadataupdater:latest}"
-metadata_updater_settings="${VX_METADATA_UPDATER_SETTINGS:-}"
+metadata_updater_settings="${VX_METADATA_UPDATER_SETTINGS:-/home/amb-verif/metadata-settings.json}"
 metadata_updater_settings_container="/app/settings.json"
+metadata_updater_docker_user="${VX_METADATA_UPDATER_DOCKER_USER:-}"
+log_level="${LOG_LEVEL:-DEBUG}"
+
+if [[ -z "${metadata_updater_docker_user}" ]]; then
+    if ! metadata_updater_docker_user="$(stat -c '%u:%g' "${CREDENTIALS_FILE}" 2>/dev/null || stat -f '%u:%g' "${CREDENTIALS_FILE}")"; then
+        echo "Error: unable to determine UID:GID for CREDENTIALS_FILE: ${CREDENTIALS_FILE}" >&2
+        exit 1
+    fi
+fi
 
 if [[ -z "${metadata_updater_settings}" ]]; then
     echo "Error: VX_METADATA_UPDATER_SETTINGS environment variable is not set." >&2
@@ -52,14 +64,14 @@ for model_js in "$@"; do
     run_job_or_exit "$model_js"
     echo "Finished processing model with job ID: $model_js"
     model_name="$(echo "$model_js" | cut -d: -f4)"
-    
+
     # Construct and process the CTC job ID
     echo "Processing CTC documents for model: $model_name"
     # CTC ids are like JS:METAR:CTC:RRFSv2_conus_3km_ret_test4_may2024:schedule:job:V01
     ctc_id="JS:METAR:CTC:${model_name}:schedule:job:V01"
     run_job_or_exit "$ctc_id"
     echo "Finished processing CTC documents for model: $model_name"
-    
+
     # Construct and process the SUMS job ID
     echo "Processing SUMS documents for model: $model_name"
     # SUMS ids are like JS:METAR:SUMS:RRFSv2_conus_3km_ret_test4_may2024:schedule:job:V01
@@ -71,14 +83,27 @@ done
 # Update the metadata after all jobs are processed
 echo "update the metadata"
 echo "Running VxMetadataUpdater container: ${metadata_updater_image}"
-if ! docker run --rm \
---pull=always \
---user "$(id -u):$(id -g)" \
---mount "type=bind,source=${working_root_dir},target=/opt/data" \
---mount "type=bind,source=${CREDENTIALS_FILE},target=/run/secrets/CREDENTIALS_FILE,readonly" \
-"${metadata_updater_image}" \
+metadata_updater_args=(
+    docker run --rm
+    --pull always
+    --user "${metadata_updater_docker_user}"
+    --mount "type=bind,source=${working_root_dir},target=/opt/data"
+    --mount "type=bind,source=${CREDENTIALS_FILE},target=/run/secrets/CREDENTIALS_FILE,readonly"
+    --mount "type=bind,source=${metadata_updater_settings},target=${metadata_updater_settings_container},readonly"
+    --env "LOG_LEVEL=${log_level}"
+)
+
+if [ "${log_level}" = "DEBUG" ]; then
+    echo "DEBUG: VxMetadataUpdater docker invocation:"
+    printf '  %q ' "${metadata_updater_args[@]}" "${metadata_updater_image}" \
+    -c /run/secrets/CREDENTIALS_FILE \
+    -s "${metadata_updater_settings_container}"
+    echo
+fi
+
+if ! "${metadata_updater_args[@]}" "${metadata_updater_image}" \
 -c /run/secrets/CREDENTIALS_FILE \
--s /app/settings.json
+-s "${metadata_updater_settings_container}"; then
     echo "Error: VxMetadataUpdater failed" >&2
     exit 1
 fi

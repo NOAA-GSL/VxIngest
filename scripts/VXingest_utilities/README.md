@@ -20,19 +20,19 @@ run_ingest.sh executes one or more ingest job spec ids and performs the full pip
 ### Usage
 
 ```bash
-cd ${HOME}VxIngest
+cd ${HOME}/VxIngest
 ./scripts/VXingest_utilities/run_ingest.sh JOB_SPEC_ID_1 [JOB_SPEC_ID_2 ...]
 ```
 
 Examples:
 
 ```bash
-cd ${HOME}VxIngest
+cd ${HOME}/VxIngest
 ./scripts/VXingest_utilities/run_ingest.sh JS:METAR:MODEL:RRFS:schedule:job:V01
 ```
 
 ```bash
-cd ${HOME}VxIngest
+cd ${HOME}/VxIngest
 ./scripts/VXingest_utilities/run_ingest.sh \
   JS:METAR:MODEL:RRFS:schedule:job:V01 \
   JS:METAR:OBS:NETCDF:schedule:job:V01
@@ -41,7 +41,7 @@ cd ${HOME}VxIngest
 Show built-in help:
 
 ```bash
-cd ${HOME}VxIngest
+cd ${HOME}/VxIngest
 ./scripts/VXingest_utilities/run_ingest.sh --help
 ```
 
@@ -69,17 +69,27 @@ cd ${HOME}VxIngest
 - VX_METADATA_UPDATER_IMAGE (default: ghcr.io/noaa-gsl/vxmetadataupdater:latest)
 - VX_METADATA_UPDATER_SETTINGS (default: unset, container defaults used)
 - VX_METADATA_UPDATER_DOCKER_USER (default: uid:gid of CREDENTIALS_FILE)
+- VX_METADATA_UPDATER_LOCK_STALE_SECONDS (default: 7200)
 
 ### Output and logs
 
 - Ingest logs:
-  - WORKING_ROOT_DIR/logs/docker-ingest-\<job-id>-\<timestamp>.out
+  - WORKING_ROOT_DIR/logs/docker-ingest-{hostname}-{pid}-{job-id}-{timestamp}.out
 - Import logs:
-  - WORKING_ROOT_DIR/logs/docker-import-\<job-id>-\<timestamp>.out
+  - WORKING_ROOT_DIR/logs/docker-import-{hostname}-{pid}-{job-id}-{timestamp}.out
 - Metrics output:
   - WORKING_ROOT_DIR/common/job_metrics
 - Archived transfer tarballs:
-  - WORKING_ROOT_DIR/archive
+  - WORKING_ROOT_DIR/archive/{hostname}-{original-tar-name}
+
+### Concurrency behavior
+
+- Temporary working directories are host- and pid-scoped.
+- Cleanup runs on normal completion and also on interrupt/termination via trap handling.
+- Metadata updater is guarded by an NFS-safe lock acquired using atomic mkdir at:
+  - WORKING_ROOT_DIR/locks/vxmetadataupdater.lock.d
+- If the lock is held by another run, metadata update is skipped for this run.
+- If the lock is older than VX_METADATA_UPDATER_LOCK_STALE_SECONDS, stale-lock recovery is attempted.
 
 ### Notes
 

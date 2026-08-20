@@ -14,12 +14,17 @@
 #    and import JSON/JSON.GZ output via vximporter.
 # 4) For MODEL job ids, derive and run associated CTC and SUMS jobs.
 # 5) Run metadata updater if one or more job runs succeeded.
-# 6) Print one final SUCCESS/FAILED message.
+# 6) Coordinate metadata updates across hosts with an NFS-safe lock.
+# 7) Print one final SUCCESS/FAILED message.
 
 set -uo pipefail
 
 current_tmp_outdir=""
 current_tmp_xfer=""
+current_job_host=""
+updater_lock_held=0
+updater_lock_dir=""
+updater_lock_owner=""
 
 usage() {
 	cat <<'EOF'
@@ -51,12 +56,21 @@ Optional environment:
 	VX_METADATA_UPDATER_IMAGE          Default: ghcr.io/noaa-gsl/vxmetadataupdater:latest
 	VX_METADATA_UPDATER_SETTINGS       Default: unset (image defaults used)
 	VX_METADATA_UPDATER_DOCKER_USER    Default: uid:gid of CREDENTIALS_FILE
+	VX_METADATA_UPDATER_LOCK_STALE_SECONDS
+	                                  Default: 7200
+	                                  Stale age threshold for recovering updater lock
 
 Examples:
 	./scripts/VXingest_utilities/run_ingest.sh JS:METAR:MODEL:RRFS:schedule:job:V01
 	./scripts/VXingest_utilities/run_ingest.sh \
 		JS:METAR:MODEL:RRFS:schedule:job:V01 \
 		JS:METAR:OBS:NETCDF:schedule:job:V01
+
+Concurrency notes:
+	- Ingest/import log files include host and pid to reduce collisions.
+	- Archived tarballs are prefixed with host name.
+	- Metadata updater lock path: WORKING_ROOT_DIR/locks/vxmetadataupdater.lock.d
+	  acquired via atomic mkdir (NFS-safe pattern).
 EOF
 }
 
@@ -133,12 +147,15 @@ run_vximporter() {
 cleanup_job_dirs() {
 	local tmp_outdir="$1"
 	local tmp_xfer="$2"
+	local host_tag="$3"
 
 	if [ -n "${tmp_xfer}" ] && [ -d "${tmp_xfer}" ]; then
 		mkdir -p "${working_root_dir}/archive"
 		while IFS= read -r -d '' tar_file; do
-			echo "Archiving: ${tar_file} to ${working_root_dir}/archive/"
-			mv "${tar_file}" "${working_root_dir}/archive/"
+			local archived_name
+			archived_name="${host_tag}-$(basename "${tar_file}")"
+			echo "Archiving: ${tar_file} to ${working_root_dir}/archive/${archived_name}"
+			mv "${tar_file}" "${working_root_dir}/archive/${archived_name}"
 		done < <(find "${tmp_xfer}" -type f -name '*.tar.gz' -print0)
 	fi
 
@@ -152,10 +169,90 @@ cleanup_job_dirs() {
 
 # Trap target: best-effort cleanup for the currently active job temp directories.
 cleanup_current_job_dirs() {
-	cleanup_job_dirs "${current_tmp_outdir:-}" "${current_tmp_xfer:-}"
+	cleanup_job_dirs "${current_tmp_outdir:-}" "${current_tmp_xfer:-}" "${current_job_host:-unknown-host}"
+	release_updater_lock
 }
 
 trap cleanup_current_job_dirs EXIT INT TERM
+
+lock_dir_mtime_epoch() {
+	local lock_dir="$1"
+	local mtime
+	if mtime="$(stat -c '%Y' "${lock_dir}" 2>/dev/null)"; then
+		echo "${mtime}"
+		return 0
+	fi
+	if mtime="$(stat -f '%m' "${lock_dir}" 2>/dev/null)"; then
+		echo "${mtime}"
+		return 0
+	fi
+	return 1
+}
+
+release_updater_lock() {
+	if [[ "${updater_lock_held}" -eq 1 && -n "${updater_lock_dir}" && -d "${updater_lock_dir}" ]]; then
+		rm -rf "${updater_lock_dir}" 2>/dev/null || true
+	fi
+	updater_lock_held=0
+	updater_lock_dir=""
+	updater_lock_owner=""
+}
+
+acquire_updater_lock() {
+	local now_epoch
+	local started_epoch
+	local lock_age
+	local stale_seconds
+	local lock_info_path
+
+	stale_seconds="${VX_METADATA_UPDATER_LOCK_STALE_SECONDS:-7200}"
+	updater_lock_owner="$(hostname):$$"
+	updater_lock_dir="${working_root_dir}/locks/vxmetadataupdater.lock.d"
+	lock_info_path="${updater_lock_dir}/lock.info"
+
+	mkdir -p "${working_root_dir}/locks" || return 1
+
+	if mkdir "${updater_lock_dir}" 2>/dev/null; then
+		updater_lock_held=1
+		now_epoch="$(date +%s)"
+		{
+			echo "owner=${updater_lock_owner}"
+			echo "host=$(hostname)"
+			echo "pid=$$"
+			echo "started_epoch=${now_epoch}"
+		} >"${lock_info_path}"
+		return 0
+	fi
+
+	now_epoch="$(date +%s)"
+	started_epoch=""
+	if [[ -f "${lock_info_path}" ]]; then
+		started_epoch="$(awk -F= '/^started_epoch=/{print $2; exit}' "${lock_info_path}" 2>/dev/null || true)"
+	fi
+	if [[ -z "${started_epoch}" ]]; then
+		started_epoch="$(lock_dir_mtime_epoch "${updater_lock_dir}" 2>/dev/null || true)"
+	fi
+	if [[ -n "${started_epoch}" ]]; then
+		lock_age=$((now_epoch - started_epoch))
+		if [[ "${lock_age}" -ge "${stale_seconds}" ]]; then
+			echo "Warning: stale updater lock detected (age=${lock_age}s >= ${stale_seconds}s); attempting recovery." >&2
+			rm -rf "${updater_lock_dir}" 2>/dev/null || true
+			if mkdir "${updater_lock_dir}" 2>/dev/null; then
+				updater_lock_held=1
+				{
+					echo "owner=${updater_lock_owner}"
+					echo "host=$(hostname)"
+					echo "pid=$$"
+					echo "started_epoch=${now_epoch}"
+				} >"${lock_info_path}"
+				return 0
+			fi
+		fi
+	fi
+
+	echo "Info: metadata updater lock is held by another run; skipping metadata update this run." >&2
+	return 1
+}
 
 # Runs one ingest/import job end-to-end for a single job id.
 # Returns non-zero on failure and increments success_count on success.
@@ -210,9 +307,11 @@ run_this_job() {
 
 	tmp_outdir="$(mktemp -d -p "${temp_out_dir}")" || return 1
 	current_tmp_outdir="${tmp_outdir}"
+	current_job_host="${hostname}"
 	tmp_xfer="$(mktemp -d -p "${temp_xfer_dir}")" || {
-		cleanup_job_dirs "${tmp_outdir}" ""
+		cleanup_job_dirs "${tmp_outdir}" "" "${hostname}"
 		current_tmp_outdir=""
+		current_job_host=""
 		return 1
 	}
 	current_tmp_xfer="${tmp_xfer}"
@@ -221,8 +320,8 @@ run_this_job() {
 	container_tmp_xfer="${container_xfer_parent}/$(basename "${tmp_xfer}")"
 
 	timestamp="$(date +%s)"
-	ingest_log_file="${log_dir}/docker-ingest-${this_job_id}-${timestamp}.out"
-	import_log_file="${log_dir}/docker-import-${this_job_id}-${timestamp}.out"
+	ingest_log_file="${log_dir}/docker-ingest-${hostname}-${pid}-${this_job_id}-${timestamp}.out"
+	import_log_file="${log_dir}/docker-import-${hostname}-${pid}-${this_job_id}-${timestamp}.out"
 	echo "Ingest log file: ${ingest_log_file}"
 	echo "Import log file: ${import_log_file}"
 
@@ -297,9 +396,10 @@ run_this_job() {
 		fi
 	fi
 
-	cleanup_job_dirs "${tmp_outdir}" "${tmp_xfer}"
+	cleanup_job_dirs "${tmp_outdir}" "${tmp_xfer}" "${hostname}"
 	current_tmp_outdir=""
 	current_tmp_xfer=""
+	current_job_host=""
 
 	if [[ "${this_job_failed}" -ne 0 ]]; then
 		echo "Error: integrated job run failed for job id: ${this_job_id}" >&2
@@ -364,6 +464,10 @@ run_jobs() {
 
 # Runs metadata updater container, using optional host-provided settings file.
 run_metadata_updater() {
+	if ! acquire_updater_lock; then
+		return 0
+	fi
+
 	echo "update the metadata"
 	echo "Running VxMetadataUpdater container: ${metadata_updater_image}"
 
@@ -399,8 +503,11 @@ run_metadata_updater() {
 	if ! "${metadata_updater_args[@]}" "${metadata_updater_image}" "${metadata_updater_cmd_args[@]}"; then
 		failed=1
 		echo "Error: VxMetadataUpdater failed" >&2
+		release_updater_lock
 		return 1
 	fi
+
+	release_updater_lock
 	return 0
 }
 

@@ -12,12 +12,10 @@ import datetime as dt
 import json
 import logging
 import re
-import sys
-import time
 from pathlib import Path
 from pstats import Stats
 
-from couchbase.exceptions import DocumentNotFoundException, TimeoutException
+from couchbase.exceptions import DocumentNotFoundException
 from couchbase.search import GeoBoundingBoxQuery, SearchOptions
 from metpy.calc import relative_humidity_from_dewpoint, wind_components
 from metpy.units import units
@@ -526,124 +524,194 @@ class PartialSumsBuilder(Builder):
                 self.subset,
             )
 
-            # First get the latest fcstValidEpoch currently in the database for the ctc's for this model and region.
-            # without first_last_params this will be the lower boundary for the fcstValidEpochs we process.
-            # If there are no ctc's for this model and region in the database it will be zero.
-            stmnt = ""
-            error_count = 0
-            success = False
-            while error_count < 3 and success is False:
-                try:
-                    # get the largest CTC in the currently database for this model and region
-                    stmnt = f"""SELECT RAW MAX(METAR.fcstValidEpoch)
-                            FROM `{self.bucket}`.{self.scope}.{self.collection}
-                            WHERE type='DD'
-                            AND docType='SUMS'
-                            AND subDocType='{self.sub_doc_type}'
-                            AND model='{self.model}'
-                            AND region='{self.region}'
-                            AND version='V01'
-                            AND subset='{self.subset}'"""
-                    # logger.info("build_document start query %s", stmnt)
-                    result = self.load_spec["cluster"].query(stmnt, read_only=True)
-                    success = True
-                    # logger.info("build_document finished query %s", stmnt)
-                except TimeoutException:
-                    logger.info(
-                        "%s.build_document TimeoutException retrying %s: %s",
-                        self.__class__.__name__,
-                        error_count,
-                        stmnt,
-                    )
-                    if error_count > 2:
-                        raise
-                    time.sleep(2)  # don't hammer the server too hard
-                    error_count = error_count + 1
-            max_partialsums_fcst_valid_epochs_result = list(result)
-            # if there are ctc's for this model and region then get the max epoch from the query
-            max_partialsums_fcst_valid_epochs = (
-                max_partialsums_fcst_valid_epochs_result[0]
-                if max_partialsums_fcst_valid_epochs_result[0] is not None
-                else 0
-            )
+            # get the first and last fcstValidEpoch for the METAR OBS.
+            # This qualifies the allowed range of fcstValidEpochs that will be processed.
+            stmnt = f"""select MAX(METAR.fcstValidEpoch) maxObsEpoch, MIN(METAR.fcstValidEpoch) minObsEpoch
+                        FROM `{self.bucket}`.{self.scope}.{self.collection}
+                        WHERE type="DD"
+                        AND subset='{self.subset}'
+                        AND version="V01"
+                        AND docType="obs"
+                        AND dataVersion = "1.0.1"
+            """
+            try:
+                result = list(self.load_spec["cluster"].query(stmnt, read_only=True))
+            except Exception as e:
+                logger.info(
+                    "%s.build_document Exception: %s, query: %s",
+                    self.__class__.__name__,
+                    e,
+                    stmnt,
+                )
+                return self.get_document_map()
+            if not result:
+                logger.info(
+                    "%s.build_document no obs epoch rows returned for model:%s subset:%s",
+                    self.__class__.__name__,
+                    self.model,
+                    self.subset,
+                )
+                return self.get_document_map()
+            minObs_fcst_valid_epochs = result[0]["minObsEpoch"]
+            maxObs_fcst_valid_epochs = result[0]["maxObsEpoch"]
+            if minObs_fcst_valid_epochs is None or maxObs_fcst_valid_epochs is None:
+                logger.info(
+                    "%s.build_document no obs epoch bounds available for model:%s subset:%s",
+                    self.__class__.__name__,
+                    self.model,
+                    self.subset,
+                )
+                return self.get_document_map()
 
-            # Second get the intersection of the model fcstValidEpochs that correspond for this
-            # model and the obs for all fcstValidEpochs greater than the first_epoch ctc
-            # and less than the last_epoch.
-            # this could be done with implicit join but this seems to be faster when the results are large.
-            # get the model fcstValidEpochs (models don't have regions) that are > the last ctc epoch
-            # for the lower boundary use the max ctc fcstValidEpoch or the first_epoch from first_last_params if
-            # there is a first_last_params. Let the first_last_params override the max ctc epoch.
+            # get the first and last fcstValidEpoch for the model for which this SUMS will be derived.
+            stmnt = f"""SELECT MAX(METAR.fcstValidEpoch) maxModelEpoch, MIN(METAR.fcstValidEpoch) minModelEpoch
+                        FROM `{self.bucket}`.{self.scope}.{self.collection}
+                        WHERE type="DD"
+                        AND subset='{self.subset}'
+                        AND version="V01"
+                        AND docType="model"
+                        AND model= '{self.model}'
+                """
+            try:
+                result = list(self.load_spec["cluster"].query(stmnt, read_only=True))
+            except Exception as e:
+                logger.info(
+                    "%s.build_document Exception: %s, query: %s",
+                    self.__class__.__name__,
+                    e,
+                    stmnt,
+                )
+                return self.get_document_map()
+            if not result:
+                logger.info(
+                    "%s.build_document no model epoch rows returned for model:%s subset:%s",
+                    self.__class__.__name__,
+                    self.model,
+                    self.subset,
+                )
+                return self.get_document_map()
+            minModel_fcst_valid_epochs = result[0]["minModelEpoch"]
+            maxModel_fcst_valid_epochs = result[0]["maxModelEpoch"]
+            if minModel_fcst_valid_epochs is None or maxModel_fcst_valid_epochs is None:
+                logger.info(
+                    "%s.build_document no model epoch bounds available for model:%s subset:%s",
+                    self.__class__.__name__,
+                    self.model,
+                    self.subset,
+                )
+                return self.get_document_map()
+
+            minAllowed_fcst_valid_epochs = max(
+                minObs_fcst_valid_epochs,
+                minModel_fcst_valid_epochs,
+            )
+            maxAllowed_fcst_valid_epochs = min(
+                maxObs_fcst_valid_epochs, maxModel_fcst_valid_epochs
+            )
             if (
                 "first_last_params" in self.load_spec
                 and "first_epoch" in self.load_spec["first_last_params"]
+                and "last_epoch" in self.load_spec["first_last_params"]
             ):
-                min_valid_epochs = self.load_spec["first_last_params"]["first_epoch"]
-                max_valid_epochs = self.load_spec["first_last_params"]["last_epoch"]
+                min_valid_epochs = max(
+                    minAllowed_fcst_valid_epochs,
+                    self.load_spec["first_last_params"]["first_epoch"],
+                )
+                max_valid_epochs = min(
+                    maxAllowed_fcst_valid_epochs,
+                    self.load_spec["first_last_params"]["last_epoch"],
+                )
             else:
-                min_valid_epochs = max_partialsums_fcst_valid_epochs
-                max_valid_epochs = sys.maxsize
-            error_count = 0
-            success = False
-            while error_count < 3 and success is False:
-                try:
-                    stmnt = f"""SELECT fve.fcstValidEpoch, fve.fcstLen, meta().id
-                            FROM `{self.bucket}`.{self.scope}.{self.collection} fve
-                            WHERE fve.type='DD'
-                                AND fve.docType='model'
-                                AND fve.model='{self.model}'
-                                AND fve.version='V01'
-                                AND fve.subset='{self.subset}'
-                                AND fve.fcstValidEpoch >= {min_valid_epochs}
-                                AND fve.fcstValidEpoch <= {max_valid_epochs}
-                            ORDER BY fve.fcstValidEpoch, fve.fcstLen"""
-                    # logger.info("build_document start query %s", stmnt)
-                    result = self.load_spec["cluster"].query(stmnt, read_only=True)
-                    success = True
-                    # logger.info("build_document finished query %s", stmnt)
-                except TimeoutException:
-                    logger.info(
-                        "%s.build_document TimeoutException retrying %s: %s",
-                        self.__class__.__name__,
-                        error_count,
-                        stmnt,
-                    )
-                    if error_count > 2:
-                        raise
-                    time.sleep(2)  # don't hammer the server too hard
-                    error_count = error_count + 1
-            _tmp_model_fve = list(result)
+                min_valid_epochs = minAllowed_fcst_valid_epochs
+                max_valid_epochs = maxAllowed_fcst_valid_epochs
+
+            if min_valid_epochs > max_valid_epochs:
+                logger.info(
+                    "%s.build_document no overlapping epoch range for model:%s region:%s subset:%s",
+                    self.__class__.__name__,
+                    self.model,
+                    self.region,
+                    self.subset,
+                )
+                return self.get_document_map()
+
+            # Get the latest fcstValidEpoch for SUMS currently in the database for this model and region.
+            # bounded by the min_valid_epochs and max_valid_epochs derived above.
+            # If there are no SUMS for this model and region in the database it will be min_valid_epochs.
+            stmnt = f"""SELECT RAW MAX(METAR.fcstValidEpoch)
+                    FROM `{self.bucket}`.{self.scope}.{self.collection}
+                    WHERE type='DD'
+                    AND docType='SUMS'
+                    AND subDocType='{self.sub_doc_type}'
+                    AND model='{self.model}'
+                    AND region='{self.region}'
+                    AND version='V01'
+                    AND subset='{self.subset}'
+                    AND fcstValidEpoch >= {min_valid_epochs}
+                    AND fcstValidEpoch <= {max_valid_epochs}"""
+            try:
+                max_partialsums_fcst_valid_epochs_result = list(
+                    self.load_spec["cluster"].query(stmnt, read_only=True)
+                )
+            except Exception as e:
+                logger.info(
+                    "%s.build_document Exception: %s, query: %s",
+                    self.__class__.__name__,
+                    e,
+                    stmnt,
+                )
+                return self.get_document_map()
+            # if there are SUMS for this model and region then get the max epoch from the query
+            max_partialsums_fcst_valid_epochs = (
+                max_partialsums_fcst_valid_epochs_result[0]
+                if max_partialsums_fcst_valid_epochs_result
+                and max_partialsums_fcst_valid_epochs_result[0] is not None
+                else min_valid_epochs
+            )
+
+            _tmp_model_fve = []
+            try:
+                stmnt = f"""SELECT fve.fcstValidEpoch, fve.fcstLen, meta().id
+                        FROM `{self.bucket}`.{self.scope}.{self.collection} fve
+                        WHERE fve.type='DD'
+                            AND fve.docType='model'
+                            AND fve.model='{self.model}'
+                            AND fve.version='V01'
+                            AND fve.subset='{self.subset}'
+                            AND fve.fcstValidEpoch > {max_partialsums_fcst_valid_epochs}
+                            AND fve.fcstValidEpoch <= {max_valid_epochs}
+                        ORDER BY fve.fcstValidEpoch, fve.fcstLen"""
+                result = self.load_spec["cluster"].query(stmnt, read_only=True)
+                _tmp_model_fve = list(result)
+            except Exception as e:
+                logger.info(
+                    "%s.build_document Exception: %s, query: %s",
+                    self.__class__.__name__,
+                    e,
+                    stmnt,
+                )
 
             # get the obs fcstValidEpochs (obs don't have regions) that are > the last partialsums epoch
-            error_count = 0
-            success = False
-            while error_count < 3 and success is False:
-                try:
-                    stmnt = f"""SELECT raw obs.fcstValidEpoch
-                                FROM `{self.bucket}`.{self.scope}.{self.collection} obs
-                                WHERE obs.type='DD'
-                                    AND obs.docType='obs'
-                                    AND obs.version='V01'
-                                    AND obs.subset='{self.subset}'
-                                    AND obs.fcstValidEpoch >= {min_valid_epochs}
-                                    AND obs.fcstValidEpoch <= {max_valid_epochs}
-                            ORDER BY obs.fcstValidEpoch"""
-                    # logger.info("build_document start query %s", stmnt)
-                    result1 = self.load_spec["cluster"].query(stmnt, read_only=True)
-                    success = True
-                    # logger.info("build_document finished query %s", stmnt)
-                except TimeoutException:
-                    logger.info(
-                        "%s.build_document TimeoutException retrying %s: %s",
-                        self.__class__.__name__,
-                        error_count,
-                        stmnt,
-                    )
-                    if error_count > 2:
-                        raise
-                    time.sleep(2)  # don't hammer the server too hard
-                    error_count = error_count + 1
-            _tmp_obs_fve = list(result1)
+            _tmp_obs_fve = []
+            try:
+                stmnt = f"""SELECT raw obs.fcstValidEpoch
+                            FROM `{self.bucket}`.{self.scope}.{self.collection} obs
+                            WHERE obs.type='DD'
+                                AND obs.docType='obs'
+                                AND obs.version='V01'
+                                AND obs.subset='{self.subset}'
+                                AND obs.fcstValidEpoch > {max_partialsums_fcst_valid_epochs}
+                                AND obs.fcstValidEpoch <= {max_valid_epochs}
+                        ORDER BY obs.fcstValidEpoch"""
+                result1 = self.load_spec["cluster"].query(stmnt, read_only=True)
+                _tmp_obs_fve = list(result1)
+            except Exception as e:
+                logger.info(
+                    "%s.build_document Exception: %s, query: %s",
+                    self.__class__.__name__,
+                    e,
+                    stmnt,
+                )
 
             # this will give us a list of {fcstValidEpoch:fve, fcslLen:fl, id:an_id}
             # where we know that each entry has a corresponding valid observation

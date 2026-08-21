@@ -24,8 +24,9 @@ The optional output_dir specifies the directory where output files will be writt
 of writing them directly to couchbase. If the output_dir is not specified data will be written
 to couchbase cluster specified in the cb_connection.
 For each ingest document the template will be rendered for each fcstValidEpoch between the
-specified start_epoch and the end_epoch. If the start_epoch is unspecified then the latest
-fcstValidEpoch currently in the db will be chosen as the start_epoch.
+specified start_epoch and the end_epoch. If start/end epochs are unspecified, a default
+window of now-30 days through now is used, and the builder clamps the lower bound to the
+latest existing SUMS fcstValidEpoch for strict incremental processing.
 
 This is an example credentials file. The keys should match
 the keys in the connection clauses of the load_spec.
@@ -88,7 +89,7 @@ def parse_args(args):
         "--start_epoch",
         type=int,
         required=False,
-        default=0,
+        default=None,
         help="The first epoch to process jobs for, inclusive.",
     )
     parser.add_argument(
@@ -96,8 +97,8 @@ def parse_args(args):
         "--end_epoch",
         type=int,
         required=False,
-        default=sys.maxsize,
-        help="The last epoch to process jobs for, exclusive.",
+        default=None,
+        help="The last epoch to process jobs for, inclusive.",
     )
     # get the command line arguments
     args = parser.parse_args(args)
@@ -146,15 +147,22 @@ class VXIngest(CommonVxIngest):
         _output_dir = config["output_dir"]
         if _output_dir is not None:
             self.output_dir = _output_dir.strip()
-        if "start_epoch" in config and "end_epoch" in config:
+        if (
+            "start_epoch" in config
+            and "end_epoch" in config
+            and config["start_epoch"] is not None
+            and config["end_epoch"] is not None
+        ):
             self.first_last_params = {
                 "first_epoch": config["start_epoch"],
                 "last_epoch": config["end_epoch"],
             }
         else:
-            self.first_last_params = {}
-            self.first_last_params["first_epoch"] = 0
-            self.first_last_params["last_epoch"] = sys.maxsize
+            now_epoch = int(time.time())
+            self.first_last_params = {
+                "first_epoch": now_epoch - int(timedelta(days=30).total_seconds()),
+                "last_epoch": now_epoch,
+            }
         # stash the first_last_params into the load spec
         self.load_spec["first_last_params"] = self.first_last_params
         logger.info(

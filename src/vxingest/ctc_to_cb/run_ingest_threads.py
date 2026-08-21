@@ -11,13 +11,19 @@ This script processes arguments which specify a job document id,
 a defaults file (for credentials), an input file path, an optional output directory, thread count, and file matching pattern.
 The job document id is the id of a job document in the couchbase database.
 The ingest_document_ids specify a list of ingest_document ids that a job
-must process.The script maintains a thread pool of VxIngestManagers and a queue of
-ingest_documents.
-The number of threads in the thread pool is set to the -t n (or --threads n)
-argument, where n is the number of threads to start. The default is one thread.
-Each thread will run a VxIngestManager which will pull ingest documents, one at a time,
+must process. The script maintains a pool of VxIngestManager worker processes
+and a queue of ingest_documents.
+The number of workers is set to the -t n (or --threads n) argument, where n is
+the number of processes to start. The default is one worker.
+Each worker runs a VxIngestManager which pulls ingest documents, one at a time,
 from the queue and fully process that document.
-When the queue is empty each NetcdfIngestManager will gracefully die.
+When the queue is empty each VxIngestManager will gracefully exit.
+
+Set VXINGEST_DEBUG_INLINE_PROCESSES=1 for debugger sessions that need to step
+through CTC builder code. This runs the VxIngestManager queue loop synchronously
+in the parent process instead of using multiprocessing.Process.start(). Normal
+ingest runs should leave this unset so worker isolation, logging, and process
+behavior match production execution.
 
 
 The optional output_dir specifies the directory where output files will be written instead
@@ -41,6 +47,7 @@ Colorado, NOAA/OAR/ESRL/GSL
 import argparse
 import logging
 import os
+import queue
 import sys
 import time
 from collections.abc import Callable
@@ -54,6 +61,41 @@ from vxingest.log_config import configure_logging, worker_log_configurer
 
 # Get a logger with this module's name to help with debugging
 logger = logging.getLogger(__name__)
+
+
+def _debug_run_manager_inline(manager: VxIngestManager) -> None:
+    """Run one manager synchronously for debugger sessions.
+
+    This intentionally avoids multiprocessing.Process.run(), which can leave
+    debugpy stopped at breakpoints but unable to step or evaluate frames.
+    """
+    logger.info("Running %s inline for debugger", manager.thread_name)
+    manager.cb_credentials = manager.load_spec["cb_connection"]
+    manager.connect_cb()
+    while True:
+        try:
+            queue_element = manager.queue.get_nowait()
+        except queue.Empty:
+            logger.info(
+                "%s: IngestManager - Queue empty - disconnecting couchbase",
+                manager.thread_name,
+            )
+            break
+        try:
+            logger.info(
+                "%s: IngestManager - processing %s",
+                manager.thread_name,
+                queue_element,
+            )
+            if queue_element is not None:
+                manager.process_queue_element(queue_element)
+                logger.info(
+                    "%s: IngestManager - finished processing %s",
+                    manager.thread_name,
+                    queue_element,
+                )
+        finally:
+            manager.queue.task_done()
 
 
 def parse_args(args):
@@ -88,7 +130,7 @@ def parse_args(args):
         "--start_epoch",
         type=int,
         required=False,
-        default=0,
+        default=None,
         help="The first epoch to process jobs for, inclusive.",
     )
     parser.add_argument(
@@ -96,7 +138,7 @@ def parse_args(args):
         "--end_epoch",
         type=int,
         required=False,
-        default=sys.maxsize,
+        default=None,
         help="The last epoch to process jobs for, exclusive.",
     )
     # get the command line arguments
@@ -168,8 +210,8 @@ class VXIngest(CommonVxIngest):
         EXTERNAL DEPENDENCIES - self.load_spec is populated with:
         ========================================================
           first_last_params (dict): Epoch range for file processing
-                                   - first_epoch: start of range (from start_epoch or 0)
-                                   - last_epoch: end of range (from end_epoch or sys.maxsize)
+                                   - first_epoch: start of range (from start_epoch or current epoch minus 30 days)
+                                   - last_epoch: end of range (from end_epoch or current epoch)
           cb_credentials (dict): Couchbase connection parameters fetched from credentials_file
                                 - user, password, host, bucket, collection, scope, common_collection, runtime_collection
           ingest_document_ids (list): Copy of config["ingest_document_ids"]
@@ -212,15 +254,22 @@ class VXIngest(CommonVxIngest):
         _output_dir = config["output_dir"]
         if _output_dir is not None:
             self.output_dir = _output_dir.strip()
-        if "start_epoch" in config and "end_epoch" in config:
+        if (
+            "start_epoch" in config
+            and "end_epoch" in config
+            and config["start_epoch"] is not None
+            and config["end_epoch"] is not None
+        ):
             self.first_last_params = {
                 "first_epoch": config["start_epoch"],
                 "last_epoch": config["end_epoch"],
             }
         else:
-            self.first_last_params = {}
-            self.first_last_params["first_epoch"] = 0
-            self.first_last_params["last_epoch"] = sys.maxsize
+            now_epoch = int(time.time())
+            self.first_last_params = {
+                "first_epoch": now_epoch - int(timedelta(days=30).total_seconds()),
+                "last_epoch": now_epoch,
+            }
         # stash the first_last_params into the load spec
         self.load_spec["first_last_params"] = self.first_last_params
         logger.info(
@@ -282,13 +331,16 @@ class VXIngest(CommonVxIngest):
                     log_configurer,  # Config function to set up the logger in the multiprocess Process
                 )
                 ingest_manager_list.append(ingest_manager_thread)
-                ingest_manager_thread.start()  # This calls a .run() method in the class
+                if os.environ.get("VXINGEST_DEBUG_INLINE_PROCESSES") == "1":
+                    _debug_run_manager_inline(ingest_manager_thread)
+                else:
+                    ingest_manager_thread.start()  # This calls a .run() method in the class
                 logger.info(f"Started thread: VxIngestManager-{thread_count + 1}")
             except Exception as _e:
                 logger.error("*** Error in VXIngest %s***", str(_e))
                 raise _e
         # be sure to join all the threads to wait on them
-        finished = [proc.join() for proc in ingest_manager_list]
+        finished = [proc.join() for proc in ingest_manager_list if proc.pid is not None]
         logger.info("Finished processes")
         self.write_load_job_to_files()
         logger.info("Finished writing files")

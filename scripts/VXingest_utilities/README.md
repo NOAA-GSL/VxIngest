@@ -61,7 +61,7 @@ cd ${HOME}/VxIngest
 - VXINGEST_IMAGE (default: ghcr.io/noaa-gsl/vxingest/ingest:latest)
 - DOCKER_RUN_USER (default: host uid:gid)
 - VXINGEST_DOCKER_USER (default: DOCKER_RUN_USER)
-- LOG_LEVEL (default: DEBUG)
+- LOG_LEVEL (default: INFO)
 - VXIMPORTER_IMAGE (default: ghcr.io/noaa-gsl/vximporter:latest)
 - VXIMPORTER_DOCKER_USER (default: DOCKER_RUN_USER)
 - VXIMPORTER_WORKERS (default: 16)

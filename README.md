@@ -171,7 +171,7 @@ docker compose run ingest \
     -j JOB-TEST:V01:METAR:NETCDF:OBS
 ```
 
-`LOG_LEVEL` controls application logging for the main process and worker processes. If it is unset, VxIngest logs at `INFO`. Invalid values stop startup with an error so misconfigured automation does not silently run at the wrong verbosity. The legacy `DEBUG=true` setting is still honored when `LOG_LEVEL` is not set.
+`LOG_LEVEL` controls application logging for the main process and worker processes. If it is unset, VxIngest logs at `INFO`. Valid values are `DEBUG`, `INFO`, `WARNING`, `ERROR`, and `CRITICAL`. Invalid values stop startup with an error so misconfigured automation does not silently run at the wrong verbosity.
 
 ### Debugging in the container
 

@@ -35,12 +35,16 @@ def get_logformat() -> logging.Formatter:
 
 
 def get_loglevel() -> int:
-    """A function to get a common loglevel"""
+    """Return the configured application log level.
+
+    LOG_LEVEL is the only environment variable used to override logging
+    verbosity. If LOG_LEVEL is unset, VxIngest logs at INFO.
+    """
     loglevel = os.environ.get(LOG_LEVEL_ENV_VAR)
     if loglevel:
         return parse_loglevel(loglevel)
 
-    return logging.DEBUG if os.environ.get("DEBUG", False) else logging.INFO
+    return logging.INFO
 
 
 def add_logfile(
@@ -79,10 +83,10 @@ def configure_logging(
 ) -> logging.handlers.QueueListener:
     """Configure the root logger so all subsequent loggers inherit this config
 
-    By default, log INFO level messages. However, log messages at the level specified
-    by LOG_LEVEL when that environment variable is set. This configuration
-    creates a default handler to log messages to stderr. If given a filepath, it will
-    also log messages to the given file.
+    By default, log INFO level messages. Set LOG_LEVEL to DEBUG, INFO, WARNING,
+    ERROR, or CRITICAL to change the level. This configuration creates a default
+    handler to log messages to stderr. If given a filepath, it will also log
+    messages to the given file.
 
     Logging can be done in other modules by calling:
       `logger = logging.getLogger(__name__)`

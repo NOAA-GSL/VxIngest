@@ -44,11 +44,11 @@ uv run ingest \
     -j JOB-TEST:V01:METAR:CTC:CEILING:MODEL:OPS
 ```
 
-For debug output, set `VXINGEST_LOG_LEVEL` to `DEBUG`. The supported values are `DEBUG`, `INFO`, `WARNING`, `ERROR`, and `CRITICAL`; when unset, VxIngest uses `INFO`.
+For debug output, set `LOG_LEVEL` to `DEBUG`. The supported values are `DEBUG`, `INFO`, `WARNING`, `ERROR`, and `CRITICAL`; when unset, VxIngest uses `INFO`.
 
 ```bash
 mkdir -p tmp/output/{metrics,out,xfer,log}
-VXINGEST_LOG_LEVEL=DEBUG uv run ingest \
+LOG_LEVEL=DEBUG uv run ingest \
     -m tmp/output/metrics \
     -o tmp/output/out \
     -x tmp/output/xfer \
@@ -198,7 +198,7 @@ Run it directly with bind mounts:
 
 ```bash
 docker run --rm \
-    --env VXINGEST_LOG_LEVEL=DEBUG \
+    --env LOG_LEVEL=DEBUG \
     --mount type=bind,src=$HOME/output,dst=/opt/data \
     --mount type=bind,src=$(pwd)/config.yaml,dst=/app/config.yaml,readonly \
     vxingest:prod \

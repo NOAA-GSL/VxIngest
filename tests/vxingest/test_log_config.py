@@ -7,16 +7,15 @@ from vxingest.log_config import LOG_LEVEL_ENV_VAR, get_loglevel, parse_loglevel
 
 def test_get_loglevel_defaults_to_info(monkeypatch):
     monkeypatch.delenv(LOG_LEVEL_ENV_VAR, raising=False)
-    monkeypatch.delenv("DEBUG", raising=False)
 
     assert get_loglevel() == logging.INFO
 
 
-def test_get_loglevel_keeps_legacy_debug_env_var(monkeypatch):
+def test_get_loglevel_ignores_debug_env_var(monkeypatch):
     monkeypatch.delenv(LOG_LEVEL_ENV_VAR, raising=False)
     monkeypatch.setenv("DEBUG", "true")
 
-    assert get_loglevel() == logging.DEBUG
+    assert get_loglevel() == logging.INFO
 
 
 @pytest.mark.parametrize(
@@ -29,7 +28,7 @@ def test_get_loglevel_keeps_legacy_debug_env_var(monkeypatch):
         ("CRITICAL", logging.CRITICAL),
     ],
 )
-def test_get_loglevel_uses_vxingest_log_level(monkeypatch, loglevel, expected):
+def test_get_loglevel_uses_log_level_env_var(monkeypatch, loglevel, expected):
     monkeypatch.setenv(LOG_LEVEL_ENV_VAR, loglevel)
     monkeypatch.setenv("DEBUG", "true")
 

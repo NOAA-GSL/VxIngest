@@ -11,7 +11,6 @@ import cProfile
 import datetime as dt
 import logging
 import re
-import time
 from pathlib import Path
 from pstats import Stats
 
@@ -470,12 +469,6 @@ class CTCBuilder(Builder):
             self.bucket = self.load_spec["cb_connection"]["bucket"]
             self.scope = self.load_spec["cb_connection"]["scope"]
             self.collection = self.load_spec["cb_connection"]["collection"]
-            now_epoch = int(time.time())
-            default_first_epoch = now_epoch - int(dt.timedelta(days=30).total_seconds())
-            self.first_last_params = self.load_spec.get(
-                "first_last_params",
-                {"first_epoch": default_first_epoch, "last_epoch": now_epoch},
-            )
             logger.info(
                 "%s.build_document queue_element:%s model:%s region:%s variable:%s subset:%s",
                 self.__class__.__name__,
@@ -614,8 +607,7 @@ class CTCBuilder(Builder):
                 AND version='V01'
                 AND subset='{self.subset}'
                 AND fcstValidEpoch >= {min_valid_epochs}
-                AND fcstValidEpoch <= {max_valid_epochs}
-            """
+                AND fcstValidEpoch <= {max_valid_epochs}"""
             try:
                 max_ctc_fcst_valid_epochs_result = list(
                     self.load_spec["cluster"].query(stmnt, read_only=True)
@@ -675,10 +667,10 @@ class CTCBuilder(Builder):
                                 AND obs.fcstValidEpoch > {max_ctc_fcst_valid_epochs}
                                 AND obs.fcstValidEpoch <= {max_valid_epochs}
                         ORDER BY obs.fcstValidEpoch"""
-                # logger.info("build_document start query %s", stmnt)
+                logger.debug("build_document start query %s", stmnt)
                 result1 = self.load_spec["cluster"].query(stmnt, read_only=True)
                 _tmp_obs_fve = list(result1)
-                # logger.info("build_document finished query %s", stmnt)
+                logger.debug("build_document finished query %s", stmnt)
             except Exception as e:
                 logger.info(
                     "%s.build_document Exception: %s, query: %s",
@@ -923,6 +915,7 @@ class CTCModelObsBuilderV01(CTCBuilder):
         return self.document_map
 
     # named functions
+
     def handle_data(self, **kwargs):
         """
         This routine processes the ctc data element. The data elements are all the same and always have the

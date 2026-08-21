@@ -601,6 +601,8 @@ class PartialSumsBuilder(Builder):
                 )
                 return self.get_document_map()
 
+            # determine the minimum and maximum fcstValidEpochs that can be processed.
+            # This is the earliest and latest fcstValidEpoch for which there are both obs and model data for this model.
             minAllowed_fcst_valid_epochs = max(
                 minObs_fcst_valid_epochs,
                 minModel_fcst_valid_epochs,
@@ -608,6 +610,9 @@ class PartialSumsBuilder(Builder):
             maxAllowed_fcst_valid_epochs = min(
                 maxObs_fcst_valid_epochs, maxModel_fcst_valid_epochs
             )
+            # If there is a minimum and maximum fcstValidEpoch specified in the ingest_document
+            # then allow those values to override the range of fcstValidEpochs derived from the database
+            # that will be processed.
             if (
                 "first_last_params" in self.load_spec
                 and "first_epoch" in self.load_spec["first_last_params"]
@@ -668,7 +673,12 @@ class PartialSumsBuilder(Builder):
                 and max_partialsums_fcst_valid_epochs_result[0] is not None
                 else min_valid_epochs
             )
-
+            # Get the intersection of the model fcstValidEpochs that correspond for this
+            # model and the obs for all fcstValidEpochs greater than the max_ctc_fcst_valid_epochs ctc
+            # and less than the max_valid_epochs.
+            # This could be done with implicit join but this seems to be faster with two queries when the results are large.
+            # get the model fcstValidEpochs (models don't have regions) that are > the last ctc epoch
+            # for the lower boundary use the max_ctc_fcst_valid_epochs derived above.
             _tmp_model_fve = []
             try:
                 stmnt = f"""SELECT fve.fcstValidEpoch, fve.fcstLen, meta().id
@@ -703,8 +713,10 @@ class PartialSumsBuilder(Builder):
                                 AND obs.fcstValidEpoch > {max_partialsums_fcst_valid_epochs}
                                 AND obs.fcstValidEpoch <= {max_valid_epochs}
                         ORDER BY obs.fcstValidEpoch"""
+                logger.debug("build_document start query %s", stmnt)
                 result1 = self.load_spec["cluster"].query(stmnt, read_only=True)
                 _tmp_obs_fve = list(result1)
+                logger.debug("build_document finished query %s", stmnt)
             except Exception as e:
                 logger.info(
                     "%s.build_document Exception: %s, query: %s",

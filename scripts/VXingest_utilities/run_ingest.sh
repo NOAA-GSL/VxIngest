@@ -48,7 +48,7 @@ Optional environment:
 	VXINGEST_IMAGE                     Default: ghcr.io/noaa-gsl/vxingest/ingest:latest
 	DOCKER_RUN_USER                    Default: <host uid>:<host gid>
 	VXINGEST_DOCKER_USER               Default: DOCKER_RUN_USER
-	LOG_LEVEL                          Default: DEBUG
+	LOG_LEVEL                          Default: INFO
 	VXIMPORTER_IMAGE                   Default: ghcr.io/noaa-gsl/vximporter:latest
 	VXIMPORTER_DOCKER_USER             Default: DOCKER_RUN_USER
 	VXIMPORTER_WORKERS                 Default: 16
@@ -418,7 +418,7 @@ establish_environment() {
 	metadata_updater_settings="${VX_METADATA_UPDATER_SETTINGS:-}"
 	metadata_updater_settings_container="/app/settings.json"
 	metadata_updater_docker_user="${VX_METADATA_UPDATER_DOCKER_USER:-}"
-	log_level="${LOG_LEVEL:-DEBUG}"
+	log_level="${LOG_LEVEL:-INFO}"
 }
 
 # Runs each requested job id, and for MODEL ids runs derived CTC/SUMS jobs.

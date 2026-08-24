@@ -115,7 +115,7 @@ run_vximporter() {
 
 	importer_args=(
 		docker run --rm
-		--pull=always
+		--quiet
 		--user "${vximporter_docker_user}"
 		--mount "type=bind,source=${working_root_dir},target=/opt/data,readonly"
 		--mount "type=bind,source=${CREDENTIALS_FILE},target=/run/config/credentials,readonly"
@@ -330,7 +330,7 @@ run_this_job() {
 	vxingest_docker_user="${VXINGEST_DOCKER_USER:-${docker_run_user}}"
 	ingest_args=(
 		docker run --rm
-		--pull=always
+		--quiet
 		--user "${vxingest_docker_user}"
 		--mount "type=bind,source=${working_root_dir},target=/opt/data"
 		--mount "type=bind,source=${public_dir},target=/public,readonly"
@@ -473,7 +473,7 @@ run_metadata_updater() {
 
 	local -a metadata_updater_args=(
 		docker run --rm
-		--pull always
+		--quiet
 		--user "${metadata_updater_docker_user}"
 		--mount "type=bind,source=${working_root_dir},target=/opt/data"
 		--mount "type=bind,source=${CREDENTIALS_FILE},target=/run/secrets/CREDENTIALS_FILE,readonly"

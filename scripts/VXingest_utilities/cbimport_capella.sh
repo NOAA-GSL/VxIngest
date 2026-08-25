@@ -2,6 +2,12 @@
 
 set -euo pipefail
 
+if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
+    echo "Error: This script must be executed, not sourced." >&2
+    echo "Usage: ./cbimport_capella.sh [options]" >&2
+    return 1
+fi
+
 usage() {
     cat <<'EOF'
 Usage: cbimport_capella.sh -C COLLECTION -f FILE -c CREDENTIALS

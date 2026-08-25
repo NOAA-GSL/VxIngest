@@ -2,6 +2,12 @@
 
 set -euo pipefail
 
+if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
+    echo "Error: This script must be executed, not sourced." >&2
+    echo "Usage: ./clone_model.sh [options]" >&2
+    return 1
+fi
+
 usage() {
 	cat <<'EOF'
 Usage: clone_model.sh -m MODEL_NAME -n NEW_MODEL -e EXISTING_PATH -f FILE_PATH -c CREDENTIALS
@@ -19,7 +25,7 @@ load_credentials() {
     local credentials_file="$1"
     local key
     local value
-
+    
     while IFS=$'\t' read -r key value; do
         if [[ ! "${key}" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
             echo "Error: credentials key is not a valid shell variable name: ${key}" >&2
@@ -38,7 +44,7 @@ load_credentials() {
 require_command() {
     local command_name="$1"
     local description="$2"
-
+    
     if ! command -v "${command_name}" >/dev/null 2>&1; then
         echo "Error: ${command_name} is required ${description}, but it was not found in PATH." >&2
         exit 1
@@ -47,7 +53,7 @@ require_command() {
 
 escape_sed_pattern() {
     local value="$1"
-
+    
     value="${value//\\/\\\\}"
     value="${value//|/\\|}"
     value="${value//./\\.}"
@@ -61,7 +67,7 @@ escape_sed_pattern() {
 
 escape_sed_replacement() {
     local value="$1"
-
+    
     value="${value//\\/\\\\}"
     value="${value//&/\\&}"
     value="${value//|/\\|}"
@@ -256,8 +262,15 @@ if [[ -z "${cb_host}" || -z "${cb_user}" || -z "${cb_password}" ]]; then
     exit 1
 fi
 
-escaped_model_name="$(escape_sed_pattern "${model_name}")"
+model_name="${model_name#:}"
+model_name="${model_name%:}"
+new_model="${new_model#:}"
+new_model="${new_model%:}"
+model_name_token=":${model_name}:"
+new_model_token=":${new_model}:"
+
+escaped_model_name="$(escape_sed_pattern "${model_name_token}")"
 escaped_existing_file_path="$(escape_sed_pattern "${existing_file_path}")"
-escaped_new_model="$(escape_sed_replacement "${new_model}")"
+escaped_new_model="$(escape_sed_replacement "${new_model_token}")"
 escaped_file_path="$(escape_sed_replacement "${file_path}")"
-cbq -no-ssl-verify -q -e "${cb_host}" -u "${cb_user}" -p "${cb_password}" -s "SELECT RUNTIME.* FROM vxdata._default.RUNTIME WHERE (type='JS' OR type='PS' OR type='DS' OR type='IS') AND CONTAINS(meta().id,'${model_name}');" | grep -v Disabling | sed "s|${escaped_model_name}|${escaped_new_model}|g" | sed "s|${escaped_existing_file_path}|${escaped_file_path}|g" | jq .results
+cbq -no-ssl-verify -q -e "${cb_host}" -u "${cb_user}" -p "${cb_password}" -s "SELECT RUNTIME.* FROM vxdata._default.RUNTIME WHERE (type='JS' OR type='PS' OR type='DS' OR type='IS') AND CONTAINS(meta().id,'${model_name_token}');" | grep -v Disabling | sed "s|${escaped_model_name}|${escaped_new_model}|g" | sed "s|${escaped_existing_file_path}|${escaped_file_path}|g" | jq .results

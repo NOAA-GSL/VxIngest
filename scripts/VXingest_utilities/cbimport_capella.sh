@@ -10,12 +10,14 @@ fi
 
 usage() {
     cat <<'EOF'
-Usage: cbimport_capella.sh -C COLLECTION -f FILE -c CREDENTIALS
+Usage: cbimport_capella.sh -C COLLECTION -f FILE -c CREDENTIALS [-t THREADS] [-v]
 
 Options:
     -C, --collection COLLECTION   Target Couchbase collection.
     -f, --file FILE               JSON file to import.
     -c, --credentials CREDENTIALS Couchbase credentials YAML file.
+    -t, --threads THREADS         Number of parallel threads for import (default: 4).
+    -v, --verbose                 Enable verbose logging output.
 EOF
 }
 
@@ -96,6 +98,23 @@ while [[ $# -gt 0 ]]; do
             args+=(-c "${1#*=}")
             shift
         ;;
+        --verbose)
+            args+=(-v)
+            shift
+        ;;
+        --threads)
+            if [[ $# -lt 2 || "$2" == -* ]]; then
+                echo "Error: --threads requires an argument." >&2
+                usage >&2
+                exit 1
+            fi
+            args+=(-t "$2")
+            shift 2
+        ;;
+        --threads=*)
+            args+=(-t "${1#*=}")
+            shift
+        ;;
         --help)
             usage
             exit 0
@@ -116,7 +135,10 @@ collection=""
 file_path=""
 credentials=""
 
-while getopts ":C:f:c:h" param; do
+verbose=false
+threads=4
+
+while getopts ":C:f:c:t:vh" param; do
     case "${param}" in
         C)
             collection="${OPTARG}"
@@ -126,6 +148,12 @@ while getopts ":C:f:c:h" param; do
         ;;
         c)
             credentials="${OPTARG}"
+        ;;
+        t)
+            threads="${OPTARG}"
+        ;;
+        v)
+            verbose=true
         ;;
         h)
             usage
@@ -198,10 +226,19 @@ cbimport_args=(
     --scope-collection-exp "${cb_scope}.${collection}"
     --dataset "file://${file_path}"
     --generate-key '%id%'
+    # Performance tuning for large datasets
+    --threads "${threads}"
 )
+
+if [[ "${verbose}" == true ]]; then
+    cbimport_args+=(--verbose)
+fi
 
 if [[ -n "${cb_ca_cert}" ]]; then
     cbimport_args+=(--cacert "${cb_ca_cert}")
 fi
 
+file_size=$(stat -f%z "${file_path}" 2>/dev/null || stat -c%s "${file_path}" 2>/dev/null)
+echo "Starting import of ${file_path} (${file_size} bytes) to ${collection}..."
 "${cbimport_args[@]}"
+echo "Import complete."

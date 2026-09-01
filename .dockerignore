@@ -26,3 +26,6 @@ third_party/NCEPLIBS-bufr/tests/venv-3.13/
 
 # Mac
 **/.DS_Store
+
+# Go binaries - batch_select is a standalone utility, not needed in the Docker image
+src/vxingest/utilities/batch_select/batch_select

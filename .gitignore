@@ -184,3 +184,6 @@ cython_debug/
 
 # profiling
 *.prof
+
+# Go utility build artifacts
+src/vxingest/utilities/batch_select/batch_select

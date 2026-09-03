@@ -22,6 +22,8 @@ set -uo pipefail
 current_tmp_outdir=""
 current_tmp_xfer=""
 current_job_host=""
+ingest_container_name=""
+importer_container_name=""
 updater_lock_held=0
 updater_lock_dir=""
 updater_lock_owner=""
@@ -105,6 +107,7 @@ run_vximporter() {
 	local vximporter_workers="${VXIMPORTER_WORKERS:-16}"
 	local vximporter_batch_size="${VXIMPORTER_BATCH_SIZE:-1000}"
 	local container_import_file
+	local importer_status
 	local -a importer_args
 
 	container_import_file="${import_file/#${working_root_dir}/\/opt\/data}"
@@ -113,9 +116,11 @@ run_vximporter() {
 		return 1
 	fi
 
+	importer_container_name="vximporter-$$-$(date +%s%N)"
 	importer_args=(
 		docker run --rm
 		--quiet
+		--name "${importer_container_name}"
 		--user "${vximporter_docker_user}"
 		--mount "type=bind,source=${working_root_dir},target=/opt/data,readonly"
 		--mount "type=bind,source=${CREDENTIALS_FILE},target=/run/config/credentials,readonly"
@@ -141,6 +146,10 @@ run_vximporter() {
 		-file "${container_import_file}" \
 		-workers "${vximporter_workers}" \
 		-batch-size "${vximporter_batch_size}" 2>&1 | tee -a "${import_log_file}"
+	importer_status="${PIPESTATUS[0]}"
+	docker wait "${importer_container_name}" >/dev/null 2>&1 || true
+	importer_container_name=""
+	return "${importer_status}"
 }
 
 # Archives generated tarballs and removes temporary job directories.
@@ -167,8 +176,27 @@ cleanup_job_dirs() {
 	fi
 }
 
+# Stops and reaps any container still running for this script's job.
+wait_for_job_containers() {
+	local name
+	# A killed docker CLI leaves the container running; make sure it is really
+	# done before we archive or delete the directories it has mounted.
+	for name in "${ingest_container_name:-}" "${importer_container_name:-}"; do
+		[ -n "${name}" ] || continue
+		if docker container inspect "${name}" >/dev/null 2>&1; then
+			echo "Waiting for container ${name} to finish..."
+			docker stop --time 30 "${name}" >/dev/null 2>&1 || true
+			docker wait "${name}" >/dev/null 2>&1 || true
+			docker rm -f "${name}" >/dev/null 2>&1 || true
+		fi
+	done
+	ingest_container_name=""
+	importer_container_name=""
+}
+
 # Trap target: best-effort cleanup for the currently active job temp directories.
 cleanup_current_job_dirs() {
+	wait_for_job_containers
 	cleanup_job_dirs "${current_tmp_outdir:-}" "${current_tmp_xfer:-}" "${current_job_host:-unknown-host}"
 	release_updater_lock
 }
@@ -328,9 +356,11 @@ run_this_job() {
 	vxingest_image="${VXINGEST_IMAGE:-ghcr.io/noaa-gsl/vxingest/ingest:latest}"
 	docker_run_user="${DOCKER_RUN_USER:-$(id -u):$(id -g)}"
 	vxingest_docker_user="${VXINGEST_DOCKER_USER:-${docker_run_user}}"
+	ingest_container_name="vxingest-${pid}-${timestamp}"
 	ingest_args=(
 		docker run --rm
 		--quiet
+		--name "${ingest_container_name}"
 		--user "${vxingest_docker_user}"
 		--mount "type=bind,source=${working_root_dir},target=/opt/data"
 		--mount "type=bind,source=${public_dir},target=/public,readonly"
@@ -366,6 +396,11 @@ run_this_job() {
 		echo "Error: VxIngest run failed for job id: ${this_job_id}" >&2
 		this_job_failed=1
 	fi
+
+	# docker run already blocks, but wait explicitly so the container is fully
+	# reaped and its writes to the mounted dirs are complete before we read them.
+	docker wait "${ingest_container_name}" >/dev/null 2>&1 || true
+	ingest_container_name=""
 
 	if [[ "${this_job_failed}" -eq 0 ]]; then
 		while IFS= read -r -d '' tar_file; do

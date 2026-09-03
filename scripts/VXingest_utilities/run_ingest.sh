@@ -472,6 +472,7 @@ run_jobs() {
 		# the job id contains ":MODEL:" also process the associated CTC and SUM documents
 		if [[ "$job_id" == *":MODEL:"* ]]; then
 			model_name="$(echo "$job_id" | cut -d: -f4)"
+			sleep 30 # give the database a little time to quiet down
 			# Construct and process the CTC job id
 			echo "Processing CTC documents for model: $model_name"
 			# CTC ids are like JS:METAR:CTC:RRFSv2_conus_3km_ret_test4_may2024:schedule:job:V01

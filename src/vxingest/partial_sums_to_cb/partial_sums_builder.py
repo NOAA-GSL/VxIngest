@@ -496,6 +496,8 @@ class PartialSumsBuilder(Builder):
         """
 
         try:
+            # don't read model/obs data that VxImporter may still be writing
+            self.wait_for_import_lock()
             # reset the builders document_map for a new file
             self.initialize_document_map()
             self.not_found_station_count = 0
@@ -1064,9 +1066,15 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
                         diff_vals_squared.append(_diff * _diff)
                         abs_diff_vals.append(abs(_diff))
                 else:
-                    #logger.debug("name %s is not in both model and obs", name)
+                    # logger.debug("name %s is not in both model and obs", name)
                     not_in_both += 1
-            logger.debug("num stations:%s num_obs:%s num_model:%s  not in both count is %s",self.domain_stations, len(self.obs_data), len(self.model_data["data"]), not_in_both)
+            logger.debug(
+                "num stations:%s num_obs:%s num_model:%s  not in both count is %s",
+                self.domain_stations,
+                len(self.obs_data),
+                len(self.model_data["data"]),
+                not_in_both,
+            )
             sum_elem = {
                 "num_recs": len(obs_vals) if obs_vals else None,
                 "sum_obs": sum(obs_vals) if obs_vals else None,

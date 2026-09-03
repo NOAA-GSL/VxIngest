@@ -451,6 +451,8 @@ class CTCBuilder(Builder):
         """
 
         try:
+            # don't read model/obs data that VxImporter may still be writing
+            self.wait_for_import_lock()
             # reset the builders document_map for a new file
             self.initialize_document_map()
             self.not_found_station_count = 0

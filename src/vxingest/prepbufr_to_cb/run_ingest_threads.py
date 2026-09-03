@@ -70,10 +70,10 @@ import logging
 import os
 import sys
 import time
+from collections.abc import Callable
 from datetime import datetime, timedelta
 from multiprocessing import JoinableQueue, Queue, set_start_method
 from pathlib import Path
-from typing import Callable
 
 from vxingest.builder_common.vx_ingest import CommonVxIngest
 from vxingest.log_config import configure_logging, worker_log_configurer

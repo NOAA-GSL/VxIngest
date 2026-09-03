@@ -58,6 +58,7 @@ for model_js in "$@"; do
     run_job_or_exit "$model_js"
     echo "Finished processing model with job ID: $model_js"
     model_name="$(echo "$model_js" | cut -d: -f4)"
+    sleep 30   # give the database a little time to quiet down
 
     # Construct and process the CTC job ID
     echo "Processing CTC documents for model: $model_name"

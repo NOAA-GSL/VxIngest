@@ -241,22 +241,30 @@ if [ "${LOG_LEVEL:-}" = "DEBUG" ]; then
         -j "${job_id}"
     echo
 fi
+ingest_status=0
 "${ingest_args[@]}" "${vxingest_image}" \
 -c /run/secrets/CREDENTIALS_FILE \
 -o "${container_tmp_outdir}" \
 -l "${container_log_dir}" \
 -m "${container_metrics_dir}" \
 -x "${container_tmp_xfer}" \
--j "${job_id}" >"${ingest_log_file}" 2>&1
+-j "${job_id}" >"${ingest_log_file}" 2>&1 || ingest_status=$?
 
 # docker run already blocks, but wait explicitly so the container is fully
 # reaped and its writes to the mounted dirs are complete before we read them.
 docker wait "${ingest_container_name}" >/dev/null 2>&1 || true
 ingest_container_name=""
 
+if [ "${ingest_status}" -ne 0 ]; then
+    echo "Error: VxIngest container failed with exit status ${ingest_status} for job ID: ${job_id}" >&2
+    echo "See ingest log: ${ingest_log_file}" >&2
+    exit "${ingest_status}"
+fi
+echo "VxIngest completed successfully for job ID: ${job_id}"
+
 # Import job documents for the given job ID using vximporter.
 # Imports every JSON or gzip-compressed JSON file found in the transfer output.
-echo "importing job documents for job ID: $job_id" tmp_o
+echo "importing job documents for job ID: $job_id"
 
 # Debug: show what's in the directories
 echo "Debug: Contents of tmp_outdir (${tmp_outdir}):"

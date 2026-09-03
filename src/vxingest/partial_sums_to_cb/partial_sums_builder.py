@@ -919,7 +919,7 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
             diff_vals = []
             diff_vals_squared = []
             abs_diff_vals = []
-
+            not_in_both = 0
             for name in self.domain_stations:
                 if name in self.obs_data and name in self.model_data["data"]:
                     obs_elem = self.obs_data[name]
@@ -983,6 +983,10 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
                         diff_vals.append(_diff)
                         diff_vals_squared.append(_diff * _diff)
                         abs_diff_vals.append(abs(_diff))
+                else:
+                    #logger.debug("name %s is not in both model and obs", name)
+                    not_in_both += 1
+            logger.debug("num stations:%s num_obs:%s num_model:%s  not in both count is %s",self.domain_stations, len(self.obs_data), len(self.model_data["data"]), not_in_both)
             sum_elem = {
                 "num_recs": len(obs_vals) if obs_vals else None,
                 "sum_obs": sum(obs_vals) if obs_vals else None,

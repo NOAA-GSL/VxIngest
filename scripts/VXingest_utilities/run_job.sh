@@ -19,6 +19,18 @@ set -euo pipefail
 
 cleanup() {
     local exit_code=$?
+    # A killed docker CLI leaves the container running; make sure it is really
+    # done before we archive or delete the directories it has mounted.
+    local name
+    for name in "${ingest_container_name:-}" "${importer_container_name:-}"; do
+        [ -n "${name}" ] || continue
+        if docker container inspect "${name}" >/dev/null 2>&1; then
+            echo "Waiting for container ${name} to finish..."
+            docker stop --time 30 "${name}" >/dev/null 2>&1 || true
+            docker wait "${name}" >/dev/null 2>&1 || true
+            docker rm -f "${name}" >/dev/null 2>&1 || true
+        fi
+    done
     # Archive .tar.gz files before cleanup
     if [ -n "${tmp_xfer:-}" ] && [ -d "${tmp_xfer}" ]; then
         mkdir -p "${working_root_dir}/archive"
@@ -109,6 +121,7 @@ run_vximporter() {
     local vximporter_batch_size="${VXIMPORTER_BATCH_SIZE:-1000}"
     local container_import_file
     local -a importer_args
+    local importer_status
     container_import_file="${import_file/#${working_root_dir}/\/opt\/data}"
 
     if [ "${container_import_file}" = "${import_file}" ]; then
@@ -116,8 +129,10 @@ run_vximporter() {
         return 1
     fi
 
+    importer_container_name="vximporter-${pid}-$(date +%s%N)"
     importer_args=(
         docker run --rm
+        --name "${importer_container_name}"
         --pull=always
         --user "${vximporter_docker_user}"
         --mount "type=bind,source=${working_root_dir},target=/opt/data,readonly"
@@ -143,6 +158,10 @@ run_vximporter() {
     -file "${container_import_file}" \
     -workers "${vximporter_workers}" \
     -batch-size "${vximporter_batch_size}" 2>&1 | tee -a "${import_log_file}"
+    importer_status="${PIPESTATUS[0]}"
+    docker wait "${importer_container_name}" >/dev/null 2>&1 || true
+    importer_container_name=""
+    return "${importer_status}"
 }
 
 # Assign the job_id argument
@@ -191,9 +210,11 @@ echo "**Import log file: ${import_log_file}**"
 vxingest_image="${VXINGEST_IMAGE:-ghcr.io/noaa-gsl/vxingest/ingest:latest}"
 docker_run_user="${DOCKER_RUN_USER:-$(id -u):$(id -g)}"
 vxingest_docker_user="${VXINGEST_DOCKER_USER:-${docker_run_user}}"
+ingest_container_name="vxingest-${pid}-${timestamp}"
 ingest_args=(
     docker run --rm
-    --pull=always \
+    --name "${ingest_container_name}"
+    --pull=always
     --user "${vxingest_docker_user}"
     --mount "type=bind,source=${working_root_dir},target=/opt/data"
     --mount "type=bind,source=${public_dir},target=/public,readonly"
@@ -227,6 +248,11 @@ fi
 -m "${container_metrics_dir}" \
 -x "${container_tmp_xfer}" \
 -j "${job_id}" >"${ingest_log_file}" 2>&1
+
+# docker run already blocks, but wait explicitly so the container is fully
+# reaped and its writes to the mounted dirs are complete before we read them.
+docker wait "${ingest_container_name}" >/dev/null 2>&1 || true
+ingest_container_name=""
 
 # Import job documents for the given job ID using vximporter.
 # Imports every JSON or gzip-compressed JSON file found in the transfer output.

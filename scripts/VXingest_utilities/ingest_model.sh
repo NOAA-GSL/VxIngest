@@ -77,9 +77,16 @@ done
 # Update the metadata after all jobs are processed
 echo "update the metadata"
 echo "Running VxMetadataUpdater container: ${metadata_updater_image}"
+
+# Pull separately from run so image-fetch failures are distinguishable from
+# updater failures. Watchtower does not manage one-shot containers.
+if ! docker pull "${metadata_updater_image}"; then
+    echo "Error: failed to pull ${metadata_updater_image}" >&2
+    exit 1
+fi
+
 metadata_updater_args=(
     docker run --rm
-    --pull always
     --user "${metadata_updater_docker_user}"
     --mount "type=bind,source=${working_root_dir},target=/opt/data"
     --mount "type=bind,source=${CREDENTIALS_FILE},target=/run/secrets/CREDENTIALS_FILE,readonly"

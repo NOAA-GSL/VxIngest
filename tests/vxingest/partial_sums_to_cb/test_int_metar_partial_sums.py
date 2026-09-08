@@ -520,7 +520,9 @@ def _calculate_and_compare_sums(job_id, region, model):
             },
             "cluster": cluster,
             "collection": cluster.bucket(_bucket).scope(_scope).collection(_collection),
-            "common_collection": cluster.bucket(_bucket).scope(_scope).collection("COMMON")
+            "common_collection": cluster.bucket(_bucket)
+            .scope(_scope)
+            .collection("COMMON"),
         }
         builder = partial_sums_builder.PartialSumsSurfaceModelObsBuilderV01(
             load_spec, ingest_documents[ingest_document_ids[0]]

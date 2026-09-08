@@ -5,7 +5,7 @@ test for VxIngest CTC builders
 import json
 import os
 import time
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from multiprocessing import Queue
 from pathlib import Path
 
@@ -119,7 +119,7 @@ def test_check_fcst_valid_epoch_fcst_valid_iso():
     cluster = Cluster(_host, options)
     options = ClusterOptions(PasswordAuthenticator(_user, _password))
     cluster = Cluster(_host, options)
-    stmnt = f"""SELECT m0.fcstValidEpoch fve, fcstValidISO fvi
+    stmnt = f"""SELECT m0.fcstValidEpoch fve, m0.fcstValidISO fvi
         FROM `{_bucket}`.{_scope}.{_collection} m0
         WHERE
             m0.type='DD'
@@ -131,13 +131,20 @@ def test_check_fcst_valid_epoch_fcst_valid_iso():
     """
     result = cluster.query(stmnt)
     for row in result:
-        fve = row["fve"]
-        utc_time = datetime.strptime(row["fvi"], "%Y-%m-%dT%H:%M:%S")
-        epoch_time = int((utc_time - datetime(1970, 1, 1)).total_seconds())
-        assert fve == epoch_time, (
-            "fcstValidEpoch and fcstValidIso are not the same time"
-        )
-        assert (fve % 3600) == 0, "fcstValidEpoch is not at top of hour"
+        try:
+            fve = row["fve"]
+            fvi = row["fvi"]
+            # fromisoformat handles both naive and UTC-offset ISO timestamps
+            utc_time = datetime.fromisoformat(fvi)
+            if utc_time.tzinfo is not None:
+                utc_time = utc_time.astimezone(UTC).replace(tzinfo=None)
+            epoch_time = int((utc_time - datetime(1970, 1, 1)).total_seconds())
+            assert fve == epoch_time, (
+                "fcstValidEpoch and fcstValidIso are not the same time"
+            )
+            assert (fve % 3600) == 0, "fcstValidEpoch is not at top of hour"
+        except Exception as e:
+            pytest.fail(f"Test failed for row {row}: {e}")
 
 
 def calculate_cb_ctc(

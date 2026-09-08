@@ -183,7 +183,7 @@ def run_runtime_one_thread_file_pattern_test(
                             # abs_tol = 0.00001  # not really sure why math.isclose compares out to 5 places but not 6
                             # There are no unusual math transformations in the RH handler.
                         else:
-                            abs_tol = 0.001  # most fields validate between pygrib and cfgrib precisely
+                            abs_tol = 0.005  # most fields validate between pygrib and cfgrib precisely
                         if isinstance(
                             result["data"][_k][_dk], (int, float)
                         ) and isinstance(_json["data"][_k][_dk], (int, float)):

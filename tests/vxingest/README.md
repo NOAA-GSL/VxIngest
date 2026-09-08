@@ -55,6 +55,10 @@ There are two kinds of tests in each test directory:
 
 Notice the `test_int_` and `test_unit_` prefixes in the names. Unit tests are relatively independent, require minimal external test data, and run quickly. Integration tests require external data and configuration, are not independent, and may be long-running.
 
+## TESTING mode
+
+`tests/conftest.py` sets the `TESTING` environment variable for the whole suite, so `main.py`'s job criteria queries also match `status='test'` runtime documents, not just `status='active'`.
+
 ## vscode
 
 To run tests from VS Code, create a `.env` file with the `CREDENTIALS` variable set so the editor picks it up.

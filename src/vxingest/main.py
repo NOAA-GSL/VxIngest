@@ -256,8 +256,16 @@ def get_runtime_job_criteria(
     # Determine if testing mode is enabled via TESTING environment variable
     testing_mode = _is_testing_mode()
     if testing_mode:
-        logger.info(
+        logger.warning(
             f"TESTING mode is enabled. Fetching job document for job_id: {job_id}"
+        )
+    else:
+        if "test" in job_id.lower():
+            logger.warning(
+                f"Job ID {job_id} contains 'test' but TESTING mode is not enabled."
+            )
+        logger.info(
+            f"TESTING mode is not enabled. Fetching only active job document for job_id: {job_id}"
         )
     # Build the query to fetch a specific job document by ID
     # When testing_mode is True, allow both active and test status; otherwise, only allow active

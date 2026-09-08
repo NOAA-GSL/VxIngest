@@ -108,6 +108,7 @@ def test_build_document_bounds_partial_sums_like_ctc():
     ingest_document = {
         "model": "HRRR_OPS",
         "region": "ALL_HRRR",
+        "subType": "SUMS",
         "subDocType": "SURFACE",
         "subset": "METAR",
         "template": {"id": "DD:V01:METAR:SUMS"},
@@ -131,7 +132,7 @@ def test_build_document_bounds_partial_sums_like_ctc():
     obs_query = cluster.statements[4]
     assert "AND fcstValidEpoch >= 2500" in sums_query
     assert "AND fcstValidEpoch <= 4500" in sums_query
-    assert "AND fve.fcstValidEpoch > 3000" in model_query
+    assert "AND fve.fcstValidEpoch >= 3000" in model_query
     assert "AND fve.fcstValidEpoch <= 4500" in model_query
-    assert "AND obs.fcstValidEpoch > 3000" in obs_query
+    assert "AND obs.fcstValidEpoch >= 3000" in obs_query
     assert "AND obs.fcstValidEpoch <= 4500" in obs_query

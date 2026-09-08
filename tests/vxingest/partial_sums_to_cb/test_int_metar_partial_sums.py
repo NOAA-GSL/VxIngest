@@ -431,7 +431,7 @@ def _calculate_and_compare_sums(job_id, region, model):
             PasswordAuthenticator(_user, _password), timeout_options=timeout_options
         )
         cluster = Cluster(_host, options)
-
+        # find a fcstValidEpoch within the specified dataset
         result = cluster.query(
             f"""SELECT fcstValidEpoch AS fcstValidEpoch
             FROM `{_bucket}`.{_scope}.{_collection}
@@ -450,6 +450,7 @@ def _calculate_and_compare_sums(job_id, region, model):
         fcst_valid_epoch = ps_fcst_valid_data[(len(ps_fcst_valid_data) - 1) // 2][
             "fcstValidEpoch"
         ]
+        # Find a fcstLen that is in the specified dataset for the determined fcstValidEpoch
         result = cluster.query(
             f"""SELECT fcstLen AS fcstLen
             FROM `{_bucket}`.{_scope}.{_collection}
@@ -464,7 +465,7 @@ def _calculate_and_compare_sums(job_id, region, model):
         )
         ps_fcst_valid_data = list(result)
         fcstLen = ps_fcst_valid_data[(len(ps_fcst_valid_data) - 1) // 2]["fcstLen"]
-
+        # check for SUMS data at the fcstValidEpoch and the determined fcstLen
         result = cluster.query(
             f"""
             SELECT m.id AS id, m.data AS data
@@ -486,19 +487,23 @@ def _calculate_and_compare_sums(job_id, region, model):
             f"No SUMS documents found for model={model}, region={region}, fcstValidEpoch={fcst_valid_epoch}"
         )
 
-        vx_ingest = setup_connection()
+        runtime_collection = cluster.bucket(_bucket).scope(_scope).collection("RUNTIME")
         ingest_document_ids = []
-        job_doc = vx_ingest.runtime_collection.get(job_id).content_as[dict]
+        job_doc = runtime_collection.get(job_id).content_as[dict]
         for process_spec_id in job_doc.get("processSpecIds"):
-            proc = vx_ingest.runtime_collection.get(process_spec_id).content_as[dict]
+            proc = runtime_collection.get(process_spec_id).content_as[dict]
             ingest_document_ids.extend(proc.get("ingestDocumentIds"))
         ingest_documents = {}
         for ingest_document_id in ingest_document_ids:
-            ingest_documents[ingest_document_id] = vx_ingest.runtime_collection.get(
+            ingest_documents[ingest_document_id] = runtime_collection.get(
                 ingest_document_id
             ).content_as[dict]
         load_spec = {
-            "cb_credentials": vx_ingest.cb_credentials,
+            "cb_credentials": {
+                "bucket": _bucket,
+                "scope": _scope,
+                "collection": _collection,
+            },
             "first_last_params": {
                 "first_epoch": fcst_valid_epoch,
                 "last_epoch": fcst_valid_epoch,
@@ -509,13 +514,15 @@ def _calculate_and_compare_sums(job_id, region, model):
             "input_data_path": None,
             "load_job_doc": None,
             "cb_connection": {
-                "bucket": vx_ingest.cb_credentials["bucket"],
-                "scope": vx_ingest.cb_credentials["scope"],
-                "collection": vx_ingest.cb_credentials["collection"],
+                "bucket": _bucket,
+                "scope": _scope,
+                "collection": _collection,
             },
-            "cluster": vx_ingest.cluster,
-            "collection": vx_ingest.collection,
-            "common_collection": vx_ingest.common_collection,
+            "cluster": cluster,
+            "collection": cluster.bucket(_bucket).scope(_scope).collection(_collection),
+            "common_collection": cluster.bucket(_bucket)
+            .scope(_scope)
+            .collection("COMMON"),
         }
         builder = partial_sums_builder.PartialSumsSurfaceModelObsBuilderV01(
             load_spec, ingest_documents[ingest_document_ids[0]]

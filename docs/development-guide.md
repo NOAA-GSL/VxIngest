@@ -57,6 +57,12 @@ LOG_LEVEL=DEBUG uv run ingest \
     -j JOB-TEST:V01:METAR:CTC:CEILING:MODEL:OPS
 ```
 
+Input files must be at least four hours old before they are considered for ingest, which avoids processing files still being written. Set `VXINGEST_MIN_FILE_AGE_HOURS` to change that delay. It accepts a non-negative number of hours; invalid values use the four-hour default.
+
+```bash
+VXINGEST_MIN_FILE_AGE_HOURS=1 uv run ingest ...
+```
+
 ### Testing mode
 
 To run ingest in testing mode, set the `TESTING` environment variable (any value). When set, the ingest will process both status='active' and status='test' job documents. When not set, only status='active' documents are processed. This allows test documents to be safely developed and tested without risk of automatic runners (like cron) inadvertently executing them.

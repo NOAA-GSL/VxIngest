@@ -31,6 +31,38 @@ from couchbase.options import ClusterOptions, ClusterTimeoutOptions
 # Get a logger with this module's name to help with debugging
 logger = logging.getLogger(__name__)
 
+MIN_FILE_AGE_HOURS_ENV_VAR = "VXINGEST_MIN_FILE_AGE_HOURS"
+DEFAULT_MIN_FILE_AGE_HOURS = 4
+
+
+def get_min_file_age_hours() -> float:
+    """Return the minimum age required before an input file is processed."""
+    configured_hours = os.environ.get(MIN_FILE_AGE_HOURS_ENV_VAR)
+    if configured_hours is None:
+        return DEFAULT_MIN_FILE_AGE_HOURS
+
+    try:
+        minimum_age_hours = float(configured_hours)
+    except ValueError:
+        logger.warning(
+            "Invalid %s value %r; using the default of %s hours",
+            MIN_FILE_AGE_HOURS_ENV_VAR,
+            configured_hours,
+            DEFAULT_MIN_FILE_AGE_HOURS,
+        )
+        return DEFAULT_MIN_FILE_AGE_HOURS
+
+    if minimum_age_hours < 0:
+        logger.warning(
+            "Invalid %s value %r; using the default of %s hours",
+            MIN_FILE_AGE_HOURS_ENV_VAR,
+            configured_hours,
+            DEFAULT_MIN_FILE_AGE_HOURS,
+        )
+        return DEFAULT_MIN_FILE_AGE_HOURS
+
+    return minimum_age_hours
+
 
 class CommonVxIngest:
     """
@@ -200,6 +232,11 @@ class CommonVxIngest:
             file-mask (string): A date-time format string that is applied to the file name only (not the path)
         Raises:
             Exception: general exception
+        NOTE: The files are qualified by mtime, meaning that only files that are new or have been modified
+        since the last ingestion and that meet the minimum age will be considered. The minimum age
+        is configured with VXINGEST_MIN_FILE_AGE_HOURS and defaults to four hours. This delay
+        is necessary because of potential delays in file system updates and to avoid ingesting files that are still being written.
+        This can happen because the data transfer mechanism is out of our control and often partial files exist in the directory.
         """
         file_names = []
         try:
@@ -253,10 +290,21 @@ class CommonVxIngest:
                 return []
             if pathlib.Path(directory).exists() and pathlib.Path(directory).is_dir():
                 # the file list is sorted by getmtime so that the oldest files are processed first
+                # Skip files that have not reached the configured minimum age.
+                min_file_age_hours = get_min_file_age_hours()
+                oldest_allowed_mtime = (
+                    dt.datetime.now().timestamp() - min_file_age_hours * 3600
+                )
                 sort_function = os.path.getmtime if file_mask else str
                 file_list = sorted(
                     pathlib.Path(directory).glob(file_pattern), key=sort_function
                 )
+                # Filter out files that are newer than the configured minimum age.
+                file_list = [
+                    file_path
+                    for file_path in file_list
+                    if file_path.stat().st_mtime < oldest_allowed_mtime
+                ]
                 logger.debug(
                     "get_file_list: Globbed %d files from directory %s using pattern %s",
                     len(file_list),

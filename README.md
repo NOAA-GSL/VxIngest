@@ -86,6 +86,61 @@ docker compose run ingest \
 
 The ingest writes JSON output, logs, metrics, and transfer tarballs into the mounted `data` directory.
 
+#### Import lock and readiness coordination
+
+When VxIngest runs a builder that reads model or observation documents written
+by VxImporter, the builder checks the shared import lock before reading the
+dataset. The lock is stored in the target bucket's default scope and `COMMON`
+collection under this document key:
+
+```text
+MD:import_lock:COMMON:V01
+```
+
+VxImporter owns this document. During an import it writes `status="running"`,
+refreshes the Unix-seconds `updated` field every minute, and records an
+identifying `job_id` containing its host name and process ID. It changes the
+status to `idle` during normal deferred cleanup. A typical document is:
+
+```json
+{
+    "id": "MD:import_lock:COMMON:V01",
+    "status": "running",
+    "updated": 1760000000,
+    "job_id": "vximporter:hostname:12345"
+}
+```
+
+When two VxImporter jobs start close together, the later job waits for the
+fresh `running` lock instead of starting concurrently. It polls every 10
+seconds for up to 30 minutes. A heartbeat older than 30 minutes is treated as
+stale and may be reclaimed by the waiting importer with a CAS-protected
+replacement.
+
+The VxIngest reader behavior is:
+
+- Poll the lock every 10 seconds while `status` is `running`.
+- Proceed immediately when the document is absent or its status is not
+  `running`.
+- Treat a `running` lock as stale when `updated` is more than 30 minutes old,
+  then proceed and log a warning.
+- Proceed after waiting 30 minutes even if the lock remains fresh.
+- Proceed when the lock cannot be read; lock checking is fail-open so a
+  Couchbase read error does not block a builder indefinitely.
+
+This wait prevents normal CTC and partial-sums reads from observing a dataset
+while VxImporter is still writing it. It does not provide a transaction or
+rollback: a stale-lock decision means the builder may read a partially
+imported dataset. Operators should inspect the lock's `job_id` and `updated`
+fields and the importer logs before treating a stale lock as harmless.
+
+The lock wait is separate from Couchbase bucket readiness. The ingest
+application's Couchbase clients use their configured SDK timeouts when opening
+connections; the VxImporter process waits for its bucket with a default
+60-second `BUCKET_READY_TIMEOUT_SECONDS` value. Increasing that VxImporter
+environment variable helps slow or remote clusters become ready, but it does
+not change the VxIngest reader poll, stale-lock, or maximum-wait values.
+
 #### Testing mode
 
 To run ingest in testing mode, set the `TESTING` environment variable (any value) when running the container. When set, the ingest will process both status='active' and status='test' job documents. When not set, only status='active' documents are processed. This allows test documents to be safely developed and tested without risk of automatic runners (like cron) inadvertently executing them:

@@ -53,12 +53,17 @@ def run_runtime_one_thread_file_pattern_test(
     job_id: str,
     failure_prefix: str,
     file_pattern: str | None = None,
+    delete_stmnt: str | None = None,
 ):
     """Run a runtime job and validate output JSONs against existing Couchbase docs.
     Test gribBuilder with one thread.
     This test verifies the resulting data file against the one that is in couchbase already
     in order to make sure the calculations are proper."""
     vx_ingest = setup_connection()
+    if delete_stmnt:
+        vx_ingest.cluster.query(
+            delete_stmnt, QueryOptions(metrics=True, read_only=False)
+        )
     log_queue = Queue()
     job_doc = vx_ingest.runtime_collection.get(job_id).content_as[dict]
     process_spec_id = job_doc.get("processSpecIds")[0]
@@ -131,13 +136,12 @@ def run_runtime_one_thread_file_pattern_test(
                         f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus DF failure key {_k} not in {_json.keys()}"
                     )
                 continue
-            _statement = f"select METAR.* from `{vx_ingest.cb_credentials['bucket']}`._default.METAR where meta().id = '{_id}'"
-            _qresult = vx_ingest.cluster.query(_statement)
-            result_rows = list(_qresult.rows())
-            assert len(result_rows) > 0, (
-                f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure test document {_id} not found in couchbase"
-            )
-            result = result_rows[0]
+            try:
+                result = vx_ingest.collection.get(_id).content_as[dict]
+            except Exception as error:
+                pytest.fail(
+                    f"{failure_prefix} failure test document {_id} not found in couchbase: {error}"
+                )
             # assert top level fields
             keys = _json.keys()
             if "dataSourceId" not in keys:
@@ -145,7 +149,7 @@ def run_runtime_one_thread_file_pattern_test(
                 keys.append("dataSourceId")
             for _k in result:
                 assert _k in keys, (
-                    f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure top level key {_k} not in {keys} statement: {_statement}"
+                    f"{failure_prefix} failure top level key {_k} not in {keys}"
                 )
             # assert the units
             assert result["units"] == _json["units"], (
@@ -205,6 +209,26 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus_normalized(tmp_path
         tmp_path=tmp_path,
         job_id="JS:METAR:MODEL:HRRR_OPS_conus_3km_NORMALIZED_PRESSURE_TEST:schedule:job:V01",
         failure_prefix="TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus",
+    )
+
+
+@pytest.mark.integration
+def test_grib_builder_one_thread_file_pattern_RRFSv2_conus_3km_ret_amdar_tps_thin6km_may2024_normalized(
+    tmp_path: Path,
+):
+    delete_stmnt = """DELETE
+        FROM `vxdata`._default.METAR
+        WHERE
+        subset='METAR'
+        AND type='DF'
+        AND fileType='grib2'
+        AND originType='RRFSv2_conus_3km_ret_amdar_tps_thin6km_may2024_TEST';"""
+
+    run_runtime_one_thread_file_pattern_test(
+        tmp_path=tmp_path,
+        job_id="JS:METAR:MODEL:RRFSv2_conus_3km_ret_amdar_tps_thin6km_may2024_TEST:schedule:job:V01",
+        failure_prefix="TestGribBuilderV01.test_grib_builder_one_thread_file_pattern_RRFSv2_conus_3km_ret_amdar_tps_thin6km_may2024_normalized",
+        delete_stmnt=delete_stmnt,
     )
 
 

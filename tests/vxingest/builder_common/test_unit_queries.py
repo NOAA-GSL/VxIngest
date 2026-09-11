@@ -11,6 +11,33 @@ from couchbase.options import ClusterOptions, ClusterTimeoutOptions, QueryOption
 from vxingest.builder_common.vx_ingest import CommonVxIngest
 
 
+class EmptyQueryCluster:
+    """Minimal query source for get_file_list unit tests."""
+
+    @staticmethod
+    def query(_statement):
+        return []
+
+
+def test_unit_get_file_list_respects_minimum_file_age(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    vx_ingest = CommonVxIngest()
+    vx_ingest.cluster = EmptyQueryCluster()
+    input_file = tmp_path / "input.grib2"
+    input_file.touch()
+    two_hours_ago = (input_file.stat().st_mtime - 2 * 3600,) * 2
+    os.utime(input_file, two_hours_ago)
+
+    monkeypatch.delenv("VXINGEST_MIN_FILE_AGE_HOURS", raising=False)
+    assert vx_ingest.get_file_list("SELECT", tmp_path, "*.grib2", "") == []
+
+    monkeypatch.setenv("VXINGEST_MIN_FILE_AGE_HOURS", "1")
+    assert vx_ingest.get_file_list("SELECT", tmp_path, "*.grib2", "") == [
+        str(input_file)
+    ]
+
+
 def connect_cb():
     """
     create a couchbase connection and maintain the collection and cluster objects.
@@ -46,12 +73,13 @@ def connect_cb():
 
 
 @pytest.mark.integration
-def test_get_file_list(tmp_path):
+def test_get_file_list(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     vx_ingest = CommonVxIngest()
     vx_ingest.credentials_file = os.environ["CREDENTIALS"]
     vx_ingest.cb_credentials = vx_ingest.get_credentials(vx_ingest.load_spec)
     vx_ingest.connect_cb()
     testdata = Path("tests/vxingest/builder_common/testdata/get_file_list_grib2.n1ql")
+    monkeypatch.setenv("VXINGEST_MIN_FILE_AGE_HOURS", "0")
     with testdata.open(mode="r", encoding="utf-8") as file:
         _statement = file.read()
     with Path(tmp_path / "2128723000010").open("w") as f:
@@ -72,7 +100,7 @@ def test_get_file_list(tmp_path):
 
 
 @pytest.mark.integration
-def test_stations_fcst_valid_epoch(request):
+def test_stations_fcst_valid_epoch(request: pytest.FixtureRequest):
     _expected_time = 10
     _name = request.node.name
     testdata = Path(
@@ -92,7 +120,7 @@ def test_stations_fcst_valid_epoch(request):
 
 
 @pytest.mark.integration
-def test_stations_get_file_list_grib2(request):
+def test_stations_get_file_list_grib2(request: pytest.FixtureRequest):
     _expected_time = 16
     _name = request.node.name
     testdata = Path("tests/vxingest/builder_common/testdata/get_file_list_grib2.n1ql")
@@ -110,7 +138,7 @@ def test_stations_get_file_list_grib2(request):
 
 
 @pytest.mark.integration
-def test_stations_get_file_list_netcdf(request):
+def test_stations_get_file_list_netcdf(request: pytest.FixtureRequest):
     _expected_time = 5
     _name = request.node.name
     testdata = Path("tests/vxingest/builder_common/testdata/get_file_list_netcdf.n1ql")
@@ -128,7 +156,7 @@ def test_stations_get_file_list_netcdf(request):
 
 
 @pytest.mark.integration
-def test_metar_count(request):
+def test_metar_count(request: pytest.FixtureRequest):
     _expected_time = 0.05
     _name = request.node.name
     testdata = Path("tests/vxingest/builder_common/testdata/METAR_count.n1ql")

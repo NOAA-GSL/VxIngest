@@ -451,6 +451,8 @@ class CTCBuilder(Builder):
         """
 
         try:
+            # don't read model/obs data that VxImporter may still be writing
+            self.wait_for_import_lock()
             # reset the builders document_map for a new file
             self.initialize_document_map()
             self.not_found_station_count = 0
@@ -642,7 +644,7 @@ class CTCBuilder(Builder):
                             AND fve.model='{self.model}'
                             AND fve.version='V01'
                             AND fve.subset='{self.subset}'
-                            AND fve.fcstValidEpoch > {max_ctc_fcst_valid_epochs}
+                            AND fve.fcstValidEpoch >= {max_ctc_fcst_valid_epochs}
                             AND fve.fcstValidEpoch <= {max_valid_epochs}
                         ORDER BY fve.fcstValidEpoch, fve.fcstLen"""
                 result = self.load_spec["cluster"].query(stmnt, read_only=True)
@@ -664,7 +666,7 @@ class CTCBuilder(Builder):
                                 AND obs.docType='obs'
                                 AND obs.version='V01'
                                 AND obs.subset='{self.subset}'
-                                AND obs.fcstValidEpoch > {max_ctc_fcst_valid_epochs}
+                                AND obs.fcstValidEpoch >= {max_ctc_fcst_valid_epochs}
                                 AND obs.fcstValidEpoch <= {max_valid_epochs}
                         ORDER BY obs.fcstValidEpoch"""
                 logger.debug("build_document start query %s", stmnt)

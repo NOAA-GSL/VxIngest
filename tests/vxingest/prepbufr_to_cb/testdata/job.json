@@ -1,0 +1,17 @@
+{
+    "file_mask": "%y%j%H00.gdas.t%Hz.prepbufr.nr",
+    "id": "JOB:V01:RAOB:PREPBUFR:OBS",
+    "ingest_document_ids": [
+        "MD:V01:RAOB:obs:ingest:prepbufr"
+    ],
+    "input_data_path": "/public/data/grids/gdas/prepbufr/restricted",
+    "offset_minutes": 0,
+    "run_priority": 1,
+    "schedule": "0 * * * *",
+    "status": "active",
+    "subDoc": "OBS",
+    "subType": "PREPBUFR",
+    "subset": "RAOB",
+    "type": "JOB",
+    "version": "V01"
+}

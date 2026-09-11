@@ -9,9 +9,9 @@ that has been developed by the GSL AVID model verification team.
 
 These programs use a JOB document to define which ingest templates are to be used, a credentials file to provide database authentication, command line parameters for run time options, and the associated ingest template documents from the database that are specified in the JOB document.
 
-The ingest_document_ids: ['MD:V01:RAOB:obs:ingest:prepbufr'] line defines
+The ingest_document_ids: ['IS:RAOB:MODEL:3DGRIB2:HRRR_OPS:ingest:V01"'] line defines
 a list of metadata documents (might be just one). These documents define how the program will operate.
-The 'MD:V01:RAOB:obs:ingest:prepbufr' value is the id of a couchbase metadata document.
+The 'IS:RAOB:MODEL:3DGRIB2:HRRR_OPS:ingest:V01"' value is the id of a couchbase metadata document.
 This document MUST exist on the couchbase cluster defined by cb_host in an associated credentials file (the name of which is provided as a command line parameter) and MUST be readable by the cb_user.
 
 The prepbufr ingest documents have an additional section "mnemonic_mapping" that serves the purpose of mapping prepbufr mnemonics to the variables used in
@@ -70,9 +70,9 @@ We need to take MASS values from the MASS report (120) and the WIND values from 
 This website describes the report types.
 [report types](https://www.nco.ncep.noaa.gov/sib/decoders/BUFRLIB/toc/prepbufr/)
 
-We are assuming that the wind data are always in report 220 (which is WIND Report - Rawinsonde ) and the other variables are in report 120 - the MASS report. It's a little vague when it says "does not always contain" but if it doesn't contain both we have to mask the part that isn't present or through the whole station data away.
+We are assuming that the wind data are always in report 220 (which is WIND Report - Rawinsonde ) and the other variables are in report 120 - the MASS report. It's a little vague when it says "does not always contain" but if it doesn't contain both we have to mask the part that isn't present or throw the whole station data away.
 
-> To begin with, a PREPBUFR file does not always contain, within each single data subset, the data for an entire report! Instead, for reports which contain mass (i.e. temperature, moisture, etc.) as well as wind (i.e. direction and speed, U and V component, etc.) data values, such data values are stored within two separate but adjacent (within the overall file) data subsets, where each related subset, quite obviously, contains the same report time, location, station identification, etc. information as the other, but where the "mass" subset contains the pressures and/or height levels at which "mass" data values occur, while the corresponding "wind" subset contains the levels at which "wind" data values occur. While it is true that this may, in some cases, cause the same pressure and/or height level to appear in both subsets, this separation is nonetheless maintained for historical reasons peculiar to NCEP.
+To begin with, a PREPBUFR file does not always contain, within each single data subset, the data for an entire report! Instead, for reports which contain mass (i.e. temperature, moisture, etc.) as well as wind (i.e. direction and speed, U and V component, etc.) data values, such data values are stored within two separate but adjacent (within the overall file) data subsets, where each related subset contains the same report time, location, station identification, etc. information as the other, but where the "mass" subset contains the pressures and/or height levels at which "mass" data values occur, while the corresponding "wind" subset contains the levels at which "wind" data values occur. While it is true that this may, in some cases, cause the same pressure and/or height level to appear in both subsets, this separation is nonetheless maintained for historical reasons peculiar to NCEP.
 
 The report types are described here [report_types](https://www.emc.ncep.noaa.gov/emc/pages/infrastructure/bufrlib/tables/CodeFlag_0_STDv41_LOC7.html#055007)
 
@@ -358,4 +358,3 @@ There are four sections of mappings.
     }
   }
   ``
-  

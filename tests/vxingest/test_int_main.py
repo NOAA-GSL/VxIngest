@@ -484,16 +484,29 @@ def test_one_thread_specify_file_pattern_ctc_job_spec_rt(tmp_path: Path):
     # The ctc_builder won't build any data that has already been built (except for the very last one).
     # The test will process the CTC documents but not upsert them.
     vx_ingest = setup_connection(VXIngest_ctc())
-    stmnt = """SELECT MAX(obs.fcstValidEpoch) epoch
-        FROM `vxdata`._default.METAR obs
-        WHERE obs.type='DD'
-        AND obs.docType='obs'
-        AND obs.version='V01'
-        AND obs.subset='METAR'
-    """
+    stmnt = """SELECT LEAST(max_obs_epoch, max_model_epoch) AS max_common_epoch
+        FROM (
+        SELECT RAW MAX(obs.fcstValidEpoch)
+        FROM `vxdata`._default.METAR AS obs
+        WHERE obs.type = "DD"
+            AND obs.docType = "obs"
+            AND obs.version = "V01"
+            AND obs.subset = "METAR"
+        )[0] AS max_obs_epoch,
+        (
+        SELECT RAW MAX(model.fcstValidEpoch)
+        FROM `vxdata`._default.METAR AS model
+        WHERE model.type = "DD"
+            AND model.model = "HRRR_OPS"
+            AND model.docType = "model"
+            AND model.subset = "METAR"
+            AND model.version = "V01"
+            AND model.fcstLen = 0
+        )[0] AS max_model_epoch;"""
+
     result_rows = vx_ingest.cluster.query(stmnt)
-    end_epoch = str(list(result_rows)[0]["epoch"])
-    start_epoch = str(int(float(end_epoch) - (3600 * 1)))  # one hour earlier
+    end_epoch = str(list(result_rows)[0]["max_common_epoch"])
+    start_epoch = str(int(float(end_epoch) - (3600 * 2)))  # one hour earlier
     try:
         # need these args
         sys.argv = [

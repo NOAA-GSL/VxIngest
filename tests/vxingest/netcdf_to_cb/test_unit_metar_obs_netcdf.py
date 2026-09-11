@@ -137,9 +137,11 @@ def test_retrieve_from_netcdf():
 
 
 @pytest.mark.integration
-def test_vxingest_get_file_list(tmp_path):
+def test_vxingest_get_file_list(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """test the vxingest get_file_list sorting and filtering"""
     try:
+        # This test creates files immediately before evaluating database mtime logic.
+        monkeypatch.setenv("VXINGEST_MIN_FILE_AGE_HOURS", "0")
         pattern = "%y%j%H%f"
         vx_ingest = setup_connection()
         vx_ingest.load_job_id = "test_id"

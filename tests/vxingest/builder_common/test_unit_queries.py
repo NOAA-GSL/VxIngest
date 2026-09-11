@@ -19,12 +19,14 @@ class EmptyQueryCluster:
         return []
 
 
-def test_unit_get_file_list_respects_minimum_file_age(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+def test_unit_get_file_list_respects_minimum_file_age(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
     vx_ingest = CommonVxIngest()
     vx_ingest.cluster = EmptyQueryCluster()
     input_file = tmp_path / "input.grib2"
     input_file.touch()
-    two_hours_ago = (input_file.stat().st_mtime - 2 * 3600, ) * 2
+    two_hours_ago = (input_file.stat().st_mtime - 2 * 3600,) * 2
     os.utime(input_file, two_hours_ago)
 
     monkeypatch.delenv("VXINGEST_MIN_FILE_AGE_HOURS", raising=False)

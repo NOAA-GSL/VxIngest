@@ -54,7 +54,6 @@ def run_runtime_one_thread_file_pattern_test(
     failure_prefix: str,
     file_pattern: str | None = None,
     delete_stmnt: str | None = None,
-
 ):
     """Run a runtime job and validate output JSONs against existing Couchbase docs.
     Test gribBuilder with one thread.
@@ -62,7 +61,9 @@ def run_runtime_one_thread_file_pattern_test(
     in order to make sure the calculations are proper."""
     vx_ingest = setup_connection()
     if delete_stmnt:
-        vx_ingest.cluster.query(delete_stmnt, QueryOptions(metrics=True, read_only=False))
+        vx_ingest.cluster.query(
+            delete_stmnt, QueryOptions(metrics=True, read_only=False)
+        )
     log_queue = Queue()
     job_doc = vx_ingest.runtime_collection.get(job_id).content_as[dict]
     process_spec_id = job_doc.get("processSpecIds")[0]
@@ -209,6 +210,7 @@ def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus_normalized(tmp_path
         job_id="JS:METAR:MODEL:HRRR_OPS_conus_3km_NORMALIZED_PRESSURE_TEST:schedule:job:V01",
         failure_prefix="TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus",
     )
+
 
 @pytest.mark.integration
 def test_grib_builder_one_thread_file_pattern_RRFSv2_conus_3km_ret_amdar_tps_thin6km_may2024_normalized(

@@ -938,7 +938,7 @@ def test_july_31_2024_0Z_data_diffs_with_legacy():
                 print("--------------------")
                 print(f"wmoid: {m_wmoid}, pressure: {m_pressure}")
                 print(_e)
-            # raise _e
+                raise
     finally:
         print(f"max height diff: {height_stat}")
         print(f"max temperature diff: {temperature_stat}")

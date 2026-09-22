@@ -197,9 +197,9 @@ def test_one_thread_specify_file_pattern(tmp_path: Path):
                     retrieved_station["geo"][0]["lastTime"] = derived_station["geo"][0][
                         "lastTime"
                     ]
-                    assert (
+                    assert derived_station == retrieved_station, (
                         f"derived station{station_id} does not equal retrieved station"
-                    ), derived_station == retrieved_station
+                    )
             except Exception as e1:
                 print("failed:" + str(e1))
                 print("station_id", station_id)

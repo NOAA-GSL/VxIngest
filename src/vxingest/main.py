@@ -36,10 +36,6 @@ from vxingest.log_config import (
 )
 from vxingest.netcdf_to_cb.run_ingest_threads import VXIngest as NetCDFIngest
 from vxingest.partial_sums_to_cb.run_ingest_threads import VXIngest as PartialSumsIngest
-from vxingest.prepbufr_to_cb.run_ingest_threads import VXIngest as PrepbufrIngest
-
-# from vxingest.prepbufr_to_cb.run_ingest_threads import VXIngest as PrepbufrIngest
-
 # Get a logger with this module's name to help with debugging
 logger = logging.getLogger(__name__)
 
@@ -460,6 +456,10 @@ def process_run_configurations(
                     proc_succeeded = True
             case "PREPBUFR" | "PREPBUFR-TEST":
                 try:
+                    from vxingest.prepbufr_to_cb.run_ingest_threads import (
+                        VXIngest as PrepbufrIngest,
+                    )
+
                     prepbufr_ingest = PrepbufrIngest()
                     prepbufr_ingest.runit(
                         config,

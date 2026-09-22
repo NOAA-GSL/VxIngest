@@ -1,5 +1,5 @@
 """
-integration tests for metar grib builder
+integration tests for raob grib builder
 This test expects to find a valid grib file in the local directory /opt/public/data/grids/hrrr/conus/wrfprs/grib2.
 This test expects to write to the local output directory /opt/data/grib_to_cb/output so that directory should exist.
 For files except rrfs_a the filenames are like 21 196 14 000018 %y %j %H %f  treating the last 6 decimals as microseconds even though they are not.
@@ -116,7 +116,7 @@ def run_runtime_one_thread_file_pattern_test(
                         "loadSpec",
                         "note",
                     ], (
-                        f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus LJ failure key {_k} not in {_json.keys()}"
+                        f"TestGribRaobBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus LJ failure key {_k} not in {_json.keys()}"
                     )
                 continue
             if _id.startswith("DF"):
@@ -134,7 +134,7 @@ def run_runtime_one_thread_file_pattern_test(
                         "projection",
                         "interpolation",
                     ], (
-                        f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus DF failure key {_k} not in {_json.keys()}"
+                        f"TestGribRaobBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus DF failure key {_k} not in {_json.keys()}"
                     )
                 continue
             try:
@@ -154,22 +154,22 @@ def run_runtime_one_thread_file_pattern_test(
                 )
             # assert the units
             assert result["units"] == _json["units"], (
-                f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure units {result['units']} != {_json['units']}"
+                f"TestGribRaobBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure units {result['units']} != {_json['units']}"
             )
             # assert the data
             for _k in result["data"]:
                 assert _k in _json["data"], (
-                    f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure data key {_k} not in {_json['data'].keys()}"
+                    f"TestGribRaobBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure data key {_k} not in {_json['data'].keys()}"
                 )
                 for _dk in result["data"][_k]:
                     assert _dk in _json["data"][_k], (
-                        f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure data key {_k}.{_dk} not in {_json['data'][_k].keys()}"
+                        f"TestGribRaobBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure data key {_k}.{_dk} not in {_json['data'][_k].keys()}"
                     )
                     # assert data field matches to 2 decimal places
                     if _dk == "name" or _dk == "Vegetation Type":
                         # string compare
                         assert result["data"][_k][_dk] == _json["data"][_k][_dk], (
-                            f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure name {result['data'][_k][_dk]} != {_json['data'][_k][_dk]}"
+                            f"TestGribRaobBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure name {result['data'][_k][_dk]} != {_json['data'][_k][_dk]}"
                         )
 
                     else:
@@ -196,62 +196,23 @@ def run_runtime_one_thread_file_pattern_test(
                                 result["data"][_k][_dk],
                                 _json["data"][_k][_dk],
                                 abs_tol=abs_tol,
-                            ), f"""TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure data not close within {abs_tol}
+                            ), f"""TestGribRaobBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure data not close within {abs_tol}
                             {_k}.{_dk} {result["data"][_k][_dk]} != {_json["data"][_k][_dk]} within {abs_tol} decimal places."""
                         else:
                             assert result["data"][_k][_dk] == _json["data"][_k][_dk], (
-                                f"TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure non-numeric data {result['data'][_k][_dk]} != {_json['data'][_k][_dk]}"
+                                f"TestGribRaobBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure non-numeric data {result['data'][_k][_dk]} != {_json['data'][_k][_dk]}"
                             )
 
 
 @pytest.mark.integration
-def test_grib_builder_one_thread_file_pattern_hrrr_ops_conus_normalized(tmp_path: Path):
+def test_grib_builder_one_thread_file_pattern_hrrr_ops_test(tmp_path: Path):
     run_runtime_one_thread_file_pattern_test(
         tmp_path=tmp_path,
-        job_id="JS:METAR:MODEL:HRRR_OPS_conus_3km_NORMALIZED_PRESSURE_TEST:schedule:job:V01",
-        failure_prefix="TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus",
-    )
-
-
-@pytest.mark.integration
-def test_grib_builder_one_thread_file_pattern_RRFSv2_conus_3km_ret_amdar_tps_thin6km_may2024_normalized(
-    tmp_path: Path,
-):
-    delete_stmnt = """DELETE
-        FROM `vxdata`._default.METAR
-        WHERE
-        subset='METAR'
-        AND type='DF'
-        AND fileType='grib2'
-        AND originType='RRFSv2_conus_3km_ret_amdar_tps_thin6km_may2024_TEST';"""
-
-    run_runtime_one_thread_file_pattern_test(
-        tmp_path=tmp_path,
-        job_id="JS:METAR:MODEL:RRFSv2_conus_3km_ret_amdar_tps_thin6km_may2024_TEST:schedule:job:V01",
-        failure_prefix="TestGribBuilderV01.test_grib_builder_one_thread_file_pattern_RRFSv2_conus_3km_ret_amdar_tps_thin6km_may2024_normalized",
-        delete_stmnt=delete_stmnt,
-    )
-
-
-@pytest.mark.integration
-def test_grib_builder_one_thread_file_pattern_rrfs_a_conus(tmp_path: Path):
-    """test gribBuilder with one thread.
-    This test verifies the resulting data file against the one that is in couchbase already
-    in order to make sure the calculations are proper."""
-    run_runtime_one_thread_file_pattern_test(
-        tmp_path=tmp_path,
-        job_id="JS:METAR:MODEL:RRFSv1_conus_3km_RRFS_a_TEST:schedule:job:V01",
-        failure_prefix="TestGribBuilderV01.test_grib_builder_one_thread_file_pattern_rrfs_a_conus",
-    )
-
-
-@pytest.mark.integration
-def test_grib_builder_one_thread_file_pattern_mpas(tmp_path: Path):
-    """test gribBuilder with one thread.
-    This test verifies the resulting data file against the one that is in couchbase already
-    in order to make sure the calculations are proper."""
-    run_runtime_one_thread_file_pattern_test(
-        tmp_path=tmp_path,
-        job_id="JS:METAR:MODEL:MPAS_conus_3km_MPAS_physics_dev1-TEST:schedule:job:V01",
-        failure_prefix="TestGribBuilderV01.test_grib_builder_one_thread_file_pattern_mpas",
+        job_id="JS:RAOB:MODEL:GRIB2:HRRR_OPS-TEST:schedule:job:V01",
+        failure_prefix="TestRaobBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus",
+        delete_stmnt="""DELETE FROM `vxdata`._default.RAOB
+                        WHERE subset='RAOB'
+                        AND type='DF'
+                        AND fileType='grib2'
+                        AND originType='HRRR_OPS';""",
     )

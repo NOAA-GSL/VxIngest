@@ -768,9 +768,9 @@ class PartialSumsBuilder(Builder):
             )
             return {}
 
-    def get_stations_for_region_by_geosearch(self, region_name, valid_epoch):
+    def get_stations_for_region_by_geosearch(self, region_name):
         # NOTE: this is currently broken because we have to modify this query to
-        # work woth the data model that has data elements as a MAP indexed by station name
+        # work with the data model that has data elements as a MAP indexed by station name
         """Using a geosearh return all the stations within the defined region
         Args:
             region_name (string): the name of the region.
@@ -813,7 +813,7 @@ class PartialSumsBuilder(Builder):
             )
             return []
 
-    def get_legacy_stations_for_region(self, region_name):
+    def get_legacy_stations_for_region(self, region_name):  # @UnusedVariable
         """Using the corresponding legacy list from a document return all the stations within the defined region
         NOTE: this has nothing to do with "_LEGACY" subset obs or PARTIALSUMS's.
         Args:
@@ -835,7 +835,9 @@ class PartialSumsBuilder(Builder):
             )
             return []
 
-    def get_stations_for_region_by_sort(self, region_name, valid_epoch):
+    def get_stations_for_region_by_sort(
+        self, region_name, valid_epoch
+    ):  # @UnusedVariable
         """Using a lat/lon filter return all the stations within the defined region
             THAT HAVE A VALID ELEVATION. This is necessary
             because the partialsums builders may need to calculate normalized pressure
@@ -1135,7 +1137,7 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
             )
         return doc
 
-    def handle_time(self, params_dict):
+    def handle_time(self, params_dict):  # @UnusedVariable
         """return the fcstValidTime for the current model in epoch
         Args:
             params_dict (dict): contains named_function parameters
@@ -1144,7 +1146,7 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
         """
         return self.model_data["fcstValidEpoch"]
 
-    def handle_iso_time(self, params_dict):
+    def handle_iso_time(self, params_dict):  # @UnusedVariable
         """return the fcstValidTime for the current model in ISO
         Args:
             params_dict (dict): contains named_function parameters
@@ -1155,7 +1157,7 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
             self.model_data["fcstValidEpoch"], tz=dt.UTC
         ).isoformat()
 
-    def handle_fcst_len(self, params_dict):
+    def handle_fcst_len(self, params_dict):  # @UnusedVariable
         """returns the fcst lead time in hours for this document
         Args:
             params_dict (dict): contains named_function parameters
@@ -1164,7 +1166,7 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
         """
         return self.model_data["fcstLen"]
 
-    def handleWindDirU(self, params_dict):
+    def handleWindDirU(self, params_dict):  # @UnusedVariable
         """returns the wind direction U component for this document
         Args:
             params_dict (dict): contains named_function parameters
@@ -1173,7 +1175,7 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
         """
         return self.model_data["windDirU"]
 
-    def handleWindDirV(self, params_dict):
+    def handleWindDirV(self, params_dict):  # @UnusedVariable
         """returns the wind direction V component for this document
         Args:
             params_dict (dict): contains named_function parameters
@@ -1182,7 +1184,7 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
         """
         return self.model_data["windDirV"]
 
-    def handle_specific_humidity(self, params_dict):
+    def handle_specific_humidity(self, params_dict):  # @UnusedVariable
         """returns the specific humidity for this document
         Args:
             params_dict (dict): contains named_function parameters

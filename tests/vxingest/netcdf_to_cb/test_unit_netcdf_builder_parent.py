@@ -1,9 +1,13 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
+import numpy as np
 import pytest
 
-from vxingest.netcdf_to_cb.netcdf_builder_parent import NetcdfBuilder
+from vxingest.netcdf_to_cb.netcdf_builder_parent import (
+    NetcdfBuilder,
+    _decode_char_array,
+)
 
 
 class TestNetcdfBuilder(unittest.TestCase):
@@ -76,6 +80,23 @@ class TestNetcdfBuilder(unittest.TestCase):
         result = self.builder.translate_template_item("*test_var", 0)
         # don't know how to properly mock the ncdf_data_set.variables
         assert result is not None
+
+    def test_decode_char_array_returns_string_for_1d_values(self):
+        value = np.array(list("OVC\x00 "), dtype="S1")
+
+        result = _decode_char_array(value)
+
+        assert result == "OVC"
+
+    def test_decode_char_array_returns_strings_for_2d_values(self):
+        value = np.array(
+            [list("OVC\x00 "), list("\x00\x00\x00\x00\x00"), list("BKN\x00 ")],
+            dtype="S1",
+        )
+
+        result = _decode_char_array(value)
+
+        assert result == ["OVC", "", "BKN"]
 
     def test_handle_document_type_check(self):
         """Test type check in handle_document."""

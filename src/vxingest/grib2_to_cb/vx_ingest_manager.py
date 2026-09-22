@@ -39,7 +39,9 @@ import sys
 import time
 
 from vxingest.builder_common.ingest_manager import CommonVxIngestManager
-from vxingest.grib2_to_cb import grib_builder as my_builder
+from vxingest.grib2_to_cb import grib_metar_builder, grib_raob_builder
+
+_BUILDER_MODULES = (grib_metar_builder, grib_raob_builder)
 
 # Get a logger with this module's name to help with debugging
 logger = logging.getLogger(__name__)
@@ -157,7 +159,18 @@ class VxIngestManager(CommonVxIngestManager):
             if self.ingest_type_builder_name in self.builder_map:
                 builder = self.builder_map[self.ingest_type_builder_name]
             else:
-                builder_class = getattr(my_builder, self.ingest_type_builder_name)
+                builder_class = next(
+                    (
+                        getattr(module, self.ingest_type_builder_name)
+                        for module in _BUILDER_MODULES
+                        if hasattr(module, self.ingest_type_builder_name)
+                    ),
+                    None,
+                )
+                if builder_class is None:
+                    raise AttributeError(
+                        f"No builder class named {self.ingest_type_builder_name} found in {[m.__name__ for m in _BUILDER_MODULES]}"
+                    )
                 builder = builder_class(
                     self.load_spec, self.ingest_document, self.number_stations
                 )

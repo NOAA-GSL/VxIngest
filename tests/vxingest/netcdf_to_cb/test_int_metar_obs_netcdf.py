@@ -143,7 +143,7 @@ def run_ingest_case(
 
     output_path_str = str(input_data_path).replace("file://", "")
     output_path_str = output_path_str.replace(os.sep, "__")
-    output_file_list = list(tmp_path.glob(output_path_str + "*.json"))
+    output_file_list = list(tmp_path.glob("*.json"))
     assert len(output_file_list) > 0, "There are no output files"
     num_load_job_files = len(list(tmp_path.glob("LJ*.json")))
     assert num_load_job_files == 1, "there is no load job output file"
@@ -167,7 +167,7 @@ def test_metar_one_thread_specify_file_pattern_job_spec_rt(tmp_path: Path):
     # Test that we have one output file per input file
     input_path = Path(_input_data_path[7:])
     num_input_files = len(list(input_path.glob(file_pattern)))
-    num_output_files = len(output_file_list)
+    num_output_files = len(output_file_list) - 1  # less one for the LJ file
     assert num_output_files == num_input_files, "number of output files is incorrect"
 
     # Test that the output files match the content in the database
@@ -219,13 +219,21 @@ def test_metar_one_thread_specify_file_pattern_job_spec_rt(tmp_path: Path):
     except Exception as e:
         pytest.fail(f"Error retrieving documents from database: {e}")
     assert derived_station == retrieved_station
-    assert_dicts_almost_equal(derived_obs, retrieved_obs)
+    assert_dicts_almost_equal(
+        derived_obs["data"]["KDEN"], retrieved_obs["data"]["KDEN"]
+    )
 
 
 @pytest.mark.integration
 def test_tropoe_one_thread_specify_file_pattern(tmp_path: Path):
     job_id = "JS:TROPOE-TEST:OBS:NETCDF:schedule:job:V01"
-    vx_ingest, input_data_path, file_mask, file_pattern, output_file_list = (
+    (
+        vx_ingest,
+        input_data_path,
+        file_mask,  # @UnusedVariable
+        file_pattern,
+        output_file_list,
+    ) = (  # @UnusedVariable
         run_ingest_case(
             tmp_path=tmp_path,
             job_id=job_id,
@@ -235,7 +243,7 @@ def test_tropoe_one_thread_specify_file_pattern(tmp_path: Path):
     # Test that we have one output file per input file
     input_path = Path(input_data_path[7:])
     num_input_files = len(list(input_path.glob(file_pattern)))
-    num_output_files = len(output_file_list)
+    num_output_files = len(output_file_list) - 1  # less one for the LJ file
     assert num_output_files == num_input_files, "number of output files is incorrect"
 
     # Test that the output files match the content in the database

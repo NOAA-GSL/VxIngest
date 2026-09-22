@@ -2,10 +2,11 @@ import os
 import pathlib
 
 import mysql.connector
-import ncepbufr
 import numpy as np
 import pytest
 import yaml
+
+ncepbufr = pytest.importorskip("ncepbufr")
 
 from vxingest.prepbufr_to_cb.prepbufr_builder import PrepbufrRaobsObsBuilderV01
 from vxingest.prepbufr_to_cb.run_ingest_threads import VXIngest

@@ -25,6 +25,8 @@ from pathlib import Path
 import pytest
 import yaml
 
+pytest.importorskip("ncepbufr")
+
 from vxingest.prepbufr_to_cb.run_ingest_threads import VXIngest
 
 

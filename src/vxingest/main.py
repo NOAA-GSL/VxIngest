@@ -36,6 +36,7 @@ from vxingest.log_config import (
 )
 from vxingest.netcdf_to_cb.run_ingest_threads import VXIngest as NetCDFIngest
 from vxingest.partial_sums_to_cb.run_ingest_threads import VXIngest as PartialSumsIngest
+from vxingest.prepbufr_to_cb.run_ingest_threads import VXIngest as PrepbufrIngest
 
 # from vxingest.prepbufr_to_cb.run_ingest_threads import VXIngest as PrepbufrIngest
 
@@ -447,6 +448,20 @@ def process_run_configurations(
                 try:
                     netcdf_ingest = NetCDFIngest()
                     netcdf_ingest.runit(
+                        config,
+                        log_queue,
+                        log_configurer,
+                    )
+                except SystemExit as e:
+                    if e.code == 0:
+                        # Job succeeded
+                        proc_succeeded = True
+                else:
+                    proc_succeeded = True
+            case "PREPBUFR" | "PREPBUFR-TEST":
+                try:
+                    prepbufr_ingest = PrepbufrIngest()
+                    prepbufr_ingest.runit(
                         config,
                         log_queue,
                         log_configurer,

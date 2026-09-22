@@ -68,7 +68,7 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
         """
 
         try:
-            bucket, scope, collection, common_collection = (
+            bucket, scope, collection, _common_collection = (
                 self.get_database_connection_details(queue_element)
             )
 
@@ -88,7 +88,10 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
                 return
             for _rec_num in range(rec_num_var_data_size):
                 _station_name = str(
-                    nc.chartostring(self.ncdf_data_set["stationName"][_rec_num])
+                    self.ncdf_data_set["stationName"][_rec_num]
+                    .tobytes()
+                    .decode("utf-8")
+                    .rstrip("\x00 ")
                 )
                 self.handle_station(
                     {"base_var_index": _rec_num, "stationName": _station_name}
@@ -139,9 +142,8 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
             if not mask_array:
                 return None
             # mask_array = ma.getmaskarray(skyLayerBase)
-            skyCover_array = skyCover[1:-1].replace("'", "").split(" ")
+            skyCover_array = self.normalize_sky_cover(skyCover)
             # check for unmasked ceiling values - broken, overcast, vertical visibility - return associated skyLayerBase
-            # name = str(nc.chartostring(self.ncdf_data_set['stationName'][params_dict['base_var_index']]))
             for index, sca_val in enumerate(skyCover_array):
                 # also convert meters to feet (* 3.281)
                 if (not mask_array[index]) and (
@@ -185,6 +187,21 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
             logger.error("ceiling_transform stacktrace %s", str(traceback.format_exc()))
             return None
 
+    @staticmethod
+    def normalize_sky_cover(sky_cover):
+        if isinstance(sky_cover, str):
+            bracketed_values = re.findall(r"'([^']*)'", sky_cover)
+            return bracketed_values if bracketed_values else [sky_cover]
+
+        if isinstance(sky_cover, list | tuple):
+            return list(sky_cover)
+
+        if hasattr(sky_cover, "tolist"):
+            sky_cover = sky_cover.tolist()
+            return sky_cover if isinstance(sky_cover, list) else [sky_cover]
+
+        return [sky_cover]
+
     def handle_visibility(self, params_dict):
         """Retrieves a visibility value and performs data transformations
         Args:
@@ -206,7 +223,7 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
             )
             return None
 
-    def fill_from_netcdf(self, base_var_index, netcdf):
+    def fill_from_netcdf(self, base_var_index):
         """
         Used by handle_stations to get the records from netcdf for comparing with the
         records from the database.
@@ -231,11 +248,17 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
         else:
             netcdf["elevation"] = None
 
-        netcdf["description"] = str(
-            nc.chartostring(self.ncdf_data_set["locationName"][base_var_index])
+        netcdf["description"] = (
+            self.ncdf_data_set["locationName"][base_var_index]
+            .tobytes()
+            .decode("utf-8")
+            .rstrip("\x00 ")
         )
-        netcdf["name"] = str(
-            nc.chartostring(self.ncdf_data_set["stationName"][base_var_index])
+        netcdf["name"] = (
+            self.ncdf_data_set["stationName"][base_var_index]
+            .tobytes()
+            .decode("utf-8")
+            .rstrip("\x00 ")
         )
         return netcdf
 
@@ -263,7 +286,7 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
 
         try:
             # get the netcdf fields for comparing or adding new
-            netcdf = self.fill_from_netcdf(base_var_index, netcdf)
+            netcdf = self.fill_from_netcdf(base_var_index)
             elev = truncate_round(float(netcdf["elevation"]), 5)
             lat = truncate_round(float(netcdf["latitude"]), 5)
             lon = truncate_round(float(netcdf["longitude"]), 5)

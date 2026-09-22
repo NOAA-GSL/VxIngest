@@ -40,9 +40,6 @@ def setup_connection():
     _vx_ingest.cb_credentials = _vx_ingest.get_credentials(_vx_ingest.load_spec)
     _vx_ingest.cb_credentials["collection"] = "RAOB"
     _vx_ingest.connect_cb()
-    _vx_ingest.load_spec["ingest_document_ids"] = _vx_ingest.collection.get(
-        "JOB-TEST:V01:RAOB:PREPBUFR:OBS"
-    ).content_as[dict]["ingest_document_ids"]
     # load additional mysql configuration
     with pathlib.Path(_vx_ingest.credentials_file).open(encoding="utf-8") as _f:
         _yaml_data = yaml.load(_f, yaml.SafeLoader)
@@ -76,46 +73,97 @@ def assert_dicts_almost_equal(dict1, dict2, rel_tol=1e-09):
                 print("failed:" + str(e))
 
 
+def run_ingest_case(
+    tmp_path: Path,
+    job_id: str,
+):
+    """Run one ingest case and perform common output assertions.
+
+    Args:
+        tmp_path (Path): pytest temporary directory for generated files.
+        job_id (str): RUNTIME job document id.
+
+    Returns:
+        tuple: (vx_ingest, input_data_path, file_mask, file_pattern, output_file_list)
+    """
+    log_queue = Queue()
+    vx_ingest = setup_connection()
+
+    runtime_collection = (
+        vx_ingest.cluster.bucket("vxdata").scope("_default").collection("RUNTIME")
+    )
+    job_spec = runtime_collection.get(job_id).content_as[dict]
+    process_id = job_spec["processSpecIds"][0]
+    process_spec = runtime_collection.get(process_id).content_as[dict]
+    ingest_document_ids = process_spec["ingestDocumentIds"]
+    data_source_id = process_spec["dataSourceId"]
+    data_source_spec = runtime_collection.get(data_source_id).content_as[dict]
+    collection = process_spec["subset"]
+    input_data_path = data_source_spec["sourceDataUri"]
+    file_pattern = data_source_spec.get("filePattern", "*")
+    file_mask = data_source_spec.get("fileMask", None)
+    output_path_str = f"{tmp_path}"
+    vx_ingest.runit(
+        {
+            "job_id": job_id,
+            "credentials_file": os.environ["CREDENTIALS"],
+            "collection": collection,
+            "file_mask": file_mask,
+            "input_data_path": input_data_path,
+            "ingest_document_ids": ingest_document_ids,
+            "output_dir": output_path_str,
+            "threads": 1,
+            "file_pattern": file_pattern,
+        },
+        log_queue,
+        stub_worker_log_configurer,
+    )
+    try:
+        output_file_list = list(tmp_path.glob("*.json"))
+        assert len(output_file_list) > 0, "There are no output files"
+        num_load_job_files = len(list(tmp_path.glob("LJ*.json")))
+        assert num_load_job_files == 1, "there is no load job output file"
+        return vx_ingest, input_data_path, file_mask, file_pattern, output_file_list
+    except Exception as _e:
+        raise AssertionError(f"Exception: {_e}") from _e
+
+
 @pytest.mark.integration
 def test_one_thread_specify_file_pattern(tmp_path: Path):
     """Note: this test takes a long time to run (few minutes)"""
     try:
-        log_queue = Queue()
         vx_ingest = setup_connection()
         try:
-            vx_ingest.runit(
-                {
-                    "job_id": "JOB-TEST:V01:RAOB:PREPBUFR:OBS",
-                    "credentials_file": os.environ["CREDENTIALS"],
-                    "file_name_mask": "%y%j%H%M",  # only tests the first part of the file name i.e. 241011200.gdas.t12z.prepbufr.nr -> 241011200
-                    "output_dir": f"{tmp_path}",
-                    "threads": 1,
-                    "file_pattern": "242130000*",  # specifically /opt/data/prepbufr_to_cb/input_files/242130000.gdas.t00z.prepbufr.nr,
-                },
-                log_queue,
-                stub_worker_log_configurer,
+            job_id = "JS:RAOB:OBS:PREPBUFR-TEST:schedule:job:V01"
+            (
+                vx_ingest,
+                _input_data_path,
+                _file_mask,
+                file_pattern,
+                output_file_list,
+            ) = run_ingest_case(
+                tmp_path=tmp_path,
+                job_id=job_id,
             )
         except Exception as e:
             raise AssertionError(f"Exception: {e}") from e
         # Test that we have one or more output files
         output_file_list = list(
             tmp_path.glob(
-                "[0123456789]????????.gdas.t[0123456789][0123456789]z.prepbufr.nr.json"
+                "__opt__data__prepbufr_to_cb__input_files__[0123456789]????????.gdas.t[0123456789][0123456789]z.prepbufr.nr.json"
             )
         )
 
         # Test that we have one "load job" ("LJ") document
-        lj_doc_regex = (
-            "LJ:RAOB:vxingest.prepbufr_to_cb.run_ingest_threads:VXIngest:*.json"
-        )
+        lj_doc_regex = "LJ:RAOB:vxingest.prepbufr_to_cb.run_ingest_threads:VXIngest:[0123456789]*.json"
         num_load_job_files = len(list(tmp_path.glob(lj_doc_regex)))
         assert num_load_job_files >= 1, (
             f"Number of load job files is incorrect {num_load_job_files} is not >= 1"
         )
 
         # Test that we have one output file per input file
-        input_path = Path("/opt/data/prepbufr_to_cb/input_files")
-        num_input_files = len(list(input_path.glob("242130000*")))
+        input_path = Path(_input_data_path.removeprefix("file://"))
+        num_input_files = len(list(input_path.glob(file_pattern + "*")))
         num_output_files = len(output_file_list)
         assert num_output_files == num_input_files, (
             f"number of output files is incorrect {num_output_files} != {num_input_files}"

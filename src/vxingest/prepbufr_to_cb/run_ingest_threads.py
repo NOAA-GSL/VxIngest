@@ -12,23 +12,77 @@ a defaults file (for credentials), an optional output directory, thread count, a
 The job document id is the id of a job document in the couchbase database.
 The job document might look like this...
 {
-  "id": "JOB:V01:RAOB:PREPBUFR:OBS",
-  "status": "active",
-  "type": "JOB",
-  "version": "V01",
+  "docType": "job",
+  "id": "JS:RAOB:OBS:PREPBUFR-TEST:schedule:job:V01",
+  "processSpecIds": [
+    "PS:RAOB:PREPBUFR-TEST:OBS:PREPBUFR-TEST:V01"
+  ],
+  "selectedSpecIds": [
+    "PS:RAOB:PREPBUFR-TEST:OBS:PREPBUFR-TEST:V01"
+  ],
+  "status": "Test",
+  "subDocType": "PREPBUFR-TEST",
+  "subType": "OBS",
   "subset": "RAOB",
-  "subDocType": "PREPBUFR",
-  "subDoc": "OBS",
-  "run_priority": 1,
-  "file_mask": "%Y%m%d_%H%M",
-  "schedule": "0 * * * *",
-  "offset_minutes": 0,
-  "ingest_document_ids": [
-    "MD:V01:RAOB:obs:ingest:PREPBUFR"
-  ]
+  "trigger": "schedule",
+  "type": "JS",
+  "version": "V01"
 }
-The important run time fields are "file_mask" and "ingest_document_ids".
-The file mask is a python time.strftime that specifies how the code will
+The associated PS:RAOB:PREPBUFR-TEST:OBS:PREPBUFR-TEST:V01 looks like ...
+{
+  "associatedSpecIds": [
+    "DS:RAOB:PREPBUFR-TEST:OBS:PREPBUFR-TEST:dataSource:V01"
+  ],
+  "bundleLocation": "s3://vx-storage/import_bundles/",
+  "containingSpecIds": [
+    "JS:RAOB:OBS:PREPBUFR-TEST:schedule:job:V01Preview"
+  ],
+  "dataSourceId": "DS:RAOB:PREPBUFR-TEST:OBS:PREPBUFR-TEST:dataSource:V01",
+  "docType": "process",
+  "durationSeconds": "0",
+  "id": "PS:RAOB:PREPBUFR-TEST:OBS:PREPBUFR-TEST:V01",
+  "ingestDocumentIds": [
+    "IS:RAOB:OBS:prepbufr:ingest:V01"
+  ],
+  "qualifier": "PREPBUFR-TEST",
+  "selectedSpecIds": [
+    "IS:RAOB:OBS:prepbufr:ingest:V01"
+  ],
+  "startEpoch": "1789150142",
+  "status": "Active",
+  "subDocType": "OBS",
+  "subType": "PREPBUFR-TEST",
+  "subset": "RAOB",
+  "type": "PS",
+  "version": "V01"
+}
+The associated DS:RAOB:PREPBUFR-TEST:OBS:PREPBUFR-TEST:dataSource:V01
+is ...
+{
+  "associatedSpecIds": [],
+  "docType": "dataSource",
+  "durationDays": "0",
+  "filePattern": "241001800.gdas.t18z.prepbufr.nr",
+  "id": "DS:RAOB:PREPBUFR-TEST:OBS:PREPBUFR-TEST:dataSource:V01",
+  "ingestLocation": "s3://noaa-hrrr-bdp-pds/",
+  "name": "PREPBUFR-TEST",
+  "processSpecIds": [
+    "PS:RAOB:PREPBUFR-TEST:OBS:PREPBUFR-TEST:V01"
+  ],
+  "requestTimeEpoch": "1730498583",
+  "requestorEmail": "randy.pierce@noaa.gov",
+  "sourceDataUri": "file:///opt/data/prepbufr_to_cb/input_files",
+  "startEpoch": "1789150494",
+  "status": "approved",
+  "subDocType": "OBS",
+  "subType": "PREPBUFR-TEST",
+  "subset": "RAOB",
+  "ttlTier": "Tier-5yr",
+  "type": "DS",
+  "version": "V01"
+}
+The important run time fields are "sourceDataUri", "filePattern" and "ingest_document_ids".
+The file pattern is a glob pattern that specifies how the code will
 decipher a file name for time. These file names are derived from the file
 modification time, according to a specific mask.
 The ingest_document_ids specify a list of ingest_document ids that a job
@@ -46,9 +100,8 @@ When the queue is empty each NetcdfIngestManager will gracefully die.
 Only files that do not have a DataFile entry in the database will be added to the file queue.
 When a file is processed a datafile entry will be made for that file and added to the result documents to ne imported.
 
-The file_mask is a python time.strftime format e.g. '%y%j%H%M.gdas.t%Hz.prepbufr.nr'
-would match '241001800.gdas.t18z.prepbufr.nr' which is a prepbufr file for 2024 April 10 at 18:00 UTC.
-The file_pattern is a file glob string. e.g. '2410*.gdas.t*z.prepbufr.nr'.
+The file_mask is a python time.strftime format e.g. '%y%j%H%f'. It is optional.
+The file_pattern is a file glob string. e.g. '202409*'.
 The optional output_dir specifies the directory where output files will be written instead
 of writing them directly to couchbase. If the output_dir is not specified data will be written
 to couchbase cluster specified in the cb_connection.
@@ -166,6 +219,7 @@ class VXIngest(CommonVxIngest):
         self.load_spec = {}
         self.cb_credentials = None
         self.collection = None
+        self.common_collection = None
         self.cluster = None
         self.ingest_document_id = None
         self.ingest_document = None
@@ -174,7 +228,7 @@ class VXIngest(CommonVxIngest):
 
         super().__init__()
 
-    def runit(self, args, log_queue: Queue, log_configurer: Callable[[Queue], None]):
+    def runit(self, config, log_queue: Queue, log_configurer: Callable[[Queue], None]):
         """
         This is the entry point for run_ingest_threads.py
         """
@@ -182,56 +236,60 @@ class VXIngest(CommonVxIngest):
         logger.info("--- *** --- Start --- *** ---")
         logger.info("Begin a_time: %s", begin_time)
 
-        self.credentials_file = args["credentials_file"].strip()
-        self.thread_count = args["threads"]
-        self.output_dir = args["output_dir"].strip()
-        self.job_document_id = args["job_id"].strip()
-        if "file_pattern" in args:
-            self.file_pattern = args["file_pattern"].strip()
-        if "stations_list" in args:
-            self.write_data_for_station_list = args["stations_list"]
-        if "levels_list" in args:
-            self.write_data_for_levels = args["levels_list"]
+        self.credentials_file = config.get("credentials_file", None)
+        self.thread_count = config.get("threads", 1)
+        self.output_dir = config.get("output_dir", "/tmp").strip()
+        self.file_pattern = config.get("file_pattern", "*").strip()
+        self.ingest_document_ids = config.get("ingest_document_ids", None)
+        self.fmask = config.get("file_mask", None)
+        self.input_data_path = config.get("input_data_path", None)
+        if "start_epoch" in config and "end_epoch" in config:
+            self.first_last_params = {
+                "first_epoch": config["start_epoch"],
+                "last_epoch": config["end_epoch"],
+            }
+        else:
+            self.first_last_params = {}
+            self.first_last_params["first_epoch"] = 0
+            self.first_last_params["last_epoch"] = sys.maxsize
+        # stash the first_last_params into the load spec
+        self.load_spec["first_last_params"] = self.first_last_params
+        if "stations_list" in config:
+            self.write_data_for_station_list = config.get("stations_list", None)
+        if "levels_list" in config:
+            self.write_data_for_levels = config.get("levels_list", None)
         try:
             # put the real credentials into the load_spec
             logger.info("getting cb_credentials")
             self.cb_credentials = self.get_credentials(self.load_spec)
-            # override the collection because these are RAOB documents with subset 'RAOB'
-            self.load_spec["cb_credentials"]["collection"] = "RAOB"
-            self.cb_credentials["collection"] = "RAOB"
+            # get the intended subset (collection from the job_id)
+            self.cb_credentials["collection"] = config["collection"]
             # establish connections to cb, collection
             self.connect_cb()
-            logger.info("connected to cb")
+            logger.info("connected to cb - collection is %s", self.collection.name)
+            collection = self.load_spec["cb_connection"]["collection"]
             bucket = self.load_spec["cb_connection"]["bucket"]
             scope = self.load_spec["cb_connection"]["scope"]
-            # get the collection from the cb_connection
-            collection = self.load_spec["cb_connection"]["collection"]
-            # load the ingest document ids into the load_spec (this might be redundant)
-            ingest_document_result = self.collection.get(self.job_document_id)
-            ingest_document = ingest_document_result.content_as[dict]
-            self.load_spec["ingest_document_ids"] = ingest_document[
-                "ingest_document_ids"
-            ]
+            # load the ingest document ids into the load_spec (this might be redundant) - from COMMON
+            self.load_spec["ingest_document_ids"] = self.ingest_document_ids
             # put all the ingest documents into the load_spec too
             self.load_spec["ingest_documents"] = {}
             for _id in self.load_spec["ingest_document_ids"]:
-                self.load_spec["ingest_documents"][_id] = self.collection.get(
+                self.load_spec["ingest_documents"][_id] = self.runtime_collection.get(
                     _id
                 ).content_as[dict]
-            # load the fmask and input_data_path into the load_spec
-            self.fmask = ingest_document["file_mask"]
-            self.path = ingest_document["input_data_path"]
             self.load_spec["fmask"] = self.fmask
-            self.load_spec["input_data_path"] = self.path
+            self.load_spec["input_data_path"] = self.input_data_path
             # stash the load_job in the load_spec
-            self.load_spec["load_job_doc"] = self.build_load_job_doc("madis")
+            self.load_spec["load_job_doc"] = self.build_load_job_doc(
+                self.load_spec["cb_connection"]["collection"]
+            )
         except (RuntimeError, TypeError, NameError, KeyError):
             logger.error(
                 "*** Error occurred in Main reading load_spec: %s ***",
                 str(sys.exc_info()),
             )
-            sys.exit("*** Error reading load_spec:")
-
+            raise RuntimeError("*** Error reading load_spec: ") from sys.exc_info()[1]
         # load the my_queue with filenames that match the mask and have not already been ingested
         # (do not have associated datafile documents)
         # Constructor for an infinite size  FIFO my_queue
@@ -254,7 +312,11 @@ class VXIngest(CommonVxIngest):
             """
         # file_pattern is a glob string not a python file match string
         file_names = self.get_file_list(
-            file_query, self.path, self.file_pattern, self.fmask
+            file_query,
+            self.input_data_path,
+            self.file_pattern,
+            self.fmask,
+            self.first_last_params,
         )
         for _f in file_names:
             _q.put(_f)
@@ -309,7 +371,7 @@ class VXIngest(CommonVxIngest):
         self.runit(vars(args), log_queue, worker_log_configurer)
         logger.info("*** FINISHED ***")
         log_queue_listener.stop()
-        sys.exit(0)
+        return
 
 
 if __name__ == "__main__":

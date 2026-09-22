@@ -39,7 +39,6 @@ import json
 import logging
 import pathlib
 import re
-import sys
 import time
 from pathlib import Path
 
@@ -330,7 +329,7 @@ class VxIngestManager(CommonVxIngestManager):
         """
         if self.ingest_type_builder_name is None:
             try:
-                self.ingest_type_builder_name = self.ingest_document["builder_type"]
+                self.ingest_type_builder_name = self.ingest_document["builderType"]
             except Exception as _e:
                 logger.exception(
                     "%s: process_element: Exception getting ingest document for %s ",
@@ -360,8 +359,7 @@ class VxIngestManager(CommonVxIngestManager):
                     "%s: *** Error in IngestManager run getting builder name ***",
                     self.thread_name,
                 )
-                sys.exit("*** Error getting builder name: ")
-
+                raise RuntimeError("*** Error getting builder name: ") from _e
             if self.ingest_type_builder_name in self.builder_map:
                 builder = self.builder_map[self.ingest_type_builder_name]
             else:

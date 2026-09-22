@@ -3,6 +3,8 @@ Builder - Parent class for all Builders
 """
 
 import logging
+import math
+import numbers
 import time
 from pathlib import Path
 
@@ -37,6 +39,11 @@ class Builder:
         self.document_map = {}
         # self.do_profiling = True  # set to True to enable build_document profiling
         self.do_profiling = False
+
+    @staticmethod
+    def is_a_number(value):
+        """Return whether value is a finite real number."""
+        return isinstance(value, numbers.Real) and math.isfinite(value)
 
     def wait_for_import_lock(self):
         """

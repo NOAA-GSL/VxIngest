@@ -31,6 +31,14 @@ def setup_connection():
     return _vx_ingest
 
 
+def metar_builder_with_sky_layer_mask(mask):
+    builder = NetcdfMetarObsBuilderV01.__new__(NetcdfMetarObsBuilderV01)
+    builder.ncdf_data_set = {
+        "skyLayerBase": [np.ma.array([100.0] * len(mask), mask=mask)]
+    }
+    return builder
+
+
 @pytest.mark.integration
 def test_credentials_and_load_spec():
     """test the get_credentials and load_spec"""
@@ -56,6 +64,34 @@ def test_cb_connect_disconnect():
         pytest.fail(f"test_cb_connect_disconnect Exception failure: {_e}")
     finally:
         vx_ingest.close_cb()
+
+
+def test_ceiling_transform_accepts_decoded_sky_cover_list():
+    builder = metar_builder_with_sky_layer_mask([True, False, True])
+
+    result = builder.ceiling_transform(
+        {
+            "base_var_index": 0,
+            "skyCover": ["", "BKN", ""],
+            "skyLayerBase": [100.0, 200.0, 300.0],
+        }
+    )
+
+    assert result == 656
+
+
+def test_ceiling_transform_accepts_old_chartostring_repr():
+    builder = metar_builder_with_sky_layer_mask([False, True, True, True, True, True])
+
+    result = builder.ceiling_transform(
+        {
+            "base_var_index": 0,
+            "skyCover": "['OVC' '' '' '' '' '']",
+            "skyLayerBase": [100.0, 200.0, 300.0, 400.0, 500.0, 600.0],
+        }
+    )
+
+    assert result == 328
 
 
 @pytest.mark.integration
@@ -200,9 +236,10 @@ def test_vxingest_get_file_list(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
         vx_ingest.collection.upsert("DF:metar:grib2:HRRR_OPS:f_fred_01", df_record)
         time.sleep(1)
         # do a query with scan consistency set so that we know the record got persisted
-        vx_ingest.cluster.query(
+        for _ in vx_ingest.cluster.query(
             query, QueryOptions(scan_consistency=QueryScanConsistency.REQUEST_PLUS)
-        )
+        ):
+            pass
         files = vx_ingest.get_file_list(query, tmp_path, "1820013*", pattern)
         # should not get f_fred_01 because the DF record has a newer mtime
         assert set(files) == set(
@@ -350,7 +387,13 @@ def test_handle_station():
         rec_num_length = _builder.ncdf_data_set["stationName"].shape[0]
         # find the rec_num of the stationName ZBAA
         for i in range(rec_num_length):
-            if str(nc.chartostring(_builder.ncdf_data_set["stationName"][i])) == "ZBAA":
+            station_name = (
+                _builder.ncdf_data_set["stationName"][i]
+                .tobytes()
+                .decode("utf-8")
+                .rstrip("\x00 ")
+            )
+            if station_name == "ZBAA":
                 break
         _rec_num = i
         # use a station that is in the netcdf file but is not used in any of our domains.

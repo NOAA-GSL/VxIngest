@@ -11,7 +11,7 @@ import collections
 import contextlib
 import copy
 import cProfile
-import datetime
+import datetime as dt
 import itertools
 import logging
 import math
@@ -1781,9 +1781,7 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         date_str = (
             bufr.msg_date
         )  # date is a datetime object i.e. 2024041012 is 2024-04-10 12:00:00
-        _dt = datetime.datetime.strptime(str(date_str), "%Y%m%d%H").replace(
-            tzinfo=datetime.UTC
-        )
+        _dt = dt.datetime.strptime(str(date_str), "%Y%m%d%H").replace(tzinfo=dt.UTC)
         _epoch = int(_dt.timestamp())
         return _epoch
 

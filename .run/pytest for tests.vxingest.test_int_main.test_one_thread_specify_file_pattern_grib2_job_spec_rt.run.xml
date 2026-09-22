@@ -1,0 +1,26 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="pytest for tests.vxingest.test_int_main.test_one_thread_specify_file_pattern_grib2_job_spec_rt" type="tests" factoryName="py.test" nameIsGenerated="true">
+    <module name="vxingest" />
+    <option name="ENV_FILES" value="" />
+    <option name="INTERPRETER_OPTIONS" value="" />
+    <option name="PARENT_ENVS" value="true" />
+    <envs>
+      <env name=" CREDENTIALS_FILE" value="$PROJECT_DIR$/../credentials" />
+      <env name="CREDENTIALS" value="$PROJECT_DIR$/../credentials" />
+      <env name="TESTING" value="1" />
+    </envs>
+    <option name="SDK_HOME" value="" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+    <option name="IS_MODULE_SDK" value="true" />
+    <option name="ADD_CONTENT_ROOTS" value="true" />
+    <option name="ADD_SOURCE_ROOTS" value="true" />
+    <option name="DEBUG_JUST_MY_CODE" value="false" />
+    <option name="RUN_TOOL" value="true" />
+    <option name="_new_keywords" value="&quot;&quot;" />
+    <option name="_new_parameters" value="&quot;&quot;" />
+    <option name="_new_additionalArguments" value="&quot;&quot;" />
+    <option name="_new_target" value="&quot;tests.vxingest.test_int_main.test_one_thread_specify_file_pattern_grib2_job_spec_rt&quot;" />
+    <option name="_new_targetType" value="&quot;PYTHON&quot;" />
+    <method v="2" />
+  </configuration>
+</component>

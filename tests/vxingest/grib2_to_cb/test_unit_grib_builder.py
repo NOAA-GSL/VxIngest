@@ -1,7 +1,9 @@
 import numpy as np
 import pytest
+import xarray as xr
 
-from vxingest.grib2_to_cb.grib_builder import GribModelBuilderV01
+from vxingest.grib2_to_cb.grib_metar_builder import GribModelMetarBuilderV01
+from vxingest.grib2_to_cb.grib_raob_builder import GribModelRaobBuilderV01
 
 
 @pytest.fixture
@@ -15,7 +17,7 @@ def empty_builder():
     }
     load_spec = ""
 
-    return GribModelBuilderV01(load_spec=load_spec, ingest_document=ingest_doc)
+    return GribModelMetarBuilderV01(load_spec=load_spec, ingest_document=ingest_doc)
 
 
 @pytest.fixture
@@ -101,3 +103,79 @@ def test_handle_normalized_surface_pressure_bad_station_elev(
     norm_pressure_list = builder.handle_normalized_surface_pressure(params_dict=None)
 
     assert norm_pressure_list == [None]
+
+
+def test_raob_translate_template_item_uses_requested_level(
+    single_station_list,
+):
+    ingest_doc = {
+        "template": {"subset": "RAOB"},
+        "validTimeDelta": "",
+        "validTimeInterval": "",
+    }
+    builder = GribModelRaobBuilderV01(load_spec="", ingest_document=ingest_doc)
+    builder.domain_stations = single_station_list
+    temperature = xr.DataArray(
+        np.array([[1.0, 2.0], [3.0, 4.0]]),
+        dims=("y", "x"),
+        attrs={"units": "K", "long_name": "Temperature"},
+    )
+    builder.ds_translate_item_variables_map = {
+        "fcst_valid_epoch": 1234,
+        500: {"t": temperature},
+    }
+
+    translated = builder.translate_template_item("*t", level=500)
+
+    assert translated == [("1.0", "2.5")]
+    assert builder.ds_translate_item_variables_map[500]["t"].dims == ("y", "x")
+    assert builder.ds_translate_item_variables_map[500]["t"].attrs["units"] == "K"
+
+
+def test_raob_wind_speed_uses_u_and_v_interpolated_values():
+    ingest_doc = {
+        "template": {"subset": "RAOB"},
+        "validTimeDelta": "",
+        "validTimeInterval": "",
+    }
+    builder = GribModelRaobBuilderV01(load_spec="", ingest_document=ingest_doc)
+    params = {
+        "level": 500,
+        "u": [(3.0, 3.0)],
+        "v": [(4.0, 4.0)],
+    }
+
+    assert builder.handle_raob_variable(params, "u") == [3.0]
+    assert builder.handle_raob_variable(params, "v") == [4.0]
+    assert builder.handle_wind_speed(params) == pytest.approx([(5.0 / 0.447) + 0.5])
+
+
+def test_raob_named_variable_handler_uses_template_short_name():
+    ingest_doc = {
+        "template": {"subset": "RAOB"},
+        "validTimeDelta": "",
+        "validTimeInterval": "",
+    }
+    builder = GribModelRaobBuilderV01(load_spec="", ingest_document=ingest_doc)
+    builder.domain_stations = [
+        {
+            "name": "BOB",
+            "geo": [
+                {
+                    "x_gridpoint": 0.5,
+                    "y_gridpoint": 0.5,
+                    "elev": 250,
+                    "lastTime": 999999999,
+                    "firstTime": -1,
+                }
+            ],
+        }
+    ]
+    builder.ds_translate_item_variables_map = {
+        "fcst_valid_epoch": 1234,
+        500: {"u": xr.DataArray(np.array([[3.0, 3.0], [3.0, 3.0]]), dims=("y", "x"))},
+    }
+
+    translated = builder.handle_named_function("&handle_raob_variable|*u", level=500)
+
+    assert translated == ["3.0"]

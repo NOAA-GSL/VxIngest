@@ -17,7 +17,6 @@ from pstats import Stats
 
 # Removed deprecated typing.List; using built-in list type instead
 import couchbase.subdocument as SD
-import netCDF4 as nc
 import numpy.ma as ma
 from metpy.calc import (
     altimeter_to_station_pressure,
@@ -34,6 +33,15 @@ from vxingest.builder_common.builder_utilities import (
 
 # Get a logger with this module's name to help with debugging
 logger = logging.getLogger(__name__)
+
+
+def _decode_char_array(value):
+    if hasattr(value, "ndim") and value.ndim > 1:
+        return [
+            char_array.tobytes().decode("utf-8").rstrip("\x00 ") for char_array in value
+        ]
+
+    return value[:].tobytes().decode("utf-8").rstrip("\x00 ")
 
 
 class NetcdfBuilder(Builder):
@@ -291,7 +299,7 @@ class NetcdfBuilder(Builder):
                             # for these we have to convert the character array AND convert to ISO (it is probably a string date)
                             value = convert_to_iso(
                                 "*{ISO}"
-                                + nc.chartostring(
+                                + _decode_char_array(
                                     self.ncdf_data_set[variable][base_var_index]
                                 )
                             )
@@ -308,7 +316,7 @@ class NetcdfBuilder(Builder):
                                 value = value.replace(
                                     "*" + _ri,
                                     str(
-                                        nc.chartostring(
+                                        _decode_char_array(
                                             self.ncdf_data_set[variable][base_var_index]
                                         )
                                     ),

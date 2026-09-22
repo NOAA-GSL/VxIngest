@@ -319,8 +319,6 @@ class CTCBuilder(Builder):
                     self.obs_data = {}
                     self.obs_station_names = []
                     try:
-                        # get_stations_for_region_by_geosearch is broken for geo losts untill late 2022
-                        # full_station_name_list = self.get_stations_for_region_by_geosearch(self.region, fve)
                         full_station_name_list = self.get_stations_for_region_by_sort(
                             self.region, fve["fcstValidEpoch"]
                         )
@@ -722,9 +720,9 @@ class CTCBuilder(Builder):
             )
             return {}
 
-    def get_stations_for_region_by_geosearch(self, region_name, valid_epoch):
+    def get_stations_for_region_by_geosearch(self, region_name):
         # NOTE: this is currently broken because we have to modify this query to
-        # work woth the data model that has data elements as a MAP indexed by station name
+        # work with the data model that has data elements as a MAP indexed by station name
         """Using a geosearh return all the stations within the defined region
         Args:
             region_name (string): the name of the region.
@@ -1025,7 +1023,7 @@ class CTCModelObsBuilderV01(CTCBuilder):
             )
         return doc
 
-    def handle_time(self, params_dict):
+    def handle_time(self, params_dict):  # @UnusedVariable
         """return the fcstValidTime for the current model in epoch
         Args:
             params_dict (dict): contains named_function parameters
@@ -1034,7 +1032,7 @@ class CTCModelObsBuilderV01(CTCBuilder):
         """
         return self.model_data["fcstValidEpoch"]
 
-    def handle_iso_time(self, params_dict):
+    def handle_iso_time(self, params_dict):  # @UnusedVariable
         """return the fcstValidTime for the current model in ISO
         Args:
             params_dict (dict): contains named_function parameters
@@ -1045,7 +1043,7 @@ class CTCModelObsBuilderV01(CTCBuilder):
             self.model_data["fcstValidEpoch"], tz=dt.UTC
         ).isoformat()
 
-    def handle_fcst_len(self, params_dict):
+    def handle_fcst_len(self, params_dict):  # @UnusedVariable
         """returns the fcst lead time in hours for this document
         Args:
             params_dict (dict): contains named_function parameters

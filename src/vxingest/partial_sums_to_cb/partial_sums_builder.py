@@ -768,9 +768,7 @@ class PartialSumsBuilder(Builder):
             )
             return {}
 
-    def get_stations_for_region_by_geosearch(
-        self, region_name
-    ):
+    def get_stations_for_region_by_geosearch(self, region_name):
         # NOTE: this is currently broken because we have to modify this query to
         # work with the data model that has data elements as a MAP indexed by station name
         """Using a geosearh return all the stations within the defined region

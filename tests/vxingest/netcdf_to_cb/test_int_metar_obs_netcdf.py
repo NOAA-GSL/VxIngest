@@ -167,7 +167,7 @@ def test_metar_one_thread_specify_file_pattern_job_spec_rt(tmp_path: Path):
     # Test that we have one output file per input file
     input_path = Path(_input_data_path[7:])
     num_input_files = len(list(input_path.glob(file_pattern)))
-    num_output_files = len(output_file_list) -1  # less one for the LJ file
+    num_output_files = len(output_file_list) - 1  # less one for the LJ file
     assert num_output_files == num_input_files, "number of output files is incorrect"
 
     # Test that the output files match the content in the database
@@ -219,7 +219,9 @@ def test_metar_one_thread_specify_file_pattern_job_spec_rt(tmp_path: Path):
     except Exception as e:
         pytest.fail(f"Error retrieving documents from database: {e}")
     assert derived_station == retrieved_station
-    assert_dicts_almost_equal(derived_obs['data']['KDEN'], retrieved_obs['data']['KDEN'])
+    assert_dicts_almost_equal(
+        derived_obs["data"]["KDEN"], retrieved_obs["data"]["KDEN"]
+    )
 
 
 @pytest.mark.integration
@@ -241,7 +243,7 @@ def test_tropoe_one_thread_specify_file_pattern(tmp_path: Path):
     # Test that we have one output file per input file
     input_path = Path(input_data_path[7:])
     num_input_files = len(list(input_path.glob(file_pattern)))
-    num_output_files = len(output_file_list) -1 # less one for the LJ file
+    num_output_files = len(output_file_list) - 1  # less one for the LJ file
     assert num_output_files == num_input_files, "number of output files is incorrect"
 
     # Test that the output files match the content in the database

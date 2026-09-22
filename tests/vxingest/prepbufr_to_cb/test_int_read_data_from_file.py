@@ -1,11 +1,14 @@
+# ruff: noqa: E402
+
 import os
 import pathlib
 
 import mysql.connector
-import ncepbufr
 import numpy as np
 import pytest
 import yaml
+
+ncepbufr = pytest.importorskip("ncepbufr")
 
 from vxingest.prepbufr_to_cb.prepbufr_builder import PrepbufrRaobsObsBuilderV01
 from vxingest.prepbufr_to_cb.run_ingest_threads import VXIngest
@@ -937,7 +940,7 @@ def test_july_31_2024_0Z_data_diffs_with_legacy():
                 print("--------------------")
                 print(f"wmoid: {m_wmoid}, pressure: {m_pressure}")
                 print(_e)
-            # raise _e
+                raise
     finally:
         print(f"max height diff: {height_stat}")
         print(f"max temperature diff: {temperature_stat}")

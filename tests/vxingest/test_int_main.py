@@ -16,7 +16,6 @@ from vxingest.netcdf_to_cb.run_ingest_threads import VXIngest as VXIngest_netcdf
 from vxingest.partial_sums_to_cb.run_ingest_threads import (
     VXIngest as VXIngest_partial_sums,
 )
-from vxingest.prepbufr_to_cb.run_ingest_threads import VXIngest as VXIngest_prepbufr
 
 # from vxingest.partial_sums_to_cb.run_ingest_threads import VXIngest_partial_sums
 
@@ -184,6 +183,11 @@ def test_one_thread_specify_file_pattern_netcdf_job_spec_rt_start_end(tmp_path: 
 def test_one_thread_specify_file_pattern_prepbufr_job_spec_rt(
     tmp_path: Path,
 ):
+    pytest.importorskip("ncepbufr")
+    from vxingest.prepbufr_to_cb.run_ingest_threads import (
+        VXIngest as VXIngest_prepbufr,
+    )
+
     # Save original sys.argv
     original_argv = sys.argv.copy()
     job_id = "JS:RAOB:OBS:PREPBUFR-TEST:schedule:job:V01"

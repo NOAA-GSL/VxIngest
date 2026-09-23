@@ -2,12 +2,11 @@
 
 # NOTE - avoid installing python packages via apt - they install an alternate version of Python
 
-ARG CHAINGUARD_PYTHON_BUILDER_TAG=latest-dev
-ARG CHAINGUARD_PYTHON_RUNTIME_TAG=latest
+ARG PYTHON_IMAGE=python:3.13.3-slim
 
 # First, build the application in the `/app` directory.
 # See `Dockerfile` for details.
-FROM cgr.dev/chainguard/python:${CHAINGUARD_PYTHON_BUILDER_TAG} AS builder
+FROM ${PYTHON_IMAGE} AS builder
 USER root
 
 # Install uv into the build image.
@@ -62,8 +61,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 ENV PATH="/app/.venv/bin:$PATH"
 
 # The runtime image, used for running just the application with its dependencies
-FROM cgr.dev/chainguard/python:${CHAINGUARD_PYTHON_RUNTIME_TAG} AS prod
-# Override both tags together if you need strict Python version alignment.
+FROM ${PYTHON_IMAGE} AS prod
 
 ARG COMMITBRANCH=development
 ARG COMMITSHA=unspecified

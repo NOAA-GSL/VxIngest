@@ -2,7 +2,7 @@
 
 # NOTE - avoid installing python packages via apt - they install an alternate version of Python
 
-ARG PYTHON_IMAGE=python:3.13.3-slim
+ARG PYTHON_IMAGE=python:3.13-slim-bookworm
 
 # First, build the application in the `/app` directory.
 # See `Dockerfile` for details.

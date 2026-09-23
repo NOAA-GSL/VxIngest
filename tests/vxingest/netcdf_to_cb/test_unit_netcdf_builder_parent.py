@@ -51,7 +51,11 @@ class TestNetcdfBuilder(unittest.TestCase):
 
     @patch("vxingest.netcdf_to_cb.netcdf_builder_parent.cProfile.Profile")
     @patch("vxingest.netcdf_to_cb.netcdf_builder_parent.Path.open")
-    def test_build_document_map_profiling(self, mock_open, mock_profile):
+    def test_build_document_map_profiling(
+        self,
+        mock_open,  # @UnusedVariable
+        mock_profile,  # @UnusedVariable
+    ):
         """Test build_document_map with profiling enabled."""
         self.builder.do_profiling = True
         self.builder.handle_document = MagicMock()

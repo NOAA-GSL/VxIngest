@@ -16,6 +16,7 @@ from vxingest.netcdf_to_cb.run_ingest_threads import VXIngest as VXIngest_netcdf
 from vxingest.partial_sums_to_cb.run_ingest_threads import (
     VXIngest as VXIngest_partial_sums,
 )
+from vxingest.prepbufr_to_cb.run_ingest_threads import VXIngest as VXIngest_prepbufr
 
 # from vxingest.partial_sums_to_cb.run_ingest_threads import VXIngest_partial_sums
 
@@ -177,6 +178,45 @@ def test_one_thread_specify_file_pattern_netcdf_job_spec_rt_start_end(tmp_path: 
 #
 # HINT: tailing the logs ...
 # while this test is running its output can be tailed with: docker "docker logs -f $(docker ps -q | awk '{print $1}')"
+
+
+@pytest.mark.integration
+def test_one_thread_specify_file_pattern_prepbufr_job_spec_rt(
+    tmp_path: Path,
+):
+    # Save original sys.argv
+    original_argv = sys.argv.copy()
+    job_id = "JS:RAOB:OBS:PREPBUFR-TEST:schedule:job:V01"
+    # need these args
+    sys.argv = [
+        "run_ingest",
+        "-j",
+        job_id,
+        "-c",
+        os.environ["CREDENTIALS"],
+        "-m",
+        str(tmp_path / "metrics"),
+        "-o",
+        str(tmp_path / "output"),
+        "-x",
+        str(tmp_path / "transfer"),
+        "-l",
+        str(tmp_path / "logs"),
+        "-f",
+        "242130600.gdas.t06z.prepbufr.nr",
+        "-t",
+        "1",
+    ]
+    try:
+        vx_ingest = setup_connection(VXIngest_prepbufr())
+        initial_success_count = prom_successes._value.get()
+        run_ingest()
+        check_output(tmp_path, vx_ingest, 1, initial_success_count + 1)
+    except Exception as e:
+        pytest.fail(f"Test failed with exception {e}")
+    finally:
+        # Restore original sys.argv
+        sys.argv = original_argv
 
 
 @pytest.mark.integration
@@ -624,6 +664,8 @@ def check_output(tmp_path, vx_ingest, file_count, success_count=1):
                 derived_data = json.load(jf)
                 if "netcdf" in vx_ingest.__module__:
                     check_netcdf(vx_ingest, derived_data)
+                if "prepbufr" in vx_ingest.__module__:
+                    check_prepbufr(vx_ingest, derived_data)
                 if "grib2" in vx_ingest.__module__:
                     check_grib2(vx_ingest, derived_data)
                 if "ctc" in vx_ingest.__module__:
@@ -718,6 +760,15 @@ def check_ctc(vx_ingest, derived_data):  # @UnusedVariable
                     f"test_one_thread_specify_file_pattern_ctc_job_spec_rt failure key {_k} not in {item.keys()}"
                 )
 
+def check_prepbufr(vx_ingest, derived_data):  # @UnusedVariable
+    for item in derived_data:
+        if "DF" in item["id"]:
+            continue
+        if "LJ" in item["id"]:
+            check_load_job(item)
+            continue
+        if "DD" in item["id"]:
+            continue
 
 def check_grib2(vx_ingest, derived_data):  # @UnusedVariable
     for item in derived_data:

@@ -294,7 +294,6 @@ class VXIngest(CommonVxIngest):
         # (do not have associated datafile documents)
         # Constructor for an infinite size  FIFO my_queue
         _q = JoinableQueue()
-        file_names = []
         # get the urls (full_file_names) from all the datafiles for this type of ingest
         # for prepbufr type ingests there is only one ingest document so we can just use the first
         # subset

@@ -187,7 +187,6 @@ def get_credentials(path: Path) -> dict[str, str]:
         raise FileNotFoundError(f"Credentials file can not be found: {path}")
 
     # Load the file
-    config: dict[str, str] = {}
     with path.open() as file:
         config = yaml.load(file, yaml.SafeLoader)
 

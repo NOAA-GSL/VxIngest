@@ -760,6 +760,7 @@ def check_ctc(vx_ingest, derived_data):  # @UnusedVariable
                     f"test_one_thread_specify_file_pattern_ctc_job_spec_rt failure key {_k} not in {item.keys()}"
                 )
 
+
 def check_prepbufr(vx_ingest, derived_data):  # @UnusedVariable
     for item in derived_data:
         if "DF" in item["id"]:
@@ -769,6 +770,7 @@ def check_prepbufr(vx_ingest, derived_data):  # @UnusedVariable
             continue
         if "DD" in item["id"]:
             continue
+
 
 def check_grib2(vx_ingest, derived_data):  # @UnusedVariable
     for item in derived_data:

@@ -31,8 +31,7 @@ services:
     # NOTE: --job_id (-j) is required and must be supplied at runtime:
     # docker compose run ingest -j JOB-TEST:V01:METAR:NETCDF:OBS
     #image: ghcr.io/noaa-gsl/vxingest/ingest:main
-    #image: ghcr.io/noaa-gsl/vxingest/ingest:latest
-    image: vxingest/ingest:dev
+    image: ghcr.io/noaa-gsl/vxingest/ingest:latest
     volumes:
       - ${data:-./tmp/data}:/opt/data
       - ${public:-./tmp/public}:/public

@@ -6,7 +6,7 @@ authors = [
     { name = "Ian McGinnis", email = "ian.mcginnis@noaa.gov" },
     { name = "Randy Pierce", email = "randy.pierce@noaa.gov" },
 ]
-requires-python = ">=3.13"
+requires-python = ">=3.13,<3.14"
 readme = "README.md"
 dependencies = [
     "pyyaml>=6.0.3",

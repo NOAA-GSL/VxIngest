@@ -2,12 +2,11 @@
 
 # NOTE - avoid installing python packages via apt - they install an alternate version of Python
 
-ARG CHAINGUARD_PYTHON_BUILDER_TAG=latest-dev
-ARG CHAINGUARD_PYTHON_RUNTIME_TAG=latest
+ARG PYTHON_IMAGE=python:3.13-slim-bookworm
 
 # First, build the application in the `/app` directory.
 # See `Dockerfile` for details.
-FROM cgr.dev/chainguard/python:${CHAINGUARD_PYTHON_BUILDER_TAG} AS builder
+FROM ${PYTHON_IMAGE} AS builder
 USER root
 
 # Install uv into the build image.
@@ -62,8 +61,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 ENV PATH="/app/.venv/bin:$PATH"
 
 # The runtime image, used for running just the application with its dependencies
-FROM cgr.dev/chainguard/python:${CHAINGUARD_PYTHON_RUNTIME_TAG} AS prod
-# Override both tags together if you need strict Python version alignment.
+FROM ${PYTHON_IMAGE} AS prod
 
 ARG COMMITBRANCH=development
 ARG COMMITSHA=unspecified
@@ -77,6 +75,15 @@ LABEL version=${BUILDVER} code.branch=${COMMITBRANCH} code.commit=${COMMITSHA}
 
 # Copy the application from the builder
 COPY --from=builder --chown=65532:65532 /app /app
+
+# The runtime image uses the application virtualenv under /app/.venv, so
+# remove the base interpreter's bundled pip/ensurepip artifacts. They are not
+# used at runtime and Trivy flags vulnerabilities from pip's vendored metadata.
+RUN rm -rf \
+    /usr/local/bin/pip* \
+    /usr/local/lib/python3.13/ensurepip \
+    /usr/local/lib/python3.13/site-packages/pip \
+    /usr/local/lib/python3.13/site-packages/pip-*.dist-info
 
 WORKDIR /app
 

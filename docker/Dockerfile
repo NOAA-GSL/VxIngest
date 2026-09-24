@@ -76,6 +76,15 @@ LABEL version=${BUILDVER} code.branch=${COMMITBRANCH} code.commit=${COMMITSHA}
 # Copy the application from the builder
 COPY --from=builder --chown=65532:65532 /app /app
 
+# The runtime image uses the application virtualenv under /app/.venv, so
+# remove the base interpreter's bundled pip/ensurepip artifacts. They are not
+# used at runtime and Trivy flags vulnerabilities from pip's vendored metadata.
+RUN rm -rf \
+    /usr/local/bin/pip* \
+    /usr/local/lib/python3.13/ensurepip \
+    /usr/local/lib/python3.13/site-packages/pip \
+    /usr/local/lib/python3.13/site-packages/pip-*.dist-info
+
 WORKDIR /app
 
 # Place executables in the environment at the front of the path

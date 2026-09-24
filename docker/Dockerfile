@@ -73,6 +73,11 @@ ENV VERSION=${BUILDVER}
 
 LABEL version=${BUILDVER} code.branch=${COMMITBRANCH} code.commit=${COMMITSHA}
 
+# ncepbufr's compiled extension is built with gfortran and needs libgfortran.so.5 at runtime.
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y libgfortran5 \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copy the application from the builder
 COPY --from=builder --chown=65532:65532 /app /app
 

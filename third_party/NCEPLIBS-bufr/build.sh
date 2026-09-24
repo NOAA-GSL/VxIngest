@@ -43,23 +43,23 @@ usage() {
 
 while getopts ":l:t:v:" o; do
     case "${o}" in
-    l)
-        local_build_dir=${OPTARG}
-        [ -d ${local_build_dir} ] || usage
-        echo "Using local build directory ${local_build_dir}"
+        l)
+            local_build_dir=${OPTARG}
+            [ -d ${local_build_dir} ] || usage
+            echo "Using local build directory ${local_build_dir}"
         ;;
-    t)
-        bufr_test_dir=${OPTARG}
-        [ -d ${bufr_test_dir} ] || usage
-        local_test=true
-        echo "Using local test data directory ${bufr_test_dir}"
+        t)
+            bufr_test_dir=${OPTARG}
+            [ -d ${bufr_test_dir} ] || usage
+            local_test=true
+            echo "Using local test data directory ${bufr_test_dir}"
         ;;
-    v)
-        NCEPLIBSbufr_version=${OPTARG}
-        echo "Using NCEPLIBSbufr version ${NCEPLIBSbufr_version}"
+        v)
+            NCEPLIBSbufr_version=${OPTARG}
+            echo "Using NCEPLIBSbufr version ${NCEPLIBSbufr_version}"
         ;;
-    *)
-        usage
+        *)
+            usage
         ;;
     esac
 done
@@ -166,16 +166,21 @@ build_wheel() {
     if [ "$platform" = "linux_x86_64" ]; then
         libdir="lib64"
     fi
-    
+
     cd ${tmp_workdir}/NCEPLIBS-bufr-${NCEPLIBSbufr_version}/build/install/${libdir}/python${pyver}/site-packages
-    
+
     # Create src-layout structure expected by uv
     mkdir -p src/ncepbufr
-    
-    # Copy the platform specific .so file to the ncepbufr package
-    cp _bufrlib.cpython-${pver}*.so src/ncepbufr/_bufrlib.so
+
+    # Copy the platform-specific native module into the package.
+    native_module=$(find . -maxdepth 1 -name "_bufrlib.cpython-${pver}*.so" -print -quit)
+    if [ -z "${native_module}" ]; then
+        echo "Unable to find the native _bufrlib module in ${PWD}." >&2
+        exit 1
+    fi
+    cp "${native_module}" src/_bufrlib.so
     # Copy the rest of the python files to the ncepbufr package
-    cp -r ncepbufr/ src/ncepbufr/
+    cp -r ncepbufr/. src/ncepbufr/
     
     # Copy pyproject.toml and README.md to root
     cp ${VxIngest_root_dir}/third_party/NCEPLIBS-bufr/ncepbufr/pyproject.toml .
@@ -189,6 +194,10 @@ build_wheel() {
     dst_name=$(basename ${dst_name_tmp})
     
     wheel=$(ls -1 dist/*.whl)
+    if ! unzip -Z1 "${wheel}" | grep -qx '_bufrlib.so'; then
+        echo "The wheel does not contain top-level _bufrlib.so: ${wheel}" >&2
+        exit 1
+    fi
     cp ${wheel} ${VxIngest_root_dir}/third_party/NCEPLIBS-bufr/wheel_dist/${dst_name}
 }
 

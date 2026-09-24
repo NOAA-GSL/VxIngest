@@ -2,7 +2,7 @@
 
 # NOTE - avoid installing python packages via apt - they install an alternate version of Python
 
-ARG PYTHON_IMAGE=python:3.13.3-slim
+ARG PYTHON_IMAGE=python:3.13-slim-bookworm
 
 # First, build the application in the `/app` directory.
 # See `Dockerfile` for details.
@@ -80,6 +80,15 @@ RUN apt-get update \
 
 # Copy the application from the builder
 COPY --from=builder --chown=65532:65532 /app /app
+
+# The runtime image uses the application virtualenv under /app/.venv, so
+# remove the base interpreter's bundled pip/ensurepip artifacts. They are not
+# used at runtime and Trivy flags vulnerabilities from pip's vendored metadata.
+RUN rm -rf \
+    /usr/local/bin/pip* \
+    /usr/local/lib/python3.13/ensurepip \
+    /usr/local/lib/python3.13/site-packages/pip \
+    /usr/local/lib/python3.13/site-packages/pip-*.dist-info
 
 WORKDIR /app
 

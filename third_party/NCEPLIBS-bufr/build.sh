@@ -201,13 +201,13 @@ build_wheel() {
         exit 1
     fi
     validation_dir=$(mktemp -d)
-    uv venv --python "${python_executable}" "${validation_dir}/venv"
-    uv pip install --python "${validation_dir}/venv/bin/python" "${wheel}"
     (
+        trap 'rm -rf "${validation_dir}"' EXIT
+        uv venv --python "${python_executable}" "${validation_dir}/venv"
+        uv pip install --python "${validation_dir}/venv/bin/python" "${wheel}"
         cd "${validation_dir}"
         "${validation_dir}/venv/bin/python" -c "import ncepbufr"
     )
-    rm -rf "${validation_dir}"
     cp ${wheel} ${VxIngest_root_dir}/third_party/NCEPLIBS-bufr/wheel_dist/${dst_name}
 }
 

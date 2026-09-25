@@ -209,6 +209,7 @@ build_wheel() {
         cd "${validation_dir}"
         "${validation_dir}/venv/bin/python" -c "import ncepbufr"
     ) || validation_status=$?
+    rm -rf "${validation_dir}"
     if [ ${validation_status} -ne 0 ]; then
         exit ${validation_status}
     fi

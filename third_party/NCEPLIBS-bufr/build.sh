@@ -203,7 +203,6 @@ build_wheel() {
     validation_dir=$(mktemp -d)
     validation_status=0
     (
-        trap 'rm -rf "${validation_dir}"' EXIT
         uv venv --python "${python_executable}" "${validation_dir}/venv"
         uv pip install --python "${validation_dir}/venv/bin/python" "${wheel}"
         cd "${validation_dir}"

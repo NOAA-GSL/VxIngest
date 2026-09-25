@@ -32,6 +32,7 @@ local_build_dir=""
 bufr_test_dir=""
 local_test=false
 NCEPLIBSbufr_version="12.2.0"
+tmp_workdir=""
 
 usage() {
     echo "Usage: $0 [-l <local_build_dir>] [-t <bufr_test_dir>] [-v NCEPLIBSbufr_version]" 1>&2
@@ -81,20 +82,21 @@ check_required_tools() {
 # Check Python version and set up environment variables
 #==============================================================================
 setup_python_environment() {
-    pver=$(python --version | awk '{print $2}' | awk -F'.' '{print $1""$2}')
-    if [ ! ${pver} -ge 313 ]; then
+    python_executable=$(command -v python)
+    pver=$("${python_executable}" --version | awk '{print $2}' | awk -F'.' '{print $1""$2}')
+    if [ "${pver}" -lt 313 ]; then
         echo "Wrong python version - should be greater than or equal to 3.13.x"
         exit 1
     fi
     
-    pyver=$(python --version | awk '{print $2}' | awk -F'.' '{print $1"."$2}')
+    pyver=$("${python_executable}" --version | awk '{print $2}' | awk -F'.' '{print $1"."$2}')
     echo "Using python version ${pyver}"
     
-    platform=$(python -c "import sysconfig;print(sysconfig.get_platform())")
+    platform=$("${python_executable}" -c "import sysconfig;print(sysconfig.get_platform())")
     platform=$(echo ${platform} | tr '[:upper:]' '[:lower:]' | tr '-' '_' | tr '.' '_')
     
     # Export for use in other functions
-    export pyver pver platform
+    export python_executable pyver pver platform
 }
 
 #==============================================================================
@@ -124,7 +126,7 @@ download_and_extract() {
 # Create Python virtual environment and install dependencies
 #==============================================================================
 setup_venv() {
-    uv venv .venv-${pyver}
+    uv venv --python "${python_executable}" .venv-${pyver}
     . .venv-${pyver}/bin/activate
     
     PATH=$PATH:${HOME}/.local/bin # TODO - remove?
@@ -172,15 +174,16 @@ build_wheel() {
     # Create src-layout structure expected by uv
     mkdir -p src/ncepbufr
 
-    # Copy the platform-specific native module into the package.
-    native_module=$(find . -maxdepth 1 -name "_bufrlib.cpython-${pver}*.so" -print -quit)
+    # Upstream may install the native module at the site-packages root or inside ncepbufr.
+    native_module=$(find . -maxdepth 2 -name "_bufrlib.cpython-${pver}*.so" -print -quit)
     if [ -z "${native_module}" ]; then
-        echo "Unable to find the native _bufrlib module in ${PWD}." >&2
+        echo "Unable to find the Python ${pyver} native _bufrlib module in ${PWD}." >&2
         exit 1
     fi
     cp "${native_module}" src/_bufrlib.so
     # Copy the rest of the python files to the ncepbufr package
     cp -r ncepbufr/. src/ncepbufr/
+    rm -f src/ncepbufr/_bufrlib*.so
     
     # Copy pyproject.toml and README.md to root
     cp ${VxIngest_root_dir}/third_party/NCEPLIBS-bufr/ncepbufr/pyproject.toml .
@@ -198,6 +201,17 @@ build_wheel() {
         echo "The wheel does not contain top-level _bufrlib.so: ${wheel}" >&2
         exit 1
     fi
+    validation_dir=$(mktemp -d "${PWD}/wheel-validation.XXXXXX")
+    validation_status=0
+    (
+        uv venv --python "${python_executable}" "${validation_dir}/venv"
+        uv pip install --python "${validation_dir}/venv/bin/python" "${wheel}"
+        cd "${validation_dir}"
+        "${validation_dir}/venv/bin/python" -c "import ncepbufr"
+    ) || validation_status=$?
+    if [ ${validation_status} -ne 0 ]; then
+        exit ${validation_status}
+    fi
     cp ${wheel} ${VxIngest_root_dir}/third_party/NCEPLIBS-bufr/wheel_dist/${dst_name}
 }
 
@@ -205,6 +219,10 @@ build_wheel() {
 # Cleanup
 #==============================================================================
 cleanup() {
+    if [ -z "${tmp_workdir}" ]; then
+        return
+    fi
+
     cd ${VxIngest_root_dir}
     
     if [ -z "${local_build_dir}" ]; then
@@ -218,12 +236,13 @@ cleanup() {
 #==============================================================================
 # Main execution
 #==============================================================================
+trap cleanup EXIT
+
 check_required_tools
 setup_python_environment
 download_and_extract
 setup_venv
 build_nceplibs
 build_wheel
-cleanup
 
 exit 0

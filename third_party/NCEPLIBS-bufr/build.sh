@@ -32,6 +32,7 @@ local_build_dir=""
 bufr_test_dir=""
 local_test=false
 NCEPLIBSbufr_version="12.2.0"
+tmp_workdir=""
 
 usage() {
     echo "Usage: $0 [-l <local_build_dir>] [-t <bufr_test_dir>] [-v NCEPLIBSbufr_version]" 1>&2
@@ -200,10 +201,9 @@ build_wheel() {
         echo "The wheel does not contain top-level _bufrlib.so: ${wheel}" >&2
         exit 1
     fi
-    validation_dir=$(mktemp -d)
+    validation_dir=$(mktemp -d "${tmp_workdir}/wheel-validation.XXXXXX")
     validation_status=0
     (
-        trap 'rm -rf "${validation_dir}"' EXIT
         uv venv --python "${python_executable}" "${validation_dir}/venv"
         uv pip install --python "${validation_dir}/venv/bin/python" "${wheel}"
         cd "${validation_dir}"
@@ -219,6 +219,10 @@ build_wheel() {
 # Cleanup
 #==============================================================================
 cleanup() {
+    if [ -z "${tmp_workdir}" ]; then
+        return
+    fi
+
     cd ${VxIngest_root_dir}
     
     if [ -z "${local_build_dir}" ]; then
@@ -232,12 +236,13 @@ cleanup() {
 #==============================================================================
 # Main execution
 #==============================================================================
+trap cleanup EXIT
+
 check_required_tools
 setup_python_environment
 download_and_extract
 setup_venv
 build_nceplibs
 build_wheel
-cleanup
 
 exit 0

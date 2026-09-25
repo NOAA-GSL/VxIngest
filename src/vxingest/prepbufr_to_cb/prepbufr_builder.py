@@ -1699,9 +1699,11 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                         if not isinstance(
                             b_data, collections.abc.Sequence
                         ) and not isinstance(b_data, np.ndarray):
-                            return int(b_data)
+                            return int(b_data) if self.is_a_number(b_data) else None
                         else:
-                            return [int(i) if i is not None else None for i in b_data]
+                            return [
+                                int(i) if self.is_a_number(i) else None for i in b_data
+                            ]
                     except Exception as _e:
                         logger.error(
                             "PrepBufrBuilder.get_data_from_bufr_for_type_field: Exception  error: %s",

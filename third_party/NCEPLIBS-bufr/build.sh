@@ -84,7 +84,7 @@ check_required_tools() {
 setup_python_environment() {
     python_executable=$(command -v python)
     pver=$("${python_executable}" --version | awk '{print $2}' | awk -F'.' '{print $1""$2}')
-    if [ ! ${pver} -ge 313 ]; then
+    if [ "${pver}" -lt 313 ]; then
         echo "Wrong python version - should be greater than or equal to 3.13.x"
         exit 1
     fi
@@ -201,7 +201,7 @@ build_wheel() {
         echo "The wheel does not contain top-level _bufrlib.so: ${wheel}" >&2
         exit 1
     fi
-    validation_dir=$(mktemp -d "${tmp_workdir}/wheel-validation.XXXXXX")
+    validation_dir=$(mktemp -d "${PWD}/wheel-validation.XXXXXX")
     validation_status=0
     (
         uv venv --python "${python_executable}" "${validation_dir}/venv"

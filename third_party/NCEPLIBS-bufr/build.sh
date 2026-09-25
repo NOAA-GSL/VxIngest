@@ -124,7 +124,7 @@ download_and_extract() {
 # Create Python virtual environment and install dependencies
 #==============================================================================
 setup_venv() {
-    uv venv .venv-${pyver}
+    uv venv --python "$(command -v python)" .venv-${pyver}
     . .venv-${pyver}/bin/activate
     
     PATH=$PATH:${HOME}/.local/bin # TODO - remove?
@@ -172,15 +172,16 @@ build_wheel() {
     # Create src-layout structure expected by uv
     mkdir -p src/ncepbufr
 
-    # Copy the platform-specific native module into the package.
-    native_module=$(find . -maxdepth 1 -name "_bufrlib.cpython-${pver}*.so" -print -quit)
+    # Upstream may install the native module at the site-packages root or inside ncepbufr.
+    native_module=$(find . -maxdepth 2 -name "_bufrlib.cpython-${pver}*.so" -print -quit)
     if [ -z "${native_module}" ]; then
-        echo "Unable to find the native _bufrlib module in ${PWD}." >&2
+        echo "Unable to find the Python ${pyver} native _bufrlib module in ${PWD}." >&2
         exit 1
     fi
     cp "${native_module}" src/_bufrlib.so
     # Copy the rest of the python files to the ncepbufr package
     cp -r ncepbufr/. src/ncepbufr/
+    rm -f src/ncepbufr/_bufrlib*.so
     
     # Copy pyproject.toml and README.md to root
     cp ${VxIngest_root_dir}/third_party/NCEPLIBS-bufr/ncepbufr/pyproject.toml .

@@ -81,20 +81,21 @@ check_required_tools() {
 # Check Python version and set up environment variables
 #==============================================================================
 setup_python_environment() {
-    pver=$(python --version | awk '{print $2}' | awk -F'.' '{print $1""$2}')
+    python_executable=$(command -v python)
+    pver=$("${python_executable}" --version | awk '{print $2}' | awk -F'.' '{print $1""$2}')
     if [ ! ${pver} -ge 313 ]; then
         echo "Wrong python version - should be greater than or equal to 3.13.x"
         exit 1
     fi
     
-    pyver=$(python --version | awk '{print $2}' | awk -F'.' '{print $1"."$2}')
+    pyver=$("${python_executable}" --version | awk '{print $2}' | awk -F'.' '{print $1"."$2}')
     echo "Using python version ${pyver}"
     
-    platform=$(python -c "import sysconfig;print(sysconfig.get_platform())")
+    platform=$("${python_executable}" -c "import sysconfig;print(sysconfig.get_platform())")
     platform=$(echo ${platform} | tr '[:upper:]' '[:lower:]' | tr '-' '_' | tr '.' '_')
     
     # Export for use in other functions
-    export pyver pver platform
+    export python_executable pyver pver platform
 }
 
 #==============================================================================
@@ -124,7 +125,7 @@ download_and_extract() {
 # Create Python virtual environment and install dependencies
 #==============================================================================
 setup_venv() {
-    uv venv --python "$(command -v python)" .venv-${pyver}
+    uv venv --python "${python_executable}" .venv-${pyver}
     . .venv-${pyver}/bin/activate
     
     PATH=$PATH:${HOME}/.local/bin # TODO - remove?
@@ -199,6 +200,14 @@ build_wheel() {
         echo "The wheel does not contain top-level _bufrlib.so: ${wheel}" >&2
         exit 1
     fi
+    validation_dir=$(mktemp -d)
+    uv venv --python "${python_executable}" "${validation_dir}/venv"
+    uv pip install --python "${validation_dir}/venv/bin/python" "${wheel}"
+    (
+        cd "${validation_dir}"
+        "${validation_dir}/venv/bin/python" -c "import ncepbufr"
+    )
+    rm -rf "${validation_dir}"
     cp ${wheel} ${VxIngest_root_dir}/third_party/NCEPLIBS-bufr/wheel_dist/${dst_name}
 }
 

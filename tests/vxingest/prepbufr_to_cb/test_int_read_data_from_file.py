@@ -387,6 +387,7 @@ def test_read_obs_data():
         None,
     ]
 
+
 @pytest.mark.integration
 def test_july_31_2024_0Z_data_diffs_with_legacy():
     """

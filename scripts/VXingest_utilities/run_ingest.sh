@@ -101,6 +101,7 @@ validate_tar_paths() {
 run_vximporter() {
 	local import_file="$1"
 	local import_log_file="$2"
+	local collection="$3"
 	local vximporter_image="${VXIMPORTER_IMAGE:-ghcr.io/noaa-gsl/vximporter:latest}"
 	local docker_run_user="${DOCKER_RUN_USER:-$(id -u):$(id -g)}"
 	local vximporter_docker_user="${VXIMPORTER_DOCKER_USER:-${docker_run_user}}"
@@ -130,12 +131,13 @@ run_vximporter() {
 	fi
 
 	echo "Running vximporter container: ${vximporter_image}"
-	echo "Importing ${import_file}; log: ${import_log_file}"
+	echo "Importing ${import_file}; log: ${import_log_file} to collection ${collection}"
 	if [ "${LOG_LEVEL:-}" = "DEBUG" ]; then
 		echo "DEBUG: Importer docker invocation:"
 		printf '  %q ' "${importer_args[@]}" "${vximporter_image}" \
 			-conn /run/config/credentials \
 			-file "${container_import_file}" \
+			-collection "${collection}" \
 			-workers "${vximporter_workers}" \
 			-batch-size "${vximporter_batch_size}"
 		echo
@@ -144,6 +146,7 @@ run_vximporter() {
 	"${importer_args[@]}" "${vximporter_image}" \
 		-conn /run/config/credentials \
 		-file "${container_import_file}" \
+		-collection "${collection}" \
 		-workers "${vximporter_workers}" \
 		-batch-size "${vximporter_batch_size}" 2>&1 | tee -a "${import_log_file}"
 	importer_status="${PIPESTATUS[0]}"
@@ -308,18 +311,21 @@ run_this_job() {
 	local docker_run_user
 	local vxingest_docker_user
 	local container_data_path
+	local collection
 	local -a ingest_args
 	local found_tar_file=false
 	local found_import_file=false
 
-	if [[ ! "${this_job_id}" =~ ^JS:.* ]]; then
-		echo "Error: job id must start with 'JS:': ${this_job_id}" >&2
+	if [[ ! "${this_job_id}" =~ ^JS:[^:]+: ]]; then
+		echo "Error: job id must include a collection after 'JS:': ${this_job_id}" >&2
 		return 1
 	fi
-
 	echo "Submitting job with ID: ${this_job_id}"
 
 	pid=$$
+	collection="${this_job_id#JS:}"
+	collection="${collection%%:*}"
+	echo "importing data to the collection: ${collection}"
 	hostname="$(hostname)"
 	temp_out_dir="${working_root_dir}/${hostname}/${pid}/temp_outdir"
 	temp_xfer_dir="${working_root_dir}/${hostname}/${pid}/temp_xfer"
@@ -420,7 +426,7 @@ run_this_job() {
 	if [[ "${this_job_failed}" -eq 0 ]]; then
 		while IFS= read -r -d '' import_file; do
 			found_import_file=true
-			if ! run_vximporter "${import_file}" "${import_log_file}"; then
+			if ! run_vximporter "${import_file}" "${import_log_file}" "${collection}"; then
 				this_job_failed=1
 				break
 			fi

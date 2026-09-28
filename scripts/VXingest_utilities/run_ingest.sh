@@ -110,7 +110,7 @@ run_vximporter() {
 	local importer_status
 	local -a importer_args
 
-	container_import_file="${import_file/#${working_root_dir}/\/opt\/data}"
+	container_import_file="${import_file/#${working_root_dir}/data-ingest/data}"
 	if [ "${container_import_file}" = "${import_file}" ]; then
 		echo "Error: import file ${import_file} is not under WORKING_ROOT_DIR (${working_root_dir})." >&2
 		return 1
@@ -122,7 +122,7 @@ run_vximporter() {
 		--quiet
 		--name "${importer_container_name}"
 		--user "${vximporter_docker_user}"
-		--mount "type=bind,source=${working_root_dir},target=/opt/data,readonly"
+		--mount "type=bind,source=${working_root_dir},target=/data-ingest/data,readonly"
 		--mount "type=bind,source=${CREDENTIALS_FILE},target=/run/config/credentials,readonly"
 	)
 	if [ -n "${LOG_LEVEL:-}" ]; then
@@ -326,10 +326,10 @@ run_this_job() {
 	log_dir="${working_root_dir}/logs"
 	metrics_dir="${working_root_dir}/common/job_metrics"
 
-	container_out_parent="/opt/data/${hostname}/${pid}/temp_outdir"
-	container_xfer_parent="/opt/data/${hostname}/${pid}/temp_xfer"
-	container_log_dir="/opt/data/logs"
-	container_metrics_dir="/opt/data/common/job_metrics"
+	container_out_parent="/data-ingest/data/${hostname}/${pid}/temp_outdir"
+	container_xfer_parent="/data-ingest/data/${hostname}/${pid}/temp_xfer"
+	container_log_dir="/data-ingest/data/logs"
+	container_metrics_dir="/data-ingest/data/common/job_metrics"
 
 	mkdir -p "${temp_out_dir}" "${temp_xfer_dir}" "${log_dir}" "${metrics_dir}" || return 1
 
@@ -362,7 +362,7 @@ run_this_job() {
 		--quiet
 		--name "${ingest_container_name}"
 		--user "${vxingest_docker_user}"
-		--mount "type=bind,source=${working_root_dir},target=/opt/data"
+		--mount "type=bind,source=${working_root_dir},target=/data-ingest/data"
 		--mount "type=bind,source=${public_dir},target=/public,readonly"
 		--mount "type=bind,source=${CREDENTIALS_FILE},target=/run/secrets/CREDENTIALS_FILE,readonly"
 	)
@@ -511,7 +511,7 @@ run_metadata_updater() {
 		docker run --rm
 		--quiet
 		--user "${metadata_updater_docker_user}"
-		--mount "type=bind,source=${working_root_dir},target=/opt/data"
+		--mount "type=bind,source=${working_root_dir},target=/data-ingest/data"
 		--mount "type=bind,source=${CREDENTIALS_FILE},target=/run/secrets/CREDENTIALS_FILE,readonly"
 		--env "LOG_LEVEL=${log_level}"
 	)

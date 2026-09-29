@@ -477,29 +477,40 @@ run_jobs() {
 		echo "Finished processing job with job id: $job_id"
 		# the job id contains ":MODEL:" also process the associated CTC and SUM documents
 		if [[ "$job_id" == *":MODEL:"* ]]; then
-			model_name="$(echo "$job_id" | cut -d: -f4)"
-			sleep 30 # give the database a little time to quiet down
-			# Construct and process the CTC job id
-			echo "Processing CTC documents for model: $model_name"
-			# CTC ids are like JS:METAR:CTC:RRFSv2_conus_3km_ret_test4_may2024:schedule:job:V01
-			ctc_id="JS:METAR:CTC:${model_name}:schedule:job:V01"
-			if ! run_this_job "$ctc_id"; then
+			if [[ "$job_id" != *":schedule:"* ]]; then
+				echo "Cannot derive model name from job id: $job_id" >&2
 				failed=1
-				echo "Failed processing CTC documents for model: $model_name" >&2
-				echo "Skipping SUMS documents for model: $model_name" >&2
 				continue
 			fi
-			echo "Finished processing CTC documents for model: $model_name"
+			# Collection follows the "JS:" prefix; the model is the segment before ":schedule:".
+			collection="${job_id#JS:}"
+			collection="${collection%%:*}"
+			model_name="${job_id%%:schedule:*}"
+			model_name="${model_name##*:}"
+			sleep 30 # give the database a little time to quiet down
 			# Construct and process the SUMS job id
 			echo "Processing SUMS documents for model: $model_name"
 			# SUMS ids are like JS:METAR:SUMS:RRFSv2_conus_3km_ret_test4_may2024:schedule:job:V01
-			sums_id="JS:METAR:SUMS:${model_name}:schedule:job:V01"
+			sums_id="JS:${collection}:SUMS:${model_name}:schedule:job:V01"
 			if ! run_this_job "$sums_id"; then
 				failed=1
 				echo "Failed processing SUMS documents for model: $model_name" >&2
 				continue
 			fi
 			echo "Finished processing SUMS documents for model: $model_name"
+			# Construct and process the CTC job id - ONLY if the job_id contains "METAR"
+			if [[ "${collection}" != "METAR" ]]; then
+				continue
+			fi
+			echo "Processing CTC documents for model: $model_name"
+			# CTC ids are like JS:METAR:CTC:RRFSv2_conus_3km_ret_test4_may2024:schedule:job:V01
+			ctc_id="JS:${collection}:CTC:${model_name}:schedule:job:V01"
+			if ! run_this_job "$ctc_id"; then
+				failed=1
+				echo "Failed processing CTC documents for model: $model_name" >&2
+				continue
+			fi
+			echo "Finished processing CTC documents for model: $model_name"
 		fi
 	done
 }

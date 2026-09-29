@@ -111,11 +111,11 @@ run_vximporter() {
 	local importer_status
 	local -a importer_args
 
-	container_import_file="${import_file/#${working_root_dir}/data-ingest/data}"
-	if [ "${container_import_file}" = "${import_file}" ]; then
+	if [[ "${import_file}" != "${working_root_dir}"/* ]]; then
 		echo "Error: import file ${import_file} is not under WORKING_ROOT_DIR (${working_root_dir})." >&2
 		return 1
 	fi
+	container_import_file="/data-ingest/data/${import_file#"${working_root_dir}"/}"
 
 	importer_container_name="vximporter-$$-$(date +%s%N)"
 	importer_args=(

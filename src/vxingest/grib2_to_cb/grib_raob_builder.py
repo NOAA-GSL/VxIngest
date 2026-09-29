@@ -13,6 +13,7 @@ import logging
 import math
 import numbers
 import sys
+import warnings
 from pathlib import Path
 from pstats import Stats
 
@@ -244,18 +245,23 @@ class GribModelRaobBuilderV01(GribBuilder):
                     "proj_params": proj_params_dict,
                 }
                 mandatory_levels = self.get_mandatory_levels()
-                datasets = cfgrib.open_datasets(
-                    queue_element,
-                    backend_kwargs={
-                        "filter_by_keys": {
-                            "typeOfLevel": "isobaricInhPa",
-                            #'shortName': 't',
-                            "stepType": "instant",
+                # cfgrib calls xr.merge without compat=, triggering an xarray FutureWarning per merge.
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore", category=FutureWarning, module="cfgrib"
+                    )
+                    datasets = cfgrib.open_datasets(
+                        queue_element,
+                        backend_kwargs={
+                            "filter_by_keys": {
+                                "typeOfLevel": "isobaricInhPa",
+                                #'shortName': 't',
+                                "stepType": "instant",
+                            },
+                            "read_keys": ["projString"],
+                            "indexpath": "",
                         },
-                        "read_keys": ["projString"],
-                        "indexpath": "",
-                    },
-                )
+                    )
 
                 # Variables short_name: long_name - hrrr_ops example
                 # 't': 'Temperature',

@@ -1137,6 +1137,15 @@ class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
             )
         return doc
 
+    def handle_level(self, params_dict):  # @UnusedVariable
+        """returns the level for this document
+        Args:
+            params_dict (dict): contains named_function parameters
+        Returns:
+            float: level
+        """
+        return self.model_data["pressure"]
+
     def handle_time(self, params_dict):  # @UnusedVariable
         """return the fcstValidTime for the current model in epoch
         Args:

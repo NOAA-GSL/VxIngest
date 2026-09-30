@@ -1,7 +1,10 @@
 import pytest
 
-from vxingest.partial_sums_to_cb.partial_sums_builder import (
+from vxingest.partial_sums_to_cb.Partial_sums_surface_builder import (
     PartialSumsSurfaceModelObsBuilderV01,
+)
+from vxingest.partial_sums_to_cb.partial_sums_upperair_builder import (
+    PartialSumsUpperairModelObsBuilderV01,
 )
 
 
@@ -85,6 +88,73 @@ def test_handle_sum_obj_param(dummy_builder, model_data, obs_data):
         "sum2_diff": 2,
         "sum_abs": 2,
     }
+
+
+def test_upperair_handle_sum_uses_wmoid_station_key():
+    builder = PartialSumsUpperairModelObsBuilderV01("load_spec", {"template": ""})
+    builder.domain_stations = [{"wmoid": "72469"}]
+    builder.obs_data = {"72469": {"temperature": 10}}
+    builder.model_data = {"data": {"72469": {"temperature": 12}}}
+
+    assert builder.handle_sum({"temperature": "temperature"}) == {
+        "num_recs": 1,
+        "sum_obs": 10,
+        "sum_model": 12,
+        "sum_diff": 2,
+        "sum2_diff": 4,
+        "sum_abs": 2,
+    }
+
+
+def test_upperair_handle_document_preserves_multiple_levels():
+    template = {
+        "id": "DD:V01:RAOB:SUMS:&handle_level:&handle_time",
+        "level": "&handle_level",
+        "fcstValidEpoch": "&handle_time",
+        "data": {"temperature": "&handle_sum|temperature"},
+    }
+    builder = PartialSumsUpperairModelObsBuilderV01("load_spec", {"template": template})
+    builder.template = template
+    builder.initialize_document_map()
+    builder.domain_stations = [{"wmoid": "72469"}]
+    builder.obs_data = {"72469": {"temperature": 10}}
+
+    for level, temperature in ((500, 12), (700, 14)):
+        builder.model_data = {
+            "level": level,
+            "fcstValidEpoch": 1000,
+            "data": {"72469": {"temperature": temperature}},
+        }
+        builder.handle_document()
+
+    assert set(builder.document_map) == {
+        "DD:V01:RAOB:SUMS:500:1000",
+        "DD:V01:RAOB:SUMS:700:1000",
+    }
+    assert builder.document_map["DD:V01:RAOB:SUMS:500:1000"]["level"] == 500
+    assert builder.document_map["DD:V01:RAOB:SUMS:700:1000"]["level"] == 700
+
+
+def test_upperair_handle_document_skips_level_when_all_sums_are_none():
+    template = {
+        "id": "DD:V01:RAOB:SUMS:&handle_level:&handle_time",
+        "level": "&handle_level",
+        "data": {"temperature": "&handle_sum|temperature"},
+    }
+    builder = PartialSumsUpperairModelObsBuilderV01("load_spec", {"template": template})
+    builder.template = template
+    builder.initialize_document_map()
+    builder.domain_stations = [{"wmoid": "72469"}]
+    builder.obs_data = {"72469": {"temperature": None}}
+    builder.model_data = {
+        "level": 500,
+        "fcstValidEpoch": 1000,
+        "data": {"72469": {"temperature": 12}},
+    }
+
+    builder.handle_document()
+
+    assert builder.document_map == {}
 
 
 class FakeCluster:

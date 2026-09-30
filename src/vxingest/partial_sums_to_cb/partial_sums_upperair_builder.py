@@ -54,7 +54,7 @@ class PartialSumsUpperairModelObsBuilderV01(PartialSumsBuilder):
             abs_diff_vals = []
             not_in_both = 0
             for station in self.domain_stations:
-                station_id = station["wmoid"]
+                station_id = str(station["wmoid"])
                 if (
                     station_id in self.obs_data
                     and station_id in self.model_data["data"]
@@ -84,13 +84,13 @@ class PartialSumsUpperairModelObsBuilderV01(PartialSumsBuilder):
                             and model_elem["wind_direction"] is not None
                         ):
                             wind_components_t = wind_components(
-                                model_elem["wind_speed"] * units.mph,
-                                (model_elem["wind_direction"] - 180) * units.deg,
+                                float(model_elem["wind_speed"]) * units.mph,
+                                float((model_elem["wind_direction"]) - 180) * units.deg,
                             )
                             model_elem["u-wind"] = wind_components_t[0].magnitude
                             model_elem["v-wind"] = wind_components_t[1].magnitude
                     obs_var = obs_elem.get(obs_var_name)
-                    model_var = model_elem.get(model_var_name)
+                    model_var = float(model_elem.get(model_var_name))
                     if obs_var is not None and model_var is not None:
                         obs_vals.append(obs_var)
                         model_vals.append(model_var)
@@ -100,12 +100,6 @@ class PartialSumsUpperairModelObsBuilderV01(PartialSumsBuilder):
                         abs_diff_vals.append(abs(diff))
                 else:
                     not_in_both += 1
-                    # logger.debug(
-                    #     "num stations:%s num_obs:%s num_model:%s not in both count is %s",
-                    #     len(self.obs_data),
-                    #     len(self.model_data["data"]),
-                    #     not_in_both,
-                    # )
             return {
                 "num_recs": len(obs_vals) if obs_vals else None,
                 "sum_obs": sum(obs_vals) if obs_vals else None,
@@ -132,7 +126,10 @@ class PartialSumsUpperairModelObsBuilderV01(PartialSumsBuilder):
                 data_elem[variable] = self.handle_named_function(
                     template_data[variable], level=level
                 )
-            doc["data"] = data_elem
+            all_values_are_none = all(
+                value is None for sums in data_elem.values() for value in sums.values()
+            )
+            doc["data"] = None if all_values_are_none else data_elem
             return doc
         except Exception as error:
             logger.error(

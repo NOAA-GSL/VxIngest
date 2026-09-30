@@ -36,7 +36,15 @@ import logging
 import time
 
 from vxingest.builder_common.ingest_manager import CommonVxIngestManager
-from vxingest.partial_sums_to_cb import partial_sums_builder as my_builder
+from vxingest.partial_sums_to_cb import (
+    Partial_sums_surface_builder,
+    partial_sums_upperair_builder,
+)
+
+_BUILDER_MODULES = (
+    Partial_sums_surface_builder,
+    partial_sums_upperair_builder,
+)
 
 # Get a logger with this module's name to help with debugging
 logger = logging.getLogger(__name__)
@@ -150,7 +158,19 @@ class VxIngestManager(CommonVxIngestManager):
             if self.ingest_type_builder_name in self.builder_map:
                 builder = self.builder_map[self.ingest_type_builder_name]
             else:
-                builder_class = getattr(my_builder, self.ingest_type_builder_name)
+                builder_class = next(
+                    (
+                        getattr(module, self.ingest_type_builder_name)
+                        for module in _BUILDER_MODULES
+                        if hasattr(module, self.ingest_type_builder_name)
+                    ),
+                    None,
+                )
+                if builder_class is None:
+                    raise AttributeError(
+                        f"No builder class named {self.ingest_type_builder_name} "
+                        f"found in {[module.__name__ for module in _BUILDER_MODULES]}"
+                    )
                 self.ingest_document = self.load_spec["ingest_documents"][queue_element]
                 builder = builder_class(self.load_spec, self.ingest_document)
                 self.builder_map[self.ingest_type_builder_name] = builder

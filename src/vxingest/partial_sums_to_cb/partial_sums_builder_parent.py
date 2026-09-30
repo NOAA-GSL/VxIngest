@@ -8,7 +8,6 @@ Colorado, NOAA/OAR/ESRL/GSL
 
 import copy
 import cProfile
-import datetime as dt
 import json
 import logging
 import re
@@ -17,8 +16,6 @@ from pstats import Stats
 
 from couchbase.exceptions import DocumentNotFoundException
 from couchbase.search import GeoBoundingBoxQuery, SearchOptions
-from metpy.calc import relative_humidity_from_dewpoint, wind_components
-from metpy.units import units
 
 from vxingest.builder_common.builder import Builder
 from vxingest.builder_common.builder_utilities import (
@@ -164,14 +161,15 @@ class PartialSumsBuilder(Builder):
         """
         try:
             template_id = kwargs["template_id"]
+            level = kwargs.get("level")
             parts = template_id.split(":")
             new_parts = []
             for part in parts:
                 if part.startswith("&"):
-                    value = str(self.handle_named_function(part))
+                    value = str(self.handle_named_function(part, level=level))
                 else:
                     if part.startswith("*"):
-                        value = str(self.translate_template_item(part))
+                        value = str(self.translate_template_item(part, level=level))
                     else:
                         value = str(part)
                 new_parts.append(value)
@@ -181,7 +179,7 @@ class PartialSumsBuilder(Builder):
             logger.exception("PARTIALSUMSBuilder.derive_id")
             return None
 
-    def translate_template_item(self, variable):
+    def translate_template_item(self, variable, level=None):
         """This method translates template replacements (*item or *item1*item2).
         It can translate keys or values.
         Args:
@@ -214,7 +212,7 @@ class PartialSumsBuilder(Builder):
             )
             return None
 
-    def handle_document(self):
+    def handle_document(self, level=None):
         """
         This routine processes the complete document matching template items to
         the self.modelData and self.obsData
@@ -231,11 +229,19 @@ class PartialSumsBuilder(Builder):
             # make a copy of the template, which will become the new document
             # once all the translations have occured
             new_document = initialize_data_array(new_document)
+            if level is not None:
+                new_document["level"] = level
             for key in self.template:
                 if key == "data":
-                    new_document = self.handle_data(doc=new_document)
+                    new_document = self.handle_data(doc=new_document, level=level)
                     continue
-                new_document = self.handle_key(new_document, key)
+                new_document = self.handle_key(new_document, key, level=level)
+            if new_document.get("data") is None:
+                logger.info(
+                    "PartialSumsBuilder.handle_document - no matched data for level %s",
+                    level,
+                )
+                return
             # put document into document map
             if new_document["id"]:
                 logger.info(
@@ -256,7 +262,7 @@ class PartialSumsBuilder(Builder):
             )
             raise _e
 
-    def handle_key(self, doc, key):
+    def handle_key(self, doc, key, level=None):
         """
         This routine handles keys by substituting
         the data that correspond to the key into the values
@@ -269,24 +275,29 @@ class PartialSumsBuilder(Builder):
 
         try:
             if key == "id":
-                an_id = self.derive_id(template_id=self.template["id"])
+                an_id = self.derive_id(template_id=self.template["id"], level=level)
                 if an_id not in doc:
                     doc["id"] = an_id
+                return doc
+            if key == "level" and level is not None:
+                doc[key] = level
                 return doc
             if isinstance(doc[key], dict):
                 # process an embedded dictionary
                 tmp_doc = copy.deepcopy(self.template[key])
                 for sub_key in tmp_doc:
-                    tmp_doc = self.handle_key(tmp_doc, sub_key)  # recursion
+                    tmp_doc = self.handle_key(
+                        tmp_doc, sub_key, level=level
+                    )  # recursion
                 doc[key] = tmp_doc
             if (
                 not isinstance(doc[key], dict)
                 and isinstance(doc[key], str)
                 and doc[key].startswith("&")
             ):
-                doc[key] = self.handle_named_function(doc[key])
+                doc[key] = self.handle_named_function(doc[key], level=level)
             else:
-                doc[key] = self.translate_template_item(doc[key])
+                doc[key] = self.translate_template_item(doc[key], level=level)
             return doc
         except Exception as _e:
             logger.exception(
@@ -295,7 +306,7 @@ class PartialSumsBuilder(Builder):
             )
         return doc
 
-    def handle_named_function(self, named_function_def):
+    def handle_named_function(self, named_function_def, level=None):
         """
         This method processes a named function entry from a template.
         Args:
@@ -327,7 +338,7 @@ class PartialSumsBuilder(Builder):
                 else:
                     params = parts[1].split(",")
             if isinstance(params, dict):
-                dict_params = params
+                dict_params = params.copy()
             else:
                 dict_params = {}
                 for _p in params:
@@ -335,9 +346,13 @@ class PartialSumsBuilder(Builder):
                     # translate_template_item returns an array of tuples - value,interp_value, one for each station
                     # ordered by domain_stations.
                     if _p[0] == "&" or _p[0] == "*":
-                        dict_params[_p[1:]] = self.translate_template_item(_p)
+                        dict_params[_p[1:]] = self.translate_template_item(
+                            _p, level=level
+                        )
                     else:
-                        dict_params[_p] = self.translate_template_item(_p)
+                        dict_params[_p] = self.translate_template_item(_p, level=level)
+            if level is not None:
+                dict_params["level"] = level
             # call the named function using getattr
             replace_with = getattr(self, func)(dict_params)
         except Exception as _e:
@@ -361,12 +376,28 @@ class PartialSumsBuilder(Builder):
                     self.obs_data = {}
                     self.obs_station_names = []
                     try:
-                        # get_stations_for_region_by_geosearch is broken for geo losts untill late 2022
-                        # full_station_name_list = self.get_stations_for_region_by_geosearch(self.region, fve)
-                        full_station_name_list = self.get_stations_for_region_by_sort(
-                            self.region, fve["fcstValidEpoch"]
-                        )
-                        self.domain_stations = full_station_name_list
+                        match self.subset:
+                            case "RAOB":
+                                if len(self.domain_stations) == 0:
+                                    stmnt = f"""SELECT {self.subset}.*
+                                        FROM `{self.bucket}`.{self.scope}.{self.collection}
+                                        WHERE type = 'MD'
+                                        AND docType = 'station'
+                                        AND subset = 'RAOB'
+                                        AND version = 'V01';"""
+                                    result = self.load_spec["cluster"].query(stmnt)
+                                    self.domain_stations = list(result)
+                            case "METAR":
+                                # get_stations_for_region_by_geosearch is broken for geo losts untill late 2022
+                                # full_station_name_list = self.get_stations_for_region_by_geosearch(self.region, fve)
+                                full_station_name_list = (
+                                    self.get_stations_for_region_by_sort(
+                                        self.region, fve["fcstValidEpoch"]
+                                    )
+                                )
+                                self.domain_stations = full_station_name_list
+                            case _:
+                                raise ValueError(f"Unsupported subset: {self.subset}")
                     except Exception as _e:
                         logger.error(
                             "%s: Exception with builder build_document: error: %s",
@@ -376,9 +407,23 @@ class PartialSumsBuilder(Builder):
 
                     # get the models and obs for this fve
                     # remove the fcstLen part
-                    obs_id = re.sub(":" + str(fve["fcstLen"]) + "$", "", fve["id"])
-                    # substitute the model part for obs
-                    obs_id = re.sub(self.model, "obs", obs_id)
+                    match self.subset:
+                        case "RAOB":
+                            # example DD:V01:RAOB:OBS:prepbufr:1000:1712685600
+                            obs_id = re.sub(
+                                ":" + str(fve["fcstLen"]) + "$", "", fve["id"]
+                            )
+                            # substitute the model part for obs
+                            obs_id = re.sub(self.model, "OBS:prepbufr", obs_id)
+                        case "METAR":
+                            # example DD:V01:RAOB:OBS:950:1790618400
+                            obs_id = re.sub(
+                                ":" + str(fve["fcstLen"]) + "$", "", fve["id"]
+                            )
+                        case _:
+                            raise ValueError(
+                                f"Unsupported subset: {self.subset} cannot determine obs id"
+                            )
                     logger.debug("Looking up model document: %s", fve["id"])
                     try:
                         # Use a singleton to avoid redundant gets for the same model doc
@@ -452,7 +497,7 @@ class PartialSumsBuilder(Builder):
                             self.obs_station_names.sort()
                         self.handle_document()
                     except DocumentNotFoundException:
-                        logger.info(
+                        logger.debug(
                             "%s handle_fcstValidEpochs: obs document %s was not found! ",
                             self.__class__.__name__,
                             fve["id"],
@@ -526,15 +571,20 @@ class PartialSumsBuilder(Builder):
                 self.subset,
             )
 
-            # get the first and last fcstValidEpoch for the METAR OBS.
+            # get the first and last fcstValidEpoch for the {self.subset} OBS.
             # This qualifies the allowed range of fcstValidEpochs that will be processed.
-            stmnt = f"""select MAX(METAR.fcstValidEpoch) maxObsEpoch, MIN(METAR.fcstValidEpoch) minObsEpoch
+            # NOTE: dataVersion is only valid for METAR
+            data_version_clause = ""
+            if {self.subset} == "METAR":
+                data_version_clause = 'AND dataVersion = "1.0.1"'
+
+            stmnt = f"""select MAX({self.subset}.fcstValidEpoch) maxObsEpoch, MIN({self.subset}.fcstValidEpoch) minObsEpoch
                         FROM `{self.bucket}`.{self.scope}.{self.collection}
                         WHERE type="DD"
                         AND subset='{self.subset}'
                         AND version="V01"
                         AND docType="obs"
-                        AND dataVersion = "1.0.1"
+                        {data_version_clause}
             """
             try:
                 result = list(self.load_spec["cluster"].query(stmnt, read_only=True))
@@ -566,7 +616,7 @@ class PartialSumsBuilder(Builder):
                 return self.get_document_map()
 
             # get the first and last fcstValidEpoch for the model for which this SUMS will be derived.
-            stmnt = f"""SELECT MAX(METAR.fcstValidEpoch) maxModelEpoch, MIN(METAR.fcstValidEpoch) minModelEpoch
+            stmnt = f"""SELECT MAX({self.subset}.fcstValidEpoch) maxModelEpoch, MIN({self.subset}.fcstValidEpoch) minModelEpoch
                         FROM `{self.bucket}`.{self.scope}.{self.collection}
                         WHERE type="DD"
                         AND subset='{self.subset}'
@@ -645,7 +695,7 @@ class PartialSumsBuilder(Builder):
             # Get the latest fcstValidEpoch for SUMS currently in the database for this model and region.
             # bounded by the min_valid_epochs and max_valid_epochs derived above.
             # If there are no SUMS for this model and region in the database it will be min_valid_epochs.
-            stmnt = f"""SELECT RAW MAX(METAR.fcstValidEpoch)
+            stmnt = f"""SELECT RAW MAX({self.subset}.fcstValidEpoch)
                     FROM `{self.bucket}`.{self.scope}.{self.collection}
                     WHERE type='DD'
                     AND docType='SUMS'
@@ -918,286 +968,3 @@ class PartialSumsBuilder(Builder):
                 str(_e),
             )
             return None
-
-
-# Concrete builders
-class PartialSumsSurfaceModelObsBuilderV01(PartialSumsBuilder):
-    """This builder creates a set of V01 partialsums documents using the data from associated
-        model and obs data for the model and the region defined in the ingest document.
-        Each document is indexed by the &handle_time:&handle_fcst_len" where the
-        handle_time returns the valid time of a model and the handle_fcst_len returns the
-        fcst_len of the model.
-        The minimum valid time that is available to be ingested for the specified model
-        and the minimum valid time for the obs that is available to be ingested,
-        where both are greater than what already exists in the database,
-        will be matched against the prescribed thresholds from the ingest metadata in
-        the MD:matsAux:COMMON:V01 metadata document in the thresholdDescriptions map.
-    Args:
-        PartialSumsSurfaceModelObsBuilderV01 (Class): parent class PartialSumsBuilder
-    """
-
-    def __init__(self, load_spec, ingest_document):
-        """This builder creates a set of V01 partialsums documents using the data from associated
-        model and obs data for the model and the region defined in the ingest document.
-        Each document is indexed by the &handle_time:&handle_fcst_len" where the
-        handle_time returns the valid time of a model and the handle_fcst_len returns the
-        fcst_len of the model.
-        The minimum valid time that is available to be ingested for the specified model
-        and the minimum valid time for the obs that is available to be ingested,
-        where both are greater than what already exists in the database,
-        will be matched against the prescribed thresholds from the ingest metadata in
-        the MD:matsAux:COMMON:V01 metadata document in the thresholdDescriptions map.
-        Args:
-            load_spec (dict): used to init the parent
-            ingest_document (dict): the document from the ingest document
-            cluster (Cluster): couchbase cluster object (used for queries)
-            collection ([type]): couchbase collection object (used for data fetch operations)
-        """
-        PartialSumsBuilder.__init__(self, load_spec, ingest_document)
-        self.template = ingest_document["template"]
-        self.ingest_document = None
-        self.template = None
-        self.subset = None
-        self.model = None
-        self.region = None
-        self.sub_doc_type = None
-        self.variable = None
-
-        # self.do_profiling = True  # set to True to enable build_document profiling
-        self.do_profiling = False  # set to True to enable build_document profiling
-
-    def initialize_document_map(self):
-        """
-        reset the document_map for a new file
-        """
-        self.document_map = {}
-
-    def get_document_map(self):
-        return self.document_map
-
-    # named functions
-
-    def handle_sum(self, params_dict):
-        """Calculate partial sums on matching model & obs values
-           for a given data set - i.e. model, region, fcstValidEpoch, fcstLen
-
-        Args:
-            params_dict (dict): Expects one of the following formats:
-                {'var_name': 'var_name'} (has one item)
-                {'model': 'model_var_name', 'obs': 'obs_var_name'}
-        Returns:
-            dict of calculated sum stats
-        """
-        try:
-            if "model" in params_dict:
-                model_var_name = params_dict["model"]
-            else:
-                model_var_name = list(params_dict.keys())[0]
-            if "obs" in params_dict:
-                obs_var_name = params_dict["obs"]
-            else:
-                obs_var_name = model_var_name
-
-            obs_vals = []
-            model_vals = []
-            diff_vals = []
-            diff_vals_squared = []
-            abs_diff_vals = []
-            not_in_both = 0
-            for name in self.domain_stations:
-                if name in self.obs_data and name in self.model_data["data"]:
-                    obs_elem = self.obs_data[name]
-                    model_elem = self.model_data["data"][name]
-                    if obs_var_name == "RH" or model_var_name == "RH":
-                        if (
-                            "RH" not in obs_elem
-                            and obs_elem["DewPoint"] is not None
-                            and obs_elem["Temperature"] is not None
-                        ):
-                            obs_elem["RH"] = (
-                                relative_humidity_from_dewpoint(
-                                    obs_elem["Temperature"] * units.degF,
-                                    obs_elem["DewPoint"] * units.degF,
-                                ).magnitude
-                            ) * 100
-                        if (
-                            "RH" not in model_elem
-                            and model_elem["DewPoint"] is not None
-                            and model_elem["Temperature"] is not None
-                        ):
-                            model_elem["RH"] = (
-                                relative_humidity_from_dewpoint(
-                                    model_elem["Temperature"] * units.degF,
-                                    model_elem["DewPoint"] * units.degF,
-                                ).magnitude
-                            ) * 100
-                    if (obs_var_name == "UW" or model_var_name == "UW") or (
-                        obs_var_name == "VW" or model_var_name == "VW"
-                    ):
-                        # wind direction in the data is from 0 to 360 and we need it from -180 to 180
-                        if (
-                            ("UW" not in obs_elem or "VW" not in obs_elem)
-                            and obs_elem["WS"] is not None
-                            and obs_elem["WD"] is not None
-                        ):
-                            wind_components_t = wind_components(
-                                obs_elem["WS"] * units.mph,
-                                (obs_elem["WD"] - 180) * units.deg,
-                            )
-                            obs_elem["UW"] = wind_components_t[0].magnitude
-                            obs_elem["VW"] = wind_components_t[1].magnitude
-                        if (
-                            ("UW" not in model_elem or "VW" not in model_elem)
-                            and model_elem["WS"] is not None
-                            and model_elem["WD"] is not None
-                        ):
-                            wind_components_t = wind_components(
-                                model_elem["WS"] * units.mph,
-                                (model_elem["WD"] - 180) * units.deg,
-                            )
-                            model_elem["UW"] = wind_components_t[0].magnitude
-                            model_elem["VW"] = wind_components_t[1].magnitude
-                    obs_var = obs_elem.get(obs_var_name)
-                    model_var = model_elem.get(model_var_name)
-                    # If there is no observation or model data for this variable for this station, skip it
-                    if obs_var is not None and model_var is not None:
-                        obs_vals.append(obs_var)
-                        model_vals.append(model_var)
-                        _diff = model_var - obs_var
-                        diff_vals.append(_diff)
-                        diff_vals_squared.append(_diff * _diff)
-                        abs_diff_vals.append(abs(_diff))
-                else:
-                    # logger.debug("name %s is not in both model and obs", name)
-                    not_in_both += 1
-            logger.debug(
-                "num stations:%s num_obs:%s num_model:%s  not in both count is %s",
-                self.domain_stations,
-                len(self.obs_data),
-                len(self.model_data["data"]),
-                not_in_both,
-            )
-            sum_elem = {
-                "num_recs": len(obs_vals) if obs_vals else None,
-                "sum_obs": sum(obs_vals) if obs_vals else None,
-                "sum_model": sum(model_vals) if model_vals else None,
-                "sum_diff": sum(diff_vals) if diff_vals else None,
-                "sum2_diff": sum(diff_vals_squared) if diff_vals_squared else None,
-                "sum_abs": sum(abs_diff_vals) if abs_diff_vals else None,
-            }
-            return sum_elem
-        except Exception as _e:
-            logger.error(
-                "%s handle_sum: Exception :  error: %s",
-                self.__class__.__name__,
-                str(_e),
-            )
-            return None
-
-    def handle_data(self, **kwargs):
-        """
-        This routine processes the partialsums data element. The data elements are
-        variables for which we will derive a set of sums. The sums are
-        derived from the model and observation data for the specific time, model, fcstLen
-        and region. A region might be a vegitation type, or a lat/lon bounding box.
-        :return: The modified document_map data section that looks like ...
-         "data": {
-            Temperature: "
-            {
-                    “num_recs”: # matched pairs,
-                    “sum_obs”: sum of all the observation values for each matched pair,
-                “sum_model”: sum of all the model values for each matched pair,
-                “sum_diff”: sum of all variables differences, obs-model,
-                “sum2_diff”: sum of all variable differences squared, obs-model,
-            },
-            WindSpeed: {...},
-            WindU: {...},
-            WindV: {...},
-            DewPoint: {...},
-            RelativeHumidity: {...},
-            SurfacePressure: {...}
-        }
-        """
-        try:
-            doc = kwargs["doc"]
-            template_data = self.template["data"]
-            data_elem = {}
-            # it is expected that the template data section be comprised of named functions
-            for variable in template_data:
-                data_elem[variable] = self.handle_named_function(
-                    template_data[variable]
-                )
-            doc["data"] = data_elem
-            return doc
-        except Exception as _e:
-            logger.error(
-                "%s handle_data: Exception :  error: %s",
-                self.__class__.__name__,
-                str(_e),
-            )
-        return doc
-
-    def handle_level(self, params_dict):  # @UnusedVariable
-        """returns the level for this document
-        Args:
-            params_dict (dict): contains named_function parameters
-        Returns:
-            float: level
-        """
-        return self.model_data["pressure"]
-
-    def handle_time(self, params_dict):  # @UnusedVariable
-        """return the fcstValidTime for the current model in epoch
-        Args:
-            params_dict (dict): contains named_function parameters
-        Returns:
-            int: epoch
-        """
-        return self.model_data["fcstValidEpoch"]
-
-    def handle_iso_time(self, params_dict):  # @UnusedVariable
-        """return the fcstValidTime for the current model in ISO
-        Args:
-            params_dict (dict): contains named_function parameters
-        Returns:
-            string: ISO time string
-        """
-        return dt.datetime.fromtimestamp(
-            self.model_data["fcstValidEpoch"], tz=dt.UTC
-        ).isoformat()
-
-    def handle_fcst_len(self, params_dict):  # @UnusedVariable
-        """returns the fcst lead time in hours for this document
-        Args:
-            params_dict (dict): contains named_function parameters
-        Returns:
-            int: a fcst lead time in hours
-        """
-        return self.model_data["fcstLen"]
-
-    def handleWindDirU(self, params_dict):  # @UnusedVariable
-        """returns the wind direction U component for this document
-        Args:
-            params_dict (dict): contains named_function parameters
-        Returns:
-            float: wind direction U component
-        """
-        return self.model_data["windDirU"]
-
-    def handleWindDirV(self, params_dict):  # @UnusedVariable
-        """returns the wind direction V component for this document
-        Args:
-            params_dict (dict): contains named_function parameters
-        Returns:
-            float: wind direction V component
-        """
-        return self.model_data["windDirV"]
-
-    def handle_specific_humidity(self, params_dict):  # @UnusedVariable
-        """returns the specific humidity for this document
-        Args:
-            params_dict (dict): contains named_function parameters
-        Returns:
-            float: specific humidity
-        """
-        return self.model_data["specificHumidity"]

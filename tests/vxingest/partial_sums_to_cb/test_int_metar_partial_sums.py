@@ -20,7 +20,9 @@ from couchbase.options import (
     QueryOptions,
 )
 
-from vxingest.partial_sums_to_cb import partial_sums_builder
+from vxingest.partial_sums_to_cb.Partial_sums_surface_builder import (
+    PartialSumsSurfaceModelObsBuilderV01,
+)
 from vxingest.partial_sums_to_cb.run_ingest_threads import VXIngest
 
 # This test expects to find obs data and model data
@@ -176,7 +178,7 @@ def test_get_stations_geo_search():
     )
     ingest_document = ingest_document_result.content_as[dict]
     # instantiate a partialsumsBuilder so we can use its get_station methods
-    builder_class = partial_sums_builder.PartialSumsSurfaceModelObsBuilderV01
+    builder_class = PartialSumsSurfaceModelObsBuilderV01
     builder = builder_class(load_spec, ingest_document)
     # usually these would get assigned in build_document
     builder.bucket = _bucket
@@ -524,7 +526,7 @@ def _calculate_and_compare_sums(job_id, region, model):
             .scope(_scope)
             .collection("COMMON"),
         }
-        builder = partial_sums_builder.PartialSumsSurfaceModelObsBuilderV01(
+        builder = PartialSumsSurfaceModelObsBuilderV01(
             load_spec, ingest_documents[ingest_document_ids[0]]
         )
         generated_data = builder.build_document(ingest_document_ids[0])

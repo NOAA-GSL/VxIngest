@@ -5,7 +5,7 @@ set -euo pipefail
 # Helper function for usage info
 show_help() {
     echo "Usage: cb-get <doc_id> [options]"
-    echo "Retrieves a Couchbase document using cbc-cat."
+    echo "Retrieves a Couchbase document using cbc-cat. Requires a ~/credentials-capella file with Couchbase credentials."
     echo ""
     echo "Arguments:"
     echo "  doc_id                  The document ID to fetch (Required)"

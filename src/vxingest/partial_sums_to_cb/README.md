@@ -3,7 +3,7 @@
 ## purpose
 
 This builder is intended to import partial sums data into Couchbase taking advantage of the GSL Couchbase data schema that has been developed by the GSL AVID model verification team.
-The partial_sums_builder.py program provides a PartialSumsBuilder class that will read existing model and observation data and, using the formula above, create PartialSums documents that can be imported into the database.
+The `partial_sums_builder_parent.py` module provides a `PartialSumsBuilder` class that reads existing model and observation data and creates partial-sums documents that can be imported into the database. The surface and upper-air implementations live in `Partial_sums_surface_builder.py` and `partial_sums_upperair_builder.py`.
 
 ## How Partial Sums tables are derived
 
@@ -57,7 +57,7 @@ the associated metadata documents.
 
 ## Builder class
 
-The builder is [PartialSumsSurfaceModelObsBuilderV01](partial_sums_builder.py)
+The surface builder is [PartialSumsSurfaceModelObsBuilderV01](Partial_sums_surface_builder.py), and the upper-air builder is [PartialSumsUpperairModelObsBuilderV01](partial_sums_upperair_builder.py).
 
 There is a base PartialSumsBuilder which has the generic code for reading a pair of documents and generating model obs sums and then there is a specialized PartialSumsSurfaceModelObsBuilderV01 that inherits from the generic class. Specific information for these classes is available in the docstring for each class.
 
@@ -106,7 +106,7 @@ be certain that it already exists in the couchbase cluster or you must create it
 The line
 ```"builderType": "PartialSumsSurfaceModelObsBuilderV01"```
 refers to a python class. This builder class is defined
-in the sums_builder.py file. This class will interpret the
+in the `Partial_sums_surface_builder.py` file. This class will interpret the
 load_spec and ingest data from a set of model and observation documents to create the sums documents.
 Notice
 

@@ -38,7 +38,9 @@ src/vxingest/                       # Main package (src-layout)
 │   └── vx_ingest_manager.py        # Worker thread manager
 ├── partial_sums_to_cb/             # Partial Sums (Couchbase → Couchbase)
 │   ├── run_ingest_threads.py       # VXIngest.runit() entry point
-│   ├── partial_sums_builder.py     # Partial sums calculation
+│   ├── partial_sums_builder_parent.py # Shared partial sums behavior
+│   ├── Partial_sums_surface_builder.py # Surface partial sums calculation
+│   ├── partial_sums_upperair_builder.py # Upper-air partial sums calculation
 │   └── vx_ingest_manager.py        # Worker thread manager
 ├── prepbufr_to_cb/                 # PREPBUFR (not yet enabled)
 └── utilities/                      # One-off utility scripts

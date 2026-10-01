@@ -535,7 +535,7 @@ class GribModelRaobBuilderV01(GribBuilder):
                 return None
             return [
                 (
-                    (math.sqrt(float(u_value) ** 2 + float(v_value) ** 2) / 0.447) + 0.5
+                    (math.sqrt(float(u_value) ** 2 + float(v_value) ** 2) / 0.447)
                     if u_value is not None and v_value is not None
                     else None
                 )

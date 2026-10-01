@@ -921,7 +921,7 @@ class GribModelMetarBuilderV01(GribBuilder):
         for _i, uwind_ms in enumerate(uwind_ms_values):
             vwind_ms = vwind_ms_values[_i]
             ws_ms = math.sqrt((uwind_ms * uwind_ms) + (vwind_ms * vwind_ms))
-            ws_mph.append((float)((ws_ms / 0.447) + 0.5))
+            ws_mph.append((float)(ws_ms / 0.447))
         return ws_mph
 
     @_handle_exceptions

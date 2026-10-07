@@ -1,6 +1,7 @@
 import tarfile
 import unittest
 from pathlib import Path
+from unittest.mock import create_autospec
 
 import pytest
 import yaml
@@ -10,6 +11,7 @@ from vxingest.main import (
     create_dirs,
     determine_num_processes,
     get_credentials,
+    get_runtime_job_criteria,
     make_tarfile,
 )
 
@@ -57,7 +59,7 @@ def test_create_dirs(tmp_path: Path):
 @pytest.fixture
 def mock_cluster():
     """Test fixture to create a mock Couchbase Cluster object instance with a known return value"""
-    mock_cluster = unittest.mock.create_autospec(Cluster, instance=True)
+    mock_cluster = create_autospec(Cluster, instance=True)
     mock_cluster.query.return_value = [
         {
             "id": "job1",
@@ -69,6 +71,29 @@ def mock_cluster():
         }
     ]
     return mock_cluster
+
+
+@pytest.mark.parametrize(
+    ("testing_mode", "expected_statuses"),
+    [
+        (True, ("active", "test", "override")),
+        (False, ("active", "override")),
+    ],
+)
+def test_get_runtime_job_criteria_status_filter(
+    mock_cluster, monkeypatch, testing_mode, expected_statuses
+):
+    if testing_mode:
+        monkeypatch.setenv("TESTING", "1")
+    else:
+        monkeypatch.delenv("TESTING", raising=False)
+
+    get_runtime_job_criteria(mock_cluster, {"cb_bucket": "bucket"}, "job-id")
+
+    query = mock_cluster.query.call_args.args[0]
+    for status in ("active", "test", "override"):
+        condition = f"LOWER(status) = '{status}'"
+        assert (condition in query) is (status in expected_statuses)
 
 
 @pytest.mark.parametrize(

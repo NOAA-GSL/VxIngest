@@ -245,8 +245,9 @@ def get_runtime_job_criteria(
         ValueError: If job_id is not provided.
 
     Note:
-        If the TESTING environment variable is set, both status='active' and status='test' documents are retrieved.
-        Otherwise, only status='active' documents are retrieved.
+        Documents with status='active' or status='override' are always retrieved.
+        If the TESTING environment variable is set, status='test' documents are
+        also retrieved.
     """
     if not job_id:
         raise ValueError("job_id must be provided to get_runtime_job_doc")
@@ -262,14 +263,13 @@ def get_runtime_job_criteria(
                 f"Job ID {job_id} contains 'test' but TESTING mode is not enabled."
             )
         logger.info(
-            f"TESTING mode is not enabled. Fetching only active job document for job_id: {job_id}"
+            f"TESTING mode is not enabled. Fetching active or override job document for job_id: {job_id}"
         )
-    # Build the query to fetch a specific job document by ID
-    # When testing_mode is True, allow both active and test status; otherwise, only allow active
+    # Override jobs are always eligible; test jobs require testing mode.
     status_condition = (
-        "(LOWER(status) = 'active' OR LOWER(status) = 'test')"
+        "(LOWER(status) = 'active' OR LOWER(status) = 'test' OR LOWER(status) = 'override')"
         if testing_mode
-        else "LOWER(status) = 'active'"
+        else "(LOWER(status) = 'active' OR LOWER(status) = 'override')"
     )
     query = f"""
         SELECT meta().id AS id,
@@ -287,7 +287,9 @@ def get_runtime_job_criteria(
     row_iter = cluster.query(query, QueryOptions(read_only=True))  # type: ignore[assignment]
     for row in row_iter:
         return row
-    expected_status = "active or test" if testing_mode else "active"
+    expected_status = (
+        "active, test, or override" if testing_mode else "active or override"
+    )
     logger.warning(
         f"No runtime job document found with ID: {job_id} and status '{expected_status}'"
     )

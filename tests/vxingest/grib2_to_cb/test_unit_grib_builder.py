@@ -147,7 +147,7 @@ def test_raob_wind_speed_uses_u_and_v_interpolated_values():
 
     assert builder.handle_raob_variable(params, "u") == [3.0]
     assert builder.handle_raob_variable(params, "v") == [4.0]
-    assert builder.handle_wind_speed(params) == pytest.approx([(5.0 / 0.447) + 0.5])
+    assert builder.handle_wind_speed(params) == pytest.approx([(5.0 / 0.447)])
 
 
 def test_raob_named_variable_handler_uses_template_short_name():

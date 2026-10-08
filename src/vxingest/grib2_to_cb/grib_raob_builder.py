@@ -535,7 +535,8 @@ class GribModelRaobBuilderV01(GribBuilder):
                 return None
             return [
                 (
-                    (math.sqrt(float(u_value) ** 2 + float(v_value) ** 2) / 0.447) + 0.5
+                    # also convert from meters per second to miles per hour
+                    (math.sqrt(float(u_value) ** 2 + float(v_value) ** 2) / 0.447)
                     if u_value is not None and v_value is not None
                     else None
                 )
@@ -717,4 +718,30 @@ class GribModelRaobBuilderV01(GribBuilder):
             logger.exception(
                 "%s.handle_level failed: %s", self.__class__.__name__, error
             )
+            return None
+
+    def handle_kg_to_g(self, params_dict):  # @UnusedVariable
+        """convert a value from kilograms to grams
+        Args:
+            params_dict (object): named function parameters, expects a key "value" with the value in kilograms
+        Returns:
+            float: value in grams
+        """
+        try:
+            return float(params_dict["value"]) * 1000.0
+        except (KeyError, TypeError, ValueError) as error:
+            logger.exception("handle_kg_to_g failed: %s", error)
+            return None
+
+    def handle_mg_to_g(self, params_dict):  # @UnusedVariable
+        """convert a value from milligrams to grams
+        Args:
+            params_dict (object): named function parameters, expects a key "value" with the value in milligrams
+        Returns:
+            float: value in grams
+        """
+        try:
+            return float(params_dict["value"]) / 1000.0
+        except (KeyError, TypeError, ValueError) as error:
+            logger.exception("handle_mg_to_g failed: %s", error)
             return None

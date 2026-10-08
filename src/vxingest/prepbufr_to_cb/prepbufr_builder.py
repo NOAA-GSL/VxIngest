@@ -1965,6 +1965,29 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
             )
             return None
 
+    def knots_to_miles_per_hour(self, params_dict):
+        """Converts knots to miles per hour performing any translations that are necessary
+        Args:
+            params_dict (dict): named function parameters
+        Returns:
+            float: value converted from knots to miles per hour
+        """
+        try:
+            value = next(iter(params_dict.items()))[1]
+            # value might have been masked (there is probably a better way to deal with this)
+            if not self.is_a_number(value):
+                return None
+            else:
+                value = round(float(value) * 1.150779448, 4)
+            return value
+        except Exception as _e:
+            logger.error(
+                "%s handle_data: Exception in named function knots_to_miles_per_hour:  error: %s",
+                self.__class__.__name__,
+                str(_e),
+            )
+            return None
+
     def celsius_to_fahrenheit(self, params_dict):
         """Converts celsius to fahrenheit performing any translations that are necessary
         Args:
@@ -2268,7 +2291,7 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
             )
         return None
 
-    def get_valid_time_epoch(self, params_dict=None):
+    def get_valid_time_epoch(self, params_dict=None):  # @UnusedVariable
         """
         This routine returns the valid time epoch
         """
@@ -2283,3 +2306,16 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                 str(_e),
             )
         return None
+
+    def handle_mg_to_g(self, params_dict=None):  # @UnusedVariable
+        """convert a value from milligrams to grams
+        Args:
+            params_dict (object): named function parameters, expects a key "value" with the value in milligrams
+        Returns:
+            float: value in grams
+        """
+        try:
+            return float(params_dict["value"]) / 1000.0
+        except (KeyError, TypeError, ValueError) as error:
+            logger.exception("handle_mg_to_g failed: %s", error)
+            return None

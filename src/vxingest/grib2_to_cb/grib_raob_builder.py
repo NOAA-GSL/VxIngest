@@ -730,9 +730,7 @@ class GribModelRaobBuilderV01(GribBuilder):
         try:
             return float(params_dict["value"]) * 1000.0
         except (KeyError, TypeError, ValueError) as error:
-            logger.exception(
-                "handle_kg_to_g failed: %s", error
-            )
+            logger.exception("handle_kg_to_g failed: %s", error)
             return None
 
     def handle_mg_to_g(self, params_dict):  # @UnusedVariable
@@ -745,7 +743,5 @@ class GribModelRaobBuilderV01(GribBuilder):
         try:
             return float(params_dict["value"]) / 1000.0
         except (KeyError, TypeError, ValueError) as error:
-            logger.exception(
-                "handle_mg_to_g failed: %s", error
-            )
+            logger.exception("handle_mg_to_g failed: %s", error)
             return None

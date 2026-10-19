@@ -739,9 +739,7 @@ class GribModelRaobBuilderV01(GribBuilder):
             )
             for _v, v_intrp_tempf in variable_values:
                 tempf_values.append(
-                    float(v_intrp_tempf) * 1000
-                    if v_intrp_tempf is not None
-                    else None
+                    float(v_intrp_tempf) * 1000 if v_intrp_tempf is not None else None
                 )
             return tempf_values
         except (KeyError, TypeError, ValueError) as error:

@@ -737,7 +737,6 @@ class GribModelRaobBuilderV01(GribBuilder):
                 (value for key, value in params_dict.items() if key != "level"),
                 [],
             )
-            #return float(variable_values * 1000)
             for _v, v_intrp_tempf in variable_values:
                 tempf_values.append(
                     float(v_intrp_tempf) * 1000

@@ -628,7 +628,11 @@ class GribModelRaobBuilderV01(GribBuilder):
         try:
             # Convert each station value from Kelvin to Fahrenheit
             tempf_values = []
-            for _v, v_intrp_tempf in list(params_dict.values())[0]:
+            variable_values = next(
+                (value for key, value in params_dict.items() if key != "level"),
+                [],
+            )
+            for _v, v_intrp_tempf in variable_values:
                 tempf_values.append(
                     ((float(v_intrp_tempf) - 273.15) * 9) / 5 + 32
                     if v_intrp_tempf is not None
@@ -728,7 +732,19 @@ class GribModelRaobBuilderV01(GribBuilder):
             float: value in grams
         """
         try:
-            return float(params_dict["value"]) * 1000.0
+            tempf_values = []
+            variable_values = next(
+                (value for key, value in params_dict.items() if key != "level"),
+                [],
+            )
+            #return float(variable_values * 1000)
+            for _v, v_intrp_tempf in variable_values:
+                tempf_values.append(
+                    float(v_intrp_tempf) * 1000
+                    if v_intrp_tempf is not None
+                    else None
+                )
+            return tempf_values
         except (KeyError, TypeError, ValueError) as error:
             logger.exception("handle_kg_to_g failed: %s", error)
             return None

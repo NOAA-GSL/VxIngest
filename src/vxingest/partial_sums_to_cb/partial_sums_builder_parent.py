@@ -372,6 +372,7 @@ class PartialSumsBuilder(Builder):
         try:
             _obs_data = {}
             for fve in self.model_elements_by_fcstValid_epoch:
+                logger.info("handling fcstValidEpochs: %s", fve)
                 try:
                     self.obs_data = {}
                     self.obs_station_names = []
@@ -542,7 +543,9 @@ class PartialSumsBuilder(Builder):
 
         try:
             # don't read model/obs data that VxImporter may still be writing
+            logger.info("waiting for import lock to free")
             self.wait_for_import_lock()
+            logger.info("importer lock free - continuing")
             # reset the builders document_map for a new file
             self.initialize_document_map()
             self.not_found_station_count = 0

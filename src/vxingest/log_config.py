@@ -141,3 +141,5 @@ def worker_log_configurer(queue):
     root.setLevel(
         logging.DEBUG
     )  # Send everything to the log queue and let the root logger filter
+    # supress long query messages from couchbase.threshold
+    logging.getLogger("couchbase.threshold").setLevel(logging.WARNING)

@@ -370,6 +370,7 @@ run_this_job() {
 		--name "${ingest_container_name}"
 		--user "${vxingest_docker_user}"
 		--env "PYTHONUNBUFFERED=1"
+		--env "MPLCONFIGDIR=${working_root_dir}/.matplotlib"
 		--mount "type=bind,source=${working_root_dir},target=/data-ingest/data"
 		--mount "type=bind,source=${public_dir},target=/public,readonly"
 		--mount "type=bind,source=${CREDENTIALS_FILE},target=/run/secrets/CREDENTIALS_FILE,readonly"

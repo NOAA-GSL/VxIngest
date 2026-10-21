@@ -364,6 +364,7 @@ run_this_job() {
 	vxingest_docker_user="${VXINGEST_DOCKER_USER:-${docker_run_user}}"
 	ingest_container_name="vxingest-${pid}-${timestamp}"
 	# NOTE the PYTHONUNBUFFERED environment variable is set to ensure real-time logging from the container
+	# Also the tee command is used to capture the container output to the log file
 	ingest_args=(
 		docker run --rm
 		--quiet
@@ -401,7 +402,7 @@ run_this_job() {
 		-l "${container_log_dir}" \
 		-m "${container_metrics_dir}" \
 		-x "${container_tmp_xfer}" \
-		-j "${this_job_id}" >"${ingest_log_file}" 2>&1; then
+		-j "${this_job_id}" 2>&1 | tee -a "${ingest_log_file}"; then
 		echo "Error: VxIngest run failed for job id: ${this_job_id}" >&2
 		this_job_failed=1
 	fi

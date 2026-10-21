@@ -363,11 +363,13 @@ run_this_job() {
 	docker_run_user="${DOCKER_RUN_USER:-$(id -u):$(id -g)}"
 	vxingest_docker_user="${VXINGEST_DOCKER_USER:-${docker_run_user}}"
 	ingest_container_name="vxingest-${pid}-${timestamp}"
+	# NOTE the PYTHONUNBUFFERED environment variable is set to ensure real-time logging from the container
 	ingest_args=(
 		docker run --rm
 		--quiet
 		--name "${ingest_container_name}"
 		--user "${vxingest_docker_user}"
+		--env "PYTHONUNBUFFERED=1"
 		--mount "type=bind,source=${working_root_dir},target=/data-ingest/data"
 		--mount "type=bind,source=${public_dir},target=/public,readonly"
 		--mount "type=bind,source=${CREDENTIALS_FILE},target=/run/secrets/CREDENTIALS_FILE,readonly"

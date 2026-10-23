@@ -1925,7 +1925,11 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         """
         # Meters/second to miles/hour
         try:
-            value = next(iter(params_dict.items()))[1]
+            field = next(
+                (key for key in params_dict if key not in {"level", "stationName"}),
+                None,
+            )
+            value = params_dict[field]
             # value might have been masked (there is probably a better way to deal with this)
             if not self.is_a_number(value):
                 return None
@@ -1950,7 +1954,11 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
             float: value converted from knots to meters per second
         """
         try:
-            value = next(iter(params_dict.items()))[1]
+            field = next(
+                (key for key in params_dict if key not in {"level", "stationName"}),
+                None,
+            )
+            value = params_dict[field]
             # value might have been masked (there is probably a better way to deal with this)
             if not self.is_a_number(value):
                 return None
@@ -1973,7 +1981,11 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
             float: value converted from knots to miles per hour
         """
         try:
-            value = next(iter(params_dict.items()))[1]
+            field = next(
+                (key for key in params_dict if key not in {"level", "stationName"}),
+                None,
+            )
+            value = params_dict[field]
             # value might have been masked (there is probably a better way to deal with this)
             if not self.is_a_number(value):
                 return None
@@ -1997,8 +2009,12 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         """
 
         try:
-            value = next(iter(params_dict.items()))[1]
             # value might have been masked (there is probably a better way to deal with this)
+            field = next(
+                (key for key in params_dict if key not in {"level", "stationName"}),
+                None,
+            )
+            value = params_dict[field]
             if not self.is_a_number(value):
                 return None
             else:
@@ -2020,7 +2036,11 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
             [type]: [description]
         """
         try:
-            value = next(iter(params_dict.items()))[1]
+            field = next(
+                (key for key in params_dict if key not in {"level", "stationName"}),
+                None,
+            )
+            value = params_dict[field]
             # value might have been masked (there is probably a better way to deal with this)
             if not self.is_a_number(value):
                 return None
@@ -2043,7 +2063,11 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
             [type]: [description]
         """
         try:
-            value = next(iter(params_dict.items()))[1]
+            field = next(
+                (key for key in params_dict if key not in {"level", "stationName"}),
+                None,
+            )
+            value = params_dict[field]
             # value might have been masked (there is probably a better way to deal with this)
             if not self.is_a_number(value):
                 return None
@@ -2315,7 +2339,11 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
             float: value in grams
         """
         try:
-            return float(params_dict["value"]) / 1000.0
+            field = next(
+                (key for key in params_dict if key not in {"level", "stationName"}),
+                None,
+            )
+            return float(params_dict[field]) / 1000.0
         except (KeyError, TypeError, ValueError) as error:
             logger.exception("handle_mg_to_g failed: %s", error)
             return None

@@ -1929,6 +1929,8 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                 (key for key in params_dict if key not in {"level", "stationName"}),
                 None,
             )
+            if field is None or params_dict[field] is None:
+                return None
             value = params_dict[field]
             # value might have been masked (there is probably a better way to deal with this)
             if not self.is_a_number(value):
@@ -1958,6 +1960,8 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                 (key for key in params_dict if key not in {"level", "stationName"}),
                 None,
             )
+            if field is None or params_dict[field] is None:
+                return None
             value = params_dict[field]
             # value might have been masked (there is probably a better way to deal with this)
             if not self.is_a_number(value):
@@ -1985,6 +1989,8 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                 (key for key in params_dict if key not in {"level", "stationName"}),
                 None,
             )
+            if field is None or params_dict[field] is None:
+                return None
             value = params_dict[field]
             # value might have been masked (there is probably a better way to deal with this)
             if not self.is_a_number(value):
@@ -2014,6 +2020,8 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                 (key for key in params_dict if key not in {"level", "stationName"}),
                 None,
             )
+            if field is None or params_dict[field] is None:
+                return None
             value = params_dict[field]
             if not self.is_a_number(value):
                 return None
@@ -2040,6 +2048,8 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                 (key for key in params_dict if key not in {"level", "stationName"}),
                 None,
             )
+            if field is None or params_dict[field] is None:
+                return None
             value = params_dict[field]
             # value might have been masked (there is probably a better way to deal with this)
             if not self.is_a_number(value):
@@ -2067,6 +2077,8 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                 (key for key in params_dict if key not in {"level", "stationName"}),
                 None,
             )
+            if field is None or params_dict[field] is None:
+                return None
             value = params_dict[field]
             # value might have been masked (there is probably a better way to deal with this)
             if not self.is_a_number(value):
@@ -2343,6 +2355,8 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                 (key for key in params_dict if key not in {"level", "stationName"}),
                 None,
             )
+            if field is None or params_dict[field] is None:
+                return None
             return float(params_dict[field]) / 1000.0
         except (KeyError, TypeError, ValueError) as error:
             logger.exception("handle_mg_to_g failed: %s", error)

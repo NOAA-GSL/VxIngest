@@ -417,10 +417,12 @@ class PartialSumsBuilder(Builder):
                             # substitute the model part for obs
                             obs_id = re.sub(self.model, "OBS:prepbufr", obs_id)
                         case "METAR":
-                            # example DD:V01:RAOB:OBS:950:1790618400
+                            # example DD:V01:METAR:obs:1721804400
                             obs_id = re.sub(
                                 ":" + str(fve["fcstLen"]) + "$", "", fve["id"]
                             )
+                            # substitute the model part for obs
+                            obs_id = re.sub(self.model, "obs", obs_id)
                         case _:
                             raise ValueError(
                                 f"Unsupported subset: {self.subset} cannot determine obs id"

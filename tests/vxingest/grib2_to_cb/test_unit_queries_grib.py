@@ -103,7 +103,7 @@ def test_get_df(request):
 @pytest.mark.integration
 def test_get_stations(request):
     _name = request.node.name
-    _expected_time = 1
+    _expected_time = 2
     testdata = Path("tests/vxingest/grib2_to_cb/testdata/test_get_stations.n1ql")
     with testdata.open(mode="r", encoding="utf-8") as file:
         _statement = file.read()

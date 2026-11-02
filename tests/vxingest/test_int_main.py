@@ -630,16 +630,12 @@ def check_output(tmp_path, vx_ingest, file_count, success_count=1):
         with metrics_file.open("r") as f:
             metrics_content = f.read()
             try:
-                pattern = r"run_ingest_success_count_total [1-9]\d{0,1}\.0"
-                assert re.search(pattern, metrics_content), (
-                    "Expected regex 'run_ingest_success_count_total [1-9]\\d{0,1}.0' in metrics_content"
+                pattern = r"^run_ingest_success_count_total\s+(\d+)\.0$"
+                success_match = re.search(pattern, metrics_content, re.MULTILINE)
+                assert success_match, (
+                    "Expected a run_ingest_success_count_total metric in metrics_content"
                 )
-                got_success_count = int(
-                    re.search(pattern, metrics_content)
-                    .group()
-                    .split()[-1]
-                    .split(".")[0]
-                )
+                got_success_count = int(success_match.group(1))
                 assert got_success_count == success_count, (
                     f"Expected run_ingest_success_count_total to equal {success_count}.0 in metrics_content but it is {got_success_count}.0"
                 )

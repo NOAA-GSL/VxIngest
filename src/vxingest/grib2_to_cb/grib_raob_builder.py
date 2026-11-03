@@ -754,7 +754,13 @@ class GribModelRaobBuilderV01(GribBuilder):
             float: value in grams
         """
         try:
-            return float(params_dict["value"]) / 1000.0
+            field = next(
+                (key for key in params_dict if key not in {"level", "stationName"}),
+                None,
+            )
+            if field is None or params_dict[field] is None:
+                return None
+            return float(params_dict[field]) / 1000.0
         except (KeyError, TypeError, ValueError) as error:
             logger.exception("handle_mg_to_g failed: %s", error)
             return None

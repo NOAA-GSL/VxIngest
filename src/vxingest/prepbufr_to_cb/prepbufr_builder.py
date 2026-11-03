@@ -625,6 +625,7 @@ class PrepbufrBuilder(Builder):
                 func,
                 params,
             )
+            raise
         return replace_with
 
     def handle_data(self, level, **kwargs):
@@ -1815,6 +1816,12 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                     subset_data = {}
                     # read the header data
                     header_data = self.read_data_from_bufr(bufr, templates["header"])
+                    if header_data is None:
+                        logger.warning(
+                            "PrepBufrBuilder.read_data_from_file: skipping subset in %s: missing decoded header",
+                            queue_element,
+                        )
+                        continue
                     # only save report types that are in the template
                     # if we already have data for this station - skip it
                     if header_data["report_type"] not in templates["bufr_report_types"]:
@@ -1835,6 +1842,18 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                     obs_data = self.read_data_from_bufr(
                         bufr, templates["obs_data_" + str(header_data["report_type"])]
                     )
+                    if (
+                        obs_data is None
+                        or obs_data.get("pressure") is None
+                        or len(obs_data["pressure"]) == 0
+                    ):
+                        logger.warning(
+                            "PrepBufrBuilder.read_data_from_file: skipping subset in %s for station %s report type %s: missing observations or pressure levels",
+                            queue_element,
+                            subset_data["station_id"],
+                            subset_data["report_type"],
+                        )
+                        continue
                     subset_data["obs_data"] = obs_data
 
                     raw_bufr_data[subset_data["station_id"]] = raw_bufr_data.get(
@@ -1860,10 +1879,12 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                         ):
                             # replace with the larger new subset
                             raw_bufr_data[station_id][report_type] = subset_data
-                except Exception as _e:
-                    logger.error(
-                        "PrepBufrBuilder.read_data_from_file: Exception  error: %s",
-                        str(_e),
+                except Exception:
+                    logger.exception(
+                        "PrepBufrBuilder.read_data_from_file: Exception reading %s station %s report type %s",
+                        queue_element,
+                        subset_data.get("station_id"),
+                        subset_data.get("report_type"),
                     )
         bufr.close()
         return raw_bufr_data
@@ -2155,6 +2176,13 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                 # station does not exist in reference but does exist in the prepbufr file
                 # Throw this data away. We don't have enough information to create a station
                 raise ValueError("bad wmoid in handle_station")
+            if elev is None:
+                logger.warning(
+                    "%s handle_station: skipping station metadata update for %s: missing PREPBUFR elevation",
+                    self.__class__.__name__,
+                    station_id,
+                )
+                return station_id
             # station does exist but is there a matching geo for the lowest height lat/lon ?
             # If this is a new location then we need to add a new geo to the station
             # but only if this is a new location close to the ground
@@ -2162,6 +2190,14 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
             # if there is a matching geo then update the matching geo time range
             for geo_index in range(len(self.stations[station_index]["geo"])):
                 geo = self.stations[station_index]["geo"][geo_index]
+                if geo["elev"] is None:
+                    logger.warning(
+                        "%s handle_station: skipping geo %s for %s: missing station elevation",
+                        self.__class__.__name__,
+                        geo_index,
+                        station_id,
+                    )
+                    continue
                 # is the level close to the station elevation? The lat? The lon?
                 # if not then don't use this data (the balloon probably isn't close to the station)
                 # 1° = 111 km so 0.01  degrees is about 1.1 kilometers ~ 1 km.
@@ -2229,11 +2265,10 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
             )
             raise _e
         except Exception as _e:
-            logger.error(
+            logger.exception(
                 "%s PrepbufrRaobsObsBuilderV01.handle_station: Exception finding or creating station to match station_name: params: %s",
                 self.__class__.__name__,
                 str(params_dict),
-                _e,
             )
             raise _e
 

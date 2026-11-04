@@ -807,8 +807,16 @@ class GribModelMetarBuilderV01(GribBuilder):
             interp_values[z0_var],
             strict=True,
         ):
-            # don't compute if station elevation obviously bad
-            if z < -200 or z > 7000:
+            if (
+                not all(
+                    value is not None and math.isfinite(value)
+                    for value in (P0, T, Td, z, z0)
+                )
+                or not -200 <= z <= 7000
+                or not 10000 <= P0 <= 110000
+                or not 150 <= T <= 350
+                or not 100 <= Td <= T
+            ):
                 P_mb = None
             else:
                 # get model 2m virtual temperature
@@ -821,8 +829,11 @@ class GribModelMetarBuilderV01(GribBuilder):
                 Tv_z = Tv_z0 - ((z - z0) * gamma)
                 # approximate average virtual temperature of layer
                 Tv_layer = (Tv_z0 + Tv_z) / 2
-                P_Pa = P0 * math.exp(-(g * (z + inst_ht - z0)) / (R * Tv_layer))
-                P_mb = P_Pa / 100
+                if not math.isfinite(Tv_layer) or Tv_layer <= 0:
+                    P_mb = None
+                else:
+                    P_Pa = P0 * math.exp(-(g * (z + inst_ht - z0)) / (R * Tv_layer))
+                    P_mb = P_Pa / 100
             norm_pressure_list.append(P_mb)
 
         return norm_pressure_list

@@ -1,7 +1,10 @@
+from unittest.mock import Mock
+
 import numpy as np
 import pytest
 import xarray as xr
 
+from vxingest.grib2_to_cb import grib_metar_builder
 from vxingest.grib2_to_cb.grib_metar_builder import GribModelMetarBuilderV01
 from vxingest.grib2_to_cb.grib_raob_builder import GribModelRaobBuilderV01
 
@@ -83,15 +86,16 @@ def test_handle_normalized_surface_pressure(
     assert norm_pressure_list == pytest.approx([980.6153])
 
 
+@pytest.mark.parametrize("elevation", [9999, -201, None, np.nan, np.inf])
 def test_handle_normalized_surface_pressure_bad_station_elev(
-    empty_builder, single_station_list, make_var_obj
+    empty_builder, single_station_list, make_var_obj, elevation
 ):
     """Test that get_normalized_surface_pressure() returns null value
     when station elevation is unrealistic value"""
 
     builder = empty_builder
     builder.domain_stations = single_station_list
-    builder.domain_stations[0]["geo"][0]["elev"] = 9999
+    builder.domain_stations[0]["geo"][0]["elev"] = elevation
     builder.ds_translate_item_variables_map = {
         "Surface pressure": make_var_obj(97500),
         "2 metre temperature": make_var_obj(285),
@@ -103,6 +107,71 @@ def test_handle_normalized_surface_pressure_bad_station_elev(
     norm_pressure_list = builder.handle_normalized_surface_pressure(params_dict=None)
 
     assert norm_pressure_list == [None]
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("Surface pressure", 0),
+        ("Surface pressure", -1),
+        ("Surface pressure", 9999),
+        ("Surface pressure", 110001),
+        ("Surface pressure", np.nan),
+        ("Surface pressure", np.inf),
+        ("2 metre temperature", 0),
+        ("2 metre temperature", 149),
+        ("2 metre temperature", 351),
+        ("2 metre temperature", np.nan),
+        ("2 metre dewpoint temperature", 0),
+        ("2 metre dewpoint temperature", 99),
+        ("2 metre dewpoint temperature", 286),
+        ("2 metre dewpoint temperature", np.inf),
+        ("Orography", np.nan),
+        ("Orography", np.inf),
+    ],
+)
+def test_normalized_pressure_rejects_bad_inputs_before_metpy(
+    empty_builder, single_station_list, make_var_obj, monkeypatch, field, value
+):
+    builder = empty_builder
+    builder.domain_stations = single_station_list
+    builder.ds_translate_item_variables_map = {
+        "Surface pressure": make_var_obj(97500),
+        "2 metre temperature": make_var_obj(285),
+        "2 metre dewpoint temperature": make_var_obj(270),
+        "Orography": make_var_obj(300),
+        "fcst_valid_epoch": 1234,
+    }
+    builder.ds_translate_item_variables_map[field] = make_var_obj(value)
+    calculate_temperature = Mock()
+    monkeypatch.setattr(
+        grib_metar_builder, "virtual_temperature_from_dewpoint", calculate_temperature
+    )
+
+    assert builder.handle_normalized_surface_pressure(None) == [None]
+    calculate_temperature.assert_not_called()
+
+
+def test_normalized_pressure_continues_after_bad_station(
+    empty_builder, single_station_list, make_var_obj
+):
+    builder = empty_builder
+    builder.domain_stations = single_station_list * 2
+    builder.ds_translate_item_variables_map = {
+        "Surface pressure": make_var_obj(97500),
+        "2 metre temperature": make_var_obj(285),
+        "2 metre dewpoint temperature": make_var_obj(270),
+        "Orography": make_var_obj(300),
+        "fcst_valid_epoch": 1234,
+    }
+    builder.interp_grid_box = Mock(
+        side_effect=[97500, 285, 0, 300, 97500, 285, 270, 300]
+    )
+
+    result = builder.handle_normalized_surface_pressure(None)
+
+    assert result[0] is None
+    assert result[1] == pytest.approx(980.6153)
 
 
 def test_raob_translate_template_item_uses_requested_level(

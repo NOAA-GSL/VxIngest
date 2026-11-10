@@ -19,9 +19,7 @@ def test_region_station_queries_cached_but_geo_filter_remains_epoch_specific():
         def query(self, statement, read_only=True):
             self.statements.append(statement)
             if "docType='region'" in statement:
-                return [
-                    {"br_lat": 0, "br_lon": 20, "tl_lat": 20, "tl_lon": 0}
-                ]
+                return [{"br_lat": 0, "br_lon": 20, "tl_lat": 20, "tl_lon": 0}]
             return [
                 {
                     "name": "KAAA",

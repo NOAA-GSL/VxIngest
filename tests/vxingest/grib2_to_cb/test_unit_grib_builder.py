@@ -42,6 +42,78 @@ def single_station_list():
     return stations
 
 
+@pytest.mark.parametrize(
+    ("builder_class", "subset", "identity_field"),
+    [
+        (GribModelRaobBuilderV01, "RAOB", "wmoid"),
+        (GribModelMetarBuilderV01, "METAR", "name"),
+    ],
+)
+@pytest.mark.parametrize("has_stations", [False, True])
+def test_station_metadata_is_loaded_once(
+    builder_class, subset, identity_field, has_stations
+):
+    stations = [{identity_field: "40375", "geo": []}] if has_stations else []
+    cluster = Mock()
+    cluster.query.return_value = iter(stations)
+    builder = builder_class(
+        load_spec={
+            "cluster": cluster,
+            "cb_connection": {
+                "bucket": "vxdata",
+                "scope": "_default",
+                "collection": subset,
+            },
+        },
+        ingest_document={
+            "template": {"subset": subset},
+            "validTimeDelta": "",
+            "validTimeInterval": "",
+        },
+        number_stations=5,
+    )
+
+    first = builder._get_station_metadata()
+    second = builder._get_station_metadata()
+
+    assert first == stations
+    assert second is first
+    cluster.query.assert_called_once()
+    statement = cluster.query.call_args.args[0]
+    assert f"SELECT geo, {identity_field}" in statement
+    assert f"`vxdata`._default.{subset}" in statement
+    assert f"subset='{subset}'" in statement
+    assert "limit 5;" in statement
+
+
+@pytest.mark.parametrize(
+    "builder_class", [GribModelRaobBuilderV01, GribModelMetarBuilderV01]
+)
+def test_station_metadata_query_failure_can_be_retried(builder_class):
+    cluster = Mock()
+    cluster.query.side_effect = [RuntimeError("query failed"), iter([])]
+    builder = builder_class(
+        load_spec={
+            "cluster": cluster,
+            "cb_connection": {
+                "bucket": "vxdata",
+                "scope": "_default",
+                "collection": "RAOB",
+            },
+        },
+        ingest_document={
+            "template": {"subset": "RAOB"},
+            "validTimeDelta": "",
+            "validTimeInterval": "",
+        },
+    )
+
+    with pytest.raises(RuntimeError, match="query failed"):
+        builder._get_station_metadata()
+    assert builder._get_station_metadata() == []
+    assert cluster.query.call_count == 2
+
+
 @pytest.fixture
 def make_var_obj():
     """Function to return object with values attribute

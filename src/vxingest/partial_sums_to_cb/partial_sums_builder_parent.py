@@ -126,6 +126,9 @@ class PartialSumsBuilder(Builder):
 
         self.load_spec = load_spec
         self.domain_stations = []
+        self._region_bounds_cache = {}
+        self._station_geo_metadata_cache = {}
+        self._station_documents_cache = {}
         # PARTIALSUMS builder specific
         # These following need to be declared here but assigned in
         # build_document because each ingest_id might redifne them
@@ -379,15 +382,9 @@ class PartialSumsBuilder(Builder):
                     try:
                         match self.subset:
                             case "RAOB":
-                                if len(self.domain_stations) == 0:
-                                    stmnt = f"""SELECT {self.subset}.*
-                                        FROM `{self.bucket}`.{self.scope}.{self.collection}
-                                        WHERE type = 'MD'
-                                        AND docType = 'station'
-                                        AND subset = 'RAOB'
-                                        AND version = 'V01';"""
-                                    result = self.load_spec["cluster"].query(stmnt)
-                                    self.domain_stations = list(result)
+                                self.domain_stations = list(
+                                    self._get_station_documents()
+                                )
                             case "METAR":
                                 # get_stations_for_region_by_geosearch is broken for geo losts untill late 2022
                                 # full_station_name_list = self.get_stations_for_region_by_geosearch(self.region, fve)
@@ -905,29 +902,9 @@ class PartialSumsBuilder(Builder):
         """
         # get the bounding box for this region
         try:
-            stmnt = f"""SELECT  geo.bottom_right.lat as br_lat,
-                    geo.bottom_right.lon as br_lon,
-                    geo.top_left.lat as tl_lat,
-                    geo.top_left.lon as tl_lon
-                    FROM `{self.bucket}`.{self.scope}.{self.collection}
-                    WHERE type='MD'
-                    and docType='region'
-                    and subset='COMMON'
-                    and version='V01'
-                    and name='{region_name}'"""
-            result = self.load_spec["cluster"].query(stmnt, read_only=True)
-            _boundingbox = list(result)[0]
+            _boundingbox = self._get_region_bounds(region_name)
             _domain_stations = []
-            # get the stations that are within this boundingbox
-            stmnt = f"""SELECT
-                    geo, name
-                    from `{self.bucket}`.{self.scope}.{self.collection}
-                    where type='MD'
-                    and docType='station'
-                    and subset='{self.subset}'
-                    and version='V01'"""
-            result = self.load_spec["cluster"].query(stmnt, read_only=True)
-            for row in result:
+            for row in self._get_station_geo_metadata():
                 geo_index = get_geo_index(valid_epoch, row["geo"])
                 rlat = row["geo"][geo_index]["lat"]
                 bb_br_lat = _boundingbox["br_lat"]
@@ -948,10 +925,7 @@ class PartialSumsBuilder(Builder):
                     if _boundingbox["tl_lon"] <= 180
                     else _boundingbox["tl_lon"] - 360
                 )
-                # check that the station is within the bounding box and has a valid elevation
-                # If there is an invalid elevation we won't be able to calculate normalized pressure
-                # and that will cause the partialsums to be inaccurate, so we have to filter out
-                # stations with invalid elevation here.
+                # Exclude stations without usable elevation for partial sums.
                 if (
                     rlat >= bb_br_lat
                     and rlat <= bb_tl_lat
@@ -962,8 +936,6 @@ class PartialSumsBuilder(Builder):
                     and row["geo"][geo_index]["elev"] != 9999
                 ):
                     _domain_stations.append(row["name"])
-                else:
-                    continue
             _domain_stations.sort()
             return _domain_stations
         except Exception as _e:
@@ -973,3 +945,44 @@ class PartialSumsBuilder(Builder):
                 str(_e),
             )
             return None
+
+    def _get_region_bounds(self, region_name):
+        if region_name not in self._region_bounds_cache:
+            stmnt = f"""SELECT  geo.bottom_right.lat as br_lat,
+                    geo.bottom_right.lon as br_lon,
+                    geo.top_left.lat as tl_lat,
+                    geo.top_left.lon as tl_lon
+                    FROM `{self.bucket}`.{self.scope}.{self.collection}
+                    WHERE type='MD'
+                    and docType='region'
+                    and subset='COMMON'
+                    and version='V01'
+                    and name='{region_name}'"""
+            result = list(self.load_spec["cluster"].query(stmnt, read_only=True))
+            self._region_bounds_cache[region_name] = result[0]
+        return self._region_bounds_cache[region_name]
+
+    def _get_station_geo_metadata(self):
+        if self.subset not in self._station_geo_metadata_cache:
+            stmnt = f"""SELECT
+                    geo, name
+                    from `{self.bucket}`.{self.scope}.{self.collection}
+                    where type='MD'
+                    and docType='station'
+                    and subset='{self.subset}'
+                    and version='V01'"""
+            result = self.load_spec["cluster"].query(stmnt, read_only=True)
+            self._station_geo_metadata_cache[self.subset] = list(result)
+        return self._station_geo_metadata_cache[self.subset]
+
+    def _get_station_documents(self):
+        if self.subset not in self._station_documents_cache:
+            stmnt = f"""SELECT {self.subset}.*
+                    FROM `{self.bucket}`.{self.scope}.{self.collection}
+                    WHERE type = 'MD'
+                    AND docType = 'station'
+                    AND subset = '{self.subset}'
+                    AND version = 'V01';"""
+            result = self.load_spec["cluster"].query(stmnt)
+            self._station_documents_cache[self.subset] = list(result)
+        return self._station_documents_cache[self.subset]

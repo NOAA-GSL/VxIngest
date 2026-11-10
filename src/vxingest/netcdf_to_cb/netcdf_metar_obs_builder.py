@@ -73,7 +73,7 @@ class NetcdfMetarObsBuilderV01(NetcdfBuilder):
             )
 
             self.ncdf_data_set = nc.Dataset(queue_element)
-            if len(self.stations) == 0:
+            if self.stations is None:
                 stmnt = f"""SELECT {self.subset}.*
                     FROM `{bucket}`.{scope}.{collection}
                     WHERE type = 'MD'

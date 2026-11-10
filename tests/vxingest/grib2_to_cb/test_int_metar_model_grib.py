@@ -192,9 +192,13 @@ def run_runtime_one_thread_file_pattern_test(
                         if isinstance(
                             result["data"][_k][_dk], (int, float)
                         ) and isinstance(_json["data"][_k][_dk], (int, float)):
-                            assert math.isclose(
-                                result["data"][_k][_dk],
-                                _json["data"][_k][_dk],
+                            result_value = result["data"][_k][_dk]
+                            json_value = _json["data"][_k][_dk]
+                            assert (
+                                math.isnan(result_value) and math.isnan(json_value)
+                            ) or math.isclose(
+                                result_value,
+                                json_value,
                                 abs_tol=abs_tol,
                             ), f"""TestGribBuilderV01.test_gribBuilder_one_epoch_hrrr_ops_conus failure data not close within {abs_tol}
                             {_k}.{_dk} {result["data"][_k][_dk]} != {_json["data"][_k][_dk]} within {abs_tol} decimal places."""

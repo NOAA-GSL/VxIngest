@@ -8,6 +8,49 @@ from couchbase.auth import PasswordAuthenticator
 from couchbase.cluster import Cluster
 from couchbase.options import ClusterOptions, ClusterTimeoutOptions, QueryOptions
 
+from vxingest.ctc_to_cb.ctc_builder import CTCModelObsBuilderV01
+
+
+def test_region_station_queries_cached_but_geo_filter_remains_epoch_specific():
+    class StationQueryCluster:
+        def __init__(self):
+            self.statements = []
+
+        def query(self, statement, read_only=True):
+            self.statements.append(statement)
+            if "docType='region'" in statement:
+                return [
+                    {"br_lat": 0, "br_lon": 20, "tl_lat": 20, "tl_lon": 0}
+                ]
+            return [
+                {
+                    "name": "KAAA",
+                    "geo": [
+                        {"firstTime": 0, "lastTime": 10, "lat": 10, "lon": 10},
+                        {
+                            "firstTime": 11,
+                            "lastTime": 20,
+                            "lat": 100,
+                            "lon": 100,
+                        },
+                    ],
+                }
+            ]
+
+    cluster = StationQueryCluster()
+    builder = CTCModelObsBuilderV01.__new__(CTCModelObsBuilderV01)
+    builder.load_spec = {"cluster": cluster}
+    builder.bucket = "bucket"
+    builder.scope = "scope"
+    builder.collection = "collection"
+    builder.subset = "METAR"
+    builder._region_bounds_cache = {}
+    builder._station_geo_metadata_cache = {}
+
+    assert builder.get_stations_for_region_by_sort("region", 5) == ["KAAA"]
+    assert builder.get_stations_for_region_by_sort("region", 15) == []
+    assert len(cluster.statements) == 2
+
 
 def connect_cb():
     """

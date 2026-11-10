@@ -59,7 +59,7 @@ class NetcdfBuilder(Builder):
         self.load_spec = load_spec
         # NetcdfBuilder specific
         self.ncdf_data_set = None
-        self.stations = []
+        self.stations = None
         self.file_name = None
         self.standard_levels = None
 

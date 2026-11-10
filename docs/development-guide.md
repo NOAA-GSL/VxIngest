@@ -10,6 +10,14 @@ VxIngest is a Python application that uses [uv](https://docs.astral.sh/uv/) for 
 
 The ingest writes Couchbase-ready JSON documents, logs, metrics, and transfer tarballs to disk. The transfer tarballs are retained for downstream consumers, but the downstream import runtime is not maintained in this repo.
 
+The GRIB RAOB, GRIB METAR, and PREPBUFR builders load station metadata once per
+builder instance in each worker. They cache empty results too, but retry failed
+queries on a later file. The GRIB builders recalculate domain filtering and
+station grid coordinates for each input file's projection. PREPBUFR retains
+in-memory station metadata updates made by its station handler. External station
+metadata changes become visible when a new builder instance is created, normally
+on the next ingest run.
+
 ## Getting Started
 
 Install [uv](https://docs.astral.sh/uv/getting-started/installation/) and initialize the development environment:

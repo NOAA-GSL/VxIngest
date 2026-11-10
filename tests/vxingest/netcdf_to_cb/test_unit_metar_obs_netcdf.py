@@ -3,6 +3,7 @@ import time
 from copy import deepcopy
 from datetime import UTC, datetime
 from pathlib import Path
+from types import SimpleNamespace
 
 import netCDF4 as nc
 import numpy as np
@@ -92,6 +93,38 @@ def test_ceiling_transform_accepts_old_chartostring_repr():
     )
 
     assert result == 328
+
+
+def test_empty_station_list_is_cached(monkeypatch):
+    class EmptyResultCluster:
+        query_count = 0
+
+        def query(self, _statement):
+            self.query_count += 1
+            return iter(())
+
+    cluster = EmptyResultCluster()
+    builder = NetcdfMetarObsBuilderV01.__new__(NetcdfMetarObsBuilderV01)
+    builder.load_spec = {"cluster": cluster}
+    builder.subset = "METAR"
+    builder.stations = None
+    builder.get_database_connection_details = lambda _queue_element: (
+        "bucket",
+        "scope",
+        "collection",
+        "common_collection",
+    )
+    empty_dataset = SimpleNamespace(dimensions={"recNum": SimpleNamespace(size=0)})
+    monkeypatch.setattr(
+        "vxingest.netcdf_to_cb.netcdf_metar_obs_builder.nc.Dataset",
+        lambda _queue_element: empty_dataset,
+    )
+
+    builder.build_document("first.nc")
+    builder.build_document("second.nc")
+
+    assert builder.stations == []
+    assert cluster.query_count == 1
 
 
 @pytest.mark.integration

@@ -56,7 +56,7 @@ class PrepbufrBuilder(Builder):
         self.model = None
         self.sub_doc_type = None
         self.model_fcst_valid_epochs = []
-        self.stations = {}
+        self.stations = None
         self.interpolated_data = {}
         self.levels = []
         # used to stash each fcstValidEpoch obs_data for the handlers
@@ -689,6 +689,22 @@ class PrepbufrBuilder(Builder):
             )
         return doc
 
+    def _get_station_metadata(self):
+        """Load stations once per builder, retaining in-memory metadata updates."""
+        if self.stations is None:
+            connection = self.load_spec["cb_connection"]
+            bucket = connection["bucket"]
+            scope = connection["scope"]
+            collection = connection["collection"]
+            statement = f"""SELECT {self.subset}.*
+                    FROM `{bucket}`.{scope}.{collection}
+                    WHERE type = 'MD'
+                    AND docType = 'station'
+                    AND subset = '{self.subset}'
+                    AND version = 'V01';"""
+            self.stations = list(self.load_spec["cluster"].query(statement))
+        return self.stations
+
     def build_document(self, queue_element):
         """This is the entry point for the Builders from the ingestManager.
         These documents are id'd by fcstValidEpoch and level. The data section is a dictionary
@@ -710,10 +726,6 @@ class PrepbufrBuilder(Builder):
         # noinspection PyBroadException
         try:
             # read the api for all data for this valid fcst hour.
-            bucket = self.load_spec["cb_connection"]["bucket"]
-            scope = self.load_spec["cb_connection"]["scope"]
-            # collection is set to "RAOB" in the run_ingest
-            collection = self.load_spec["cb_connection"]["collection"]
             mnemonic_mapping = self.mnemonic_mapping
             self.raw_obs_data = self.read_data_from_file(
                 queue_element, mnemonic_mapping
@@ -725,15 +737,7 @@ class PrepbufrBuilder(Builder):
                     "PrepBufrBuilder.build_document: Exception  error: %s", str(_e)
                 )
                 return {}
-            if len(self.stations) == 0:
-                stmnt = f"""SELECT {self.subset}.*
-                    FROM `{bucket}`.{scope}.{collection}
-                    WHERE type = 'MD'
-                    AND docType = 'station'
-                    AND subset = '{self.subset}'
-                    AND version = 'V01';"""
-                result = self.load_spec["cluster"].query(stmnt)
-                self.stations = list(result)
+            self._get_station_metadata()
 
             self.initialize_document_map()
             logger.info(

@@ -68,6 +68,7 @@ class GribModelRaobBuilderV01(GribBuilder):
         self.subset = self.template["subset"]
         self.land_use_types = None
         self.raob_units = {}
+        self._station_metadata = None
         # self.do_profiling = True  # set to True to enable build_document profiling
         self.do_profiling = False  # set to True to enable build_document profiling
 
@@ -77,6 +78,26 @@ class GribModelRaobBuilderV01(GribBuilder):
         actually exist in the file are filtered in the builder.
         """
         return list(range(1010, 10, -10))
+
+    def _get_station_metadata(self):
+        """Retrieve station metadata once per builder, before per-file projection filtering."""
+        if self._station_metadata is None:
+            connection = self.load_spec["cb_connection"]
+            bucket = connection["bucket"]
+            scope = connection["scope"]
+            collection = connection["collection"]
+            limit_clause = ";"
+            if self.number_stations != sys.maxsize:
+                limit_clause = f" limit {self.number_stations};"
+            statement = f"""SELECT geo, wmoid
+                    from `{bucket}`.{scope}.{collection}
+                    where type='MD'
+                    and docType='station'
+                    and subset='{self.subset}'
+                    and version='V01'
+                    {limit_clause}"""
+            self._station_metadata = list(self.load_spec["cluster"].query(statement))
+        return self._station_metadata
 
     def build_document(self, queue_element):
         """
@@ -170,11 +191,6 @@ class GribModelRaobBuilderV01(GribBuilder):
         """
 
         try:
-            # get the bucket, scope, and collection from the load_spec
-            bucket = self.load_spec["cb_connection"]["bucket"]
-            scope = self.load_spec["cb_connection"]["scope"]
-            collection = self.load_spec["cb_connection"]["collection"]
-
             # translate the projection from the grib file
             # The projection is the same for all the variables in the grib file,
             # so we only need to get it once and from one variable - we'll use heightAboveGround
@@ -355,18 +371,7 @@ class GribModelRaobBuilderV01(GribBuilder):
             # also fill in the gridpoints for each station and for each geo within each station
             # NOTE: this is not about regions, this is about models
             self.domain_stations = []
-            limit_clause = ";"
-            if self.number_stations != sys.maxsize:
-                limit_clause = f" limit {self.number_stations};"
-            stmnt = f"""SELECT geo, wmoid
-                    from `{bucket}`.{scope}.{collection}
-                    where type='MD'
-                    and docType='station'
-                    and subset='{self.subset}'
-                    and version='V01'
-                    {limit_clause}"""
-            result = self.load_spec["cluster"].query(stmnt)
-            for row in result:
+            for row in self._get_station_metadata():
                 station = copy.deepcopy(row)
                 for geo_index in range(len(row["geo"])):
                     lat = row["geo"][geo_index]["lat"]

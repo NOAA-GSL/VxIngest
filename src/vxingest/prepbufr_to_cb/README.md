@@ -63,6 +63,17 @@ example
 The geo list is based on the lowest height (highest pressure) lat / lon values which should most closely represent the lat / lon of the station. The handle_station
 handler method will create a new station if it can find the station data in the station reference document "MD:V01:RAOB:stationReference", which contains the latest set of stations from raob.com. If it cannot find the station the data for this "unknown" station will be thrown away. If the highest pressure lat / lon values are significantly different from the latest ones in the geo list, a new geo list entry will be added to the station under the assumption that the station launch site has moved.
 
+## data sources
+
+We can get data from DSG, in which case it is usually in a file under /public on the GSL internal network, or we can access it from an s3 bucket such as [noaa reanalysis prepbufr](s3://noaa-reanalyses-pds/observations/reanalysis/conv/prepbufr/2026/10/prepbufr/).
+
+"The NCEP/NCAR Reanalysis Project created a Binary Universal Format Representation (BUFR) archive of atmospheric and surface observations to support 50 years of reanalysis data.  This process involved consolidating raw observational data into a common format, adding quality control metadata, and encoding forecast background and observation error information.
+PREPBUFR files are the final prepared output of this process, containing quality-controlled observations ready for assimilation into analysis systems like the Global Forecast System (GFS) and Global Data Assimilation System (GDAS).  These files include various report types such as rawinsondes, aircraft, surface land/marine, and satellite data, organized by report type and source.
+
+The archive is hosted in formats including BUFR, IODA, and NetCDF, with specific files like prepqmYYMMDDHH available through the NSF NCAR Mass Store System (HPSS) and the NOAA NASA Joint Archive (NNJA).  The preparation involves complex quality control checks to identify erroneous data, which are then flagged or removed before the data is assimilated by the Global Statistical Interpolation (GSI) analysis"
+
+You can look at [PSL NNJA](https://psl.noaa.gov/data/nnja_obs/) - which is wonderful ;). That documentation refers to aws cli but this program uses python boto3.
+
 ## data extraction from the prepbufr files
 
 We need to take MASS values from the MASS report (120) and the WIND values from the wind report (220) and merge them into our data for the particular site and launch.

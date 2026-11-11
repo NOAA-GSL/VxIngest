@@ -480,6 +480,9 @@ class PrepbufrBuilder(Builder):
                 # once all the translations have occurred
                 # set the level right away (it is needed for the handle_data)
                 # clean out the data template from the data portion of the newDocument
+                logger.debug(
+                    "PrepbufrBuilder.handle_document - processing level %s", level
+                )
                 new_document["data"] = {}
                 for key in self.template:
                     if key == "level":
@@ -648,6 +651,9 @@ class PrepbufrBuilder(Builder):
             for _station_name in self.interpolated_data:
                 data_elem = {}
                 data_template = self.template["data"]["*stationName"]
+                logger.debug(
+                    "PrepbufrBuilder.handle_data - processing station %s", _station_name
+                )
                 try:
                     for _data_key in data_template:
                         try:

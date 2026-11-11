@@ -71,6 +71,19 @@ Input files must be at least four hours old before they are considered for inges
 VXINGEST_MIN_FILE_AGE_HOURS=1 uv run ingest ...
 ```
 
+### S3 input prefixes
+
+Set the input directory to an S3 URI prefix, for example
+`s3://my-bucket/path/to/model/`. VxIngest lists objects under that prefix and
+applies the configured file pattern, date mask, epoch range, and minimum-age
+filter. Workers download each selected object to a temporary local file for the
+existing builders, then remove it after processing. DataFile records retain the
+S3 URI and the object's `LastModified` timestamp.
+
+AWS credentials are resolved through boto3's standard credential provider
+chain. The ingest role or user needs permission to list the input prefix and
+read its objects (`s3:ListBucket` and `s3:GetObject`).
+
 ### Testing mode
 
 To run ingest in testing mode, set the `TESTING` environment variable (any value). When set, the ingest will process both status='active' and status='test' job documents. When not set, only status='active' documents are processed. This allows test documents to be safely developed and tested without risk of automatic runners (like cron) inadvertently executing them.

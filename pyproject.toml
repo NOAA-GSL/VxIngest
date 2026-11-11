@@ -12,6 +12,7 @@ dependencies = [
     "pyyaml>=6.0.3",
     "xarray>=2025.10.1",
     "netcdf4>=1.7.3",
+    "boto3>=1.42.0",
     "cfgrib>=0.9.15.1",
     "couchbase>=4.6.2",
     "pyproj>=3.7.2",
@@ -20,6 +21,7 @@ dependencies = [
     "prometheus-client>=0.23.1",
     "ncepbufr",
     "eccodeslib>=2.47.3.21", # This shouldn't be needed - it's a dependency of eccodes. (itself a dependency of cfgrib) However, eccodes 2.45 & 2.46 don't appear to include eccodeslib which breaks cfgrib. Monitor https://github.com/ecmwf/eccodes-python/issues/150 for a resolution.
+    "boto3-stubs~=1.43.127",
 ]
 
 [project.scripts]

@@ -26,6 +26,7 @@ from couchbase.options import (  # type: ignore
 )
 from prometheus_client import CollectorRegistry, Counter, Gauge, write_to_textfile
 
+from vxingest.builder_common.couchbase_config import get_cb_timeout_seconds
 from vxingest.ctc_to_cb.run_ingest_threads import VXIngest as CTCIngest
 from vxingest.grib2_to_cb.run_ingest_threads import VXIngest as GRIBIngest
 from vxingest.log_config import (
@@ -204,6 +205,7 @@ def get_credentials(path: Path) -> dict[str, str]:
             logger.error(f"Missing required field {key} in config file {path}")
             raise KeyError
 
+    get_cb_timeout_seconds(config)
     return config
 
 
@@ -303,7 +305,8 @@ def connect_cb(creds: dict[str, str]) -> Cluster:
     auth = PasswordAuthenticator(creds["cb_user"], creds["cb_password"])
 
     timeout_config = ClusterTimeoutOptions(
-        kv_timeout=timedelta(seconds=25), query_timeout=timedelta(seconds=120)
+        kv_timeout=timedelta(seconds=25),
+        query_timeout=timedelta(seconds=get_cb_timeout_seconds(creds)),
     )
 
     # Get a reference to our cluster

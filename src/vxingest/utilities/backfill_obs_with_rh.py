@@ -16,6 +16,8 @@ from couchbase.options import ClusterOptions, ClusterTimeoutOptions
 from metpy.calc import relative_humidity_from_dewpoint, wind_components
 from metpy.units import units
 
+from vxingest.builder_common.couchbase_config import get_cb_timeout_seconds
+
 
 def setup_connection():
     """test setup"""
@@ -33,12 +35,12 @@ def setup_connection():
         _f.close()
 
         timeout_options = ClusterTimeoutOptions(
-            kv_timeout=timedelta(seconds=125), query_timeout=timedelta(seconds=120)
+            kv_timeout=timedelta(seconds=125),
+            query_timeout=timedelta(seconds=get_cb_timeout_seconds(yaml_data)),
         )
         options = ClusterOptions(
             PasswordAuthenticator(_user, _password), timeout_options=timeout_options
         )
-        options = ClusterOptions(PasswordAuthenticator(_user, _password))
         connection = {}
         connection["cluster"] = Cluster(_host, options)
         connection["bucket"] = connection["cluster"].bucket(_bucket)

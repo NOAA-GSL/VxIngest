@@ -9,6 +9,7 @@ from couchbase.auth import PasswordAuthenticator
 from couchbase.cluster import Cluster
 from couchbase.options import ClusterOptions, ClusterTimeoutOptions, QueryOptions
 
+from vxingest.builder_common.couchbase_config import get_cb_timeout_seconds
 from vxingest.builder_common.vx_ingest import CommonVxIngest
 
 
@@ -18,6 +19,40 @@ class EmptyQueryCluster:
     @staticmethod
     def query(_statement):
         return []
+
+
+@pytest.mark.parametrize(
+    ("credentials", "expected"),
+    [({}, 120), ({"cb_timeout_seconds": 240}, 240)],
+)
+def test_get_cb_timeout_seconds(credentials, expected):
+    assert get_cb_timeout_seconds(credentials) == expected
+
+
+@pytest.mark.parametrize("value", [0, -1, "not-a-number", True, float("inf")])
+def test_get_cb_timeout_seconds_rejects_invalid_values(value):
+    with pytest.raises(ValueError, match="cb_timeout_seconds"):
+        get_cb_timeout_seconds({"cb_timeout_seconds": value})
+
+
+def test_get_credentials_loads_cb_timeout_seconds(tmp_path: Path):
+    credentials = {
+        "cb_host": "localhost",
+        "cb_user": "user",
+        "cb_password": "password",
+        "cb_bucket": "bucket",
+        "cb_scope": "scope",
+        "cb_collection": "collection",
+        "cb_timeout_seconds": 240,
+    }
+    credentials_file = tmp_path / "credentials.yaml"
+    credentials_file.write_text(yaml.safe_dump(credentials), encoding="utf-8")
+    vx_ingest = CommonVxIngest()
+    vx_ingest.credentials_file = str(credentials_file)
+
+    cb_connection = vx_ingest.get_credentials({})
+
+    assert cb_connection["cb_timeout_seconds"] == 240
 
 
 def test_unit_get_file_list_respects_minimum_file_age(

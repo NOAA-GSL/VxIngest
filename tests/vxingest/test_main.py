@@ -24,12 +24,31 @@ def test_get_credentials(tmp_path: Path):
         "cb_bucket": "bucket",
         "cb_scope": "scope",
         "cb_collection": "collection",
+        "cb_timeout_seconds": 240,
     }
     file = Path(tmp_path) / "config.yaml"
     with file.open("w") as f:
         yaml.dump(data, f)
 
     assert get_credentials(file) == data
+
+
+def test_get_credentials_rejects_invalid_cb_timeout(tmp_path: Path):
+    data = {
+        "cb_host": "localhost",
+        "cb_user": "user",
+        "cb_password": "password",
+        "cb_bucket": "bucket",
+        "cb_scope": "scope",
+        "cb_collection": "collection",
+        "cb_timeout_seconds": 0,
+    }
+    file = Path(tmp_path) / "config.yaml"
+    with file.open("w") as credentials_file:
+        yaml.dump(data, credentials_file)
+
+    with pytest.raises(ValueError, match="cb_timeout_seconds"):
+        get_credentials(file)
 
 
 def test_get_credentials_missing_key(tmp_path: Path):

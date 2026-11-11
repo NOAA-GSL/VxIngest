@@ -37,6 +37,8 @@ cb_password: "password"
 cb_bucket: "vxdata"
 cb_scope: "_default"
 cb_collection: "METAR"
+# Optional Couchbase query timeout in seconds (default: 120)
+cb_timeout_seconds: 180
 ```
 
 Run the application locally:

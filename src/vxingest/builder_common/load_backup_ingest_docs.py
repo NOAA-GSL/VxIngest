@@ -13,12 +13,15 @@ Colorado, NOAA/OAR/ESRL/GSD
 import argparse
 import json
 import sys
+from datetime import timedelta
 from pathlib import Path
 
 import yaml
 from couchbase.auth import PasswordAuthenticator
 from couchbase.cluster import Cluster
-from couchbase.options import ClusterOptions
+from couchbase.options import ClusterOptions, ClusterTimeoutOptions
+
+from vxingest.builder_common.couchbase_config import get_cb_timeout_seconds
 
 
 def parse_args(args):
@@ -69,6 +72,9 @@ class LoadBackupIngestDocs:
             self.cb_credentials["host"] = yaml_data["cb_host"]
             self.cb_credentials["user"] = yaml_data["cb_user"]
             self.cb_credentials["password"] = yaml_data["cb_password"]
+            self.cb_credentials["cb_timeout_seconds"] = get_cb_timeout_seconds(
+                yaml_data
+            )
 
             # Get JSON data as a dict
             f_name = args["file_name"]
@@ -100,7 +106,12 @@ class LoadBackupIngestDocs:
             options = ClusterOptions(
                 PasswordAuthenticator(
                     self.cb_credentials["user"], self.cb_credentials["password"]
-                )
+                ),
+                timeout_options=ClusterTimeoutOptions(
+                    query_timeout=timedelta(
+                        seconds=get_cb_timeout_seconds(self.cb_credentials)
+                    )
+                ),
             )
             self.cluster = Cluster(self.cb_credentials["host"], options)
             self.collection = self.cluster.bucket("mdata").default_collection()

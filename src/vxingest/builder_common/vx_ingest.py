@@ -32,6 +32,8 @@ from couchbase.cluster import Cluster
 from couchbase.exceptions import CouchbaseException
 from couchbase.options import ClusterOptions, ClusterTimeoutOptions
 
+from vxingest.builder_common.couchbase_config import get_cb_timeout_seconds
+
 # Get a logger with this module's name to help with debugging
 logger = logging.getLogger(__name__)
 
@@ -169,7 +171,9 @@ class CommonVxIngest:
         try:
             timeout_options = ClusterTimeoutOptions(
                 kv_timeout=dt.timedelta(seconds=25),
-                query_timeout=dt.timedelta(seconds=120),
+                query_timeout=dt.timedelta(
+                    seconds=get_cb_timeout_seconds(self.cb_credentials)
+                ),
             )
             options = ClusterOptions(
                 PasswordAuthenticator(
@@ -519,6 +523,9 @@ class CommonVxIngest:
             load_spec["cb_connection"]["bucket"] = _yaml_data["cb_bucket"]
             load_spec["cb_connection"]["collection"] = _yaml_data["cb_collection"]
             load_spec["cb_connection"]["scope"] = _yaml_data["cb_scope"]
+            load_spec["cb_connection"]["cb_timeout_seconds"] = get_cb_timeout_seconds(
+                _yaml_data
+            )
             return load_spec["cb_connection"]
         except (RuntimeError, TypeError, NameError, KeyError) as e:
             logger.error(f"*** Error reading credential file: {e} ***")

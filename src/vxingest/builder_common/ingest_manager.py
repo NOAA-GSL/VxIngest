@@ -23,6 +23,8 @@ from couchbase.cluster import Cluster
 from couchbase.exceptions import CouchbaseException, TimeoutException
 from couchbase.options import ClusterOptions, ClusterTimeoutOptions
 
+from vxingest.builder_common.couchbase_config import get_cb_timeout_seconds
+
 logger = logging.getLogger(__name__)
 
 
@@ -159,7 +161,9 @@ class CommonVxIngestManager(Process):
         try:
             timeout_options = ClusterTimeoutOptions(
                 kv_timeout=timedelta(seconds=25),
-                query_timeout=timedelta(seconds=120),
+                query_timeout=timedelta(
+                    seconds=get_cb_timeout_seconds(self.cb_credentials)
+                ),
             )
             options = ClusterOptions(
                 PasswordAuthenticator(

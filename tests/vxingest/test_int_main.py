@@ -213,6 +213,74 @@ def test_one_thread_specify_file_pattern_prepbufr_job_spec_rt(
     ]
     try:
         vx_ingest = setup_connection(VXIngest_prepbufr())
+        runtime_collection = (
+            vx_ingest.cluster.bucket("vxdata").scope("_default").collection("RUNTIME")
+        )
+        job_spec = runtime_collection.get(job_id).content_as[dict]
+        process_spec = runtime_collection.get(job_spec["processSpecIds"][0]).content_as[
+            dict
+        ]
+        data_source_spec = runtime_collection.get(
+            process_spec["dataSourceId"]
+        ).content_as[dict]
+        source_uri = data_source_spec["sourceDataUri"].rstrip("/")
+        file_name = "gdas.20261027.t00z.prepbufr.nr"
+        s3_url = (
+            source_uri
+            if source_uri.endswith(file_name)
+            else f"{source_uri}/{file_name}"
+        )
+        escaped_s3_url = s3_url.replace("'", "''")
+        delete_statement = f"""DELETE FROM `vxdata`.`_default`.`RAOB`
+            WHERE subset = 'RAOB'
+                AND type = 'DF'
+                AND fileType = 'prepbufr'
+                AND url = '{escaped_s3_url}'"""
+        list(vx_ingest.cluster.query(delete_statement))
+        initial_success_count = prom_successes._value.get()
+        run_ingest()
+        check_output(tmp_path, vx_ingest, 1, initial_success_count + 1)
+    except Exception as e:
+        pytest.fail(f"Test failed with exception {e}")
+    finally:
+        # Restore original sys.argv
+        sys.argv = original_argv
+
+
+@pytest.mark.integration
+def test_one_thread_specify_file_pattern_prepbufr_s3_job_spec_rt(
+    tmp_path: Path,
+):
+    pytest.importorskip("ncepbufr")
+    from vxingest.prepbufr_to_cb.run_ingest_threads import (
+        VXIngest as VXIngest_prepbufr,
+    )
+
+    # Save original sys.argv
+    original_argv = sys.argv.copy()
+    job_id = "JS:RAOB:OBS:PREPBUFR-S3-TEST:schedule:job:V01"
+    # need these args
+    sys.argv = [
+        "run_ingest",
+        "-j",
+        job_id,
+        "-c",
+        os.environ["CREDENTIALS"],
+        "-m",
+        str(tmp_path / "metrics"),
+        "-o",
+        str(tmp_path / "output"),
+        "-x",
+        str(tmp_path / "transfer"),
+        "-l",
+        str(tmp_path / "logs"),
+        "-f",
+        "gdas.20261027.t00z.prepbufr.nr",
+        "-t",
+        "1",
+    ]
+    try:
+        vx_ingest = setup_connection(VXIngest_prepbufr())
         initial_success_count = prom_successes._value.get()
         run_ingest()
         check_output(tmp_path, vx_ingest, 1, initial_success_count + 1)

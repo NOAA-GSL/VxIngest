@@ -307,7 +307,7 @@ class VXIngest(CommonVxIngest):
             subset='{subset}'
             AND type='DF'
             AND fileType='prepbufr'
-            AND originType='madis' order by url;
+            order by url;
             """
         # file_pattern is a glob string not a python file match string
         file_names = self.get_file_list(

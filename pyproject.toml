@@ -20,7 +20,8 @@ dependencies = [
     "metpy>=1.7.1",
     "prometheus-client>=0.23.1",
     "ncepbufr",
-    "eccodeslib>=2.47.3.21", # This shouldn't be needed - it's a dependency of eccodes. (itself a dependency of cfgrib) However, eccodes 2.45 & 2.46 don't appear to include eccodeslib which breaks cfgrib. Monitor https://github.com/ecmwf/eccodes-python/issues/150 for a resolution.
+    # ecCodes 2.48.3+ bundles eckitlib 2.3+, which crashes at shutdown when imported before pyproj.
+    "eccodeslib>=2.47.3.21,<2.48.3", # This shouldn't be needed - it's a dependency of eccodes. (itself a dependency of cfgrib) However, eccodes 2.45 & 2.46 don't appear to include eccodeslib which breaks cfgrib. Monitor https://github.com/ecmwf/eccodes-python/issues/150 for a resolution.
     "boto3-stubs~=1.43.127",
 ]
 

@@ -55,7 +55,8 @@ def insert_manifest_into_archive(archive_path: Path, manifest_name: str) -> None
                 not filename.endswith(".json")
                 or filename.startswith("LJ:")
                 or filename.startswith("._")
-                or PurePosixPath(member.name).as_posix().lstrip("./") in {manifest_name, f"{manifest_name}.json"}
+                or PurePosixPath(member.name).as_posix().lstrip("./")
+                in {manifest_name, f"{manifest_name}.json"}
             ):
                 continue
 
@@ -81,7 +82,9 @@ def insert_manifest_into_archive(archive_path: Path, manifest_name: str) -> None
                     print(f"Skipping primitive JSON value in: {member.name}")
 
     if not records:
-        raise FileNotFoundError(f"No valid JSON object records found inside {archive_path}")
+        raise FileNotFoundError(
+            f"No valid JSON object records found inside {archive_path}"
+        )
 
     # Collect all top-level keys in order of appearance
     all_keys = list(dict.fromkeys(k for rec in records for k in rec))

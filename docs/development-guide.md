@@ -10,6 +10,14 @@ VxIngest is a Python application that uses [uv](https://docs.astral.sh/uv/) for 
 
 The ingest writes Couchbase-ready JSON documents, logs, metrics, and transfer tarballs to disk. The transfer tarballs are retained for downstream consumers, but the downstream import runtime is not maintained in this repo.
 
+The GRIB RAOB, GRIB METAR, and PREPBUFR builders load station metadata once per
+builder instance in each worker. They cache empty results too, but retry failed
+queries on a later file. The GRIB builders recalculate domain filtering and
+station grid coordinates for each input file's projection. PREPBUFR retains
+in-memory station metadata updates made by its station handler. External station
+metadata changes become visible when a new builder instance is created, normally
+on the next ingest run.
+
 ## Getting Started
 
 Install [uv](https://docs.astral.sh/uv/getting-started/installation/) and initialize the development environment:
@@ -29,6 +37,8 @@ cb_password: "password"
 cb_bucket: "vxdata"
 cb_scope: "_default"
 cb_collection: "METAR"
+# Optional Couchbase query timeout in seconds (default: 120)
+cb_timeout_seconds: 180
 ```
 
 Run the application locally:
@@ -62,6 +72,19 @@ Input files must be at least four hours old before they are considered for inges
 ```bash
 VXINGEST_MIN_FILE_AGE_HOURS=1 uv run ingest ...
 ```
+
+### S3 input prefixes
+
+Set the input directory to an S3 URI prefix, for example
+`s3://my-bucket/path/to/model/`. VxIngest lists objects under that prefix and
+applies the configured file pattern, date mask, epoch range, and minimum-age
+filter. Workers download each selected object to a temporary local file for the
+existing builders, then remove it after processing. DataFile records retain the
+S3 URI and the object's `LastModified` timestamp.
+
+AWS credentials are resolved through boto3's standard credential provider
+chain. The ingest role or user needs permission to list the input prefix and
+read its objects (`s3:ListBucket` and `s3:GetObject`).
 
 ### Testing mode
 

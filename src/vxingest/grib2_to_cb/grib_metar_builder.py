@@ -87,8 +87,29 @@ class GribModelMetarBuilderV01(GribBuilder):
         self.template = ingest_document["template"]
         self.subset = self.template["subset"]
         self.land_use_types = None
+        self._station_metadata = None
         # self.do_profiling = True  # set to True to enable build_document profiling
         self.do_profiling = False  # set to True to enable build_document profiling
+
+    def _get_station_metadata(self):
+        """Retrieve station metadata once per builder, before per-file projection filtering."""
+        if self._station_metadata is None:
+            connection = self.load_spec["cb_connection"]
+            bucket = connection["bucket"]
+            scope = connection["scope"]
+            collection = connection["collection"]
+            limit_clause = ";"
+            if self.number_stations != sys.maxsize:
+                limit_clause = f" limit {self.number_stations};"
+            statement = f"""SELECT geo, name
+                    from `{bucket}`.{scope}.{collection}
+                    where type='MD'
+                    and docType='station'
+                    and subset='{self.subset}'
+                    and version='V01'
+                    {limit_clause}"""
+            self._station_metadata = list(self.load_spec["cluster"].query(statement))
+        return self._station_metadata
 
     def build_document(self, queue_element):
         """
@@ -119,11 +140,6 @@ class GribModelMetarBuilderV01(GribBuilder):
         """
 
         try:
-            # get the bucket, scope, and collection from the load_spec
-            bucket = self.load_spec["cb_connection"]["bucket"]
-            scope = self.load_spec["cb_connection"]["scope"]
-            collection = self.load_spec["cb_connection"]["collection"]
-
             # translate the projection from the grib file
             # The projection is the same for all the variables in the grib file,
             # so we only need to get it once and from one variable - we'll use heightAboveGround
@@ -402,18 +418,7 @@ class GribModelMetarBuilderV01(GribBuilder):
             # also fill in the gridpoints for each station and for each geo within each station
             # NOTE: this is not about regions, this is about models
             self.domain_stations = []
-            limit_clause = ";"
-            if self.number_stations != sys.maxsize:
-                limit_clause = f" limit {self.number_stations};"
-            stmnt = f"""SELECT geo, name
-                    from `{bucket}`.{scope}.{collection}
-                    where type='MD'
-                    and docType='station'
-                    and subset='{self.subset}'
-                    and version='V01'
-                    {limit_clause}"""
-            result = self.load_spec["cluster"].query(stmnt)
-            for row in result:
+            for row in self._get_station_metadata():
                 station = copy.deepcopy(row)
                 for geo_index in range(len(row["geo"])):
                     lat = row["geo"][geo_index]["lat"]
@@ -807,8 +812,16 @@ class GribModelMetarBuilderV01(GribBuilder):
             interp_values[z0_var],
             strict=True,
         ):
-            # don't compute if station elevation obviously bad
-            if z < -200 or z > 7000:
+            if (
+                not all(
+                    value is not None and math.isfinite(value)
+                    for value in (P0, T, Td, z, z0)
+                )
+                or not -200 <= z <= 7000
+                or not 10000 <= P0 <= 110000
+                or not 150 <= T <= 350
+                or not 100 <= Td <= T
+            ):
                 P_mb = None
             else:
                 # get model 2m virtual temperature
@@ -821,8 +834,11 @@ class GribModelMetarBuilderV01(GribBuilder):
                 Tv_z = Tv_z0 - ((z - z0) * gamma)
                 # approximate average virtual temperature of layer
                 Tv_layer = (Tv_z0 + Tv_z) / 2
-                P_Pa = P0 * math.exp(-(g * (z + inst_ht - z0)) / (R * Tv_layer))
-                P_mb = P_Pa / 100
+                if not math.isfinite(Tv_layer) or Tv_layer <= 0:
+                    P_mb = None
+                else:
+                    P_Pa = P0 * math.exp(-(g * (z + inst_ht - z0)) / (R * Tv_layer))
+                    P_mb = P_Pa / 100
             norm_pressure_list.append(P_mb)
 
         return norm_pressure_list
@@ -921,7 +937,7 @@ class GribModelMetarBuilderV01(GribBuilder):
         for _i, uwind_ms in enumerate(uwind_ms_values):
             vwind_ms = vwind_ms_values[_i]
             ws_ms = math.sqrt((uwind_ms * uwind_ms) + (vwind_ms * vwind_ms))
-            ws_mph.append((float)((ws_ms / 0.447) + 0.5))
+            ws_mph.append((float)(ws_ms / 0.447))
         return ws_mph
 
     @_handle_exceptions

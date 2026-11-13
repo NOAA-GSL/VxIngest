@@ -1,13 +1,15 @@
 import os
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
 import yaml
+from botocore import UNSIGNED
 from couchbase.auth import PasswordAuthenticator
 from couchbase.cluster import Cluster
 from couchbase.options import ClusterOptions, ClusterTimeoutOptions, QueryOptions
 
+from vxingest.builder_common.couchbase_config import get_cb_timeout_seconds
 from vxingest.builder_common.vx_ingest import CommonVxIngest
 
 
@@ -17,6 +19,40 @@ class EmptyQueryCluster:
     @staticmethod
     def query(_statement):
         return []
+
+
+@pytest.mark.parametrize(
+    ("credentials", "expected"),
+    [({}, 120), ({"cb_timeout_seconds": 240}, 240)],
+)
+def test_get_cb_timeout_seconds(credentials, expected):
+    assert get_cb_timeout_seconds(credentials) == expected
+
+
+@pytest.mark.parametrize("value", [0, -1, "not-a-number", True, float("inf")])
+def test_get_cb_timeout_seconds_rejects_invalid_values(value):
+    with pytest.raises(ValueError, match="cb_timeout_seconds"):
+        get_cb_timeout_seconds({"cb_timeout_seconds": value})
+
+
+def test_get_credentials_loads_cb_timeout_seconds(tmp_path: Path):
+    credentials = {
+        "cb_host": "localhost",
+        "cb_user": "user",
+        "cb_password": "password",
+        "cb_bucket": "bucket",
+        "cb_scope": "scope",
+        "cb_collection": "collection",
+        "cb_timeout_seconds": 240,
+    }
+    credentials_file = tmp_path / "credentials.yaml"
+    credentials_file.write_text(yaml.safe_dump(credentials), encoding="utf-8")
+    vx_ingest = CommonVxIngest()
+    vx_ingest.credentials_file = str(credentials_file)
+
+    cb_connection = vx_ingest.get_credentials({})
+
+    assert cb_connection["cb_timeout_seconds"] == 240
 
 
 def test_unit_get_file_list_respects_minimum_file_age(
@@ -36,6 +72,167 @@ def test_unit_get_file_list_respects_minimum_file_age(
     assert vx_ingest.get_file_list("SELECT", tmp_path, "*.grib2", "") == [
         str(input_file)
     ]
+
+
+def test_s3_file_list_respects_pattern_age_and_existing_datafiles(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    now = datetime.now(UTC)
+    prefix_url = "s3://input-bucket/model/run"
+    old_mtime = now - timedelta(hours=2)
+    recent_mtime = now - timedelta(minutes=10)
+    processed_url = "s3://input-bucket/model/run/processed.grib2"
+
+    class QueryCluster:
+        @staticmethod
+        def query(_statement):
+            return [{"url": processed_url, "mtime": old_mtime.timestamp()}]
+
+    class FakePaginator:
+        @staticmethod
+        def paginate(Bucket, Prefix):
+            assert Bucket == "input-bucket"
+            assert Prefix == "model/run/"
+            return [
+                {
+                    "Contents": [
+                        {"Key": "model/run/new.grib2", "LastModified": old_mtime},
+                        {
+                            "Key": "model/run/recent.grib2",
+                            "LastModified": recent_mtime,
+                        },
+                        {"Key": "model/run/not-data.txt", "LastModified": old_mtime},
+                        {"Key": "model/run/processed.grib2", "LastModified": old_mtime},
+                        {
+                            "Key": "model/run/nested/ignored.grib2",
+                            "LastModified": old_mtime,
+                        },
+                    ]
+                }
+            ]
+
+    class FakeS3Client:
+        @staticmethod
+        def get_paginator(_operation):
+            return FakePaginator()
+
+    monkeypatch.setattr(
+        "vxingest.builder_common.vx_ingest.get_min_file_age_hours", lambda: 1
+    )
+    monkeypatch.setattr(
+        "vxingest.builder_common.vx_ingest.boto3.client",
+        lambda _service, config: (
+            FakeS3Client()
+            if config.signature_version == UNSIGNED
+            else pytest.fail("Expected unsigned S3 request")
+        ),
+    )
+    vx_ingest = CommonVxIngest()
+    vx_ingest.cluster = QueryCluster()
+
+    assert vx_ingest.get_file_list("SELECT", prefix_url, "*.grib2", "") == [
+        "s3://input-bucket/model/run/new.grib2"
+    ]
+
+
+def test_s3_file_list_sorts_date_masked_objects_by_last_modified(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    now = datetime.now(UTC)
+    earlier = now - timedelta(hours=3)
+    later = now - timedelta(hours=2)
+
+    class QueryCluster:
+        @staticmethod
+        def query(_statement):
+            return []
+
+    class FakePaginator:
+        @staticmethod
+        def paginate(**_kwargs):
+            return [
+                {
+                    "Contents": [
+                        {
+                            "Key": "model/run/20260101.grib2",
+                            "LastModified": later,
+                        },
+                        {
+                            "Key": "model/run/20260102.grib2",
+                            "LastModified": earlier,
+                        },
+                    ]
+                }
+            ]
+
+    class FakeS3Client:
+        @staticmethod
+        def get_paginator(_operation):
+            return FakePaginator()
+
+    monkeypatch.setattr(
+        "vxingest.builder_common.vx_ingest.get_min_file_age_hours", lambda: 1
+    )
+    monkeypatch.setattr(
+        "vxingest.builder_common.vx_ingest.boto3.client",
+        lambda _service, config: (
+            FakeS3Client()
+            if config.signature_version == UNSIGNED
+            else pytest.fail("Expected unsigned S3 request")
+        ),
+    )
+    vx_ingest = CommonVxIngest()
+    vx_ingest.cluster = QueryCluster()
+
+    assert vx_ingest.get_file_list(
+        "SELECT", "s3://input-bucket/model/run", "*.grib2", "%Y%m%d.grib2"
+    ) == [
+        "s3://input-bucket/model/run/20260102.grib2",
+        "s3://input-bucket/model/run/20260101.grib2",
+    ]
+
+
+def test_worker_stages_s3_input_and_restores_datafile_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    import io
+
+    from vxingest.builder_common import ingest_manager
+
+    modified = datetime(2026, 11, 9, tzinfo=UTC)
+    source_url = "s3://input-bucket/model/run/input.grib2"
+
+    class FakeS3Client:
+        @staticmethod
+        def get_object(Bucket, Key):
+            assert Bucket == "input-bucket"
+            assert Key == "model/run/input.grib2"
+            return {"Body": io.BytesIO(b"input-data"), "LastModified": modified}
+
+    monkeypatch.setattr(
+        ingest_manager.boto3,
+        "client",
+        lambda _service, config: (
+            FakeS3Client()
+            if config.signature_version == UNSIGNED
+            else pytest.fail("Expected unsigned S3 request")
+        ),
+    )
+    manager = object.__new__(ingest_manager.CommonVxIngestManager)
+    manager._active_source_metadata = None
+    manager._restore_s3_datafile_metadata(None)
+
+    with manager._localize_s3_input(source_url) as local_path:
+        assert Path(local_path).read_bytes() == b"input-data"
+        datafile = {"type": "DF", "url": local_path, "mtime": 0}
+        manager._restore_s3_datafile_metadata({"datafile": datafile})
+        assert datafile == {
+            "type": "DF",
+            "url": source_url,
+            "mtime": modified.timestamp(),
+        }
+
+    assert not Path(local_path).exists()
 
 
 def connect_cb():

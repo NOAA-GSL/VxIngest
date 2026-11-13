@@ -56,7 +56,7 @@ class PrepbufrBuilder(Builder):
         self.model = None
         self.sub_doc_type = None
         self.model_fcst_valid_epochs = []
-        self.stations = {}
+        self.stations = None
         self.interpolated_data = {}
         self.levels = []
         # used to stash each fcstValidEpoch obs_data for the handlers
@@ -480,6 +480,9 @@ class PrepbufrBuilder(Builder):
                 # once all the translations have occurred
                 # set the level right away (it is needed for the handle_data)
                 # clean out the data template from the data portion of the newDocument
+                logger.debug(
+                    "PrepbufrBuilder.handle_document - processing level %s", level
+                )
                 new_document["data"] = {}
                 for key in self.template:
                     if key == "level":
@@ -625,6 +628,7 @@ class PrepbufrBuilder(Builder):
                 func,
                 params,
             )
+            raise
         return replace_with
 
     def handle_data(self, level, **kwargs):
@@ -647,6 +651,9 @@ class PrepbufrBuilder(Builder):
             for _station_name in self.interpolated_data:
                 data_elem = {}
                 data_template = self.template["data"]["*stationName"]
+                logger.debug(
+                    "PrepbufrBuilder.handle_data - processing station %s", _station_name
+                )
                 try:
                     for _data_key in data_template:
                         try:
@@ -688,6 +695,22 @@ class PrepbufrBuilder(Builder):
             )
         return doc
 
+    def _get_station_metadata(self):
+        """Load stations once per builder, retaining in-memory metadata updates."""
+        if self.stations is None:
+            connection = self.load_spec["cb_connection"]
+            bucket = connection["bucket"]
+            scope = connection["scope"]
+            collection = connection["collection"]
+            statement = f"""SELECT {self.subset}.*
+                    FROM `{bucket}`.{scope}.{collection}
+                    WHERE type = 'MD'
+                    AND docType = 'station'
+                    AND subset = '{self.subset}'
+                    AND version = 'V01';"""
+            self.stations = list(self.load_spec["cluster"].query(statement))
+        return self.stations
+
     def build_document(self, queue_element):
         """This is the entry point for the Builders from the ingestManager.
         These documents are id'd by fcstValidEpoch and level. The data section is a dictionary
@@ -709,10 +732,6 @@ class PrepbufrBuilder(Builder):
         # noinspection PyBroadException
         try:
             # read the api for all data for this valid fcst hour.
-            bucket = self.load_spec["cb_connection"]["bucket"]
-            scope = self.load_spec["cb_connection"]["scope"]
-            # collection is set to "RAOB" in the run_ingest
-            collection = self.load_spec["cb_connection"]["collection"]
             mnemonic_mapping = self.mnemonic_mapping
             self.raw_obs_data = self.read_data_from_file(
                 queue_element, mnemonic_mapping
@@ -724,15 +743,7 @@ class PrepbufrBuilder(Builder):
                     "PrepBufrBuilder.build_document: Exception  error: %s", str(_e)
                 )
                 return {}
-            if len(self.stations) == 0:
-                stmnt = f"""SELECT {self.subset}.*
-                    FROM `{bucket}`.{scope}.{collection}
-                    WHERE type = 'MD'
-                    AND docType = 'station'
-                    AND subset = '{self.subset}'
-                    AND version = 'V01';"""
-                result = self.load_spec["cluster"].query(stmnt)
-                self.stations = list(result)
+            self._get_station_metadata()
 
             self.initialize_document_map()
             logger.info(
@@ -1815,6 +1826,12 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                     subset_data = {}
                     # read the header data
                     header_data = self.read_data_from_bufr(bufr, templates["header"])
+                    if header_data is None:
+                        logger.warning(
+                            "PrepBufrBuilder.read_data_from_file: skipping subset in %s: missing decoded header",
+                            queue_element,
+                        )
+                        continue
                     # only save report types that are in the template
                     # if we already have data for this station - skip it
                     if header_data["report_type"] not in templates["bufr_report_types"]:
@@ -1835,6 +1852,18 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                     obs_data = self.read_data_from_bufr(
                         bufr, templates["obs_data_" + str(header_data["report_type"])]
                     )
+                    if (
+                        obs_data is None
+                        or obs_data.get("pressure") is None
+                        or len(obs_data["pressure"]) == 0
+                    ):
+                        logger.warning(
+                            "PrepBufrBuilder.read_data_from_file: skipping subset in %s for station %s report type %s: missing observations or pressure levels",
+                            queue_element,
+                            subset_data["station_id"],
+                            subset_data["report_type"],
+                        )
+                        continue
                     subset_data["obs_data"] = obs_data
 
                     raw_bufr_data[subset_data["station_id"]] = raw_bufr_data.get(
@@ -1860,10 +1889,12 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                         ):
                             # replace with the larger new subset
                             raw_bufr_data[station_id][report_type] = subset_data
-                except Exception as _e:
-                    logger.error(
-                        "PrepBufrBuilder.read_data_from_file: Exception  error: %s",
-                        str(_e),
+                except Exception:
+                    logger.exception(
+                        "PrepBufrBuilder.read_data_from_file: Exception reading %s station %s report type %s",
+                        queue_element,
+                        subset_data.get("station_id"),
+                        subset_data.get("report_type"),
                     )
         bufr.close()
         return raw_bufr_data
@@ -1925,7 +1956,13 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         """
         # Meters/second to miles/hour
         try:
-            value = next(iter(params_dict.items()))[1]
+            field = next(
+                (key for key in params_dict if key not in {"level", "stationName"}),
+                None,
+            )
+            if field is None or params_dict[field] is None:
+                return None
+            value = params_dict[field]
             # value might have been masked (there is probably a better way to deal with this)
             if not self.is_a_number(value):
                 return None
@@ -1950,7 +1987,13 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
             float: value converted from knots to meters per second
         """
         try:
-            value = next(iter(params_dict.items()))[1]
+            field = next(
+                (key for key in params_dict if key not in {"level", "stationName"}),
+                None,
+            )
+            if field is None or params_dict[field] is None:
+                return None
+            value = params_dict[field]
             # value might have been masked (there is probably a better way to deal with this)
             if not self.is_a_number(value):
                 return None
@@ -1965,6 +2008,35 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
             )
             return None
 
+    def knots_to_miles_per_hour(self, params_dict):
+        """Converts knots to miles per hour performing any translations that are necessary
+        Args:
+            params_dict (dict): named function parameters
+        Returns:
+            float: value converted from knots to miles per hour
+        """
+        try:
+            field = next(
+                (key for key in params_dict if key not in {"level", "stationName"}),
+                None,
+            )
+            if field is None or params_dict[field] is None:
+                return None
+            value = params_dict[field]
+            # value might have been masked (there is probably a better way to deal with this)
+            if not self.is_a_number(value):
+                return None
+            else:
+                value = round(float(value) * 1.150779448, 4)
+            return value
+        except Exception as _e:
+            logger.error(
+                "%s handle_data: Exception in named function knots_to_miles_per_hour:  error: %s",
+                self.__class__.__name__,
+                str(_e),
+            )
+            return None
+
     def celsius_to_fahrenheit(self, params_dict):
         """Converts celsius to fahrenheit performing any translations that are necessary
         Args:
@@ -1974,8 +2046,14 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
         """
 
         try:
-            value = next(iter(params_dict.items()))[1]
             # value might have been masked (there is probably a better way to deal with this)
+            field = next(
+                (key for key in params_dict if key not in {"level", "stationName"}),
+                None,
+            )
+            if field is None or params_dict[field] is None:
+                return None
+            value = params_dict[field]
             if not self.is_a_number(value):
                 return None
             else:
@@ -1997,7 +2075,13 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
             [type]: [description]
         """
         try:
-            value = next(iter(params_dict.items()))[1]
+            field = next(
+                (key for key in params_dict if key not in {"level", "stationName"}),
+                None,
+            )
+            if field is None or params_dict[field] is None:
+                return None
+            value = params_dict[field]
             # value might have been masked (there is probably a better way to deal with this)
             if not self.is_a_number(value):
                 return None
@@ -2020,7 +2104,13 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
             [type]: [description]
         """
         try:
-            value = next(iter(params_dict.items()))[1]
+            field = next(
+                (key for key in params_dict if key not in {"level", "stationName"}),
+                None,
+            )
+            if field is None or params_dict[field] is None:
+                return None
+            value = params_dict[field]
             # value might have been masked (there is probably a better way to deal with this)
             if not self.is_a_number(value):
                 return None
@@ -2096,6 +2186,13 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                 # station does not exist in reference but does exist in the prepbufr file
                 # Throw this data away. We don't have enough information to create a station
                 raise ValueError("bad wmoid in handle_station")
+            if elev is None:
+                logger.warning(
+                    "%s handle_station: skipping station metadata update for %s: missing PREPBUFR elevation",
+                    self.__class__.__name__,
+                    station_id,
+                )
+                return station_id
             # station does exist but is there a matching geo for the lowest height lat/lon ?
             # If this is a new location then we need to add a new geo to the station
             # but only if this is a new location close to the ground
@@ -2103,6 +2200,14 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
             # if there is a matching geo then update the matching geo time range
             for geo_index in range(len(self.stations[station_index]["geo"])):
                 geo = self.stations[station_index]["geo"][geo_index]
+                if geo["elev"] is None:
+                    logger.warning(
+                        "%s handle_station: skipping geo %s for %s: missing station elevation",
+                        self.__class__.__name__,
+                        geo_index,
+                        station_id,
+                    )
+                    continue
                 # is the level close to the station elevation? The lat? The lon?
                 # if not then don't use this data (the balloon probably isn't close to the station)
                 # 1° = 111 km so 0.01  degrees is about 1.1 kilometers ~ 1 km.
@@ -2170,11 +2275,10 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
             )
             raise _e
         except Exception as _e:
-            logger.error(
+            logger.exception(
                 "%s PrepbufrRaobsObsBuilderV01.handle_station: Exception finding or creating station to match station_name: params: %s",
                 self.__class__.__name__,
                 str(params_dict),
-                _e,
             )
             raise _e
 
@@ -2268,7 +2372,7 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
             )
         return None
 
-    def get_valid_time_epoch(self, params_dict=None):
+    def get_valid_time_epoch(self, params_dict=None):  # @UnusedVariable
         """
         This routine returns the valid time epoch
         """
@@ -2283,3 +2387,22 @@ class PrepbufrRaobsObsBuilderV01(PrepbufrBuilder):
                 str(_e),
             )
         return None
+
+    def handle_mg_to_g(self, params_dict=None):  # @UnusedVariable
+        """convert a value from milligrams to grams
+        Args:
+            params_dict (object): named function parameters, expects a key "value" with the value in milligrams
+        Returns:
+            float: value in grams
+        """
+        try:
+            field = next(
+                (key for key in params_dict if key not in {"level", "stationName"}),
+                None,
+            )
+            if field is None or params_dict[field] is None:
+                return None
+            return float(params_dict[field]) / 1000.0
+        except (KeyError, TypeError, ValueError) as error:
+            logger.exception("handle_mg_to_g failed: %s", error)
+            return None

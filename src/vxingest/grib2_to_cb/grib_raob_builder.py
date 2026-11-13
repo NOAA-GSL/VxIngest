@@ -68,6 +68,7 @@ class GribModelRaobBuilderV01(GribBuilder):
         self.subset = self.template["subset"]
         self.land_use_types = None
         self.raob_units = {}
+        self._station_metadata = None
         # self.do_profiling = True  # set to True to enable build_document profiling
         self.do_profiling = False  # set to True to enable build_document profiling
 
@@ -77,6 +78,26 @@ class GribModelRaobBuilderV01(GribBuilder):
         actually exist in the file are filtered in the builder.
         """
         return list(range(1010, 10, -10))
+
+    def _get_station_metadata(self):
+        """Retrieve station metadata once per builder, before per-file projection filtering."""
+        if self._station_metadata is None:
+            connection = self.load_spec["cb_connection"]
+            bucket = connection["bucket"]
+            scope = connection["scope"]
+            collection = connection["collection"]
+            limit_clause = ";"
+            if self.number_stations != sys.maxsize:
+                limit_clause = f" limit {self.number_stations};"
+            statement = f"""SELECT geo, wmoid
+                    from `{bucket}`.{scope}.{collection}
+                    where type='MD'
+                    and docType='station'
+                    and subset='{self.subset}'
+                    and version='V01'
+                    {limit_clause}"""
+            self._station_metadata = list(self.load_spec["cluster"].query(statement))
+        return self._station_metadata
 
     def build_document(self, queue_element):
         """
@@ -170,11 +191,6 @@ class GribModelRaobBuilderV01(GribBuilder):
         """
 
         try:
-            # get the bucket, scope, and collection from the load_spec
-            bucket = self.load_spec["cb_connection"]["bucket"]
-            scope = self.load_spec["cb_connection"]["scope"]
-            collection = self.load_spec["cb_connection"]["collection"]
-
             # translate the projection from the grib file
             # The projection is the same for all the variables in the grib file,
             # so we only need to get it once and from one variable - we'll use heightAboveGround
@@ -355,18 +371,7 @@ class GribModelRaobBuilderV01(GribBuilder):
             # also fill in the gridpoints for each station and for each geo within each station
             # NOTE: this is not about regions, this is about models
             self.domain_stations = []
-            limit_clause = ";"
-            if self.number_stations != sys.maxsize:
-                limit_clause = f" limit {self.number_stations};"
-            stmnt = f"""SELECT geo, wmoid
-                    from `{bucket}`.{scope}.{collection}
-                    where type='MD'
-                    and docType='station'
-                    and subset='{self.subset}'
-                    and version='V01'
-                    {limit_clause}"""
-            result = self.load_spec["cluster"].query(stmnt)
-            for row in result:
+            for row in self._get_station_metadata():
                 station = copy.deepcopy(row)
                 for geo_index in range(len(row["geo"])):
                     lat = row["geo"][geo_index]["lat"]
@@ -535,7 +540,8 @@ class GribModelRaobBuilderV01(GribBuilder):
                 return None
             return [
                 (
-                    (math.sqrt(float(u_value) ** 2 + float(v_value) ** 2) / 0.447) + 0.5
+                    # also convert from meters per second to miles per hour
+                    (math.sqrt(float(u_value) ** 2 + float(v_value) ** 2) / 0.447)
                     if u_value is not None and v_value is not None
                     else None
                 )
@@ -627,7 +633,11 @@ class GribModelRaobBuilderV01(GribBuilder):
         try:
             # Convert each station value from Kelvin to Fahrenheit
             tempf_values = []
-            for _v, v_intrp_tempf in list(params_dict.values())[0]:
+            variable_values = next(
+                (value for key, value in params_dict.items() if key != "level"),
+                [],
+            )
+            for _v, v_intrp_tempf in variable_values:
                 tempf_values.append(
                     ((float(v_intrp_tempf) - 273.15) * 9) / 5 + 32
                     if v_intrp_tempf is not None
@@ -717,4 +727,45 @@ class GribModelRaobBuilderV01(GribBuilder):
             logger.exception(
                 "%s.handle_level failed: %s", self.__class__.__name__, error
             )
+            return None
+
+    def handle_kg_to_g(self, params_dict):  # @UnusedVariable
+        """convert a value from kilograms to grams
+        Args:
+            params_dict (object): named function parameters, expects a key "value" with the value in kilograms
+        Returns:
+            float: value in grams
+        """
+        try:
+            tempf_values = []
+            variable_values = next(
+                (value for key, value in params_dict.items() if key != "level"),
+                [],
+            )
+            for _v, v_intrp_tempf in variable_values:
+                tempf_values.append(
+                    float(v_intrp_tempf) * 1000 if v_intrp_tempf is not None else None
+                )
+            return tempf_values
+        except (KeyError, TypeError, ValueError) as error:
+            logger.exception("handle_kg_to_g failed: %s", error)
+            return None
+
+    def handle_mg_to_g(self, params_dict):  # @UnusedVariable
+        """convert a value from milligrams to grams
+        Args:
+            params_dict (object): named function parameters, expects a key "value" with the value in milligrams
+        Returns:
+            float: value in grams
+        """
+        try:
+            field = next(
+                (key for key in params_dict if key not in {"level", "stationName"}),
+                None,
+            )
+            if field is None or params_dict[field] is None:
+                return None
+            return float(params_dict[field]) / 1000.0
+        except (KeyError, TypeError, ValueError) as error:
+            logger.exception("handle_mg_to_g failed: %s", error)
             return None

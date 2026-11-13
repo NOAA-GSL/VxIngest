@@ -1,7 +1,10 @@
+from unittest.mock import Mock
+
 import numpy as np
 import pytest
 import xarray as xr
 
+from vxingest.grib2_to_cb import grib_metar_builder
 from vxingest.grib2_to_cb.grib_metar_builder import GribModelMetarBuilderV01
 from vxingest.grib2_to_cb.grib_raob_builder import GribModelRaobBuilderV01
 
@@ -37,6 +40,78 @@ def single_station_list():
         }
     ]
     return stations
+
+
+@pytest.mark.parametrize(
+    ("builder_class", "subset", "identity_field"),
+    [
+        (GribModelRaobBuilderV01, "RAOB", "wmoid"),
+        (GribModelMetarBuilderV01, "METAR", "name"),
+    ],
+)
+@pytest.mark.parametrize("has_stations", [False, True])
+def test_station_metadata_is_loaded_once(
+    builder_class, subset, identity_field, has_stations
+):
+    stations = [{identity_field: "40375", "geo": []}] if has_stations else []
+    cluster = Mock()
+    cluster.query.return_value = iter(stations)
+    builder = builder_class(
+        load_spec={
+            "cluster": cluster,
+            "cb_connection": {
+                "bucket": "vxdata",
+                "scope": "_default",
+                "collection": subset,
+            },
+        },
+        ingest_document={
+            "template": {"subset": subset},
+            "validTimeDelta": "",
+            "validTimeInterval": "",
+        },
+        number_stations=5,
+    )
+
+    first = builder._get_station_metadata()
+    second = builder._get_station_metadata()
+
+    assert first == stations
+    assert second is first
+    cluster.query.assert_called_once()
+    statement = cluster.query.call_args.args[0]
+    assert f"SELECT geo, {identity_field}" in statement
+    assert f"`vxdata`._default.{subset}" in statement
+    assert f"subset='{subset}'" in statement
+    assert "limit 5;" in statement
+
+
+@pytest.mark.parametrize(
+    "builder_class", [GribModelRaobBuilderV01, GribModelMetarBuilderV01]
+)
+def test_station_metadata_query_failure_can_be_retried(builder_class):
+    cluster = Mock()
+    cluster.query.side_effect = [RuntimeError("query failed"), iter([])]
+    builder = builder_class(
+        load_spec={
+            "cluster": cluster,
+            "cb_connection": {
+                "bucket": "vxdata",
+                "scope": "_default",
+                "collection": "RAOB",
+            },
+        },
+        ingest_document={
+            "template": {"subset": "RAOB"},
+            "validTimeDelta": "",
+            "validTimeInterval": "",
+        },
+    )
+
+    with pytest.raises(RuntimeError, match="query failed"):
+        builder._get_station_metadata()
+    assert builder._get_station_metadata() == []
+    assert cluster.query.call_count == 2
 
 
 @pytest.fixture
@@ -83,15 +158,16 @@ def test_handle_normalized_surface_pressure(
     assert norm_pressure_list == pytest.approx([980.6153])
 
 
+@pytest.mark.parametrize("elevation", [9999, -201, None, np.nan, np.inf])
 def test_handle_normalized_surface_pressure_bad_station_elev(
-    empty_builder, single_station_list, make_var_obj
+    empty_builder, single_station_list, make_var_obj, elevation
 ):
     """Test that get_normalized_surface_pressure() returns null value
     when station elevation is unrealistic value"""
 
     builder = empty_builder
     builder.domain_stations = single_station_list
-    builder.domain_stations[0]["geo"][0]["elev"] = 9999
+    builder.domain_stations[0]["geo"][0]["elev"] = elevation
     builder.ds_translate_item_variables_map = {
         "Surface pressure": make_var_obj(97500),
         "2 metre temperature": make_var_obj(285),
@@ -103,6 +179,71 @@ def test_handle_normalized_surface_pressure_bad_station_elev(
     norm_pressure_list = builder.handle_normalized_surface_pressure(params_dict=None)
 
     assert norm_pressure_list == [None]
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("Surface pressure", 0),
+        ("Surface pressure", -1),
+        ("Surface pressure", 9999),
+        ("Surface pressure", 110001),
+        ("Surface pressure", np.nan),
+        ("Surface pressure", np.inf),
+        ("2 metre temperature", 0),
+        ("2 metre temperature", 149),
+        ("2 metre temperature", 351),
+        ("2 metre temperature", np.nan),
+        ("2 metre dewpoint temperature", 0),
+        ("2 metre dewpoint temperature", 99),
+        ("2 metre dewpoint temperature", 286),
+        ("2 metre dewpoint temperature", np.inf),
+        ("Orography", np.nan),
+        ("Orography", np.inf),
+    ],
+)
+def test_normalized_pressure_rejects_bad_inputs_before_metpy(
+    empty_builder, single_station_list, make_var_obj, monkeypatch, field, value
+):
+    builder = empty_builder
+    builder.domain_stations = single_station_list
+    builder.ds_translate_item_variables_map = {
+        "Surface pressure": make_var_obj(97500),
+        "2 metre temperature": make_var_obj(285),
+        "2 metre dewpoint temperature": make_var_obj(270),
+        "Orography": make_var_obj(300),
+        "fcst_valid_epoch": 1234,
+    }
+    builder.ds_translate_item_variables_map[field] = make_var_obj(value)
+    calculate_temperature = Mock()
+    monkeypatch.setattr(
+        grib_metar_builder, "virtual_temperature_from_dewpoint", calculate_temperature
+    )
+
+    assert builder.handle_normalized_surface_pressure(None) == [None]
+    calculate_temperature.assert_not_called()
+
+
+def test_normalized_pressure_continues_after_bad_station(
+    empty_builder, single_station_list, make_var_obj
+):
+    builder = empty_builder
+    builder.domain_stations = single_station_list * 2
+    builder.ds_translate_item_variables_map = {
+        "Surface pressure": make_var_obj(97500),
+        "2 metre temperature": make_var_obj(285),
+        "2 metre dewpoint temperature": make_var_obj(270),
+        "Orography": make_var_obj(300),
+        "fcst_valid_epoch": 1234,
+    }
+    builder.interp_grid_box = Mock(
+        side_effect=[97500, 285, 0, 300, 97500, 285, 270, 300]
+    )
+
+    result = builder.handle_normalized_surface_pressure(None)
+
+    assert result[0] is None
+    assert result[1] == pytest.approx(980.6153)
 
 
 def test_raob_translate_template_item_uses_requested_level(
@@ -147,7 +288,7 @@ def test_raob_wind_speed_uses_u_and_v_interpolated_values():
 
     assert builder.handle_raob_variable(params, "u") == [3.0]
     assert builder.handle_raob_variable(params, "v") == [4.0]
-    assert builder.handle_wind_speed(params) == pytest.approx([(5.0 / 0.447) + 0.5])
+    assert builder.handle_wind_speed(params) == pytest.approx([(5.0 / 0.447)])
 
 
 def test_raob_named_variable_handler_uses_template_short_name():

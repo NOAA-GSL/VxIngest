@@ -6,15 +6,24 @@ import json
 import logging
 import os
 import queue
+import shutil
+import tempfile
 import time
+from contextlib import contextmanager
 from datetime import timedelta
 from multiprocessing import Process
 from pathlib import Path
+from urllib.parse import urlsplit
 
+import boto3
+from botocore import UNSIGNED
+from botocore.config import Config
 from couchbase.auth import PasswordAuthenticator
 from couchbase.cluster import Cluster
 from couchbase.exceptions import CouchbaseException, TimeoutException
 from couchbase.options import ClusterOptions, ClusterTimeoutOptions
+
+from vxingest.builder_common.couchbase_config import get_cb_timeout_seconds
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +77,7 @@ class CommonVxIngestManager(Process):
         self.output_dir = output_dir
         self.logging_queue = logging_queue
         self.logging_configurer = logging_configurer
+        self._active_source_metadata = None
 
         if not Path(self.output_dir).exists():
             Path(self.output_dir).mkdir(parents=True, exist_ok=True)
@@ -78,6 +88,58 @@ class CommonVxIngestManager(Process):
 
     def process_queue_element(self, queue_element):
         pass
+
+    @contextmanager
+    def _localize_s3_input(self, queue_element):
+        """Yield a local path for builders and clean up staged S3 objects afterward.
+
+        Non-S3 inputs pass through unchanged. S3 objects are fetched with unsigned
+        requests into a temporary directory; while yielding that path, retain the
+        source URL and LastModified time for the DataFile document.
+        """
+        if not queue_element.startswith("s3://"):
+            yield queue_element
+            return
+
+        parsed_url = urlsplit(queue_element)
+        bucket = parsed_url.netloc
+        key = parsed_url.path.lstrip("/")
+        if not bucket or not key:
+            raise ValueError(f"Invalid S3 object URL: {queue_element}")
+
+        with tempfile.TemporaryDirectory(prefix="vxingest-s3-") as temp_dir:
+            local_path = Path(temp_dir) / Path(key).name
+            s3_client = boto3.client("s3", config=Config(signature_version=UNSIGNED))
+            response = s3_client.get_object(Bucket=bucket, Key=key)
+            body = response["Body"]
+            try:
+                with local_path.open("wb") as local_file:
+                    shutil.copyfileobj(body, local_file)
+            finally:
+                body.close()
+
+            self._active_source_metadata = {
+                "url": queue_element,
+                "mtime": response["LastModified"].timestamp(),
+            }
+            try:
+                yield str(local_path)
+            finally:
+                self._active_source_metadata = None
+
+    def _restore_s3_datafile_metadata(self, document_map):
+        """Restore the original S3 URL and LastModified on DataFile documents.
+
+        Builders see a temporary local path, so their generated DataFile metadata
+        must be corrected before persistence. Do nothing for local inputs or an
+        empty document map.
+        """
+        if self._active_source_metadata is None or not document_map:
+            return
+        for document in document_map.values():
+            if document.get("type") == "DF":
+                document["url"] = self._active_source_metadata["url"]
+                document["mtime"] = self._active_source_metadata["mtime"]
 
     def close_cb(self):
         """
@@ -99,7 +161,9 @@ class CommonVxIngestManager(Process):
         try:
             timeout_options = ClusterTimeoutOptions(
                 kv_timeout=timedelta(seconds=25),
-                query_timeout=timedelta(seconds=120),
+                query_timeout=timedelta(
+                    seconds=get_cb_timeout_seconds(self.cb_credentials)
+                ),
             )
             options = ClusterOptions(
                 PasswordAuthenticator(
@@ -174,7 +238,8 @@ class CommonVxIngestManager(Process):
                     if queue_element is not None:
                         # it seems it is possible to have an empty queue_element
                         # but we cannot process one so skip it
-                        self.process_queue_element(queue_element)
+                        with self._localize_s3_input(queue_element) as local_path:
+                            self.process_queue_element(local_path)
                         logger.info(
                             self.thread_name
                             + ": IngestManager - finished processing "
@@ -211,6 +276,7 @@ class CommonVxIngestManager(Process):
         # documents in the document_map into couchbase
 
         try:
+            self._restore_s3_datafile_metadata(document_map)
             logger.info(
                 "process_element writing documents for queue_element :%s  with threadName: %s",
                 str(queue_element),
@@ -261,6 +327,7 @@ class CommonVxIngestManager(Process):
             _e: generic exception
         """
         try:
+            self._restore_s3_datafile_metadata(document_map)
             logger.info(
                 "%s: write_document_to_files output %s:  ",
                 self.thread_name,
@@ -276,7 +343,12 @@ class CommonVxIngestManager(Process):
                 try:
                     # replace any os separator in the file name with an underscore to avoid directory issues
                     # but still keep the original file name structure as much as possible
-                    file_name = file_name.replace(os.sep, "__") + ".json"
+                    source_file_name = (
+                        self._active_source_metadata["url"]
+                        if self._active_source_metadata is not None
+                        else file_name
+                    )
+                    file_name = source_file_name.replace(os.sep, "__") + ".json"
                     complete_file_name = Path(self.output_dir) / file_name
                     # how many documents are we writing? Log it for alert
                     num_documents = len(list(document_map.values()))

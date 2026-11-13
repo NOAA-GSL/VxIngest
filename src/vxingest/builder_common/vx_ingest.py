@@ -21,12 +21,18 @@ import pathlib
 import sys
 import threading
 import time
+from urllib.parse import urlsplit
 
+import boto3
 import yaml
+from botocore import UNSIGNED
+from botocore.config import Config
 from couchbase.auth import PasswordAuthenticator
 from couchbase.cluster import Cluster
 from couchbase.exceptions import CouchbaseException
 from couchbase.options import ClusterOptions, ClusterTimeoutOptions
+
+from vxingest.builder_common.couchbase_config import get_cb_timeout_seconds
 
 # Get a logger with this module's name to help with debugging
 logger = logging.getLogger(__name__)
@@ -165,7 +171,9 @@ class CommonVxIngest:
         try:
             timeout_options = ClusterTimeoutOptions(
                 kv_timeout=dt.timedelta(seconds=25),
-                query_timeout=dt.timedelta(seconds=120),
+                query_timeout=dt.timedelta(
+                    seconds=get_cb_timeout_seconds(self.cb_credentials)
+                ),
             )
             options = ClusterOptions(
                 PasswordAuthenticator(
@@ -269,10 +277,13 @@ class CommonVxIngest:
                 )
                 return []  # handle this in the future
             elif str(directory).startswith("s3://"):
-                logger.debug(
-                    "get_file_list: Directory is an S3 path, skipping local file glob."
+                return self._get_s3_file_list(
+                    directory,
+                    file_pattern,
+                    file_mask,
+                    first_last_params,
+                    df_elements,
                 )
-                return []  # handle this in the future
             elif str(directory).startswith("file://"):
                 # local file path with file:// prefix
                 self.load_spec["input_data_path"] = pathlib.Path(
@@ -404,6 +415,86 @@ class CommonVxIngest:
             )
             return file_names
 
+    def _get_s3_file_list(
+        self, directory, file_pattern, file_mask, first_last_params, df_elements
+    ):
+        file_names = []
+        try:
+            parsed_url = urlsplit(str(directory))
+            bucket = parsed_url.netloc
+            prefix = parsed_url.path.lstrip("/")
+            if prefix and not prefix.endswith("/"):
+                prefix += "/"
+            if not bucket:
+                logger.error("get_file_list: Invalid S3 prefix %s", directory)
+                return []
+
+            df_entries_by_url = {entry["url"]: entry for entry in df_elements}
+            min_file_age_hours = get_min_file_age_hours()
+            oldest_allowed_mtime = (
+                dt.datetime.now().timestamp() - min_file_age_hours * 3600
+            )
+            eligible_files = []
+            s3_client = boto3.client("s3", config=Config(signature_version=UNSIGNED))
+            paginator = s3_client.get_paginator("list_objects_v2")
+
+            for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+                for item in page.get("Contents", []):
+                    key = item["Key"]
+                    relative_key = key.removeprefix(prefix)
+                    file_path = pathlib.PurePosixPath(relative_key)
+                    if key.endswith("/") or not self._s3_key_matches_pattern(
+                        relative_key, file_pattern
+                    ):
+                        continue
+
+                    modified_time = item["LastModified"].timestamp()
+                    if modified_time >= oldest_allowed_mtime:
+                        continue
+
+                    if file_mask:
+                        try:
+                            file_time = dt.datetime.strptime(file_path.name, file_mask)
+                        except ValueError:
+                            continue
+                        if first_last_params:
+                            file_epoch = int(file_time.timestamp())
+                            if file_epoch < first_last_params.get(
+                                "first_epoch", 0
+                            ) or file_epoch > first_last_params.get(
+                                "last_epoch", sys.maxsize
+                            ):
+                                continue
+
+                    s3_url = f"s3://{bucket}/{key}"
+                    df_entry = df_entries_by_url.get(s3_url)
+                    if df_entry is None or int(modified_time) > int(df_entry["mtime"]):
+                        eligible_files.append((s3_url, modified_time))
+
+            eligible_files.sort(key=lambda entry: entry[1] if file_mask else entry[0])
+            file_names = [entry[0] for entry in eligible_files]
+
+            logger.debug(
+                "get_file_list: Found %d S3 files to process from %s using pattern %s",
+                len(file_names),
+                directory,
+                file_pattern,
+            )
+        except Exception as _e:
+            logger.error("get_file_list Error: %s", str(_e))
+        return file_names
+
+    @staticmethod
+    def _s3_key_matches_pattern(relative_key, file_pattern):
+        path = pathlib.PurePosixPath(relative_key)
+        if file_pattern.startswith("**/") and (
+            path.match(file_pattern) or path.match(file_pattern[3:])
+        ):
+            return True
+        return ("/" in file_pattern or "/" not in relative_key) and path.match(
+            file_pattern
+        )
+
     def get_credentials(self, load_spec):
         """get credentials from a credentials file and puts them into the load_spec
         Args:
@@ -432,6 +523,9 @@ class CommonVxIngest:
             load_spec["cb_connection"]["bucket"] = _yaml_data["cb_bucket"]
             load_spec["cb_connection"]["collection"] = _yaml_data["cb_collection"]
             load_spec["cb_connection"]["scope"] = _yaml_data["cb_scope"]
+            load_spec["cb_connection"]["cb_timeout_seconds"] = get_cb_timeout_seconds(
+                _yaml_data
+            )
             return load_spec["cb_connection"]
         except (RuntimeError, TypeError, NameError, KeyError) as e:
             logger.error(f"*** Error reading credential file: {e} ***")

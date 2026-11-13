@@ -36,6 +36,13 @@ Additional caveats/assumptions:
 - We use geopotential height of surface in model as elevation (whereas station elevation is geometric height; difference is insignificant)
 - We assume station instrumentation is at 2m AGL: we use model 2m temperature and dewpoint in our calculations, but only have model surface pressure (not 2m) available to us. We assume those 2 m have an insignificant impact on the pressure value.
 
+Input validation in the METAR handler uses broad sanity limits before calling MetPy:
+surface pressure must be 10,000--110,000 Pa, air temperature 150--350 K, and
+dewpoint at least 100 K and no greater than air temperature. All model inputs
+and station elevation must be finite; station elevation must be -200--7,000 m.
+Invalid inputs, or a non-finite or non-positive derived layer temperature, produce
+a null normalized pressure for that station without stopping other stations.
+
 
 Note: This was implemented by adding a new GribBuilder handler in #588.
 

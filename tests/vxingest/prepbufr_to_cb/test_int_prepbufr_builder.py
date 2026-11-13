@@ -136,6 +136,9 @@ def test_one_thread_specify_file_pattern(tmp_path: Path):
     try:
         vx_ingest = setup_connection()
         try:
+            # Delete any existing RAOB test documents for this subset and file path before running the ingest
+            delete_statement = "DELETE FROM vxdata._default.RAOB WHERE subset='RAOB' AND type='DF' AND fileType='prepbufr' AND CONTAINS(url,'/opt/data/prepbufr_to_cb/%')"
+            vx_ingest.cluster.query(delete_statement)
             job_id = "JS:RAOB:OBS:PREPBUFR-TEST:schedule:job:V01"
             (
                 vx_ingest,
